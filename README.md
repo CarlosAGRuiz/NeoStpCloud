@@ -1,0 +1,113 @@
+# NeoSTP Cloud Web
+
+Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
+
+> Versión actual: **Sprint 0 — Setup técnico**. Aún no hay funcionalidad de negocio; solo cimientos.
+
+## Stack
+
+- **.NET 10** (LTS, soporte hasta nov-2028)
+- **ASP.NET Core MVC + Razor** (Web)
+- **ASP.NET Core Web API** + **OpenAPI nativo** (Api)
+- **SQL Server 2022** + **Entity Framework Core 10**
+- **Serilog** (logs estructurados a consola y archivo)
+- **.NET Worker Service** (procesos en segundo plano)
+- **xUnit** (pruebas)
+- Autenticación prevista: **JWT** (Api) + **Cookies** (Web)
+
+## Arquitectura
+
+Modular monolith con separación por capas:
+
+```
+NeoSTP.slnx
+├── src/
+│   ├── NeoSTP.Web              # MVC/Razor (UI)
+│   ├── NeoSTP.Api              # Web API (REST + OpenAPI)
+│   ├── NeoSTP.Application      # Casos de uso, servicios, DTOs
+│   ├── NeoSTP.Domain           # Entidades, reglas, enums
+│   ├── NeoSTP.Infrastructure   # EF Core, SQL Server, integraciones
+│   ├── NeoSTP.Worker           # Background jobs
+│   └── NeoSTP.Shared           # Utilidades, ApiResponse, constantes
+└── tests/
+    ├── NeoSTP.Tests.Unit
+    └── NeoSTP.Tests.Integration
+```
+
+### Referencias
+
+| Proyecto         | Referencia a                          |
+| ---------------- | ------------------------------------- |
+| Web              | Application, Shared                   |
+| Api              | Application, Infrastructure, Shared   |
+| Application      | Domain, Shared                        |
+| Infrastructure   | Application, Domain, Shared           |
+| Worker           | Application, Infrastructure, Shared   |
+| Tests            | Application, Domain, Infrastructure   |
+
+## Requisitos
+
+- .NET SDK 10.0.x
+- SQL Server 2022 (local o remoto)
+- `dotnet ef` global tool (`dotnet tool install --global dotnet-ef`)
+
+## Configuración
+
+La cadena de conexión está en `appsettings.json` de los proyectos `Api`, `Web` y `Worker`:
+
+```json
+"ConnectionStrings": {
+  "NeoStpDb": "Server=.;Database=NeoSTP_Cloud;User Id=sa;Password=jda;TrustServerCertificate=True;MultipleActiveResultSets=True"
+}
+```
+
+> Las credenciales en `appsettings.json` son solo para desarrollo local. En producción deben moverse a User Secrets, variables de entorno o Azure Key Vault.
+
+## Cómo correr
+
+```powershell
+# Compilar todo
+dotnet build NeoSTP.slnx
+
+# Levantar la Web
+dotnet run --project src/NeoSTP.Web
+
+# Levantar la Api (OpenAPI en /openapi/v1.json en Development)
+dotnet run --project src/NeoSTP.Api
+
+# Levantar el Worker
+dotnet run --project src/NeoSTP.Worker
+```
+
+## Base de datos
+
+```powershell
+# Crear una nueva migración
+dotnet ef migrations add NombreMigracion `
+  --project src/NeoSTP.Infrastructure `
+  --startup-project src/NeoSTP.Api `
+  --output-dir Persistence/Migrations
+
+# Aplicar migraciones a la BD
+dotnet ef database update `
+  --project src/NeoSTP.Infrastructure `
+  --startup-project src/NeoSTP.Api
+```
+
+## Skill Claude Code
+
+Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más usados del día a día. Invócala como `/neostp` dentro de Claude Code.
+
+## Roadmap
+
+Ver el backlog técnico completo en la conversación inicial. Sprints planificados:
+
+- **Sprint 0** — Setup técnico ✅
+- **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT)
+- **Sprint 2** — Empresa y licenciamiento
+- **Sprint 3** — Catálogos, clientes, productos
+- **Sprint 4** — Configuración DTE
+- **Sprint 5** — Generación DTE
+- **Sprint 6** — Firma y transmisión Hacienda
+- **Sprint 7** — PDF, correo y documentos
+- **Sprint 8** — Dashboard y SuperAdmin

@@ -1,0 +1,85 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+*.log
+
+# .NET / Visual Studio
+.vs/
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+*.cache
+*.pdb
+.idea/
+*.iml
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Rider
+.idea/
+*.sln.iml
+
+# Publish output
+publish/
+publish-output/
+*.pubxml.user
+
+# NuGet packages
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Local user secrets / env
+*.env
+*.env.local
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+
+# Claude Code per-user settings
+.claude/settings.local.json
+.user.props
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.opencover.xml
+
+# Backup files
+*.bak
+*.swp
+*~
+
+# Rider/JetBrains
+.idea/
+*.iml
+
+# Misc
+*.tmp
+*.temp
+node_modules/
+
+# Local SQL/DB files
+*.mdf
+*.ldf
+*.ndf
