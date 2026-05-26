@@ -1,8 +1,86 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Dashboard";
+    var username = ViewBag.Username as string;
+    var tipoUsuario = ViewBag.TipoUsuario as string;
+    var roles = (ViewBag.Roles as IReadOnlyList<string>) ?? Array.Empty<string>();
+    var permisos = (ViewBag.Permisos as IReadOnlyList<string>) ?? Array.Empty<string>();
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h3 mb-1">Bienvenido, @username</h1>
+        <p class="text-muted">Tipo de usuario: <strong>@tipoUsuario</strong></p>
+    </div>
 </div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">DTE hoy</div>
+                <div class="display-6">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">DTE mes</div>
+                <div class="display-6">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Pendientes</div>
+                <div class="display-6">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Rechazados</div>
+                <div class="display-6">—</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white"><strong>Roles asignados</strong></div>
+            <ul class="list-group list-group-flush">
+                @foreach (var rol in roles)
+                {
+                    <li class="list-group-item">@rol</li>
+                }
+                @if (!roles.Any())
+                {
+                    <li class="list-group-item text-muted">Sin roles</li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white"><strong>Permisos (@permisos.Count)</strong></div>
+            <div class="card-body" style="max-height: 320px; overflow-y: auto;">
+                @foreach (var p in permisos)
+                {
+                    <span class="badge bg-secondary me-1 mb-1">@p</span>
+                }
+                @if (!permisos.Any())
+                {
+                    <em class="text-muted">Sin permisos</em>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="text-muted small mt-4">
+    Sprint 1 — Auth, catálogos y modelo Core completos. Los KPIs reales se conectan en sprints siguientes.
+</p>

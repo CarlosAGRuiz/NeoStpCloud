@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NeoSTP.Application\NeoSTP.Application.csproj" />
     <ProjectReference Include="..\NeoSTP.Shared\NeoSTP.Shared.csproj" />
+    <ProjectReference Include="..\NeoSTP.Infrastructure\NeoSTP.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

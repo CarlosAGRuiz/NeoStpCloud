@@ -1,4 +1,12 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using NeoSTP.Api.Auth;
+using NeoSTP.Application;
+using NeoSTP.Application.Auth;
+using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Infrastructure;
+using NeoSTP.Infrastructure.Persistence.Seed;
 using NeoSTP.Shared;
 using Serilog;
 
@@ -13,7 +21,36 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddScoped<ICurrentUser, CurrentUserAccessor>();
+
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+    ?? throw new InvalidOperationException("Jwt section missing in configuration.");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
@@ -25,6 +62,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Aplicar migraciones + seed inicial al arrancar
+await DatabaseSeeder.SeedAsync(app.Services);
+
 app.UseSerilogRequestLogging();
 
 if (app.Environment.IsDevelopment())
@@ -34,6 +74,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

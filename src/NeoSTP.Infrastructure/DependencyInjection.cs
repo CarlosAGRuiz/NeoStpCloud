@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Infrastructure.Auth;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure;
@@ -18,6 +20,11 @@ public static class DependencyInjection
                 sql.MigrationsAssembly(typeof(NeoStpDbContext).Assembly.FullName);
                 sql.EnableRetryOnFailure(maxRetryCount: 3);
             }));
+
+        services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAuditoriaService, AuditoriaService>();
+        services.AddScoped<IAuthService, AuthService>();
 
         return services;
     }

@@ -1,0 +1,81 @@
+@model NeoSTP.Web.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Iniciar sesión";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · NeoSTP Cloud</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            background: linear-gradient(135deg, #1e3a8a 0%, #4f46e5 100%);
+        }
+        .login-card {
+            max-width: 420px;
+            width: 100%;
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+        }
+        .brand {
+            color: #1e3a8a;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .form-label { font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card login-card">
+                    <div class="card-body p-4 p-md-5">
+                        <h1 class="h3 brand mb-1">NeoSTP Cloud</h1>
+                        <p class="text-muted mb-4">Inicia sesión para continuar</p>
+
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+                        <form asp-action="Login" method="post" autocomplete="on">
+                            <input type="hidden" asp-for="ReturnUrl" />
+
+                            <div class="mb-3">
+                                <label asp-for="UsernameOrEmail" class="form-label"></label>
+                                <input asp-for="UsernameOrEmail" class="form-control form-control-lg" autofocus />
+                                <span asp-validation-for="UsernameOrEmail" class="text-danger small"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Password" class="form-label"></label>
+                                <input asp-for="Password" class="form-control form-control-lg" type="password" />
+                                <span asp-validation-for="Password" class="text-danger small"></span>
+                            </div>
+
+                            <div class="form-check mb-4">
+                                <input asp-for="RememberMe" class="form-check-input" />
+                                <label asp-for="RememberMe" class="form-check-label"></label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100">Entrar</button>
+                        </form>
+                    </div>
+                    <div class="card-footer text-center text-muted small py-3 bg-white border-0">
+                        © @DateTime.Now.Year NeoSTP — Plataforma SaaS DTE
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
