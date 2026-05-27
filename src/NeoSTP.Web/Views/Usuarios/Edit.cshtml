@@ -1,0 +1,69 @@
+@model NeoSTP.Web.Models.EditUsuarioViewModel
+@{
+    ViewData["Title"] = $"Editar {Model.Username}";
+    var roles = (ViewBag.RolesDisponibles as IEnumerable<NeoSTP.Application.Roles.Dtos.RolDto>) ?? Array.Empty<NeoSTP.Application.Roles.Dtos.RolDto>();
+    var tipos = new[] { "ADMIN", "OPERADOR", "CONTADOR", "READONLY" };
+    var estados = new[] { "ACTIVO", "INACTIVO", "BLOQUEADO" };
+}
+
+<h1 class="h4 mb-3">Editar usuario · <span class="text-muted">@Model.Username</span></h1>
+
+<form asp-action="Edit" method="post" class="card border-0 shadow-sm p-4" style="max-width: 720px;">
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Username" />
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" type="email" class="form-control" />
+            <span asp-validation-for="Email" class="text-danger small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Telefono" class="form-label"></label>
+            <input asp-for="Telefono" class="form-control" />
+        </div>
+        <div class="col-md-8">
+            <label asp-for="NombreCompleto" class="form-label"></label>
+            <input asp-for="NombreCompleto" class="form-control" />
+            <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="TipoUsuarioCodigo" class="form-label"></label>
+            <select asp-for="TipoUsuarioCodigo" class="form-select">
+                @foreach (var t in tipos) { <option value="@t" selected="@(t == Model.TipoUsuarioCodigo)">@t</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="EstadoCodigo" class="form-label"></label>
+            <select asp-for="EstadoCodigo" class="form-select">
+                @foreach (var e in estados) { <option value="@e" selected="@(e == Model.EstadoCodigo)">@e</option> }
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label">Roles</label>
+            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                @foreach (var r in roles)
+                {
+                    var checkedAttr = Model.RoleIds.Contains(r.Id) ? "checked" : null;
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="RoleIds" value="@r.Id" id="rol_@r.Id" @checkedAttr />
+                        <label class="form-check-label" for="rol_@r.Id">
+                            <strong>@r.Nombre</strong>
+                            <span class="text-muted small">— @r.Codigo</span>
+                            @if (r.EsSistema) { <span class="badge bg-info ms-1">sistema</span> }
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }

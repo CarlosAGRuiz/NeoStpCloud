@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Auth.Dtos;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Usuarios;
+using NeoSTP.Application.Usuarios.Dtos;
 using NeoSTP.Shared;
 
 namespace NeoSTP.Api.Controllers;
@@ -12,11 +14,13 @@ namespace NeoSTP.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _auth;
+    private readonly IUsuariosService _usuarios;
     private readonly ICurrentUser _currentUser;
 
-    public AuthController(IAuthService auth, ICurrentUser currentUser)
+    public AuthController(IAuthService auth, IUsuariosService usuarios, ICurrentUser currentUser)
     {
         _auth = auth;
+        _usuarios = usuarios;
         _currentUser = currentUser;
     }
 
@@ -42,6 +46,30 @@ public class AuthController : ControllerBase
     {
         await _auth.LogoutAsync(request?.RefreshToken, BuildContext(), ct);
         return Ok(ApiResponse.Ok("Sesión cerrada.", HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+        {
+            return Unauthorized(ApiResponse.Fail("No autenticado.", traceId: HttpContext.TraceIdentifier));
+        }
+
+        var result = await _usuarios.ChangePasswordAsync(userId, request, _currentUser.Username, ct);
+        if (result.IsSuccess)
+        {
+            return Ok(ApiResponse.Ok("Contraseña cambiada.", HttpContext.TraceIdentifier));
+        }
+
+        var payload = ApiResponse.Fail(result.Error ?? "Error", result.ValidationErrors, HttpContext.TraceIdentifier);
+        return result.ErrorCode switch
+        {
+            "PWD_INVALID" => Unauthorized(payload),
+            "PWD_WEAK" or "VALIDATION" => BadRequest(payload),
+            _ => BadRequest(payload),
+        };
     }
 
     [HttpGet("me")]

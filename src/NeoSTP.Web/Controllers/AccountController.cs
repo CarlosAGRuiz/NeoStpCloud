@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Auth.Dtos;
+using NeoSTP.Application.Usuarios;
+using NeoSTP.Application.Usuarios.Dtos;
 using NeoSTP.Web.Auth;
 using NeoSTP.Web.Models;
 
@@ -13,11 +15,15 @@ namespace NeoSTP.Web.Controllers;
 public class AccountController : Controller
 {
     private readonly IAuthService _auth;
+    private readonly IUsuariosService _usuarios;
+    private readonly ICurrentUser _currentUser;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IAuthService auth, ILogger<AccountController> logger)
+    public AccountController(IAuthService auth, IUsuariosService usuarios, ICurrentUser currentUser, ILogger<AccountController> logger)
     {
         _auth = auth;
+        _usuarios = usuarios;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -108,6 +114,32 @@ public class AccountController : Controller
 
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    [Authorize]
+    public IActionResult ChangePassword() => View(new ChangePasswordViewModel());
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return View(model);
+        if (_currentUser.UserId is not int userId) return Unauthorized();
+
+        var result = await _usuarios.ChangePasswordAsync(userId,
+            new ChangePasswordRequest { CurrentPassword = model.CurrentPassword, NewPassword = model.NewPassword },
+            _currentUser.Username, ct);
+
+        if (result.IsFailure)
+        {
+            ModelState.AddModelError(string.Empty, result.Error ?? "No se pudo cambiar la contraseña.");
+            return View(model);
+        }
+
+        TempData["Success"] = "Contraseña cambiada correctamente.";
+        return RedirectToAction("Index", "Home");
     }
 
     [HttpGet]

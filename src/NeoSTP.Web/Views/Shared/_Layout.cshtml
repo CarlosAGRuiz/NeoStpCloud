@@ -26,19 +26,26 @@
                         @if (isAuth)
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Usuarios" asp-action="Index">Usuarios</a></li>
                         }
                     </ul>
                     <ul class="navbar-nav">
                         @if (isAuth)
                         {
-                            <li class="nav-item d-flex align-items-center text-white-50 me-3 small">
-                                <span>👤 @username</span>
-                            </li>
-                            <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-outline-light btn-sm">Cerrar sesión</button>
-                                </form>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" data-bs-toggle="dropdown" role="button">
+                                    👤 @username
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Cambiar contraseña</a></li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="px-3 py-1">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Cerrar sesión</button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </li>
                         }
                         else

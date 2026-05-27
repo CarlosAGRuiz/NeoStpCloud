@@ -94,6 +94,68 @@ dotnet ef database update `
   --startup-project src/NeoSTP.Api
 ```
 
+## Endpoints disponibles (Sprint 1)
+
+Todos los endpoints viven bajo `/api`. Los autenticados requieren `Authorization: Bearer <jwt>`.
+
+### Auth (anónimo + autenticado)
+
+```
+POST  /api/auth/login              { usernameOrEmail, password }
+POST  /api/auth/refresh            { refreshToken }
+POST  /api/auth/logout             { refreshToken? }
+GET   /api/auth/me
+POST  /api/auth/change-password    { currentPassword, newPassword }
+```
+
+### Usuarios (requiere permisos `Core.Usuarios.*`)
+
+```
+GET    /api/usuarios?page=&pageSize=&search=
+GET    /api/usuarios/{id}
+POST   /api/usuarios
+PUT    /api/usuarios/{id}
+PATCH  /api/usuarios/{id}/bloquear
+PATCH  /api/usuarios/{id}/desbloquear
+POST   /api/usuarios/{id}/reset-password
+```
+
+### Roles (requiere `Core.Roles.Administrar`)
+
+```
+GET   /api/roles
+GET   /api/roles/{id}
+POST  /api/roles
+PUT   /api/roles/{id}
+GET   /api/roles/permisos
+```
+
+### Catálogos (cualquier autenticado)
+
+```
+GET  /api/catalogos
+GET  /api/catalogos/{codigo}/items     # ej: MONEDA, TIPO_FACTURA, ESTADO_USUARIO
+```
+
+### Diagnóstico
+
+```
+GET  /health
+GET  /openapi/v1.json     # solo en Development
+```
+
+## SuperAdmin inicial
+
+Al primer arranque de la Api, `DatabaseSeeder` aplica migraciones pendientes y, si no hay
+ningún usuario, crea un SuperAdmin:
+
+| Username     | Password         |
+| ------------ | ---------------- |
+| `superadmin` | `ChangeMe!2026`  |
+
+**Cambia la contraseña en el primer login** vía `POST /api/auth/change-password`
+o desde el menú de usuario en la Web.
+
 ## Skill Claude Code
 
 Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más usados del día a día. Invócala como `/neostp` dentro de Claude Code.
@@ -103,7 +165,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 Ver el backlog técnico completo en la conversación inicial. Sprints planificados:
 
 - **Sprint 0** — Setup técnico ✅
-- **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT)
+- **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT) ✅
 - **Sprint 2** — Empresa y licenciamiento
 - **Sprint 3** — Catálogos, clientes, productos
 - **Sprint 4** — Configuración DTE

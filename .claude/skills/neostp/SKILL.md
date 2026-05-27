@@ -77,6 +77,36 @@ Corre todas las pruebas (unit + integration).
 dotnet test NeoSTP.slnx
 ```
 
+### `seed-reset`
+Borra el usuario SuperAdmin inicial para forzar que `DatabaseSeeder` lo vuelva a crear en el próximo arranque (útil si olvidaste la contraseña). **Destructivo.**
+
+```powershell
+$conn = New-Object System.Data.SqlClient.SqlConnection "Server=.;Database=NeoSTP_Cloud;User Id=sa;Password=jda;TrustServerCertificate=True"
+$conn.Open()
+$c = $conn.CreateCommand()
+$c.CommandText = "DELETE FROM Core_UsuarioRoles WHERE UsuarioId IN (SELECT Id FROM Core_Usuarios WHERE Username='superadmin'); DELETE FROM Core_RefreshTokens WHERE UsuarioId IN (SELECT Id FROM Core_Usuarios WHERE Username='superadmin'); DELETE FROM Core_Usuarios WHERE Username='superadmin'"
+$c.ExecuteNonQuery()
+$conn.Close()
+```
+
+### `login-superadmin`
+Hace login del SuperAdmin contra la Api levantada (https://localhost:7043) y exporta el JWT en `$env:NEOSTP_TOKEN` para usarlo en pruebas manuales.
+
+```powershell
+Add-Type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllSkill : ICertificatePolicy { public bool CheckValidationResult(ServicePoint a, X509Certificate b, WebRequest c, int d){return true;} }
+"@ -ErrorAction SilentlyContinue
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllSkill
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+$r = Invoke-RestMethod -Uri https://localhost:7043/api/auth/login -Method Post -ContentType 'application/json' `
+  -Body '{"usernameOrEmail":"superadmin","password":"ChangeMe!2026"}'
+$env:NEOSTP_TOKEN = $r.data.accessToken
+"Token guardado en `$env:NEOSTP_TOKEN ($($r.data.user.permisos.Count) permisos)"
+```
+
 ### `test-unit`
 Solo pruebas unitarias.
 

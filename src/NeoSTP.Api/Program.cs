@@ -1,7 +1,10 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using NeoSTP.Api.Auth;
+using NeoSTP.Api.Authorization;
+using NeoSTP.Api.Middlewares;
 using NeoSTP.Application;
 using NeoSTP.Application.Auth;
 using NeoSTP.Application.Auth.Abstractions;
@@ -50,6 +53,8 @@ builder.Services
         };
     });
 
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermisoPolicyProvider>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermisoAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
@@ -75,6 +80,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<CurrentTenantMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
