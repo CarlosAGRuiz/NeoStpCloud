@@ -59,11 +59,14 @@ public static class DependencyInjection
         if (string.Equals(haciendaClient, "Http", StringComparison.OrdinalIgnoreCase))
         {
             services.AddHttpClient(HttpHaciendaAuthClient.HttpClientName);
+            services.AddHttpClient(HttpHaciendaReceptionClient.HttpClientName);
             services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
+            services.AddScoped<IHaciendaReceptionClient, HttpHaciendaReceptionClient>();
         }
         else
         {
             services.AddScoped<IHaciendaAuthClient, MockHaciendaAuthClient>();
+            services.AddScoped<IHaciendaReceptionClient, MockHaciendaReceptionClient>();
         }
 
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
@@ -72,6 +75,13 @@ public static class DependencyInjection
         services.AddScoped<IDteCalculator, DteCalculator>();
         services.AddScoped<IDteGeneratorService, DteGeneratorService>();
         services.AddScoped<IDteDocumentosService, DteDocumentosService>();
+
+        // Sprint 6: firma DTE — toggle "Mock" (default) vs "Pkcs12" según Dte:Signer
+        var dteSigner = configuration["Dte:Signer"];
+        if (string.Equals(dteSigner, "Pkcs12", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<IDteSignerService, Pkcs12DteSignerService>();
+        else
+            services.AddScoped<IDteSignerService, MockDteSignerService>();
 
         return services;
     }

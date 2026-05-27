@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
+using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Infrastructure.Persistence;
@@ -23,17 +24,29 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly NeoStpDbContext _db;
     private readonly IDteCalculator _calculator;
     private readonly IDteGeneratorService _generator;
+    private readonly IDteSignerService _signer;
+    private readonly IHaciendaReceptionClient _reception;
+    private readonly IHaciendaAuthClient _haciendaAuth;
+    private readonly ISecretProtector _protector;
     private readonly IAuditoriaService _auditoria;
 
     public DteDocumentosService(
         NeoStpDbContext db,
         IDteCalculator calculator,
         IDteGeneratorService generator,
+        IDteSignerService signer,
+        IHaciendaReceptionClient reception,
+        IHaciendaAuthClient haciendaAuth,
+        ISecretProtector protector,
         IAuditoriaService auditoria)
     {
         _db = db;
         _calculator = calculator;
         _generator = generator;
+        _signer = signer;
+        _reception = reception;
+        _haciendaAuth = haciendaAuth;
+        _protector = protector;
         _auditoria = auditoria;
     }
 
@@ -317,6 +330,170 @@ public class DteDocumentosService : IDteDocumentosService
         return await GetByIdAsync(empresaId, doc.Id, ct);
     }
 
+    public async Task<Result<DteDocumentoDto>> FirmarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    {
+        var doc = await _db.DteDocumentos
+            .Include(d => d.Detalles)
+            .Include(d => d.Json)
+            .Include(d => d.Empresa)
+            .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+
+        if (doc.EstadoCodigo is DteEstadoCodigos.Enviado or DteEstadoCodigos.Procesado)
+            return Result<DteDocumentoDto>.Fail("El documento ya fue enviado.", "INVALID_STATE");
+
+        if (doc.Json is null || string.IsNullOrEmpty(doc.Json.JsonDte))
+        {
+            var gen = await GenerarAsync(empresaId, id, actor, ct);
+            if (gen.IsFailure) return gen;
+            doc = await _db.DteDocumentos
+                .Include(d => d.Json)
+                .FirstAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        }
+
+        var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config is null)
+            return Result<DteDocumentoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
+        if (config.CertificadoBlob is null || config.CertificadoBlob.Length == 0)
+            return Result<DteDocumentoDto>.Fail("Certificado no cargado en Configuración DTE.", "VALIDATION");
+
+        string? certPassword = null;
+        if (!string.IsNullOrEmpty(config.PasswordCertificadoCifrado))
+        {
+            try { certPassword = _protector.Unprotect(config.PasswordCertificadoCifrado); }
+            catch
+            {
+                return Result<DteDocumentoDto>.Fail(
+                    "No se pudo descifrar el password del certificado (¿llave de DataProtection cambió?). Reingresar.",
+                    "DECRYPT_FAILED");
+            }
+        }
+
+        var firma = await _signer.FirmarAsync(doc.Json!.JsonDte, config.CertificadoBlob, certPassword, ct);
+        if (!firma.Success)
+        {
+            await Audit(empresaId, actor, "FIRMAR", "FAIL", $"{firma.Mensaje}: {firma.Detalle}", doc.Id);
+            return Result<DteDocumentoDto>.Fail(firma.Detalle ?? firma.Mensaje ?? "Error firmando.", "FIRMA_FAILED");
+        }
+
+        doc.Json.JsonFirmado = firma.JsonFirmado;
+        doc.Json.FirmadoAt = DateTime.UtcNow;
+        doc.Json.UpdatedAt = DateTime.UtcNow;
+        doc.Json.UpdatedBy = actor;
+
+        doc.EstadoCodigo = DteEstadoCodigos.Firmado;
+        doc.UpdatedAt = DateTime.UtcNow;
+        doc.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "FIRMAR", "OK",
+            $"DTE {doc.NumeroControl} firmado ({firma.Detalle}).", doc.Id);
+
+        return await GetByIdAsync(empresaId, doc.Id, ct);
+    }
+
+    public async Task<Result<DteDocumentoDto>> EnviarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    {
+        var doc = await _db.DteDocumentos
+            .Include(d => d.Detalles)
+            .Include(d => d.Json)
+            .Include(d => d.Empresa)
+            .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado)
+            return Result<DteDocumentoDto>.Fail("El documento ya fue procesado por Hacienda.", "INVALID_STATE");
+        if (doc.Json is null || string.IsNullOrEmpty(doc.Json.JsonFirmado))
+        {
+            // Auto-firma si no está firmado todavía
+            var f = await FirmarAsync(empresaId, id, actor, ct);
+            if (f.IsFailure) return f;
+            doc = await _db.DteDocumentos
+                .Include(d => d.Json)
+                .FirstAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        }
+
+        var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config is null)
+            return Result<DteDocumentoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
+
+        var tokenResult = await ObtenerTokenAsync(config, ct);
+        if (!tokenResult.Success)
+            return Result<DteDocumentoDto>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token Hacienda.", "HACIENDA_AUTH_FAILED");
+
+        var resp = await _reception.EnviarAsync(new HaciendaReceptionRequest
+        {
+            Ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
+            AmbienteCodigo = config.AmbienteCodigo,
+            IdEnvio = doc.Id,
+            Version = doc.VersionDte,
+            TipoDte = doc.TipoDteCodigo,
+            Documento = doc.Json!.JsonFirmado!,
+            CodigoGeneracion = doc.CodigoGeneracion,
+            Token = tokenResult.Token!,
+        }, ct);
+
+        doc.Json.RespuestaHacienda = resp.Raw;
+        doc.Json.RespuestaAt = DateTime.UtcNow;
+        doc.Json.UpdatedAt = DateTime.UtcNow;
+        doc.Json.UpdatedBy = actor;
+        doc.EnviadoAt = DateTime.UtcNow;
+
+        // Map response -> estado interno
+        var nuevoEstado = (resp.Estado ?? string.Empty).ToUpperInvariant() switch
+        {
+            "PROCESADO" => DteEstadoCodigos.Procesado,
+            "RECHAZADO" => DteEstadoCodigos.Rechazado,
+            "CONTINGENCIA" => DteEstadoCodigos.Contingencia,
+            "NO_AUTORIZADO" => DteEstadoCodigos.Error,
+            _ => resp.Success ? DteEstadoCodigos.Enviado : DteEstadoCodigos.Error,
+        };
+        doc.EstadoCodigo = nuevoEstado;
+        if (nuevoEstado == DteEstadoCodigos.Procesado)
+        {
+            doc.SelloRecibido = resp.SelloRecibido;
+            doc.ProcesadoAt = resp.FhProcesamiento ?? DateTime.UtcNow;
+        }
+        doc.UpdatedAt = DateTime.UtcNow;
+        doc.UpdatedBy = actor;
+
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "ENVIAR",
+            resp.Success && nuevoEstado == DteEstadoCodigos.Procesado ? "OK" : "FAIL",
+            $"[{resp.CodigoHttp}] estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg}",
+            doc.Id);
+
+        return await GetByIdAsync(empresaId, doc.Id, ct);
+    }
+
+    private async Task<(bool Success, string? Token, string? Mensaje)> ObtenerTokenAsync(
+        Domain.Core.Dte.DteConfiguracion config, CancellationToken ct)
+    {
+        // Token cacheado vigente: 5 minutos de margen antes de expirar
+        if (!string.IsNullOrEmpty(config.TokenMhCifrado)
+            && config.TokenMhExpiraAt.HasValue
+            && config.TokenMhExpiraAt.Value > DateTime.UtcNow.AddMinutes(5))
+        {
+            try { return (true, _protector.Unprotect(config.TokenMhCifrado), null); }
+            catch { /* fall-through al refresh */ }
+        }
+
+        // Refresh: autenticar contra Hacienda con las credenciales guardadas
+        if (string.IsNullOrEmpty(config.UsuarioMh) || string.IsNullOrEmpty(config.PasswordMhCifrado))
+            return (false, null, "Faltan credenciales MH en Configuración DTE.");
+
+        string password;
+        try { password = _protector.Unprotect(config.PasswordMhCifrado); }
+        catch { return (false, null, "No se pudo descifrar el password MH (¿llave DataProtection cambió?)."); }
+
+        var auth = await _haciendaAuth.AutenticarAsync(config.UsuarioMh, password, config.AmbienteCodigo, ct);
+        if (!auth.Success || string.IsNullOrEmpty(auth.Token))
+            return (false, null, $"Auth MH falló: [{auth.CodigoHttp}] {auth.Mensaje}");
+
+        config.TokenMhCifrado = _protector.Protect(auth.Token);
+        config.TokenMhExpiraAt = auth.ExpiresAt ?? DateTime.UtcNow.AddHours(8);
+        await _db.SaveChangesAsync(ct);
+        return (true, auth.Token, null);
+    }
+
     public async Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default)
     {
         var doc = await _db.DteDocumentos.FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
@@ -440,6 +617,10 @@ public class DteDocumentosService : IDteDocumentosService
         CreatedAt = d.CreatedAt,
         GeneradoAt = d.GeneradoAt,
         ValidadoAt = d.ValidadoAt,
+        FirmadoAt = d.Json?.FirmadoAt,
+        EnviadoAt = d.EnviadoAt,
+        ProcesadoAt = d.ProcesadoAt,
+        RespuestaAt = d.Json?.RespuestaAt,
         Detalles = d.Detalles
             .OrderBy(x => x.NumeroLinea)
             .Select(l => new DteDocumentoDetalleDto
@@ -462,6 +643,8 @@ public class DteDocumentosService : IDteDocumentosService
                 Observaciones = l.Observaciones,
             }).ToList(),
         JsonDte = d.Json?.JsonDte,
+        JsonFirmado = d.Json?.JsonFirmado,
+        RespuestaHacienda = d.Json?.RespuestaHacienda,
     };
 
     private Task Audit(int empresaId, string? actor, string accion, string resultado, string? detalle, int entidadId)

@@ -92,6 +92,22 @@ public class DteController : ApiControllerBase
         return Respond(await _service.ValidarAsync(eid, id, _currentUser.Username, ct));
     }
 
+    [HttpPost("documentos/{id:int}/firmar")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> Firmar(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.FirmarAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    [HttpPost("documentos/{id:int}/enviar")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> Enviar(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.EnviarAsync(eid, id, _currentUser.Username, ct));
+    }
+
     [HttpPost("documentos/{id:int}/invalidar")]
     [RequirePermiso("DTE.Invalidar")]
     public async Task<IActionResult> Invalidar(int id, [FromQuery] int? empresaId, [FromBody] InvalidarRequest body, CancellationToken ct)
