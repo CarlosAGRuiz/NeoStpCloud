@@ -21,6 +21,7 @@ builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddScoped<ICurrentUser, CookieCurrentUser>();
+builder.Services.AddScoped<NeoSTP.Application.Empresas.IEmpresaContext, NeoSTP.Web.Auth.WebEmpresaContext>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

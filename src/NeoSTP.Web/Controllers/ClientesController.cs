@@ -15,19 +15,25 @@ public class ClientesController : Controller
     private readonly IClientesService _clientes;
     private readonly ICatalogosService _catalogos;
     private readonly ICurrentUser _currentUser;
+    private readonly NeoSTP.Application.Empresas.IEmpresaContext _empresaContext;
 
-    public ClientesController(IClientesService clientes, ICatalogosService catalogos, ICurrentUser currentUser)
+    public ClientesController(
+        IClientesService clientes,
+        ICatalogosService catalogos,
+        ICurrentUser currentUser,
+        NeoSTP.Application.Empresas.IEmpresaContext empresaContext)
     {
         _clientes = clientes;
         _catalogos = catalogos;
         _currentUser = currentUser;
+        _empresaContext = empresaContext;
     }
 
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] int page = 1, CancellationToken ct = default)
     {
         if (!Has("Clientes.Ver")) return Forbid();
-        if (RequireEmpresa() is not int eid) return RedirectToAction("Index", "Home");
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         var result = await _clientes.GetListAsync(eid, new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
         ViewBag.Search = search;
@@ -175,7 +181,17 @@ public class ClientesController : Controller
     private bool Has(string codigo)
         => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);
 
-    private int? RequireEmpresa() => _currentUser.EmpresaId;
+    private int? RequireEmpresa() => _empresaContext.CurrentEmpresaId;
+
+    private IActionResult RedirectToSoporte()
+    {
+        if (_currentUser.TipoUsuarioCodigo == "SUPERADMIN")
+        {
+            TempData["Error"] = "Esta pantalla opera dentro de una empresa. Selecciona una en modo soporte primero.";
+            return RedirectToAction("Index", "Soporte");
+        }
+        return RedirectToAction("Index", "Home");
+    }
 
     private async Task LoadCatalogosAsync(CancellationToken ct)
     {

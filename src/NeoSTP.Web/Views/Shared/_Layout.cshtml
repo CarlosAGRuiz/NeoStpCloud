@@ -1,6 +1,12 @@
+@inject NeoSTP.Application.Empresas.IEmpresaContext EmpresaContext
 @{
     var username = User.Identity?.Name;
     var isAuth = User.Identity?.IsAuthenticated ?? false;
+    var tipoUsuario = User.FindFirst(NeoSTP.Web.Auth.CookieCurrentUser.ClaimTipoUsuario)?.Value;
+    var isSuperAdmin = tipoUsuario == "SUPERADMIN";
+    var soporteEmpresaId = EmpresaContext.CurrentEmpresaId;
+    var soporteEmpresaNombre = EmpresaContext.SupportEmpresaNombre;
+    var enModoSoporte = EmpresaContext.IsSupportMode;
 }
 <!DOCTYPE html>
 <html lang="es">
@@ -14,6 +20,16 @@
     <link rel="stylesheet" href="~/NeoSTP.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
+    @if (enModoSoporte)
+    {
+        <div class="bg-warning text-dark py-1 px-3 small d-flex justify-content-between align-items-center">
+            <span>⚠️ <strong>Modo soporte activo</strong> · operando como: <strong>@soporteEmpresaNombre</strong></span>
+            <form asp-controller="Soporte" asp-action="Salir" method="post" class="d-inline m-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-link text-dark p-0">Salir del modo soporte</button>
+            </form>
+        </div>
+    }
     <header>
         <nav class="navbar navbar-expand-sm navbar-dark bg-primary mb-3">
             <div class="container-fluid">
@@ -35,6 +51,14 @@
                         }
                     </ul>
                     <ul class="navbar-nav">
+                        @if (isAuth && isSuperAdmin)
+                        {
+                            <li class="nav-item">
+                                <a class="btn btn-sm @(enModoSoporte ? "btn-warning" : "btn-outline-light") me-2" asp-controller="Soporte" asp-action="Index">
+                                    @(enModoSoporte ? $"📍 {soporteEmpresaNombre}" : "🔧 Modo soporte")
+                                </a>
+                            </li>
+                        }
                         @if (isAuth)
                         {
                             <li class="nav-item dropdown">

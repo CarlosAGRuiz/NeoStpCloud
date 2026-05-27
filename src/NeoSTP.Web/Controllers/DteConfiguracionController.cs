@@ -15,19 +15,25 @@ public class DteConfiguracionController : Controller
     private readonly IDteConfiguracionService _service;
     private readonly ICatalogosService _catalogos;
     private readonly ICurrentUser _currentUser;
+    private readonly NeoSTP.Application.Empresas.IEmpresaContext _empresaContext;
 
-    public DteConfiguracionController(IDteConfiguracionService service, ICatalogosService catalogos, ICurrentUser currentUser)
+    public DteConfiguracionController(
+        IDteConfiguracionService service,
+        ICatalogosService catalogos,
+        ICurrentUser currentUser,
+        NeoSTP.Application.Empresas.IEmpresaContext empresaContext)
     {
         _service = service;
         _catalogos = catalogos;
         _currentUser = currentUser;
+        _empresaContext = empresaContext;
     }
 
     [HttpGet("")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         if (!Has("DTE.Configurar")) return Forbid();
-        if (RequireEmpresa() is not int eid) return RedirectToAction("Index", "Home");
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         var result = await _service.GetAsync(eid, ct);
         await LoadCatalogosAsync(ct);
@@ -153,7 +159,17 @@ public class DteConfiguracionController : Controller
     };
 
     private bool Has(string codigo) => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);
-    private int? RequireEmpresa() => _currentUser.EmpresaId;
+    private int? RequireEmpresa() => _empresaContext.CurrentEmpresaId;
+
+    private IActionResult RedirectToSoporte()
+    {
+        if (_currentUser.TipoUsuarioCodigo == "SUPERADMIN")
+        {
+            TempData["Error"] = "Esta pantalla opera dentro de una empresa. Selecciona una en modo soporte primero.";
+            return RedirectToAction("Index", "Soporte");
+        }
+        return RedirectToAction("Index", "Home");
+    }
 
     private async Task LoadCatalogosAsync(CancellationToken ct)
     {

@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<SuperAdminOptions>(configuration.GetSection(SuperAdminOptions.SectionName));
+        services.Configure<NeoSTP.Application.Dte.HaciendaOptions>(configuration.GetSection(NeoSTP.Application.Dte.HaciendaOptions.SectionName));
         return services;
     }
 }

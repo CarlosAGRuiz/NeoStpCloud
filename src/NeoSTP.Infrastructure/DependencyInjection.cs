@@ -50,10 +50,22 @@ public static class DependencyInjection
         services.AddScoped<IClientesService, ClientesService>();
         services.AddScoped<IProductosService, ProductosService>();
 
-        // Sprint 4: cifrado de secretos DTE + cliente Hacienda (mock) + servicio config
+        // Sprint 4: cifrado de secretos DTE + cliente Hacienda + servicio config
         services.AddDataProtection().SetApplicationName("NeoSTP.Cloud");
         services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
-        services.AddScoped<IHaciendaAuthClient, MockHaciendaAuthClient>();
+
+        // Cliente Hacienda: toggle "Mock" (default) vs "Http" según Hacienda:Client
+        var haciendaClient = configuration["Hacienda:Client"];
+        if (string.Equals(haciendaClient, "Http", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHttpClient(HttpHaciendaAuthClient.HttpClientName);
+            services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
+        }
+        else
+        {
+            services.AddScoped<IHaciendaAuthClient, MockHaciendaAuthClient>();
+        }
+
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
 
         return services;
