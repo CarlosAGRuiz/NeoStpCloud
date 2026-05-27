@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Empresas;
+using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Infrastructure.Auth;
@@ -38,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<ILicenciaResolver>(sp => sp.GetRequiredService<EmpresasService>());
         services.AddScoped<ISucursalesService, SucursalesService>();
         services.AddScoped<IPuntosVentaService, PuntosVentaService>();
+        services.AddScoped<IPlanesService, PlanesService>();
+        services.AddScoped<IModulosService, ModulosService>();
 
         return services;
     }

@@ -89,6 +89,33 @@ $c.ExecuteNonQuery()
 $conn.Close()
 ```
 
+### `seed-empresa-demo`
+Crea/limpia la empresa de demo "Demo S.A. de C.V." (NIT 0614-010100-101-1) y le asigna el plan PRO. Útil para reproducir el flujo E2E del Sprint 2. Idempotente.
+
+```powershell
+Add-Type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllSeed : ICertificatePolicy { public bool CheckValidationResult(ServicePoint a, X509Certificate b, WebRequest c, int d){return true;} }
+"@ -ErrorAction SilentlyContinue
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllSeed
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+
+$r = Invoke-RestMethod -Uri https://localhost:7043/api/auth/login -Method Post -ContentType 'application/json' `
+  -Body '{"usernameOrEmail":"superadmin","password":"ChangeMe!2026"}'
+$h = @{ Authorization = "Bearer $($r.data.accessToken)" }
+
+$conn = New-Object System.Data.SqlClient.SqlConnection "Server=.;Database=NeoSTP_Cloud;User Id=sa;Password=jda;TrustServerCertificate=True"
+$conn.Open(); $c = $conn.CreateCommand()
+$c.CommandText = "DECLARE @e int = (SELECT Id FROM Core_Empresas WHERE Nit='0614-010100-101-1'); IF @e IS NOT NULL BEGIN DELETE FROM Core_PuntosVenta WHERE SucursalId IN (SELECT Id FROM Core_Sucursales WHERE EmpresaId=@e); DELETE FROM Core_Sucursales WHERE EmpresaId=@e; DELETE FROM Core_EmpresaModulos WHERE EmpresaId=@e; DELETE FROM Core_EmpresaPlan WHERE EmpresaId=@e; DELETE FROM Core_Empresas WHERE Id=@e; END"
+$null = $c.ExecuteNonQuery(); $conn.Close()
+
+$body = @{ nit='0614-010100-101-1'; nrc='12345-6'; razonSocial='Demo S.A. de C.V.'; nombreComercial='Demo'; codigoActividad='62010'; actividadEconomica='Servicios de TI'; departamento='San Salvador'; municipio='San Salvador' } | ConvertTo-Json
+$e = Invoke-RestMethod -Uri https://localhost:7043/api/empresas -Method Post -Headers $h -ContentType 'application/json' -Body $body
+$null = Invoke-RestMethod -Uri "https://localhost:7043/api/empresas/$($e.data.id)/plan" -Method Post -Headers $h -ContentType 'application/json' -Body '{"planId":202}'
+"Empresa demo creada id=$($e.data.id) con plan PRO"
+```
+
 ### `login-superadmin`
 Hace login del SuperAdmin contra la Api levantada (https://localhost:7043) y exporta el JWT en `$env:NEOSTP_TOKEN` para usarlo en pruebas manuales.
 

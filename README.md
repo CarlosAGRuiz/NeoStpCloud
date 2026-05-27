@@ -170,6 +170,18 @@ PATCH  /api/puntos-venta/{id}/inactivar
 Crear sucursales/PV consume los **límites del plan**: si el conteo actual
 ya está en el límite, retorna `409 LIMIT_EXCEEDED`.
 
+### Planes y módulos (lectura, Sprint 2)
+
+```
+GET  /api/planes                  # catálogo de planes con sus módulos
+GET  /api/planes/{id}
+GET  /api/modulos                 # catálogo de módulos del sistema
+```
+
+Para proteger endpoints según módulo contratado por la empresa, decora
+con `[RequireModule("NEODTE")]` — la policy resuelve dinámicamente y
+consulta `Core_EmpresaModulos`. SuperAdmin siempre pasa.
+
 ### Diagnóstico
 
 ```
@@ -199,7 +211,7 @@ Ver el backlog técnico completo en la conversación inicial. Sprints planificad
 
 - **Sprint 0** — Setup técnico ✅
 - **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT) ✅
-- **Sprint 2** — Empresa y licenciamiento
+- **Sprint 2** — Empresa y licenciamiento ✅
 - **Sprint 3** — Catálogos, clientes, productos
 - **Sprint 4** — Configuración DTE
 - **Sprint 5** — Generación DTE
