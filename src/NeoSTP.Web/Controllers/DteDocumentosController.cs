@@ -182,6 +182,38 @@ public class DteDocumentosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Firmar(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.FirmarAsync(eid, id, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "DTE firmado." : result.Error;
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Enviar(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.EnviarAsync(eid, id, _currentUser.Username, ct);
+        if (result.IsSuccess)
+        {
+            var estado = result.Value!.EstadoCodigo;
+            TempData[estado == "PROCESADO" ? "Success" : "Error"] =
+                estado == "PROCESADO" ? $"DTE procesado por Hacienda. Sello: {result.Value!.SelloRecibido}"
+                                      : $"Hacienda devolvió estado {estado}.";
+        }
+        else
+        {
+            TempData["Error"] = result.Error;
+        }
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Invalidar(int id, string? motivo, CancellationToken ct)
     {
         if (!Has("DTE.Invalidar")) return Forbid();

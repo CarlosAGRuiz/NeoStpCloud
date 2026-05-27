@@ -75,9 +75,15 @@ public class DteDocumentoDto
     public DateTime CreatedAt { get; set; }
     public DateTime? GeneradoAt { get; set; }
     public DateTime? ValidadoAt { get; set; }
+    public DateTime? FirmadoAt { get; set; }
+    public DateTime? EnviadoAt { get; set; }
+    public DateTime? ProcesadoAt { get; set; }
+    public DateTime? RespuestaAt { get; set; }
 
     public List<DteDocumentoDetalleDto> Detalles { get; set; } = new();
     public string? JsonDte { get; set; }
+    public string? JsonFirmado { get; set; }
+    public string? RespuestaHacienda { get; set; }
 }
 
 public class DteDocumentoDetalleDto
