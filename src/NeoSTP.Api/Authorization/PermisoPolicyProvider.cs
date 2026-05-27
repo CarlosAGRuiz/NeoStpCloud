@@ -29,6 +29,17 @@ public class PermisoPolicyProvider : IAuthorizationPolicyProvider
                 .Build();
             return Task.FromResult<AuthorizationPolicy?>(policy);
         }
+
+        if (policyName.StartsWith(RequireModuleAttribute.PolicyPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var codigo = policyName[RequireModuleAttribute.PolicyPrefix.Length..];
+            var policy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(new ModuloRequirement(codigo))
+                .Build();
+            return Task.FromResult<AuthorizationPolicy?>(policy);
+        }
+
         return _fallback.GetPolicyAsync(policyName);
     }
 }

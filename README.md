@@ -137,6 +137,39 @@ GET  /api/catalogos
 GET  /api/catalogos/{codigo}/items     # ej: MONEDA, TIPO_FACTURA, ESTADO_USUARIO
 ```
 
+### Empresas y licenciamiento (Sprint 2)
+
+SuperAdmin ve todas las empresas; un usuario de empresa solo la suya.
+
+```
+GET   /api/empresas?page=&pageSize=&search=
+GET   /api/empresas/{id}
+POST  /api/empresas                            # solo SuperAdmin
+PUT   /api/empresas/{id}
+GET   /api/empresas/{id}/licencia              # plan vigente + módulos + consumo
+POST  /api/empresas/{id}/plan                  { planId, fechaInicio?, fechaFin? }
+POST  /api/empresas/{id}/modulos/{moduloId}/activar
+POST  /api/empresas/{id}/modulos/{moduloId}/desactivar
+```
+
+### Sucursales y Puntos de Venta (Sprint 2)
+
+```
+GET    /api/sucursales
+GET    /api/sucursales/{id}
+POST   /api/sucursales
+PUT    /api/sucursales/{id}
+PATCH  /api/sucursales/{id}/inactivar
+GET    /api/puntos-venta
+GET    /api/puntos-venta/{id}
+POST   /api/puntos-venta
+PUT    /api/puntos-venta/{id}
+PATCH  /api/puntos-venta/{id}/inactivar
+```
+
+Crear sucursales/PV consume los **límites del plan**: si el conteo actual
+ya está en el límite, retorna `409 LIMIT_EXCEEDED`.
+
 ### Diagnóstico
 
 ```

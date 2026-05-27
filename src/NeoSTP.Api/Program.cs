@@ -55,6 +55,7 @@ builder.Services
 
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermisoPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermisoAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, ModuloAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>

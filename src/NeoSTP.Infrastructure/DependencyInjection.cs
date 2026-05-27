@@ -36,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<EmpresasService>();
         services.AddScoped<IEmpresasService>(sp => sp.GetRequiredService<EmpresasService>());
         services.AddScoped<ILicenciaResolver>(sp => sp.GetRequiredService<EmpresasService>());
+        services.AddScoped<ISucursalesService, SucursalesService>();
+        services.AddScoped<IPuntosVentaService, PuntosVentaService>();
 
         return services;
     }
