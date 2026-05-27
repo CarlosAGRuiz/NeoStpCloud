@@ -1,0 +1,169 @@
+@model NeoSTP.Application.Dte.Dtos.DteDocumentoDto
+@{
+    ViewData["Title"] = $"DTE {Model.NumeroControl}";
+    var estadoBadge = Model.EstadoCodigo switch
+    {
+        "BORRADOR" => "bg-secondary",
+        "GENERADO" => "bg-info",
+        "VALIDADO" => "bg-primary",
+        "FIRMADO" => "bg-warning text-dark",
+        "ENVIADO" => "bg-warning text-dark",
+        "PROCESADO" => "bg-success",
+        "RECHAZADO" or "ERROR" => "bg-danger",
+        "INVALIDADO" => "bg-dark",
+        _ => "bg-light text-dark border"
+    };
+}
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1 class="h4 m-0">DTE @Model.TipoDteCodigo · <small class="text-muted font-monospace">@Model.NumeroControl</small></h1>
+        <div class="mt-1">
+            <span class="badge @estadoBadge">@Model.EstadoCodigo</span>
+            <span class="badge bg-light text-dark border">Ambiente: @Model.AmbienteCodigo</span>
+            <span class="badge bg-light text-dark border">@Model.FechaEmision.ToString("yyyy-MM-dd") @Model.HoraEmision.ToString(@"hh\:mm")</span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+        @if (Model.EstadoCodigo is "BORRADOR" or "ERROR")
+        {
+            <form asp-action="Generar" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-info">Generar JSON</button>
+            </form>
+        }
+        @if (Model.EstadoCodigo is "BORRADOR" or "GENERADO" or "ERROR")
+        {
+            <form asp-action="Validar" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-primary">Validar</button>
+            </form>
+        }
+        @if (Model.EstadoCodigo != "PROCESADO" && Model.EstadoCodigo != "INVALIDADO")
+        {
+            <form asp-action="Invalidar" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="motivo" value="Anulado por usuario" />
+                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Invalidar este DTE?');">Invalidar</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header">Receptor</div>
+            <div class="card-body">
+                <p class="m-0"><strong>@(Model.ReceptorNombre ?? "—")</strong></p>
+                <p class="m-0 text-muted small">
+                    @Model.ReceptorTipoDocumento @Model.ReceptorNumeroDocumento
+                    @if (!string.IsNullOrEmpty(Model.ReceptorNrc)) { <span> · NRC @Model.ReceptorNrc</span> }
+                </p>
+                <p class="m-0 text-muted small">@Model.ReceptorCorreo @Model.ReceptorTelefono</p>
+                <p class="m-0 text-muted small">@Model.ReceptorDireccion</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header">Identificación</div>
+            <div class="card-body small">
+                <div><strong>Código generación:</strong> <span class="font-monospace">@Model.CodigoGeneracion</span></div>
+                <div><strong>Versión:</strong> @Model.VersionDte · Modelo: @Model.ModeloFacturacion · Transmisión: @Model.TipoTransmision</div>
+                <div><strong>Condición:</strong> @Model.CondicionOperacionCodigo  @if (Model.PlazoDias.HasValue) { <span> · @Model.PlazoDias días</span> }</div>
+                @if (!string.IsNullOrEmpty(Model.NumeroDocumentoRelacionado))
+                {
+                    <div><strong>Documento relacionado:</strong> @Model.TipoDteRelacionado / @Model.NumeroDocumentoRelacionado</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3 border-0 shadow-sm">
+    <div class="card-header">Detalle</div>
+    <div class="table-responsive">
+        <table class="table table-sm m-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Código</th>
+                    <th>Descripción</th>
+                    <th class="text-end">Cant.</th>
+                    <th>U.M.</th>
+                    <th class="text-end">Precio</th>
+                    <th class="text-end">Desc.</th>
+                    <th class="text-end">Gravada</th>
+                    <th class="text-end">Exenta</th>
+                    <th class="text-end">No suj.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Detalles)
+                {
+                    <tr>
+                        <td>@l.NumeroLinea</td>
+                        <td><small>@l.Codigo</small></td>
+                        <td>@l.Descripcion</td>
+                        <td class="text-end">@l.Cantidad.ToString("N4")</td>
+                        <td><small>@l.UnidadMedidaCodigo</small></td>
+                        <td class="text-end">@l.PrecioUnitario.ToString("N4")</td>
+                        <td class="text-end">@l.MontoDescuento.ToString("N2")</td>
+                        <td class="text-end">@l.VentaGravada.ToString("N2")</td>
+                        <td class="text-end">@l.VentaExenta.ToString("N2")</td>
+                        <td class="text-end">@l.VentaNoSujeta.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-3 mt-1">
+    <div class="col-md-6">
+        @if (!string.IsNullOrEmpty(Model.Observaciones))
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-header">Observaciones</div>
+                <div class="card-body small">@Model.Observaciones</div>
+            </div>
+        }
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header">Totales</div>
+            <div class="card-body">
+                <table class="table table-sm m-0">
+                    <tbody>
+                        <tr><td>Total gravada</td><td class="text-end">$ @Model.TotalGravada.ToString("N2")</td></tr>
+                        <tr><td>Total exenta</td><td class="text-end">$ @Model.TotalExenta.ToString("N2")</td></tr>
+                        <tr><td>Total no sujeta</td><td class="text-end">$ @Model.TotalNoSujeto.ToString("N2")</td></tr>
+                        <tr><td>Subtotal ventas</td><td class="text-end">$ @Model.SubTotalVentas.ToString("N2")</td></tr>
+                        <tr><td>Total descuento</td><td class="text-end">$ @Model.TotalDescuento.ToString("N2")</td></tr>
+                        <tr><td>IVA 13%</td><td class="text-end">$ @Model.IvaTotal.ToString("N2")</td></tr>
+                        <tr><td>IVA retenido</td><td class="text-end">$ @Model.IvaRetenido.ToString("N2")</td></tr>
+                        <tr><td>Renta retenida</td><td class="text-end">$ @Model.ReteRenta.ToString("N2")</td></tr>
+                        <tr class="table-active"><th>Total a pagar</th><th class="text-end">$ @Model.TotalPagar.ToString("N2")</th></tr>
+                    </tbody>
+                </table>
+                <p class="text-muted small m-0 mt-2"><em>@Model.TotalLetras</em></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.JsonDte))
+{
+    <div class="card mt-3 border-0 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>JSON DTE generado</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('json-pre').textContent)">Copiar</button>
+        </div>
+        <pre id="json-pre" class="m-0 p-3 bg-light small" style="max-height:400px;overflow:auto">@Model.JsonDte</pre>
+    </div>
+}

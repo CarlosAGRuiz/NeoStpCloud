@@ -68,6 +68,11 @@ public static class DependencyInjection
 
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
 
+        // Sprint 5: generación de documentos DTE
+        services.AddScoped<IDteCalculator, DteCalculator>();
+        services.AddScoped<IDteGeneratorService, DteGeneratorService>();
+        services.AddScoped<IDteDocumentosService, DteDocumentosService>();
+
         return services;
     }
 }

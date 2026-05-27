@@ -1,0 +1,118 @@
+@model NeoSTP.Application.Common.PagedResult<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>
+@{
+    ViewData["Title"] = "Documentos DTE";
+    var q = ViewBag.Query as NeoSTP.Application.Dte.Dtos.DteListQuery
+        ?? new NeoSTP.Application.Dte.Dtos.DteListQuery();
+}
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 m-0">Documentos electrónicos</h1>
+    <div class="dropdown">
+        <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">+ Nuevo DTE</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="01">Factura (01)</a></li>
+            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="03">Comprobante Crédito Fiscal (03)</a></li>
+            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="05">Nota de Crédito (05)</a></li>
+            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="06">Nota de Débito (06)</a></li>
+            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="14">Sujeto Excluido (14)</a></li>
+        </ul>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <input name="Search" value="@q.Search" class="form-control form-control-sm" placeholder="Nº control, código, receptor…" />
+    </div>
+    <div class="col-auto">
+        <select name="TipoDteCodigo" class="form-select form-select-sm">
+            <option value="">— Todos los tipos —</option>
+            <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
+            <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
+            <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
+            <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
+            <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="EstadoCodigo" class="form-select form-select-sm">
+            <option value="">— Todos los estados —</option>
+            @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "INVALIDADO", "ERROR" })
+            {
+                <option value="@s" selected="@(q.EstadoCodigo == s)">@s</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrar</button>
+        <a asp-action="Index" class="btn btn-link btn-sm">Limpiar</a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Tipo</th>
+                    <th>Nº Control</th>
+                    <th>Fecha</th>
+                    <th>Receptor</th>
+                    <th class="text-end">Total</th>
+                    <th>Estado</th>
+                    <th>Ambiente</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">Sin documentos.</td></tr>
+                }
+                @foreach (var d in Model?.Items ?? Array.Empty<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>())
+                {
+                    var estadoBadge = d.EstadoCodigo switch
+                    {
+                        "BORRADOR" => "bg-secondary",
+                        "GENERADO" => "bg-info",
+                        "VALIDADO" => "bg-primary",
+                        "FIRMADO" => "bg-warning text-dark",
+                        "ENVIADO" => "bg-warning text-dark",
+                        "PROCESADO" => "bg-success",
+                        "RECHAZADO" or "ERROR" => "bg-danger",
+                        "INVALIDADO" => "bg-dark",
+                        _ => "bg-light text-dark border"
+                    };
+                    <tr>
+                        <td><span class="badge bg-light text-dark border">@d.TipoDteCodigo</span></td>
+                        <td><small class="font-monospace">@d.NumeroControl</small></td>
+                        <td>@d.FechaEmision.ToString("yyyy-MM-dd")</td>
+                        <td>@(d.ReceptorNombre ?? "—")<br /><small class="text-muted">@d.ReceptorNumeroDocumento</small></td>
+                        <td class="text-end"><strong>$ @d.TotalPagar.ToString("N2")</strong></td>
+                        <td><span class="badge @estadoBadge">@d.EstadoCodigo</span></td>
+                        <td><small>@d.AmbienteCodigo</small></td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@d.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")">
+                <a class="page-link" asp-action="Index" asp-route-Page="@i" asp-route-Search="@q.Search" asp-route-TipoDteCodigo="@q.TipoDteCodigo" asp-route-EstadoCodigo="@q.EstadoCodigo">@i</a>
+            </li>
+        }
+    </ul></nav>
+}
+
+<p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) documentos.</p>

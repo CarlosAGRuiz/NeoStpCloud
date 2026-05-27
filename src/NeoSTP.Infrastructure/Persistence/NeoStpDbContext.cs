@@ -46,6 +46,11 @@ public class NeoStpDbContext : DbContext
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<DteConfiguracion> DteConfiguracion => Set<DteConfiguracion>();
 
+    // DTE - Documentos
+    public DbSet<DteDocumento> DteDocumentos => Set<DteDocumento>();
+    public DbSet<DteDocumentoDetalle> DteDocumentoDetalles => Set<DteDocumentoDetalle>();
+    public DbSet<DteDocumentoJson> DteDocumentoJson => Set<DteDocumentoJson>();
+
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
 

@@ -1,0 +1,13 @@
+using NeoSTP.Application.Common;
+using NeoSTP.Domain.Core.Dte;
+
+namespace NeoSTP.Application.Dte;
+
+/// <summary>
+/// Genera el JSON DTE según el esquema oficial de Hacienda El Salvador.
+/// </summary>
+public interface IDteGeneratorService
+{
+    /// <summary>Construye el JSON sin firmar para el documento (validándolo previamente).</summary>
+    Result<string> Generar(DteDocumento documento);
+}
