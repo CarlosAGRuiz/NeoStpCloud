@@ -1,0 +1,74 @@
+@model NeoSTP.Application.Empresas.Dtos.LicenciaDto
+@{ ViewData["Title"] = $"Licencia · {Model.EmpresaNombre}"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 m-0">Licencia · @Model.EmpresaNombre</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 text-muted mb-2">Plan</h2>
+                @if (Model.PlanCodigo is null)
+                {
+                    <p class="text-muted m-0">Sin plan asignado.</p>
+                }
+                else
+                {
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-info">@Model.PlanCodigo</span>
+                        <strong>@Model.PlanNombre</strong>
+                    </div>
+                    <div class="small text-muted">
+                        Inicio: @Model.PlanFechaInicio?.ToString("yyyy-MM-dd")
+                        @if (Model.PlanFechaFin is not null) { <span>· Fin: @Model.PlanFechaFin.Value.ToString("yyyy-MM-dd")</span> }
+                    </div>
+                    <div class="mt-2">
+                        Vigente:
+                        @if (Model.Vigente) { <span class="badge bg-success">SÍ</span> }
+                        else { <span class="badge bg-danger">NO</span> }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 text-muted mb-2">Consumo</h2>
+                <table class="table table-sm m-0">
+                    <tr><td>Usuarios</td><td class="text-end"><strong>@Model.UsuariosUsados</strong> / @(Model.LimiteUsuarios?.ToString() ?? "—")</td></tr>
+                    <tr><td>Sucursales</td><td class="text-end"><strong>@Model.SucursalesUsadas</strong> / @(Model.LimiteSucursales?.ToString() ?? "—")</td></tr>
+                    <tr><td>Puntos de venta</td><td class="text-end"><strong>@Model.PuntosVentaUsados</strong> / @(Model.LimitePuntosVenta?.ToString() ?? "—")</td></tr>
+                    <tr><td>DTE mensual</td><td class="text-end">— / @(Model.LimiteDteMensual?.ToString() ?? "—")</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white"><strong>Módulos (@Model.Modulos.Count)</strong></div>
+            <ul class="list-group list-group-flush">
+                @foreach (var m in Model.Modulos)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>@m.Codigo</strong> <span class="text-muted">— @m.Nombre</span>
+                            @if (m.IncluidoEnPlan) { <span class="badge bg-info ms-2">incluido en plan</span> }
+                        </span>
+                        @if (m.Activo) { <span class="badge bg-success">activo</span> }
+                        else { <span class="badge bg-secondary">inactivo</span> }
+                    </li>
+                }
+                @if (!Model.Modulos.Any())
+                {
+                    <li class="list-group-item text-muted">Sin módulos asignados.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

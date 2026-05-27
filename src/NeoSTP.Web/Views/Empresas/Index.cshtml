@@ -1,0 +1,105 @@
+@model NeoSTP.Application.Common.PagedResult<NeoSTP.Application.Empresas.Dtos.EmpresaDto>
+@{
+    ViewData["Title"] = "Empresas";
+    var search = ViewBag.Search as string;
+    var isSuperAdmin = (bool)(ViewBag.IsSuperAdmin ?? false);
+}
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 m-0">@(isSuperAdmin ? "Empresas" : "Mi empresa")</h1>
+    @if (isSuperAdmin)
+    {
+        <a asp-action="Create" class="btn btn-primary btn-sm">+ Nueva empresa</a>
+    }
+</div>
+
+@if (isSuperAdmin)
+{
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-auto">
+            <input name="search" value="@search" class="form-control form-control-sm" placeholder="Buscar NIT, razón social…" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Buscar</button>
+        </div>
+    </form>
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>NIT</th>
+                    <th>Razón social</th>
+                    <th>Estado</th>
+                    <th>Plan</th>
+                    <th class="text-center">Usuarios</th>
+                    <th class="text-center">Sucursales</th>
+                    <th class="text-center">PV</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="8" class="text-center text-muted py-4">Sin empresas.</td></tr>
+                }
+                @foreach (var e in Model?.Items ?? Array.Empty<NeoSTP.Application.Empresas.Dtos.EmpresaDto>())
+                {
+                    var badge = e.EstadoCodigo switch {
+                        "ACTIVA" => "bg-success",
+                        "VENCIDA" => "bg-warning text-dark",
+                        "SUSPENDIDA" => "bg-danger",
+                        _ => "bg-secondary"
+                    };
+                    <tr>
+                        <td><strong>@e.Nit</strong></td>
+                        <td>@e.RazonSocial<br /><small class="text-muted">@e.NombreComercial</small></td>
+                        <td><span class="badge @badge">@e.EstadoCodigo</span></td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(e.PlanActualCodigo))
+                            {
+                                <span class="badge bg-info">@e.PlanActualNombre</span>
+                                @if (e.PlanFechaFin is not null)
+                                {
+                                    <br /><small class="text-muted">vence @e.PlanFechaFin.Value.ToString("yyyy-MM-dd")</small>
+                                }
+                            }
+                            else
+                            {
+                                <em class="text-muted">sin plan</em>
+                            }
+                        </td>
+                        <td class="text-center">@e.Usuarios</td>
+                        <td class="text-center">@e.Sucursales</td>
+                        <td class="text-center">@e.PuntosVenta</td>
+                        <td class="text-end">
+                            <a asp-action="Licencia" asp-route-id="@e.Id" class="btn btn-sm btn-outline-info">Licencia</a>
+                            <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm">
+            @for (int i = 1; i <= Model.TotalPages; i++)
+            {
+                <li class="page-item @(i == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+<p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) empresas.</p>

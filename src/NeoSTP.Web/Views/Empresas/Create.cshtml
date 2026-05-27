@@ -1,0 +1,64 @@
+@model NeoSTP.Web.Models.CreateEmpresaViewModel
+@{ ViewData["Title"] = "Nueva empresa"; }
+
+<h1 class="h4 mb-3">Nueva empresa</h1>
+
+<form asp-action="Create" method="post" class="card border-0 shadow-sm p-4" style="max-width: 820px;">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label asp-for="Nit" class="form-label"></label>
+            <input asp-for="Nit" class="form-control" />
+            <span asp-validation-for="Nit" class="text-danger small"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Nrc" class="form-label"></label>
+            <input asp-for="Nrc" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="CodigoActividad" class="form-label"></label>
+            <input asp-for="CodigoActividad" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label asp-for="RazonSocial" class="form-label"></label>
+            <input asp-for="RazonSocial" class="form-control" />
+            <span asp-validation-for="RazonSocial" class="text-danger small"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="NombreComercial" class="form-label"></label>
+            <input asp-for="NombreComercial" class="form-control" />
+        </div>
+        <div class="col-md-12">
+            <label asp-for="ActividadEconomica" class="form-label"></label>
+            <input asp-for="ActividadEconomica" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Departamento" class="form-label"></label>
+            <input asp-for="Departamento" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Municipio" class="form-label"></label>
+            <input asp-for="Municipio" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Telefono" class="form-label"></label>
+            <input asp-for="Telefono" class="form-control" />
+        </div>
+        <div class="col-md-12">
+            <label asp-for="Direccion" class="form-label"></label>
+            <input asp-for="Direccion" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Correo" class="form-label"></label>
+            <input asp-for="Correo" type="email" class="form-control" />
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Crear empresa</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }

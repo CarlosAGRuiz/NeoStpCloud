@@ -31,8 +31,10 @@ public abstract class ApiControllerBase : ControllerBase
 
     private IActionResult MapError(string? errorCode, object payload) => errorCode switch
     {
-        "USER_NOT_FOUND" or "ROLE_NOT_FOUND" or "CAT_NOT_FOUND" => NotFound(payload),
-        "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" => Conflict(payload),
+        "USER_NOT_FOUND" or "ROLE_NOT_FOUND" or "CAT_NOT_FOUND"
+            or "EMPRESA_NOT_FOUND" or "PLAN_NOT_FOUND" or "MODULO_NOT_FOUND" => NotFound(payload),
+        "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" or "EMPRESA_DUPLICATE" => Conflict(payload),
+        "EMPRESA_FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, payload),
         "VALIDATION" or "PWD_WEAK" => BadRequest(payload),
         "PWD_INVALID" or "AUTH_INVALID_CREDENTIALS" or "AUTH_USER_INACTIVE"
             or "AUTH_USER_LOCKED" or "AUTH_REFRESH_INVALID" => Unauthorized(payload),
