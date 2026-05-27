@@ -15,20 +15,29 @@ public class UsuariosController : Controller
     private readonly IUsuariosService _usuarios;
     private readonly IRolesService _roles;
     private readonly ICurrentUser _currentUser;
+    private readonly NeoSTP.Application.Empresas.IEmpresaContext _empresaContext;
 
-    public UsuariosController(IUsuariosService usuarios, IRolesService roles, ICurrentUser currentUser)
+    public UsuariosController(
+        IUsuariosService usuarios,
+        IRolesService roles,
+        ICurrentUser currentUser,
+        NeoSTP.Application.Empresas.IEmpresaContext empresaContext)
     {
         _usuarios = usuarios;
         _roles = roles;
         _currentUser = currentUser;
+        _empresaContext = empresaContext;
     }
+
+    /// <summary>EmpresaId efectivo: si SuperAdmin en modo soporte, lo de cookie; si no, el del usuario.</summary>
+    private int? Empresa => _empresaContext.CurrentEmpresaId;
 
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] int page = 1, CancellationToken ct = default)
     {
         if (!HasPermiso("Core.Usuarios.Ver")) return Forbid();
 
-        var result = await _usuarios.GetListAsync(_currentUser.EmpresaId,
+        var result = await _usuarios.GetListAsync(Empresa,
             new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
         ViewBag.Search = search;
         return View(result.Value);
@@ -53,7 +62,7 @@ public class UsuariosController : Controller
             return View(model);
         }
 
-        var result = await _usuarios.CreateAsync(_currentUser.EmpresaId, new CreateUsuarioRequest
+        var result = await _usuarios.CreateAsync(Empresa, new CreateUsuarioRequest
         {
             Username = model.Username,
             Email = model.Email,
@@ -81,7 +90,7 @@ public class UsuariosController : Controller
     {
         if (!HasPermiso("Core.Usuarios.Editar")) return Forbid();
 
-        var result = await _usuarios.GetByIdAsync(_currentUser.EmpresaId, id, ct);
+        var result = await _usuarios.GetByIdAsync(Empresa, id, ct);
         if (result.IsFailure) return NotFound();
 
         await LoadRolesAsync(ct);
@@ -110,7 +119,7 @@ public class UsuariosController : Controller
             return View(model);
         }
 
-        var result = await _usuarios.UpdateAsync(_currentUser.EmpresaId, model.Id, new UpdateUsuarioRequest
+        var result = await _usuarios.UpdateAsync(Empresa, model.Id, new UpdateUsuarioRequest
         {
             Email = model.Email,
             NombreCompleto = model.NombreCompleto,
@@ -136,7 +145,7 @@ public class UsuariosController : Controller
     public async Task<IActionResult> Bloquear(int id, CancellationToken ct)
     {
         if (!HasPermiso("Core.Usuarios.Bloquear")) return Forbid();
-        var result = await _usuarios.BloquearAsync(_currentUser.EmpresaId, id, _currentUser.Username, ct);
+        var result = await _usuarios.BloquearAsync(Empresa, id, _currentUser.Username, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Usuario bloqueado." : result.Error;
         return RedirectToAction(nameof(Index));
     }
@@ -146,7 +155,7 @@ public class UsuariosController : Controller
     public async Task<IActionResult> Desbloquear(int id, CancellationToken ct)
     {
         if (!HasPermiso("Core.Usuarios.Bloquear")) return Forbid();
-        var result = await _usuarios.DesbloquearAsync(_currentUser.EmpresaId, id, _currentUser.Username, ct);
+        var result = await _usuarios.DesbloquearAsync(Empresa, id, _currentUser.Username, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Usuario desbloqueado." : result.Error;
         return RedirectToAction(nameof(Index));
     }
@@ -156,7 +165,7 @@ public class UsuariosController : Controller
 
     private async Task LoadRolesAsync(CancellationToken ct)
     {
-        var rolesResult = await _roles.GetListAsync(_currentUser.EmpresaId, ct);
+        var rolesResult = await _roles.GetListAsync(Empresa, ct);
         ViewBag.RolesDisponibles = rolesResult.Value ?? new List<NeoSTP.Application.Roles.Dtos.RolDto>();
     }
 }
