@@ -55,6 +55,7 @@ internal static class SeedData
             Cat(15, CatalogCodes.UnidadMedida,          "Unidad de medida",             "Unidades de medida para productos y servicios"),
             Cat(16, CatalogCodes.CanalVenta,            "Canal de venta",               "Origen del documento: POS, web, móvil, API, manual"),
             Cat(17, CatalogCodes.AmbienteDte,           "Ambiente DTE",                 "Ambientes Hacienda: pruebas y producción"),
+            Cat(18, CatalogCodes.DepartamentoEs,        "Departamento (El Salvador)",   "14 departamentos de El Salvador con codigos MH CAT-012"),
         };
 
         modelBuilder.Entity<Catalogo>().HasData(catalogos);
@@ -198,6 +199,22 @@ internal static class SeedData
         // AMBIENTE_DTE (17)
         items.Add(Item(id++, 17, "PRUEBAS",    "Pruebas",    1, metadata: "{\"codigoMH\":\"00\"}"));
         items.Add(Item(id++, 17, "PRODUCCION", "Producción", 2, metadata: "{\"codigoMH\":\"01\"}"));
+
+        // DEPARTAMENTO_ES (18) — CAT-012 Hacienda
+        items.Add(Item(id++, 18, "AHUACHAPAN",   "Ahuachapán",   1,  metadata: "{\"codigoMH\":\"01\"}"));
+        items.Add(Item(id++, 18, "SANTA_ANA",    "Santa Ana",    2,  metadata: "{\"codigoMH\":\"02\"}"));
+        items.Add(Item(id++, 18, "SONSONATE",    "Sonsonate",    3,  metadata: "{\"codigoMH\":\"03\"}"));
+        items.Add(Item(id++, 18, "CHALATENANGO", "Chalatenango", 4,  metadata: "{\"codigoMH\":\"04\"}"));
+        items.Add(Item(id++, 18, "LA_LIBERTAD",  "La Libertad",  5,  metadata: "{\"codigoMH\":\"05\"}"));
+        items.Add(Item(id++, 18, "SAN_SALVADOR", "San Salvador", 6,  metadata: "{\"codigoMH\":\"06\"}"));
+        items.Add(Item(id++, 18, "CUSCATLAN",    "Cuscatlán",    7,  metadata: "{\"codigoMH\":\"07\"}"));
+        items.Add(Item(id++, 18, "LA_PAZ",       "La Paz",       8,  metadata: "{\"codigoMH\":\"08\"}"));
+        items.Add(Item(id++, 18, "CABANAS",      "Cabañas",      9,  metadata: "{\"codigoMH\":\"09\"}"));
+        items.Add(Item(id++, 18, "SAN_VICENTE",  "San Vicente",  10, metadata: "{\"codigoMH\":\"10\"}"));
+        items.Add(Item(id++, 18, "USULUTAN",     "Usulután",     11, metadata: "{\"codigoMH\":\"11\"}"));
+        items.Add(Item(id++, 18, "SAN_MIGUEL",   "San Miguel",   12, metadata: "{\"codigoMH\":\"12\"}"));
+        items.Add(Item(id++, 18, "MORAZAN",      "Morazán",      13, metadata: "{\"codigoMH\":\"13\"}"));
+        items.Add(Item(id++, 18, "LA_UNION",     "La Unión",     14, metadata: "{\"codigoMH\":\"14\"}"));
 
         modelBuilder.Entity<CatalogoItem>().HasData(items);
     }

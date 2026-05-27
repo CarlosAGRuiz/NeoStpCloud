@@ -3,8 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
+using NeoSTP.Application.Clientes;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
+using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Infrastructure.Auth;
@@ -41,6 +43,8 @@ public static class DependencyInjection
         services.AddScoped<IPuntosVentaService, PuntosVentaService>();
         services.AddScoped<IPlanesService, PlanesService>();
         services.AddScoped<IModulosService, ModulosService>();
+        services.AddScoped<IClientesService, ClientesService>();
+        services.AddScoped<IProductosService, ProductosService>();
 
         return services;
     }

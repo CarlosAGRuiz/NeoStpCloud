@@ -182,6 +182,32 @@ Para proteger endpoints según módulo contratado por la empresa, decora
 con `[RequireModule("NEODTE")]` — la policy resuelve dinámicamente y
 consulta `Core_EmpresaModulos`. SuperAdmin siempre pasa.
 
+### Clientes y productos (Sprint 3)
+
+```
+GET    /api/clientes?page=&pageSize=&search=
+GET    /api/clientes/{id}
+POST   /api/clientes                          # valida formato DUI/NIT, NRC para contribuyente
+PUT    /api/clientes/{id}
+PATCH  /api/clientes/{id}/inactivar
+
+GET    /api/productos?page=&pageSize=&search=
+GET    /api/productos/{id}
+POST   /api/productos                          # BIEN o SERVICIO con IVA configurable
+PUT    /api/productos/{id}
+PATCH  /api/productos/{id}/inactivar
+```
+
+**Validaciones fiscales** (en `NeoSTP.Application.Clientes.ClienteValidator`):
+- DUI: `########-#` (12345678-9)
+- NIT: `####-######-###-#` o 14 dígitos sin separadores
+- NRC: 1-7 dígitos, opcionalmente con guion (1234567 o 123456-7)
+- Contribuyentes requieren NRC + código de actividad económica
+- Correo se valida si está presente
+
+Catálogo `DEPARTAMENTO_ES` con los 14 departamentos de El Salvador y sus
+códigos MH se siembra en el Sprint 3 (consultar vía `GET /api/catalogos/DEPARTAMENTO_ES/items`).
+
 ### Diagnóstico
 
 ```
@@ -201,6 +227,28 @@ ningún usuario, crea un SuperAdmin:
 **Cambia la contraseña en el primer login** vía `POST /api/auth/change-password`
 o desde el menú de usuario en la Web.
 
+## Notas para pruebas manuales en PowerShell 5.1
+
+`Invoke-RestMethod` en PowerShell 5.1 **no codifica UTF-8** los `Body` con
+caracteres acentuados (`é`, `ñ`, etc.) — los envía como Latin-1 y el JSON
+parser de ASP.NET retorna 400. Para POST/PUT con texto en español usa raw
+`WebRequest` con `Encoding.UTF8`:
+
+```powershell
+function PostJson($url, $body, $headers) {
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+    $req = [System.Net.WebRequest]::Create($url)
+    $req.Method = "POST"
+    $req.ContentType = "application/json; charset=utf-8"
+    $req.Headers.Add("Authorization", $headers.Authorization)
+    $req.ContentLength = $bytes.Length
+    $s = $req.GetRequestStream(); $s.Write($bytes, 0, $bytes.Length); $s.Close()
+    # ... GetResponse, ConvertFrom-Json
+}
+```
+
+PowerShell 7+ o la Web del proyecto no tienen este problema.
+
 ## Skill Claude Code
 
 Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más usados del día a día. Invócala como `/neostp` dentro de Claude Code.
@@ -212,6 +260,7 @@ Ver el backlog técnico completo en la conversación inicial. Sprints planificad
 - **Sprint 0** — Setup técnico ✅
 - **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT) ✅
 - **Sprint 2** — Empresa y licenciamiento ✅
+- **Sprint 3** — Catálogos, clientes, productos ✅
 - **Sprint 3** — Catálogos, clientes, productos
 - **Sprint 4** — Configuración DTE
 - **Sprint 5** — Generación DTE

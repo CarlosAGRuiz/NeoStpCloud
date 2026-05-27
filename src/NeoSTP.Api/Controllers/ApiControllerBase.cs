@@ -33,9 +33,11 @@ public abstract class ApiControllerBase : ControllerBase
     {
         "USER_NOT_FOUND" or "ROLE_NOT_FOUND" or "CAT_NOT_FOUND"
             or "EMPRESA_NOT_FOUND" or "PLAN_NOT_FOUND" or "MODULO_NOT_FOUND"
-            or "SUCURSAL_NOT_FOUND" or "PV_NOT_FOUND" => NotFound(payload),
+            or "SUCURSAL_NOT_FOUND" or "PV_NOT_FOUND"
+            or "CLIENTE_NOT_FOUND" or "PRODUCTO_NOT_FOUND" => NotFound(payload),
         "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" or "EMPRESA_DUPLICATE"
-            or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED" => Conflict(payload),
+            or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED"
+            or "CLIENTE_DUPLICATE" or "PRODUCTO_DUPLICATE" => Conflict(payload),
         "EMPRESA_FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, payload),
         "LICENSE_INVALID" => StatusCode(StatusCodes.Status402PaymentRequired, payload),
         "VALIDATION" or "PWD_WEAK" => BadRequest(payload),

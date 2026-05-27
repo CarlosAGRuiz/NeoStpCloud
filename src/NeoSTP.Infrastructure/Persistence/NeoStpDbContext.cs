@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Domain.Core.Auditoria;
 using NeoSTP.Domain.Core.Catalogos;
+using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Licenciamiento;
+using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence.Seed;
 
@@ -37,6 +39,10 @@ public class NeoStpDbContext : DbContext
     public DbSet<PlanModulo> PlanModulos => Set<PlanModulo>();
     public DbSet<EmpresaPlan> EmpresaPlanes => Set<EmpresaPlan>();
     public DbSet<EmpresaModulo> EmpresaModulos => Set<EmpresaModulo>();
+
+    // DTE - Clientes y Productos
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<Producto> Productos => Set<Producto>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

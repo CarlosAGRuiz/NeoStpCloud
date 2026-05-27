@@ -1,0 +1,63 @@
+@model NeoSTP.Web.Models.CreateProductoViewModel
+@{
+    var unidades = (ViewBag.UnidadesMedida as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var tipos = new[] { "BIEN", "SERVICIO" };
+}
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="CodigoInterno" class="form-label"></label>
+        <input asp-for="CodigoInterno" class="form-control" />
+        <span asp-validation-for="CodigoInterno" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="CodigoBarra" class="form-label"></label>
+        <input asp-for="CodigoBarra" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TipoItem" class="form-label"></label>
+        <select asp-for="TipoItem" class="form-select">
+            @foreach (var t in tipos) { <option value="@t" selected="@(t == Model.TipoItem)">@t</option> }
+        </select>
+    </div>
+
+    <div class="col-md-12">
+        <label asp-for="Nombre" class="form-label"></label>
+        <input asp-for="Nombre" class="form-control" />
+        <span asp-validation-for="Nombre" class="text-danger small"></span>
+    </div>
+    <div class="col-md-12">
+        <label asp-for="Descripcion" class="form-label"></label>
+        <textarea asp-for="Descripcion" class="form-control" rows="2"></textarea>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="UnidadMedidaCodigo" class="form-label"></label>
+        <select asp-for="UnidadMedidaCodigo" class="form-select">
+            @foreach (var u in unidades)
+            {
+                <option value="@u.Codigo" selected="@(u.Codigo == Model.UnidadMedidaCodigo)">@u.Valor</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="PrecioUnitario" class="form-label"></label>
+        <input asp-for="PrecioUnitario" type="number" step="0.0001" min="0" class="form-control" />
+        <span asp-validation-for="PrecioUnitario" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="CostoUnitario" class="form-label"></label>
+        <input asp-for="CostoUnitario" type="number" step="0.0001" min="0" class="form-control" />
+    </div>
+
+    <div class="col-md-4">
+        <div class="form-check mt-4">
+            <input asp-for="AplicaIva" class="form-check-input" />
+            <label asp-for="AplicaIva" class="form-check-label"></label>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TributoCodigo" class="form-label"></label>
+        <input asp-for="TributoCodigo" class="form-control" placeholder="IVA13" />
+    </div>
+</div>

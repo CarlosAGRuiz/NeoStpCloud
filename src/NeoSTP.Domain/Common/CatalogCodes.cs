@@ -25,6 +25,7 @@ public static class CatalogCodes
     public const string UnidadMedida = "UNIDAD_MEDIDA";
     public const string CanalVenta = "CANAL_VENTA";
     public const string AmbienteDte = "AMBIENTE_DTE";
+    public const string DepartamentoEs = "DEPARTAMENTO_ES";
 }
 
 /// <summary>

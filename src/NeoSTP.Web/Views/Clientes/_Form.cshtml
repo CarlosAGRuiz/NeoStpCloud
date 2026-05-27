@@ -1,0 +1,84 @@
+@model NeoSTP.Web.Models.CreateClienteViewModel
+@{
+    var tiposDoc = (ViewBag.TiposDoc as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var tiposContrib = (ViewBag.TiposContrib as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var departamentos = (ViewBag.Departamentos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+}
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="TipoDocumentoCodigo" class="form-label"></label>
+        <select asp-for="TipoDocumentoCodigo" class="form-select">
+            @foreach (var t in tiposDoc)
+            {
+                <option value="@t.Codigo" selected="@(t.Codigo == Model.TipoDocumentoCodigo)">@t.Valor</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="NumeroDocumento" class="form-label"></label>
+        <input asp-for="NumeroDocumento" class="form-control" placeholder="DUI: 12345678-9 / NIT: 0614-010100-101-1" />
+        <span asp-validation-for="NumeroDocumento" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="Nrc" class="form-label"></label>
+        <input asp-for="Nrc" class="form-control" placeholder="1234567" />
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Nombre" class="form-label"></label>
+        <input asp-for="Nombre" class="form-control" />
+        <span asp-validation-for="Nombre" class="text-danger small"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="NombreComercial" class="form-label"></label>
+        <input asp-for="NombreComercial" class="form-control" />
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="TipoContribuyenteCodigo" class="form-label"></label>
+        <select asp-for="TipoContribuyenteCodigo" class="form-select">
+            @foreach (var t in tiposContrib)
+            {
+                <option value="@t.Codigo" selected="@(t.Codigo == Model.TipoContribuyenteCodigo)">@t.Valor</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="CodigoActividad" class="form-label"></label>
+        <input asp-for="CodigoActividad" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="ActividadEconomica" class="form-label"></label>
+        <input asp-for="ActividadEconomica" class="form-control" />
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="DepartamentoCodigo" class="form-label"></label>
+        <select asp-for="DepartamentoCodigo" class="form-select">
+            <option value="">—</option>
+            @foreach (var d in departamentos)
+            {
+                <option value="@d.Codigo" selected="@(d.Codigo == Model.DepartamentoCodigo)">@d.Valor</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="MunicipioCodigo" class="form-label"></label>
+        <input asp-for="MunicipioCodigo" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="Telefono" class="form-label"></label>
+        <input asp-for="Telefono" class="form-control" />
+    </div>
+
+    <div class="col-md-12">
+        <label asp-for="Direccion" class="form-label"></label>
+        <input asp-for="Direccion" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Correo" class="form-label"></label>
+        <input asp-for="Correo" type="email" class="form-control" />
+        <span asp-validation-for="Correo" class="text-danger small"></span>
+    </div>
+</div>

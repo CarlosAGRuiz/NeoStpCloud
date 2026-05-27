@@ -1,0 +1,15 @@
+@model NeoSTP.Web.Models.CreateClienteViewModel
+@{ ViewData["Title"] = "Nuevo cliente"; }
+
+<h1 class="h4 mb-3">Nuevo cliente</h1>
+
+<form asp-action="Create" method="post" class="card border-0 shadow-sm p-4" style="max-width: 920px;">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+    <partial name="_Form" model="Model" />
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Crear cliente</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }
