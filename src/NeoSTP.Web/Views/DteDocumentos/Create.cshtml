@@ -1,0 +1,289 @@
+@model NeoSTP.Web.Models.CreateDteDocumentoViewModel
+@{
+    ViewData["Title"] = "Nuevo DTE";
+    var clientes = ViewBag.Clientes as IEnumerable<NeoSTP.Application.Clientes.Dtos.ClienteDto>
+        ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var productos = ViewBag.Productos as IEnumerable<NeoSTP.Application.Productos.Dtos.ProductoDto>
+        ?? Array.Empty<NeoSTP.Application.Productos.Dtos.ProductoDto>();
+    var unidades = ViewBag.UnidadesMedida as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
+        ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var formasPago = ViewBag.FormasPago as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
+        ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var tiposDocStr = new (string Code, string Label)[]
+    {
+        ("01", "01 Factura"),
+        ("03", "03 Crédito Fiscal"),
+        ("05", "05 Nota de Crédito"),
+        ("06", "06 Nota de Débito"),
+        ("14", "14 Sujeto Excluido"),
+    };
+    var esNotaCreditoDebito = Model.TipoDteCodigo is "05" or "06";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 m-0">Nuevo documento electrónico</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+</div>
+
+<form asp-action="Create" method="post" id="dte-form">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+    <div class="card mb-3">
+        <div class="card-header">Encabezado</div>
+        <div class="card-body row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Tipo DTE</label>
+                <select asp-for="TipoDteCodigo" class="form-select">
+                    @foreach (var t in tiposDocStr)
+                    {
+                        <option value="@t.Code" selected="@(Model.TipoDteCodigo == t.Code)">@t.Label</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Condición</label>
+                <select asp-for="CondicionOperacionCodigo" class="form-select">
+                    <option value="1">Contado</option>
+                    <option value="2">Crédito</option>
+                    <option value="3">Otro</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Forma de pago</label>
+                <select asp-for="FormaPagoCodigo" class="form-select">
+                    <option value="">—</option>
+                    @foreach (var f in formasPago)
+                    {
+                        <option value="@f.Codigo">@f.Codigo - @f.Descripcion</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Plazo (días)</label>
+                <input asp-for="PlazoDias" class="form-control" type="number" min="0" />
+            </div>
+        </div>
+    </div>
+
+    @if (esNotaCreditoDebito)
+    {
+        <div class="card mb-3">
+            <div class="card-header">Documento relacionado (origen)</div>
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tipo DTE relacionado</label>
+                    <select asp-for="TipoDteRelacionado" class="form-select">
+                        <option value="03">03 - Crédito Fiscal</option>
+                        <option value="01">01 - Factura</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Nº Control / Código del original</label>
+                    <input asp-for="NumeroDocumentoRelacionado" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Generación</label>
+                    <select asp-for="TipoGeneracionRelacionado" class="form-select">
+                        <option value="1">1 - Físico</option>
+                        <option value="2">2 - Electrónico</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header">Receptor</div>
+        <div class="card-body row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Cliente registrado</label>
+                <select asp-for="ClienteId" class="form-select">
+                    <option value="">— Receptor manual (consumidor final) —</option>
+                    @foreach (var c in clientes)
+                    {
+                        <option value="@c.Id">@c.Nombre (@c.TipoDocumentoCodigo @c.NumeroDocumento)</option>
+                    }
+                </select>
+                <small class="text-muted">Si no eliges cliente, se completan los datos manualmente.</small>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Nombre receptor (manual)</label>
+                <input asp-for="ReceptorNombre" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo doc</label>
+                <input asp-for="ReceptorTipoDocumento" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Documento</label>
+                <input asp-for="ReceptorNumeroDocumento" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">NRC</label>
+                <input asp-for="ReceptorNrc" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Correo</label>
+                <input asp-for="ReceptorCorreo" class="form-control" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Detalle</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="add-line">+ Agregar línea</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm m-0 align-middle" id="lineas-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:120px">Producto</th>
+                        <th>Descripción</th>
+                        <th style="width:80px" class="text-end">Cant.</th>
+                        <th style="width:110px" class="text-end">Precio U.</th>
+                        <th style="width:110px" class="text-end">Descuento</th>
+                        <th style="width:110px">Clasif.</th>
+                        <th style="width:120px" class="text-end">Subtotal</th>
+                        <th style="width:40px"></th>
+                    </tr>
+                </thead>
+                <tbody id="lineas-body">
+                    @for (int i = 0; i < Model.Lineas.Count; i++)
+                    {
+                        var l = Model.Lineas[i];
+                        <tr class="linea-row">
+                            <td><select name="Lineas[@i].ProductoId" class="form-select form-select-sm prod-select">
+                                <option value="">—</option>
+                                @foreach (var p in productos)
+                                {
+                                    <option value="@p.Id" data-desc="@p.Nombre" data-precio="@p.PrecioUnitario" data-unidad="@p.UnidadMedidaCodigo">@p.CodigoInterno - @p.Nombre</option>
+                                }
+                            </select></td>
+                            <td><input name="Lineas[@i].Descripcion" value="@l.Descripcion" class="form-control form-control-sm desc-input" /></td>
+                            <td><input name="Lineas[@i].Cantidad" value="@l.Cantidad" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end cant-input" /></td>
+                            <td><input name="Lineas[@i].PrecioUnitario" value="@l.PrecioUnitario" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end precio-input" /></td>
+                            <td><input name="Lineas[@i].MontoDescuento" value="@l.MontoDescuento" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end desc-monto-input" /></td>
+                            <td><select name="Lineas[@i].Clasificacion" class="form-select form-select-sm">
+                                <option value="GRAVADA">Gravada</option>
+                                <option value="EXENTA">Exenta</option>
+                                <option value="NO_SUJETA">No sujeta</option>
+                            </select></td>
+                            <td class="text-end subtotal-cell">$ 0.00</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger remove-line">×</button></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <th colspan="6" class="text-end">Total estimado:</th>
+                        <th class="text-end" id="total-cell">$ 0.00</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">Observaciones</div>
+        <div class="card-body">
+            <textarea asp-for="Observaciones" class="form-control" rows="2"></textarea>
+        </div>
+    </div>
+
+    <div class="form-check mb-3">
+        <input asp-for="GenerarInmediato" class="form-check-input" />
+        <label class="form-check-label" asp-for="GenerarInmediato">Generar JSON DTE inmediatamente al guardar</label>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Guardar borrador</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+<template id="linea-template">
+    <tr class="linea-row">
+        <td><select name="Lineas[__IDX__].ProductoId" class="form-select form-select-sm prod-select">
+            <option value="">—</option>
+            @foreach (var p in productos)
+            {
+                <option value="@p.Id" data-desc="@p.Nombre" data-precio="@p.PrecioUnitario" data-unidad="@p.UnidadMedidaCodigo">@p.CodigoInterno - @p.Nombre</option>
+            }
+        </select></td>
+        <td><input name="Lineas[__IDX__].Descripcion" class="form-control form-control-sm desc-input" /></td>
+        <td><input name="Lineas[__IDX__].Cantidad" value="1" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end cant-input" /></td>
+        <td><input name="Lineas[__IDX__].PrecioUnitario" value="0" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end precio-input" /></td>
+        <td><input name="Lineas[__IDX__].MontoDescuento" value="0" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end desc-monto-input" /></td>
+        <td><select name="Lineas[__IDX__].Clasificacion" class="form-select form-select-sm">
+            <option value="GRAVADA">Gravada</option>
+            <option value="EXENTA">Exenta</option>
+            <option value="NO_SUJETA">No sujeta</option>
+        </select></td>
+        <td class="text-end subtotal-cell">$ 0.00</td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger remove-line">×</button></td>
+    </tr>
+</template>
+
+@section Scripts {
+<script>
+(function () {
+    const body = document.getElementById('lineas-body');
+    const tpl = document.getElementById('linea-template').innerHTML;
+    const totalCell = document.getElementById('total-cell');
+
+    function reindex() {
+        Array.from(body.querySelectorAll('.linea-row')).forEach((row, idx) => {
+            row.querySelectorAll('[name]').forEach(el => {
+                el.name = el.name.replace(/Lineas\[\d+\]/, `Lineas[${idx}]`);
+            });
+        });
+    }
+
+    function recalc() {
+        let total = 0;
+        body.querySelectorAll('.linea-row').forEach(row => {
+            const c = parseFloat(row.querySelector('.cant-input')?.value || 0);
+            const p = parseFloat(row.querySelector('.precio-input')?.value || 0);
+            const d = parseFloat(row.querySelector('.desc-monto-input')?.value || 0);
+            const sub = Math.max(c * p - d, 0);
+            row.querySelector('.subtotal-cell').textContent = '$ ' + sub.toFixed(2);
+            total += sub;
+        });
+        totalCell.textContent = '$ ' + total.toFixed(2);
+    }
+
+    body.addEventListener('input', recalc);
+    body.addEventListener('change', e => {
+        if (e.target.classList.contains('prod-select')) {
+            const opt = e.target.selectedOptions[0];
+            if (opt && opt.dataset.desc) {
+                const row = e.target.closest('.linea-row');
+                row.querySelector('.desc-input').value = opt.dataset.desc;
+                row.querySelector('.precio-input').value = opt.dataset.precio || 0;
+                recalc();
+            }
+        }
+    });
+
+    document.getElementById('add-line').addEventListener('click', () => {
+        const idx = body.querySelectorAll('.linea-row').length;
+        const html = tpl.replaceAll('__IDX__', idx);
+        body.insertAdjacentHTML('beforeend', html);
+        recalc();
+    });
+
+    body.addEventListener('click', e => {
+        if (e.target.classList.contains('remove-line')) {
+            e.target.closest('.linea-row').remove();
+            reindex();
+            recalc();
+        }
+    });
+
+    recalc();
+})();
+</script>
+}

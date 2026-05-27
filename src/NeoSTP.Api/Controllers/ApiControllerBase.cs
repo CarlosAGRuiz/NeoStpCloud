@@ -35,7 +35,8 @@ public abstract class ApiControllerBase : ControllerBase
             or "EMPRESA_NOT_FOUND" or "PLAN_NOT_FOUND" or "MODULO_NOT_FOUND"
             or "SUCURSAL_NOT_FOUND" or "PV_NOT_FOUND"
             or "CLIENTE_NOT_FOUND" or "PRODUCTO_NOT_FOUND"
-            or "CONFIG_NOT_FOUND" => NotFound(payload),
+            or "CONFIG_NOT_FOUND" or "DTE_NOT_FOUND" => NotFound(payload),
+        "INVALID_STATE" => Conflict(payload),
         "DECRYPT_FAILED" => StatusCode(StatusCodes.Status500InternalServerError, payload),
         "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" or "EMPRESA_DUPLICATE"
             or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED"
