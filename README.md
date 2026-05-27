@@ -208,6 +208,13 @@ PATCH  /api/productos/{id}/inactivar
 Catálogo `DEPARTAMENTO_ES` con los 14 departamentos de El Salvador y sus
 códigos MH se siembra en el Sprint 3 (consultar vía `GET /api/catalogos/DEPARTAMENTO_ES/items`).
 
+Catálogo `MUNICIPIO_ES` con 42 municipios/zonas post-reforma territorial 2024
+(Decreto 290), ej. `CHALATENANGO_NORTE`, `LA_LIBERTAD_COSTA`. Cada item lleva
+metadata `{"departamento":"CODIGO","zona":"NORTE|SUR|ESTE|OESTE|CENTRO|COSTA"}`
+para permitir cascada UI. El Web Cliente filtra el dropdown de municipio al
+seleccionar departamento. La distribución base es ajustable contra el CAT-013
+final de Hacienda cuando se publique.
+
 ### Diagnóstico
 
 ```
