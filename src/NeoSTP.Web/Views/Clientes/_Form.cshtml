@@ -3,6 +3,7 @@
     var tiposDoc = (ViewBag.TiposDoc as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var tiposContrib = (ViewBag.TiposContrib as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var departamentos = (ViewBag.Departamentos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var municipios = (ViewBag.Municipios as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 }
 
 <div class="row g-3">
@@ -55,7 +56,7 @@
 
     <div class="col-md-4">
         <label asp-for="DepartamentoCodigo" class="form-label"></label>
-        <select asp-for="DepartamentoCodigo" class="form-select">
+        <select asp-for="DepartamentoCodigo" id="departamentoSelect" class="form-select">
             <option value="">—</option>
             @foreach (var d in departamentos)
             {
@@ -64,8 +65,17 @@
         </select>
     </div>
     <div class="col-md-4">
-        <label asp-for="MunicipioCodigo" class="form-label"></label>
-        <input asp-for="MunicipioCodigo" class="form-control" />
+        <label asp-for="MunicipioCodigo" class="form-label">Municipio / Zona</label>
+        <select asp-for="MunicipioCodigo" id="municipioSelect" class="form-select" data-current="@Model.MunicipioCodigo">
+            <option value="">— (selecciona departamento)</option>
+            @foreach (var m in municipios)
+            {
+                <option value="@m.Codigo"
+                        data-depto="@(System.Text.Json.JsonDocument.Parse(m.MetadataJson ?? "{}").RootElement.TryGetProperty("departamento", out var dp) ? dp.GetString() : "")"
+                        selected="@(m.Codigo == Model.MunicipioCodigo)"
+                        style="display:none">@m.Valor</option>
+            }
+        </select>
     </div>
     <div class="col-md-4">
         <label asp-for="Telefono" class="form-label"></label>
@@ -82,3 +92,28 @@
         <span asp-validation-for="Correo" class="text-danger small"></span>
     </div>
 </div>
+
+<script>
+(function() {
+    var depto = document.getElementById('departamentoSelect');
+    var muni  = document.getElementById('municipioSelect');
+    if (!depto || !muni) return;
+
+    function filter() {
+        var selected = depto.value;
+        var currentMuni = muni.value;
+        var foundCurrent = false;
+        Array.prototype.forEach.call(muni.options, function(opt) {
+            if (!opt.value) { opt.style.display = ''; return; }
+            var matches = !selected || opt.getAttribute('data-depto') === selected;
+            opt.style.display = matches ? '' : 'none';
+            opt.disabled = !matches;
+            if (opt.value === currentMuni && matches) foundCurrent = true;
+        });
+        if (!foundCurrent) muni.value = '';
+    }
+
+    depto.addEventListener('change', filter);
+    filter();
+})();
+</script>

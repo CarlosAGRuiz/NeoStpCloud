@@ -26,6 +26,7 @@ public static class CatalogCodes
     public const string CanalVenta = "CANAL_VENTA";
     public const string AmbienteDte = "AMBIENTE_DTE";
     public const string DepartamentoEs = "DEPARTAMENTO_ES";
+    public const string MunicipioEs = "MUNICIPIO_ES";
 }
 
 /// <summary>

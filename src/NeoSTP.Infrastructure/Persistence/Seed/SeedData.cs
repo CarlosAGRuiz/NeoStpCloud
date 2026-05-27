@@ -56,6 +56,7 @@ internal static class SeedData
             Cat(16, CatalogCodes.CanalVenta,            "Canal de venta",               "Origen del documento: POS, web, móvil, API, manual"),
             Cat(17, CatalogCodes.AmbienteDte,           "Ambiente DTE",                 "Ambientes Hacienda: pruebas y producción"),
             Cat(18, CatalogCodes.DepartamentoEs,        "Departamento (El Salvador)",   "14 departamentos de El Salvador con codigos MH CAT-012"),
+            Cat(19, CatalogCodes.MunicipioEs,           "Municipio / Zona (El Salvador)","42 municipios post-reforma territorial 2024 (Decreto 290). Cada item lleva departamento padre + zona en metadata. Distribución base; ajustar contra CAT-013 final de Hacienda"),
         };
 
         modelBuilder.Entity<Catalogo>().HasData(catalogos);
@@ -216,7 +217,68 @@ internal static class SeedData
         items.Add(Item(id++, 18, "MORAZAN",      "Morazán",      13, metadata: "{\"codigoMH\":\"13\"}"));
         items.Add(Item(id++, 18, "LA_UNION",     "La Unión",     14, metadata: "{\"codigoMH\":\"14\"}"));
 
+        // MUNICIPIO_ES (19) — Municipios post-reforma territorial 2024 (Decreto 290 / Mayo 2024)
+        // 42 zonas distribuidas en los 14 departamentos. La distribución exacta puede
+        // ajustarse contra el CAT-013 oficial de Hacienda cuando se publique.
+        // Cada item lleva metadata {"departamento":"CODIGO","zona":"ZONA"} para cascada UI.
+        AddMun(items, ref id, "AHUACHAPAN",   new[] { "NORTE", "CENTRO", "SUR" });
+        AddMun(items, ref id, "SANTA_ANA",    new[] { "NORTE", "CENTRO", "ESTE" });
+        AddMun(items, ref id, "SONSONATE",    new[] { "NORTE", "CENTRO", "ESTE" });
+        AddMun(items, ref id, "CHALATENANGO", new[] { "NORTE", "CENTRO", "SUR" });
+        AddMun(items, ref id, "LA_LIBERTAD",  new[] { "NORTE", "CENTRO", "SUR", "ESTE", "OESTE", "COSTA" });
+        AddMun(items, ref id, "SAN_SALVADOR", new[] { "NORTE", "CENTRO", "ESTE", "OESTE", "SUR" });
+        AddMun(items, ref id, "CUSCATLAN",    new[] { "NORTE", "SUR" });
+        AddMun(items, ref id, "LA_PAZ",       new[] { "CENTRO", "ESTE", "OESTE" });
+        AddMun(items, ref id, "CABANAS",      new[] { "ESTE", "OESTE" });
+        AddMun(items, ref id, "SAN_VICENTE",  new[] { "NORTE", "SUR" });
+        AddMun(items, ref id, "USULUTAN",     new[] { "NORTE", "ESTE", "OESTE" });
+        AddMun(items, ref id, "SAN_MIGUEL",   new[] { "NORTE", "CENTRO", "OESTE" });
+        AddMun(items, ref id, "MORAZAN",      new[] { "NORTE", "SUR" });
+        AddMun(items, ref id, "LA_UNION",     new[] { "NORTE", "SUR" });
+
         modelBuilder.Entity<CatalogoItem>().HasData(items);
+    }
+
+    private static readonly Dictionary<string, string> DepartamentoLabels = new()
+    {
+        ["AHUACHAPAN"] = "Ahuachapán",
+        ["SANTA_ANA"] = "Santa Ana",
+        ["SONSONATE"] = "Sonsonate",
+        ["CHALATENANGO"] = "Chalatenango",
+        ["LA_LIBERTAD"] = "La Libertad",
+        ["SAN_SALVADOR"] = "San Salvador",
+        ["CUSCATLAN"] = "Cuscatlán",
+        ["LA_PAZ"] = "La Paz",
+        ["CABANAS"] = "Cabañas",
+        ["SAN_VICENTE"] = "San Vicente",
+        ["USULUTAN"] = "Usulután",
+        ["SAN_MIGUEL"] = "San Miguel",
+        ["MORAZAN"] = "Morazán",
+        ["LA_UNION"] = "La Unión",
+    };
+
+    private static readonly Dictionary<string, string> ZonaLabels = new()
+    {
+        ["NORTE"] = "Norte",
+        ["CENTRO"] = "Centro",
+        ["SUR"] = "Sur",
+        ["ESTE"] = "Este",
+        ["OESTE"] = "Oeste",
+        ["COSTA"] = "Costa",
+    };
+
+    /// <summary>Agrega N municipios de un departamento al seed (catalogo 19). Mantiene orden continuo global.</summary>
+    private static void AddMun(List<CatalogoItem> items, ref int id, string deptoCodigo, string[] zonas)
+    {
+        var deptoLabel = DepartamentoLabels[deptoCodigo];
+        var orden = 1;
+        foreach (var zona in zonas)
+        {
+            var codigo = $"{deptoCodigo}_{zona}";
+            var valor = $"{deptoLabel} {ZonaLabels[zona]}";
+            var metadata = $"{{\"departamento\":\"{deptoCodigo}\",\"zona\":\"{zona}\"}}";
+            items.Add(Item(id++, 19, codigo, valor, orden++, metadata: metadata));
+        }
     }
 
     private static void SeedModulos(ModelBuilder modelBuilder)
