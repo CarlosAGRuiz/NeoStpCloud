@@ -215,6 +215,36 @@ para permitir cascada UI. El Web Cliente filtra el dropdown de municipio al
 seleccionar departamento. La distribución base es ajustable contra el CAT-013
 final de Hacienda cuando se publique.
 
+### Configuración DTE / Hacienda (Sprint 4)
+
+Configuración fiscal por empresa (1-a-1 con `Core_Empresas` en tabla `Dte_Configuracion`).
+Permisos requeridos: `DTE.Configurar`.
+
+```
+GET     /api/dte/configuracion              # password/cert nunca se devuelven
+PUT     /api/dte/configuracion               { ambienteCodigo, usuarioMh, passwordMh?, ... }
+POST    /api/dte/configuracion/certificado   { nombre, contenidoBase64, password?, emitido?, vence? }
+DELETE  /api/dte/configuracion/certificado
+POST    /api/dte/configuracion/probar-conexion
+```
+
+**Cifrado de secretos** — `ISecretProtector` (implementación `DataProtectionSecretProtector`)
+cifra password de Hacienda, password del certificado y token cacheado de MH con
+**ASP.NET Core DataProtection** (purpose `NeoSTP.DteSecrets.v1`). Las llaves se
+guardan automáticamente en `%LOCALAPPDATA%\ASP.NET\DataProtection-Keys` (Windows) o
+`/var/aspnet/DataProtection-Keys` (Linux). El BLOB del certificado (varbinary(max))
+va sin cifrar (es el .pfx que ya tiene su password); cambiar la llave de
+DataProtection invalida los passwords cifrados — habrá que reingresarlos.
+
+**Cliente Hacienda** — `IHaciendaAuthClient` con implementación `MockHaciendaAuthClient`
+durante MVP. Simula respuestas:
+- usuario `invalid*` → 401 `CREDENCIALES_INVALIDAS`
+- usuario `*bloqueado*` → 403 `USUARIO_BLOQUEADO`
+- cualquier otro → 200 con token mock de 8h
+
+El cliente HTTP real contra `apitest.dtes.mh.gob.sv` / `api.dtes.mh.gob.sv` se cablea
+en Sprint 5/6 cuando se haga la transmisión real de DTE.
+
 ### Diagnóstico
 
 ```
@@ -268,6 +298,7 @@ Ver el backlog técnico completo en la conversación inicial. Sprints planificad
 - **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT) ✅
 - **Sprint 2** — Empresa y licenciamiento ✅
 - **Sprint 3** — Catálogos, clientes, productos ✅
+- **Sprint 4** — Configuración DTE (cifrado + cliente Hacienda mock) ✅
 - **Sprint 3** — Catálogos, clientes, productos
 - **Sprint 4** — Configuración DTE
 - **Sprint 5** — Generación DTE

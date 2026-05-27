@@ -1,15 +1,19 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Clientes;
+using NeoSTP.Application.Dte;
+using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Infrastructure.Auth;
+using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
 
@@ -45,6 +49,12 @@ public static class DependencyInjection
         services.AddScoped<IModulosService, ModulosService>();
         services.AddScoped<IClientesService, ClientesService>();
         services.AddScoped<IProductosService, ProductosService>();
+
+        // Sprint 4: cifrado de secretos DTE + cliente Hacienda (mock) + servicio config
+        services.AddDataProtection().SetApplicationName("NeoSTP.Cloud");
+        services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
+        services.AddScoped<IHaciendaAuthClient, MockHaciendaAuthClient>();
+        services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
 
         return services;
     }
