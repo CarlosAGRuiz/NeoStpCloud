@@ -1,0 +1,49 @@
+@model NeoSTP.Application.Empresas.Dtos.UpdatePuntoVentaRequest
+@{
+    ViewData["Title"] = "Editar Punto de Venta";
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm">← Volver</a>
+    <h2 class="mb-0">Editar Punto de Venta — <small class="text-muted">@ViewBag.SucursalNombre</small></h2>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <form asp-action="EditPuntoVenta" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Nombre" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                            <input asp-for="Nombre" class="form-control" />
+                            <span asp-validation-for="Nombre" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="CodigoPuntoVentaMh" class="form-label">Cód. Punto de Venta MH</label>
+                            <input asp-for="CodigoPuntoVentaMh" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="EstadoCodigo" class="form-label">Estado</label>
+                            <select asp-for="EstadoCodigo" class="form-select">
+                                <option value="ACTIVO">Activo</option>
+                                <option value="INACTIVO">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                    <a asp-action="PuntosVenta" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

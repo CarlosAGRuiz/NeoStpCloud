@@ -1,0 +1,100 @@
+@model NeoSTP.Application.Common.PagedResult<NeoSTP.Application.Empresas.Dtos.SucursalDto>
+@{
+    ViewData["Title"] = "Sucursales";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Sucursales</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm">📍 Puntos de venta</a>
+        <a asp-action="Create" class="btn btn-primary btn-sm">+ Nueva sucursal</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-5">
+        <input type="text" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Buscar por nombre o código…" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Buscar</button>
+        @if (!string.IsNullOrEmpty(ViewBag.Search as string))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+        }
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Cód. MH</th>
+                <th>Tipo Estab.</th>
+                <th>Departamento</th>
+                <th class="text-center">PV</th>
+                <th>Estado</th>
+                <th>Creada</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Items)
+            {
+                <tr class="@(s.EstadoCodigo != "ACTIVO" ? "table-secondary text-muted" : "")">
+                    <td><code>@s.Codigo</code></td>
+                    <td>@s.Nombre</td>
+                    <td><small>@(s.CodigoEstablecimientoMh ?? "—")</small></td>
+                    <td><small>@(s.TipoEstablecimientoCodigo ?? "—")</small></td>
+                    <td><small>@(s.Departamento ?? "—")</small></td>
+                    <td class="text-center">
+                        <a asp-action="PuntosVenta" asp-route-sucursalId="@s.Id" class="badge bg-secondary text-decoration-none">@s.PuntosVenta</a>
+                    </td>
+                    <td>
+                        <span class="badge @(s.EstadoCodigo == "ACTIVO" ? "bg-success" : "bg-secondary")">@s.EstadoCodigo</span>
+                    </td>
+                    <td><small>@s.CreatedAt.ToString("dd/MM/yyyy")</small></td>
+                    <td class="text-end">
+                        <a asp-action="Edit" asp-route-id="@s.Id" class="btn btn-outline-primary btn-sm">Editar</a>
+                        @if (s.EstadoCodigo == "ACTIVO")
+                        {
+                            <form asp-action="Inactivar" asp-route-id="@s.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('¿Inactivar sucursal @s.Nombre?')">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-warning btn-sm">Inactivar</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr><td colspan="9" class="text-center text-muted py-4">Sin sucursales registradas.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav>
+        <ul class="pagination pagination-sm">
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-page="@p" asp-route-search="@ViewBag.Search">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

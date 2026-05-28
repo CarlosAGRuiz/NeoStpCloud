@@ -2,9 +2,9 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 9 — Worker Jobs y Resiliencia** ✅  
+> **Versión actual: Sprint 10 — Backlog (Sucursales/PV UI, QR PDF, Contador Atómico)** ✅  
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 97/97 pasando  
-> El ciclo completo de emisión está implementado de punta a punta. El Worker retransmite automáticamente DTE en CONTINGENCIA con backoff configurable y limpia refresh tokens vencidos. Las llamadas HTTP a Hacienda tienen resiliencia Polly con reintentos, circuit breaker y timeouts.
+> El backlog técnico está completo. Las sucursales y puntos de venta ya tienen UI en la Web. El PDF del DTE incluye QR con el código de generación. El NumeroControl se asigna con un contador atómico SQL (sin race conditions).
 
 ## Stack
 
@@ -186,7 +186,7 @@ el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
 servidor SMTP. En PowerShell, desde la raíz del repo:
 
 ```powershell
-# 1. Crear la BD y aplicar las 7 migraciones
+# 1. Crear la BD y aplicar las 8 migraciones
 dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 
 # 2. Levantar la Web (en otra ventana)
@@ -222,6 +222,7 @@ Migraciones aplicadas en orden:
 5. `Sprint4_DteConfiguracion` — configuración DTE por empresa con cifrado
 6. `Sprint5_DteDocumentos` — documentos DTE, detalles y JSON
 7. `Sprint9_RetransmisionTracking` — columnas `IntentoRetransmision` y `UltimoIntentoRetransmisionAt` en `Dte_Documentos`
+8. `Sprint10_DteCorrelativos` — tabla `Dte_Correlativos` para contador atómico de `NumeroControl`
 
 ```powershell
 # Crear una nueva migración
@@ -508,6 +509,8 @@ Bajo el dominio `/` con auth por cookie:
 | `/Planes`                     | 2      | Lectura del catálogo de planes y módulos                 |
 | `/Home` (empresa)             | 8      | Dashboard con KPIs, tendencia 30d, donut de estados y tabla por tipo |
 | `/Home` (SuperAdmin)          | 8      | Panel global: KPIs, alertas de planes, top empresas, resumen MRR |
+| `/Sucursales`                 | 10     | CRUD sucursales + botón directo a puntos de venta de cada sucursal |
+| `/Sucursales/PuntosVenta`     | 10     | CRUD puntos de venta con filtro por sucursal |
 
 ## SuperAdmin inicial
 
@@ -569,6 +572,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 7      | PDF, correo y descarga del DTE         | ✅     |
 | 8      | Dashboard operativo y SuperAdmin avzdo | ✅     |
 | 9      | Worker jobs y resiliencia              | ✅     |
+| 10     | Backlog: Sucursales UI, QR PDF, AtomicCounter | ✅     |
 
 ## Pruebas
 

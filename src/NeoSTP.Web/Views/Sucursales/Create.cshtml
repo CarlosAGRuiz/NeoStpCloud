@@ -1,0 +1,74 @@
+@model NeoSTP.Application.Empresas.Dtos.CreateSucursalRequest
+@{
+    ViewData["Title"] = "Nueva Sucursal";
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+    <h2 class="mb-0">Nueva Sucursal</h2>
+</div>
+
+<div class="row">
+    <div class="col-md-7">
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="Codigo" class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+                            <input asp-for="Codigo" class="form-control" placeholder="Ej: 0001" maxlength="4" />
+                            <span asp-validation-for="Codigo" class="text-danger small"></span>
+                            <div class="form-text">4 dígitos para NumeroControl</div>
+                        </div>
+                        <div class="col-md-8">
+                            <label asp-for="Nombre" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                            <input asp-for="Nombre" class="form-control" placeholder="Nombre de la sucursal" />
+                            <span asp-validation-for="Nombre" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="CodigoEstablecimientoMh" class="form-label">Cód. Establecimiento MH</label>
+                            <input asp-for="CodigoEstablecimientoMh" class="form-control" placeholder="Según Hacienda" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TipoEstablecimientoCodigo" class="form-label">Tipo Establecimiento</label>
+                            <select asp-for="TipoEstablecimientoCodigo" class="form-select">
+                                <option value="">— Seleccionar —</option>
+                                <option value="01">01 - Sucursal / Agencia</option>
+                                <option value="02">02 - Casa Matriz</option>
+                                <option value="07">07 - Comercio Virtual</option>
+                                <option value="20">20 - Otro</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Direccion" class="form-label">Dirección</label>
+                            <input asp-for="Direccion" class="form-control" placeholder="Dirección de la sucursal" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Telefono" class="form-label">Teléfono</label>
+                            <input asp-for="Telefono" class="form-control" placeholder="2222-0000" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Departamento" class="form-label">Departamento</label>
+                            <input asp-for="Departamento" class="form-control" placeholder="Cód." maxlength="2" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Municipio" class="form-label">Municipio</label>
+                            <input asp-for="Municipio" class="form-control" placeholder="Cód." maxlength="4" />
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
