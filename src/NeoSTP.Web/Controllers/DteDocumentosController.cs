@@ -223,6 +223,40 @@ public class DteDocumentosController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Pdf(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Consultar") && !Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ObtenerArchivosAsync(eid, id, ct);
+        if (result.IsFailure) return NotFound();
+        return File(result.Value!.PdfContent, "application/pdf", result.Value!.PdfFileName);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Json(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Consultar") && !Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ObtenerArchivosAsync(eid, id, ct);
+        if (result.IsFailure) return NotFound();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value!.JsonContent ?? string.Empty);
+        return File(bytes, "application/json", result.Value!.JsonFileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reenviar(int id, string? destinatario, CancellationToken ct)
+    {
+        if (!Has("DTE.Reenviar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ReenviarPorCorreoAsync(eid, id, destinatario, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? $"DTE reenviado a {result.Value!.Destinatario}."
+            : result.Error;
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     private bool Has(string codigo)
         => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);
 

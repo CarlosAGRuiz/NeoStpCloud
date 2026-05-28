@@ -28,6 +28,8 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly IHaciendaReceptionClient _reception;
     private readonly IHaciendaAuthClient _haciendaAuth;
     private readonly ISecretProtector _protector;
+    private readonly IDtePdfService _pdf;
+    private readonly IEmailSender _email;
     private readonly IAuditoriaService _auditoria;
 
     public DteDocumentosService(
@@ -38,6 +40,8 @@ public class DteDocumentosService : IDteDocumentosService
         IHaciendaReceptionClient reception,
         IHaciendaAuthClient haciendaAuth,
         ISecretProtector protector,
+        IDtePdfService pdf,
+        IEmailSender email,
         IAuditoriaService auditoria)
     {
         _db = db;
@@ -47,6 +51,8 @@ public class DteDocumentosService : IDteDocumentosService
         _reception = reception;
         _haciendaAuth = haciendaAuth;
         _protector = protector;
+        _pdf = pdf;
+        _email = email;
         _auditoria = auditoria;
     }
 
@@ -492,6 +498,122 @@ public class DteDocumentosService : IDteDocumentosService
         config.TokenMhExpiraAt = auth.ExpiresAt ?? DateTime.UtcNow.AddHours(8);
         await _db.SaveChangesAsync(ct);
         return (true, auth.Token, null);
+    }
+
+    public async Task<Result<DteArchivosDto>> ObtenerArchivosAsync(int empresaId, int id, CancellationToken ct = default)
+    {
+        var doc = await _db.DteDocumentos
+            .Include(d => d.Detalles)
+            .Include(d => d.Json)
+            .Include(d => d.Empresa)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result<DteArchivosDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+
+        var safeNumero = (doc.NumeroControl ?? "documento").Replace(" ", "_");
+        var pdfBytes = _pdf.Generar(doc);
+        var jsonContent = doc.Json?.JsonDte ?? string.Empty;
+
+        return Result<DteArchivosDto>.Ok(new DteArchivosDto
+        {
+            NumeroControl = doc.NumeroControl ?? string.Empty,
+            PdfFileName = $"{safeNumero}.pdf",
+            PdfContent = pdfBytes,
+            JsonFileName = $"{safeNumero}.json",
+            JsonContent = jsonContent,
+        });
+    }
+
+    public async Task<Result<DteReenvioResultDto>> ReenviarPorCorreoAsync(int empresaId, int id, string? destinatario, string? actor, CancellationToken ct = default)
+    {
+        var doc = await _db.DteDocumentos
+            .Include(d => d.Detalles)
+            .Include(d => d.Json)
+            .Include(d => d.Empresa)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result<DteReenvioResultDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+
+        var to = !string.IsNullOrWhiteSpace(destinatario) ? destinatario!.Trim() : doc.ReceptorCorreo;
+        if (string.IsNullOrWhiteSpace(to))
+            return Result<DteReenvioResultDto>.Fail(
+                "No hay correo destinatario. Indica uno o registra el del receptor.", "VALIDATION");
+
+        var pdf = _pdf.Generar(doc);
+        var json = doc.Json?.JsonDte;
+        var safeNumero = (doc.NumeroControl ?? "documento").Replace(" ", "_");
+
+        var attachments = new List<EmailAttachment>
+        {
+            new()
+            {
+                FileName = $"{safeNumero}.pdf",
+                MediaType = "application/pdf",
+                Content = pdf,
+            },
+        };
+        if (!string.IsNullOrEmpty(json))
+        {
+            attachments.Add(new EmailAttachment
+            {
+                FileName = $"{safeNumero}.json",
+                MediaType = "application/json",
+                Content = System.Text.Encoding.UTF8.GetBytes(json),
+            });
+        }
+
+        var emisor = doc.Empresa?.RazonSocial ?? "su proveedor";
+        var subject = $"DTE {doc.TipoDteCodigo} {doc.NumeroControl} - {emisor}";
+        var body = BuildBody(doc, emisor);
+
+        var message = new EmailMessage
+        {
+            To = to,
+            Subject = subject,
+            HtmlBody = body,
+        };
+        message.Attachments.AddRange(attachments);
+        var result = await _email.EnviarAsync(message, ct);
+
+        var dto = new DteReenvioResultDto
+        {
+            Enviado = result.Success,
+            Destinatario = to,
+            Mensaje = result.Mensaje,
+            Detalle = result.Detalle,
+            MessageId = result.MessageId,
+        };
+
+        await Audit(empresaId, actor, "REENVIAR_CORREO", result.Success ? "OK" : "FAIL",
+            $"a {to}: {result.Mensaje} - {result.Detalle}", doc.Id);
+
+        return result.Success
+            ? Result<DteReenvioResultDto>.Ok(dto)
+            : Result<DteReenvioResultDto>.Fail(result.Detalle ?? result.Mensaje ?? "Error enviando correo.", "EMAIL_FAILED");
+    }
+
+    private static string BuildBody(DteDocumento d, string emisor)
+    {
+        var receptor = d.ReceptorNombre ?? "Estimado(a) cliente";
+        return $"""
+            <!doctype html>
+            <html lang="es">
+            <body style="font-family:Segoe UI, Arial, sans-serif; color:#222">
+              <p>Estimado(a) <strong>{receptor}</strong>,</p>
+              <p>Adjuntamos el Documento Tributario Electrónico emitido por <strong>{emisor}</strong>:</p>
+              <ul>
+                <li><strong>Tipo:</strong> {d.TipoDteCodigo}</li>
+                <li><strong>Número de control:</strong> <code>{d.NumeroControl}</code></li>
+                <li><strong>Código de generación:</strong> <code>{d.CodigoGeneracion}</code></li>
+                <li><strong>Fecha de emisión:</strong> {d.FechaEmision:yyyy-MM-dd}</li>
+                <li><strong>Total a pagar:</strong> $ {d.TotalPagar:N2}</li>
+                {(string.IsNullOrEmpty(d.SelloRecibido) ? "" : $"<li><strong>Sello recibido:</strong> <code>{d.SelloRecibido}</code></li>")}
+              </ul>
+              <p>Encontrará el PDF (representación gráfica) y el JSON oficial del DTE como archivos adjuntos.</p>
+              <p style="color:#888; font-size:12px">Enviado por NeoSTP Cloud · {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC</p>
+            </body>
+            </html>
+            """;
     }
 
     public async Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default)

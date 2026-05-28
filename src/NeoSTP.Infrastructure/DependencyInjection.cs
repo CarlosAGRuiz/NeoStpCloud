@@ -83,6 +83,14 @@ public static class DependencyInjection
         else
             services.AddScoped<IDteSignerService, MockDteSignerService>();
 
+        // Sprint 7: PDF + correo
+        services.AddScoped<IDtePdfService, DtePdfService>();
+        var emailProvider = configuration["Email:Provider"];
+        if (string.Equals(emailProvider, "Smtp", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IEmailSender, MockEmailSender>();
+
         return services;
     }
 }
