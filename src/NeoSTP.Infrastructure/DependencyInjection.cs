@@ -70,8 +70,10 @@ public static class DependencyInjection
                     opts.Retry.Delay = TimeSpan.FromSeconds(1);
                     // Timeout total por request (incluyendo reintentos)
                     opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(90);
-                    // Timeout por intento individual
+                    // Timeout por intento individual — debe ser < SamplingDuration/2
                     opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(25);
+                    // SamplingDuration debe ser >= 2 × AttemptTimeout (25s → mín 50s)
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);
                 });
 
             services.AddHttpClient(HttpHaciendaReceptionClient.HttpClientName)
@@ -80,7 +82,10 @@ public static class DependencyInjection
                     opts.Retry.MaxRetryAttempts = 3;
                     opts.Retry.Delay = TimeSpan.FromSeconds(2);
                     opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                    // Timeout por intento individual — debe ser < SamplingDuration/2
                     opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(35);
+                    // SamplingDuration debe ser >= 2 × AttemptTimeout (35s → mín 70s)
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
                 });
 
             services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
