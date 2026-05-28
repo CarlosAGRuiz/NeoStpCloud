@@ -198,11 +198,10 @@ public class DteDocumentosService : IDteDocumentosService
             doc.ReceptorTelefono = r.Telefono;
         }
 
-        // Numero de control: correlativo por (empresa, tipoDte)
-        var ultimoCorrelativo = await _db.DteDocumentos
-            .Where(d => d.EmpresaId == empresaId && d.TipoDteCodigo == request.TipoDteCodigo)
-            .CountAsync(ct);
-        var correlativo = (ultimoCorrelativo + 1).ToString().PadLeft(15, '0');
+        // Número de control: correlativo atómico por (empresa, tipoDte)
+        // UPSERT + incremento en una sola operación SQL para evitar race conditions.
+        var correlativoNum = await NextCorrelativoAsync(empresaId, request.TipoDteCodigo, ct);
+        var correlativo = correlativoNum.ToString().PadLeft(15, '0');
         doc.NumeroControl = $"DTE-{request.TipoDteCodigo}-{establecimiento}{puntoVenta}-{correlativo}";
 
         // Detalles
@@ -777,4 +776,43 @@ public class DteDocumentosService : IDteDocumentosService
             Entidad = "DteDocumento", EntidadId = entidadId.ToString(),
             Resultado = resultado, Detalle = detalle,
         });
+
+    /// <summary>
+    /// Obtiene el siguiente correlativo de forma atómica usando UPSERT + UPDATE SQL.
+    /// Evita la race condition del COUNT(*)+1 en entornos concurrentes.
+    /// </summary>
+    private async Task<int> NextCorrelativoAsync(int empresaId, string tipoDte, CancellationToken ct)
+    {
+        // Intentar actualizar si ya existe el registro
+        var updated = await _db.Database.ExecuteSqlAsync(
+            $"""
+            UPDATE Dte_Correlativos
+               SET UltimoCorrelativo = UltimoCorrelativo + 1,
+                   ActualizadoAt     = GETUTCDATE()
+             WHERE EmpresaId = {empresaId}
+               AND TipoDteCodigo = {tipoDte}
+            """, ct);
+
+        if (updated == 0)
+        {
+            // Primera vez: insertar con correlativo = 1, ignorar duplicado por concurrencia
+            await _db.Database.ExecuteSqlAsync(
+                $"""
+                IF NOT EXISTS (SELECT 1 FROM Dte_Correlativos WHERE EmpresaId = {empresaId} AND TipoDteCodigo = {tipoDte})
+                    INSERT INTO Dte_Correlativos (EmpresaId, TipoDteCodigo, UltimoCorrelativo, ActualizadoAt)
+                    VALUES ({empresaId}, {tipoDte}, 1, GETUTCDATE())
+                ELSE
+                    UPDATE Dte_Correlativos
+                       SET UltimoCorrelativo = UltimoCorrelativo + 1,
+                           ActualizadoAt     = GETUTCDATE()
+                     WHERE EmpresaId = {empresaId}
+                       AND TipoDteCodigo = {tipoDte}
+                """, ct);
+        }
+
+        var row = await _db.DteCorrelativos
+            .FirstOrDefaultAsync(c => c.EmpresaId == empresaId && c.TipoDteCodigo == tipoDte, ct);
+
+        return row?.UltimoCorrelativo ?? 1;
+    }
 }

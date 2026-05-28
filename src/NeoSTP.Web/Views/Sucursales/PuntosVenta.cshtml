@@ -1,0 +1,106 @@
+@model NeoSTP.Application.Common.PagedResult<NeoSTP.Application.Empresas.Dtos.PuntoVentaDto>
+@{
+    ViewData["Title"] = "Puntos de Venta";
+    var sucursales = (IReadOnlyList<NeoSTP.Application.Empresas.Dtos.SucursalDto>)ViewBag.Sucursales;
+    int? filtroSucursalId = ViewBag.SucursalId as int?;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Puntos de Venta</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">🏢 Sucursales</a>
+        <a asp-action="CreatePuntoVenta" asp-route-sucursalId="@filtroSucursalId" class="btn btn-primary btn-sm">+ Nuevo punto de venta</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <select name="sucursalId" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">— Todas las sucursales —</option>
+            @foreach (var s in sucursales)
+            {
+                <option value="@s.Id" selected="@(filtroSucursalId == s.Id)">@s.Nombre (@s.Codigo)</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <input type="text" name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Buscar por nombre o código…" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Buscar</button>
+        @if (filtroSucursalId.HasValue || !string.IsNullOrEmpty(ViewBag.Search as string))
+        {
+            <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+        }
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Sucursal</th>
+                <th>Cód. PV MH</th>
+                <th>Estado</th>
+                <th>Creado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var pv in Model.Items)
+            {
+                <tr class="@(pv.EstadoCodigo != "ACTIVO" ? "table-secondary text-muted" : "")">
+                    <td><code>@pv.Codigo</code></td>
+                    <td>@pv.Nombre</td>
+                    <td><small>@pv.SucursalNombre</small></td>
+                    <td><small>@(pv.CodigoPuntoVentaMh ?? "—")</small></td>
+                    <td>
+                        <span class="badge @(pv.EstadoCodigo == "ACTIVO" ? "bg-success" : "bg-secondary")">@pv.EstadoCodigo</span>
+                    </td>
+                    <td><small>@pv.CreatedAt.ToString("dd/MM/yyyy")</small></td>
+                    <td class="text-end">
+                        <a asp-action="EditPuntoVenta" asp-route-id="@pv.Id" class="btn btn-outline-primary btn-sm">Editar</a>
+                        @if (pv.EstadoCodigo == "ACTIVO")
+                        {
+                            <form asp-action="InactivarPuntoVenta" asp-route-id="@pv.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('¿Inactivar punto de venta @pv.Nombre?')">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-warning btn-sm">Inactivar</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Items.Any())
+            {
+                <tr><td colspan="7" class="text-center text-muted py-4">Sin puntos de venta registrados.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav>
+        <ul class="pagination pagination-sm">
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="PuntosVenta" asp-route-page="@p"
+                       asp-route-sucursalId="@filtroSucursalId" asp-route-search="@ViewBag.Search">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

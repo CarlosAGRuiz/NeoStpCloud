@@ -1,0 +1,59 @@
+@model NeoSTP.Application.Empresas.Dtos.CreatePuntoVentaRequest
+@{
+    ViewData["Title"] = "Nuevo Punto de Venta";
+    var sucursales = (IReadOnlyList<NeoSTP.Application.Empresas.Dtos.SucursalDto>)ViewBag.Sucursales;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm">← Volver</a>
+    <h2 class="mb-0">Nuevo Punto de Venta</h2>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="CreatePuntoVenta" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="SucursalId" class="form-label fw-semibold">Sucursal <span class="text-danger">*</span></label>
+                            <select asp-for="SucursalId" class="form-select">
+                                <option value="0">— Seleccionar sucursal —</option>
+                                @foreach (var s in sucursales.Where(s => s.EstadoCodigo == "ACTIVO"))
+                                {
+                                    <option value="@s.Id">@s.Nombre (@s.Codigo)</option>
+                                }
+                            </select>
+                            <span asp-validation-for="SucursalId" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Codigo" class="form-label fw-semibold">Código <span class="text-danger">*</span></label>
+                            <input asp-for="Codigo" class="form-control" placeholder="Ej: 0001" maxlength="4" />
+                            <span asp-validation-for="Codigo" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-8">
+                            <label asp-for="Nombre" class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                            <input asp-for="Nombre" class="form-control" placeholder="Ej: Caja 1" />
+                            <span asp-validation-for="Nombre" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="CodigoPuntoVentaMh" class="form-label">Cód. Punto de Venta MH</label>
+                            <input asp-for="CodigoPuntoVentaMh" class="form-control" placeholder="Según catálogo Hacienda" />
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <a asp-action="PuntosVenta" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

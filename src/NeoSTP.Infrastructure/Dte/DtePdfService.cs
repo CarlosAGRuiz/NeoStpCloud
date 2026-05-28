@@ -1,5 +1,6 @@
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Domain.Core.Dte;
+using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -169,15 +170,38 @@ public class DtePdfService : IDtePdfService
 
     private static void Footer(IContainer container, DteDocumento d)
     {
-        container.AlignCenter().Text(t =>
+        container.Row(row =>
         {
-            t.Span("Documento Tributario Electrónico generado por NeoSTP Cloud · ").FontSize(7);
-            t.Span($"{d.FechaEmision:yyyy-MM-dd}").FontSize(7);
-            t.Span("   ·   Página ").FontSize(7);
-            t.CurrentPageNumber().FontSize(7);
-            t.Span("/").FontSize(7);
-            t.TotalPages().FontSize(7);
+            // QR con el código de generación (UUID del DTE)
+            if (!string.IsNullOrEmpty(d.CodigoGeneracion))
+            {
+                var qrBytes = GenerarQr(d.CodigoGeneracion);
+                row.ConstantItem(60).Image(qrBytes);
+            }
+            else
+            {
+                row.ConstantItem(60);
+            }
+
+            row.RelativeItem().AlignCenter().AlignBottom().Text(t =>
+            {
+                t.Span("Documento Tributario Electrónico generado por NeoSTP Cloud · ").FontSize(7);
+                t.Span($"{d.FechaEmision:yyyy-MM-dd}").FontSize(7);
+                t.Span("   ·   Página ").FontSize(7);
+                t.CurrentPageNumber().FontSize(7);
+                t.Span("/").FontSize(7);
+                t.TotalPages().FontSize(7);
+            });
         });
+    }
+
+    /// <summary>Genera un PNG del QR con el contenido dado usando QRCoder.</summary>
+    private static byte[] GenerarQr(string contenido)
+    {
+        using var generator = new QRCodeGenerator();
+        using var data = generator.CreateQrCode(contenido, QRCodeGenerator.ECCLevel.M);
+        using var qr = new PngByteQRCode(data);
+        return qr.GetGraphic(4);   // 4 px por módulo → ~160×160 px
     }
 
     // ---------- helpers ----------
