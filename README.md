@@ -136,6 +136,38 @@ dotnet test NeoSTP.slnx
 También hay una skill local `.claude/skills/neostp/` con todos los comandos cotidianos.
 Invócala como `/neostp <subcomando>` dentro de Claude Code.
 
+## Quickstart — flujo E2E con mocks
+
+Con la configuración por defecto (todos los toggles en `Mock`) puedes ejercitar
+el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
+servidor SMTP. En PowerShell, desde la raíz del repo:
+
+```powershell
+# 1. Crear la BD y aplicar las 6 migraciones
+dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
+
+# 2. Levantar la Web (en otra ventana)
+dotnet run --project src/NeoSTP.Web
+
+# 3. En el navegador: https://localhost:7044
+#    Login: superadmin / ChangeMe!2026
+#    SuperAdmin → Soporte → seleccionar empresa demo
+#    → Empresas → crear "Demo S.A. de C.V." con plan PRO (si no existe)
+#    → Clientes → crear un cliente con correo
+#    → Productos → crear al menos un producto
+#    → DTE → "Nuevo DTE" → Factura (01) → agregar línea → Guardar
+#    → En Details: Validar → Firmar → Enviar a Hacienda
+#    → Descargar PDF · Descargar JSON · Reenviar por correo
+#    → El correo se guarda como .eml en logs/email-outbox/
+```
+
+Cada paso de la cadena `Validar → Firmar → Enviar` cambia el estado del
+documento y deja registro en `Core_Auditoria`. El sello recibido del mock
+se muestra en la sección "Respuesta de Hacienda" del detalle.
+
+Para activar las integraciones reales basta con cambiar los toggles en
+`appsettings.Local.json` (ver sección anterior).
+
 ## Base de datos
 
 Migraciones aplicadas en orden:
