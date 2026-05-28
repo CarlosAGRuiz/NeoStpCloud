@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Clientes;
+using NeoSTP.Application.Dashboard;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Empresas;
@@ -82,6 +83,9 @@ public static class DependencyInjection
             services.AddScoped<IDteSignerService, Pkcs12DteSignerService>();
         else
             services.AddScoped<IDteSignerService, MockDteSignerService>();
+
+        // Sprint 8: Dashboard
+        services.AddScoped<IDashboardService, DashboardService>();
 
         // Sprint 7: PDF + correo
         services.AddScoped<IDtePdfService, DtePdfService>();

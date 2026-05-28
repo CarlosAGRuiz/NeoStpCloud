@@ -2,8 +2,8 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 7 — PDF, correo y descarga del DTE** ✅
-> El ciclo completo de emisión está implementado de punta a punta (mock por defecto, switches para HTTP/SMTP/PFX real).
+> **Versión actual: Sprint 8 — Dashboard operativo y panel SuperAdmin** ✅
+> El ciclo completo de emisión está implementado de punta a punta. El dashboard muestra KPIs en tiempo real: DTE emitidos, facturación del mes, tendencia diaria y distribución por estado (Chart.js). El panel SuperAdmin incluye métricas globales, top 10 empresas y alertas de planes próximos a vencer.
 
 ## Stack
 
@@ -13,7 +13,7 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **SQL Server 2022** + **Entity Framework Core 10**
 - **Serilog** (logs estructurados a consola y archivo)
 - **.NET Worker Service** (procesos en segundo plano)
-- **xUnit + FluentAssertions** (71 pruebas, todas pasando)
+- **xUnit + FluentAssertions** (83 pruebas, todas pasando)
 - **JWT** (Api) + **Cookies** (Web) para autenticación
 - **DataProtection** para cifrado de secretos DTE
 - **QuestPDF 2025.1** + **MailKit 4.17** para representación gráfica y correo
@@ -129,7 +129,7 @@ dotnet run --project src/NeoSTP.Api
 # Levantar el Worker
 dotnet run --project src/NeoSTP.Worker
 
-# Correr pruebas (71 unit tests)
+# Correr pruebas (83 unit tests)
 dotnet test NeoSTP.slnx
 ```
 
@@ -391,6 +391,29 @@ POST   /api/dte/documentos/{id}/reenviar     { destinatario? }    # PDF+JSON adj
 Permisos: `DTE.Consultar` para descargas, `DTE.Reenviar` para correo.
 Si no se pasa `destinatario`, se usa el correo del receptor. `EMAIL_FAILED` → HTTP **502**.
 
+### Dashboard (Sprint 8)
+
+```
+GET  /api/dashboard/empresa?empresaId=      # KPIs del mes para la empresa del token
+                                             # SuperAdmin: pasar ?empresaId=N
+GET  /api/dashboard/superadmin              # métricas globales (solo SUPERADMIN)
+```
+
+El endpoint de empresa devuelve:
+- `dteHoy`, `dteMes`, `totalPagarMes` (procesados)
+- `procesados`, `rechazados`, `contingencias`, `pendientes` (todos los estados no terminales)
+- `planNombre`, `limiteDteMensual`, `porcentajeUsoDte`
+- `porEstado` — array `{estado, cantidad, totalPagar}` del mes
+- `porTipo`   — array `{tipoCodigo, tipoNombre, cantidad, totalPagar}` del mes
+- `tendenciaDiaria` — array de 30 días `{fecha, cantidad, totalPagar}`
+
+El endpoint superadmin devuelve:
+- `empresasActivas`, `empresasTotal`, `usuariosActivos`
+- `dteTotalMes`, `facturacionTotalMes` (procesados)
+- `resumenPorPlan` — array `{planNombre, empresasCount, ingresosMensuales}`
+- `alertasPlanProximoVencer` — planes que vencen en los próximos 30 días
+- `topEmpresasDteMes` — top 10 empresas ordenadas por cantidad de DTE
+
 ### Diagnóstico
 
 ```
@@ -416,6 +439,8 @@ Bajo el dominio `/` con auth por cookie:
 | `/DteDocumentos/Create`       | 5      | Form con líneas dinámicas y recálculo en cliente         |
 | `/DteDocumentos/Details/{id}` | 5–7    | Totales, JSON, JWS firmado, sello MH, descargas y reenvío|
 | `/Planes`                     | 2      | Lectura del catálogo de planes y módulos                 |
+| `/Home` (empresa)             | 8      | Dashboard con KPIs, tendencia 30d, donut de estados y tabla por tipo |
+| `/Home` (SuperAdmin)          | 8      | Panel global: KPIs, alertas de planes, top empresas, resumen MRR |
 
 ## SuperAdmin inicial
 
@@ -475,26 +500,28 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 5      | Generación DTE (5 tipos)               | ✅     |
 | 6      | Firma JWS y transmisión a Hacienda     | ✅     |
 | 7      | PDF, correo y descarga del DTE         | ✅     |
-| 8      | Dashboard operativo y SuperAdmin avzdo | ⏳     |
+| 8      | Dashboard operativo y SuperAdmin avzdo | ✅     |
+| 9      | Worker jobs y resiliencia              | ⏳     |
 
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 71 tests unit + integration
-dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~5s)
+dotnet test NeoSTP.slnx                          # corre los 83 tests unit + integration
+dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
 Cobertura por área:
 
-| Área                  | Tests | Ubicación                                        |
-| --------------------- | ----- | ------------------------------------------------ |
-| Auth (BCrypt, login)  | 11    | `tests/NeoSTP.Tests.Unit/Auth/`                  |
-| Empresas (límites)    | 5     | `tests/NeoSTP.Tests.Unit/Empresas/`              |
-| Clientes (validadores)| 21    | `tests/NeoSTP.Tests.Unit/Clientes/`              |
-| DTE — DataProtection  | 4     | `tests/NeoSTP.Tests.Unit/Dte/`                   |
-| DTE — Cálculo totales | 8     | `tests/NeoSTP.Tests.Unit/Dte/DteCalculatorTests.cs` |
-| DTE — Generación JSON | 5     | `tests/NeoSTP.Tests.Unit/Dte/DteGeneratorTests.cs`  |
-| DTE — Firma JWS       | 6     | `tests/NeoSTP.Tests.Unit/Dte/DteSignerTests.cs`     |
-| DTE — Recepción MH    | 5     | `tests/NeoSTP.Tests.Unit/Dte/MockHaciendaReceptionTests.cs` |
-| DTE — PDF             | 3     | `tests/NeoSTP.Tests.Unit/Dte/DtePdfServiceTests.cs` |
-| DTE — Correo (Mock)   | 3     | `tests/NeoSTP.Tests.Unit/Dte/MockEmailSenderTests.cs` |
+| Área                      | Tests | Ubicación                                              |
+| ------------------------- | ----- | ------------------------------------------------------ |
+| Auth (BCrypt, login)      | 11    | `tests/NeoSTP.Tests.Unit/Auth/`                        |
+| Empresas (límites)        | 5     | `tests/NeoSTP.Tests.Unit/Empresas/`                    |
+| Clientes (validadores)    | 21    | `tests/NeoSTP.Tests.Unit/Clientes/`                    |
+| DTE — DataProtection      | 4     | `tests/NeoSTP.Tests.Unit/Dte/`                         |
+| DTE — Cálculo totales     | 8     | `tests/NeoSTP.Tests.Unit/Dte/DteCalculatorTests.cs`    |
+| DTE — Generación JSON     | 5     | `tests/NeoSTP.Tests.Unit/Dte/DteGeneratorTests.cs`     |
+| DTE — Firma JWS           | 6     | `tests/NeoSTP.Tests.Unit/Dte/DteSignerTests.cs`        |
+| DTE — Recepción MH        | 5     | `tests/NeoSTP.Tests.Unit/Dte/MockHaciendaReceptionTests.cs` |
+| DTE — PDF                 | 3     | `tests/NeoSTP.Tests.Unit/Dte/DtePdfServiceTests.cs`    |
+| DTE — Correo (Mock)       | 3     | `tests/NeoSTP.Tests.Unit/Dte/MockEmailSenderTests.cs`  |
+| Dashboard (EF InMemory)   | 12    | `tests/NeoSTP.Tests.Unit/Dashboard/DashboardServiceTests.cs` |

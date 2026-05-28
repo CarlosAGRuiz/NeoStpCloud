@@ -1,0 +1,221 @@
+@model NeoSTP.Web.Models.DashboardViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Panel SuperAdmin";
+    var dto = Model.SuperAdminDashboard!;
+    var mesNombre = DateTime.UtcNow.ToString("MMMM yyyy");
+}
+
+@* ── Encabezado ─────────────────────────────────────────────── *@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">Panel SuperAdmin</h1>
+        <p class="text-muted mb-0">Métricas globales &mdash; @mesNombre</p>
+    </div>
+    <div>
+        <a asp-controller="Empresas" asp-action="Index" class="btn btn-outline-secondary btn-sm me-1">Empresas</a>
+        <a asp-controller="Planes" asp-action="Index" class="btn btn-outline-secondary btn-sm">Planes</a>
+    </div>
+</div>
+
+@* ── Fila 1: KPIs globales ───────────────────────────────────── *@
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Empresas activas</p>
+                <h2 class="mb-0 fw-bold text-success">@dto.EmpresasActivas</h2>
+                <small class="text-muted">de @dto.EmpresasTotal totales</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Usuarios activos</p>
+                <h2 class="mb-0 fw-bold text-primary">@dto.UsuariosActivos</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">DTE emitidos (mes)</p>
+                <h2 class="mb-0 fw-bold">@dto.DteTotalMes</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Facturado procesado (mes)</p>
+                <h2 class="mb-0 fw-bold text-warning">$@dto.FacturacionTotalMes.ToString("N2")</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg">
+        <div class="card border-0 shadow-sm h-100 @(dto.AlertasPlanProximoVencer.Any() ? "border-warning border" : "")">
+            <div class="card-body text-center">
+                <p class="text-muted small mb-1">Alertas planes</p>
+                <h2 class="mb-0 fw-bold @(dto.AlertasPlanProximoVencer.Any() ? "text-danger" : "text-secondary")">
+                    @dto.AlertasPlanProximoVencer.Count
+                </h2>
+                <small class="text-muted">próximos a vencer</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Fila 2: Alertas + Resumen planes ───────────────────────── *@
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <strong>
+                    @if (dto.AlertasPlanProximoVencer.Any())
+                    {
+                        <span class="text-danger">⚠️</span>
+                    }
+                    Planes próximos a vencer (30 días)
+                </strong>
+            </div>
+            @if (dto.AlertasPlanProximoVencer.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Plan</th>
+                                <th>Vence</th>
+                                <th class="text-end">Días</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in dto.AlertasPlanProximoVencer)
+                            {
+                                <tr class="@(a.DiasRestantes <= 7 ? "table-danger" : a.DiasRestantes <= 15 ? "table-warning" : "")">
+                                    <td>@a.RazonSocial</td>
+                                    <td>@a.PlanNombre</td>
+                                    <td>@a.FechaFin.ToString("dd/MM/yyyy")</td>
+                                    <td class="text-end fw-bold">@a.DiasRestantes</td>
+                                    <td>
+                                        <a asp-controller="Empresas" asp-action="Edit" asp-route-id="@a.EmpresaId"
+                                           class="btn btn-xs btn-outline-secondary btn-sm py-0 px-1">Ver</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="card-body text-muted">Sin planes próximos a vencer. ✅</div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0">
+                <strong>Distribución por plan</strong>
+            </div>
+            @if (dto.ResumenPorPlan.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Plan</th>
+                                <th class="text-end">Empresas</th>
+                                <th class="text-end">MRR ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in dto.ResumenPorPlan)
+                            {
+                                <tr>
+                                    <td>@p.PlanNombre</td>
+                                    <td class="text-end">@p.EmpresasCount</td>
+                                    <td class="text-end text-success fw-semibold">@p.IngresosMensuales.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td>Total</td>
+                                <td class="text-end">@dto.ResumenPorPlan.Sum(p => p.EmpresasCount)</td>
+                                <td class="text-end text-success">@dto.ResumenPorPlan.Sum(p => p.IngresosMensuales).ToString("N2")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="card-body text-muted">Sin planes activos.</div>
+            }
+        </div>
+    </div>
+</div>
+
+@* ── Fila 3: Top empresas ─────────────────────────────────── *@
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <strong>Top 10 empresas por DTE emitido (mes actual)</strong>
+            </div>
+            @if (dto.TopEmpresasDteMes.Any())
+            {
+                var maxDte = dto.TopEmpresasDteMes.Max(x => x.DteCount);
+                <div class="card-body py-2">
+                    @foreach (var e in dto.TopEmpresasDteMes)
+                    {
+                        var pct = maxDte > 0 ? (int)Math.Round(e.DteCount * 100.0 / maxDte) : 0;
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="fw-semibold text-truncate" style="max-width:60%">@e.RazonSocial</small>
+                                <small class="text-muted">@e.DteCount DTE · $@e.TotalPagar.ToString("N0")</small>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-primary" style="width: @pct%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="card-body text-muted">Sin actividad DTE este mes.</div>
+            }
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0">
+                <strong>Accesos rápidos</strong>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a asp-controller="Empresas" asp-action="Create" class="btn btn-outline-primary btn-sm">➕ Nueva empresa</a>
+                <a asp-controller="Planes" asp-action="Create" class="btn btn-outline-secondary btn-sm">➕ Nuevo plan</a>
+                <a asp-controller="Soporte" asp-action="Index" class="btn btn-outline-warning btn-sm">🔧 Modo soporte</a>
+                <a asp-controller="Usuarios" asp-action="Index" class="btn btn-outline-secondary btn-sm">👥 Usuarios</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    // Bar chart: top empresas DTE
+    const topData = @Html.Raw(JsonSerializer.Serialize(
+        dto.TopEmpresasDteMes.Take(10).Select(x => new { nombre = x.RazonSocial.Length > 20 ? x.RazonSocial[..20] + "…" : x.RazonSocial, count = x.DteCount }),
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+})();
+</script>
+}
