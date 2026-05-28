@@ -2,7 +2,8 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> Versión actual: **Sprint 0 — Setup técnico**. Aún no hay funcionalidad de negocio; solo cimientos.
+> **Versión actual: Sprint 7 — PDF, correo y descarga del DTE** ✅
+> El ciclo completo de emisión está implementado de punta a punta (mock por defecto, switches para HTTP/SMTP/PFX real).
 
 ## Stack
 
@@ -12,8 +13,11 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **SQL Server 2022** + **Entity Framework Core 10**
 - **Serilog** (logs estructurados a consola y archivo)
 - **.NET Worker Service** (procesos en segundo plano)
-- **xUnit** (pruebas)
-- Autenticación prevista: **JWT** (Api) + **Cookies** (Web)
+- **xUnit + FluentAssertions** (71 pruebas, todas pasando)
+- **JWT** (Api) + **Cookies** (Web) para autenticación
+- **DataProtection** para cifrado de secretos DTE
+- **QuestPDF 2025.1** + **MailKit 4.17** para representación gráfica y correo
+- **BCrypt.Net-Next** (work factor 11) para hash de passwords
 
 ## Arquitectura
 
@@ -24,9 +28,9 @@ NeoSTP.slnx
 ├── src/
 │   ├── NeoSTP.Web              # MVC/Razor (UI)
 │   ├── NeoSTP.Api              # Web API (REST + OpenAPI)
-│   ├── NeoSTP.Application      # Casos de uso, servicios, DTOs
+│   ├── NeoSTP.Application      # Casos de uso, servicios, DTOs, abstracciones
 │   ├── NeoSTP.Domain           # Entidades, reglas, enums
-│   ├── NeoSTP.Infrastructure   # EF Core, SQL Server, integraciones
+│   ├── NeoSTP.Infrastructure   # EF Core, SQL Server, integraciones, PDF, correo
 │   ├── NeoSTP.Worker           # Background jobs
 │   └── NeoSTP.Shared           # Utilidades, ApiResponse, constantes
 └── tests/
@@ -38,7 +42,7 @@ NeoSTP.slnx
 
 | Proyecto         | Referencia a                          |
 | ---------------- | ------------------------------------- |
-| Web              | Application, Shared                   |
+| Web              | Application, Infrastructure, Shared   |
 | Api              | Application, Infrastructure, Shared   |
 | Application      | Domain, Shared                        |
 | Infrastructure   | Application, Domain, Shared           |
@@ -53,15 +57,62 @@ NeoSTP.slnx
 
 ## Configuración
 
-La cadena de conexión está en `appsettings.json` de los proyectos `Api`, `Web` y `Worker`:
+### Connection string
+
+Cadena de conexión en `appsettings.Local.json` de los proyectos `Api`, `Web` y `Worker`
+(el archivo está en `.gitignore`):
 
 ```json
-"ConnectionStrings": {
-  "NeoStpDb": "Server=.;Database=NeoSTP_Cloud;User Id=sa;Password=jda;TrustServerCertificate=True;MultipleActiveResultSets=True"
+{
+  "ConnectionStrings": {
+    "NeoStpDb": "Server=.;Database=NeoSTP_Cloud;User Id=sa;Password=jda;TrustServerCertificate=True;MultipleActiveResultSets=True"
+  },
+  "Jwt": { "Key": "dev-only-replace-me-with-a-strong-32-plus-char-secret-key" }
 }
 ```
 
-> Las credenciales en `appsettings.json` son solo para desarrollo local. En producción deben moverse a User Secrets, variables de entorno o Azure Key Vault.
+> Las credenciales en `appsettings.Local.json` son solo para desarrollo. En producción
+> usar User Secrets, variables de entorno o Azure Key Vault.
+
+### Toggles de integraciones externas
+
+Todas las integraciones externas tienen un toggle Mock/Real para poder desarrollar
+sin credenciales productivas. En `appsettings.Local.json`:
+
+```json
+{
+  "Hacienda": {
+    "Client": "Http",                              // Mock | Http
+    "PruebasBaseUrl": "https://apitest.dtes.mh.gob.sv",
+    "ProduccionBaseUrl": "https://api.dtes.mh.gob.sv",
+    "TimeoutSeconds": 30
+  },
+  "Dte": {
+    "Signer": "Mock"                               // Mock | Pkcs12
+  },
+  "Email": {
+    "Provider": "Mock",                            // Mock | Smtp
+    "MockOutbox": "logs/email-outbox",
+    "From": { "Address": "noreply@neostp.local", "DisplayName": "NeoSTP Cloud" },
+    "Smtp": {
+      "Host": "smtp.example.com",
+      "Port": 587,
+      "UseStartTls": true,
+      "Username": "user",
+      "Password": "pass"
+    }
+  }
+}
+```
+
+| Toggle           | Default | Implementación real                     |
+| ---------------- | ------- | --------------------------------------- |
+| `Hacienda:Client`| `Mock`  | `HttpHaciendaAuthClient` + `HttpHaciendaReceptionClient` (POST `/seguridad/auth` y `/fesv/recepciondte`) |
+| `Dte:Signer`     | `Mock`  | `Pkcs12DteSignerService` (RS256 con PFX en `DteConfiguracion`)                     |
+| `Email:Provider` | `Mock`  | `SmtpEmailSender` (MailKit, STARTTLS/SSL)                                          |
+
+El `MockEmailSender` deja los correos como `.eml` en `logs/email-outbox/` para inspección
+sin SMTP real.
 
 ## Cómo correr
 
@@ -77,9 +128,24 @@ dotnet run --project src/NeoSTP.Api
 
 # Levantar el Worker
 dotnet run --project src/NeoSTP.Worker
+
+# Correr pruebas (71 unit tests)
+dotnet test NeoSTP.slnx
 ```
 
+También hay una skill local `.claude/skills/neostp/` con todos los comandos cotidianos.
+Invócala como `/neostp <subcomando>` dentro de Claude Code.
+
 ## Base de datos
+
+Migraciones aplicadas en orden:
+
+1. `InitialCreate`
+2. `Sprint1_CoreCatalogosYSeguridad` — catálogos, usuarios, roles, permisos, refresh tokens
+3. `Sprint3_ClientesYProductos` — clientes, productos, departamentos ES
+4. `Sprint35_MunicipiosES` — 42 municipios post-reforma 2024
+5. `Sprint4_DteConfiguracion` — configuración DTE por empresa con cifrado
+6. `Sprint5_DteDocumentos` — documentos DTE, detalles y JSON
 
 ```powershell
 # Crear una nueva migración
@@ -94,7 +160,7 @@ dotnet ef database update `
   --startup-project src/NeoSTP.Api
 ```
 
-## Endpoints disponibles (Sprint 1)
+## Endpoints disponibles
 
 Todos los endpoints viven bajo `/api`. Los autenticados requieren `Authorization: Bearer <jwt>`.
 
@@ -205,15 +271,11 @@ PATCH  /api/productos/{id}/inactivar
 - Contribuyentes requieren NRC + código de actividad económica
 - Correo se valida si está presente
 
-Catálogo `DEPARTAMENTO_ES` con los 14 departamentos de El Salvador y sus
-códigos MH se siembra en el Sprint 3 (consultar vía `GET /api/catalogos/DEPARTAMENTO_ES/items`).
-
+Catálogo `DEPARTAMENTO_ES` con los 14 departamentos de El Salvador.
 Catálogo `MUNICIPIO_ES` con 42 municipios/zonas post-reforma territorial 2024
-(Decreto 290), ej. `CHALATENANGO_NORTE`, `LA_LIBERTAD_COSTA`. Cada item lleva
-metadata `{"departamento":"CODIGO","zona":"NORTE|SUR|ESTE|OESTE|CENTRO|COSTA"}`
-para permitir cascada UI. El Web Cliente filtra el dropdown de municipio al
-seleccionar departamento. La distribución base es ajustable contra el CAT-013
-final de Hacienda cuando se publique.
+(Decreto 290). Cada item lleva metadata
+`{"departamento":"CODIGO","zona":"NORTE|SUR|ESTE|OESTE|CENTRO|COSTA"}`
+para permitir cascada UI.
 
 ### Configuración DTE / Hacienda (Sprint 4)
 
@@ -228,22 +290,74 @@ DELETE  /api/dte/configuracion/certificado
 POST    /api/dte/configuracion/probar-conexion
 ```
 
-**Cifrado de secretos** — `ISecretProtector` (implementación `DataProtectionSecretProtector`)
+**Cifrado de secretos** — `ISecretProtector` (impl. `DataProtectionSecretProtector`)
 cifra password de Hacienda, password del certificado y token cacheado de MH con
 **ASP.NET Core DataProtection** (purpose `NeoSTP.DteSecrets.v1`). Las llaves se
-guardan automáticamente en `%LOCALAPPDATA%\ASP.NET\DataProtection-Keys` (Windows) o
-`/var/aspnet/DataProtection-Keys` (Linux). El BLOB del certificado (varbinary(max))
-va sin cifrar (es el .pfx que ya tiene su password); cambiar la llave de
-DataProtection invalida los passwords cifrados — habrá que reingresarlos.
+guardan en `%LOCALAPPDATA%\ASP.NET\DataProtection-Keys` (Windows) o
+`/var/aspnet/DataProtection-Keys` (Linux). Cambiar la llave invalida los passwords
+cifrados — habrá que reingresarlos.
 
-**Cliente Hacienda** — `IHaciendaAuthClient` con implementación `MockHaciendaAuthClient`
-durante MVP. Simula respuestas:
-- usuario `invalid*` → 401 `CREDENCIALES_INVALIDAS`
-- usuario `*bloqueado*` → 403 `USUARIO_BLOQUEADO`
-- cualquier otro → 200 con token mock de 8h
+### Documentos DTE — generación (Sprint 5)
 
-El cliente HTTP real contra `apitest.dtes.mh.gob.sv` / `api.dtes.mh.gob.sv` se cablea
-en Sprint 5/6 cuando se haga la transmisión real de DTE.
+Endpoints para emisión de documentos electrónicos. Estados:
+`BORRADOR → GENERADO → VALIDADO → FIRMADO → ENVIADO → PROCESADO / RECHAZADO / CONTINGENCIA / INVALIDADO / ERROR`
+
+```
+GET    /api/dte/documentos?page=&search=&tipoDteCodigo=&estadoCodigo=&desde=&hasta=
+GET    /api/dte/documentos/{id}
+
+POST   /api/dte/factura                      # 01 Factura Consumidor Final
+POST   /api/dte/credito-fiscal               # 03 CCF
+POST   /api/dte/nota-credito                 # 05 Nota de Crédito
+POST   /api/dte/nota-debito                  # 06 Nota de Débito
+POST   /api/dte/sujeto-excluido              # 14 Factura Sujeto Excluido
+POST   /api/dte/documentos                   # genérico (TipoDteCodigo en body)
+
+POST   /api/dte/documentos/{id}/generar      # construye JSON
+POST   /api/dte/documentos/{id}/validar      # valida campos obligatorios
+POST   /api/dte/documentos/{id}/invalidar    { motivo }
+```
+
+Permisos: `DTE.Emitir` para crear/generar/validar, `DTE.Invalidar` para invalidar.
+
+**Reglas de cálculo** (en `DteCalculator`):
+- Factura 01 → IVA **incluido** en gravada (`IVA = bruto × 0.13/1.13`, informativo).
+- CCF / NC / ND → IVA **separado** (`IVA = gravada × 0.13`, sumado al total).
+- Sujeto Excluido 14 → **sin IVA**, va como No Sujeta.
+- Total en letras estilo MH (`DOSCIENTOS CINCUENTA 35/100 DÓLARES`).
+- Número de control: `DTE-{tipo}-{estab(4)}{punto(4)}-{15 dígitos}`.
+- `CodigoGeneracion`: UUID v4 mayúsculas.
+
+El JSON sigue el esquema oficial MH v1 (factura/sujeto excluido) y v3 (CCF/NC/ND).
+
+### Documentos DTE — firma y transmisión (Sprint 6)
+
+```
+POST   /api/dte/documentos/{id}/firmar       # produce JWS (header.payload.signature)
+POST   /api/dte/documentos/{id}/enviar       # POST a Hacienda con Bearer token
+```
+
+- **Firma JWS RS256** desde el PFX guardado en `DteConfiguracion`.
+  Header incluye `x5t` (huella SHA-1 del certificado). Toggle `Dte:Signer = Mock | Pkcs12`.
+- **Transmisión** a `POST {base}/fesv/recepciondte` con token de Hacienda.
+  El token se refresca automáticamente con `IHaciendaAuthClient` cuando expira
+  (margen de 5 minutos).
+- Respuesta MH se mapea al estado interno:
+  - `PROCESADO` → guarda `SelloRecibido` y `ProcesadoAt`.
+  - `RECHAZADO` → estado `RECHAZADO` (permite re-emisión).
+  - `CONTINGENCIA` → estado `CONTINGENCIA` (permite reintento).
+- Errores externos: `FIRMA_FAILED` y `HACIENDA_AUTH_FAILED` → HTTP **502**.
+
+### Documentos DTE — descarga y correo (Sprint 7)
+
+```
+GET    /api/dte/documentos/{id}/pdf          # representación gráfica QuestPDF
+GET    /api/dte/documentos/{id}/json         # JSON DTE sin firmar
+POST   /api/dte/documentos/{id}/reenviar     { destinatario? }    # PDF+JSON adjuntos
+```
+
+Permisos: `DTE.Consultar` para descargas, `DTE.Reenviar` para correo.
+Si no se pasa `destinatario`, se usa el correo del receptor. `EMAIL_FAILED` → HTTP **502**.
 
 ### Diagnóstico
 
@@ -251,6 +365,25 @@ en Sprint 5/6 cuando se haga la transmisión real de DTE.
 GET  /health
 GET  /openapi/v1.json     # solo en Development
 ```
+
+## Vistas Web
+
+Bajo el dominio `/` con auth por cookie:
+
+| Ruta                          | Sprint | Notas                                                    |
+| ----------------------------- | ------ | -------------------------------------------------------- |
+| `/Account/Login`              | 1      | Login con username/password                              |
+| `/Home`                       | 1      | Dashboard básico con permisos del usuario                |
+| `/Usuarios`                   | 1      | CRUD de usuarios + bloqueo                               |
+| `/Empresas`                   | 2      | CRUD de empresas (SuperAdmin) + activar/desactivar módulos|
+| `/Soporte`                    | 2      | SuperAdmin: entrar en modo soporte de una empresa        |
+| `/Clientes`                   | 3      | CRUD clientes con cascada departamento → municipio       |
+| `/Productos`                  | 3      | CRUD productos                                           |
+| `/DteConfiguracion`           | 4      | Form ambiente + credenciales MH + carga PFX              |
+| `/DteDocumentos`              | 5–7    | Listado, alta, detalle con todas las acciones de estado  |
+| `/DteDocumentos/Create`       | 5      | Form con líneas dinámicas y recálculo en cliente         |
+| `/DteDocumentos/Details/{id}` | 5–7    | Totales, JSON, JWS firmado, sello MH, descargas y reenvío|
+| `/Planes`                     | 2      | Lectura del catálogo de planes y módulos                 |
 
 ## SuperAdmin inicial
 
@@ -263,6 +396,13 @@ ningún usuario, crea un SuperAdmin:
 
 **Cambia la contraseña en el primer login** vía `POST /api/auth/change-password`
 o desde el menú de usuario en la Web.
+
+### Modo soporte (SuperAdmin)
+
+El SuperAdmin no pertenece a ninguna empresa. Para operar pantallas
+multi-tenant (Clientes, Productos, DTE…) entra en **modo soporte** seleccionando
+una empresa en `/Soporte`. La selección se guarda en una cookie y
+`IEmpresaContext` la usa para scope los queries.
 
 ## Notas para pruebas manuales en PowerShell 5.1
 
@@ -292,16 +432,37 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 
 ## Roadmap
 
-Ver el backlog técnico completo en la conversación inicial. Sprints planificados:
+| Sprint | Tema                                   | Estado |
+| ------ | -------------------------------------- | ------ |
+| 0      | Setup técnico                          | ✅     |
+| 1      | Seguridad y Core (login, RBAC, JWT)    | ✅     |
+| 2      | Empresa y licenciamiento               | ✅     |
+| 3      | Catálogos, clientes, productos         | ✅     |
+| 3.5    | Municipios El Salvador (post-reforma)  | ✅     |
+| 4      | Configuración DTE (cifrado + Hacienda) | ✅     |
+| 5      | Generación DTE (5 tipos)               | ✅     |
+| 6      | Firma JWS y transmisión a Hacienda     | ✅     |
+| 7      | PDF, correo y descarga del DTE         | ✅     |
+| 8      | Dashboard operativo y SuperAdmin avzdo | ⏳     |
 
-- **Sprint 0** — Setup técnico ✅
-- **Sprint 1** — Seguridad y Core (login, usuarios, roles, JWT) ✅
-- **Sprint 2** — Empresa y licenciamiento ✅
-- **Sprint 3** — Catálogos, clientes, productos ✅
-- **Sprint 4** — Configuración DTE (cifrado + cliente Hacienda mock) ✅
-- **Sprint 3** — Catálogos, clientes, productos
-- **Sprint 4** — Configuración DTE
-- **Sprint 5** — Generación DTE
-- **Sprint 6** — Firma y transmisión Hacienda
-- **Sprint 7** — PDF, correo y documentos
-- **Sprint 8** — Dashboard y SuperAdmin
+## Pruebas
+
+```powershell
+dotnet test NeoSTP.slnx                          # corre los 71 tests unit + integration
+dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~5s)
+```
+
+Cobertura por área:
+
+| Área                  | Tests | Ubicación                                        |
+| --------------------- | ----- | ------------------------------------------------ |
+| Auth (BCrypt, login)  | 11    | `tests/NeoSTP.Tests.Unit/Auth/`                  |
+| Empresas (límites)    | 5     | `tests/NeoSTP.Tests.Unit/Empresas/`              |
+| Clientes (validadores)| 21    | `tests/NeoSTP.Tests.Unit/Clientes/`              |
+| DTE — DataProtection  | 4     | `tests/NeoSTP.Tests.Unit/Dte/`                   |
+| DTE — Cálculo totales | 8     | `tests/NeoSTP.Tests.Unit/Dte/DteCalculatorTests.cs` |
+| DTE — Generación JSON | 5     | `tests/NeoSTP.Tests.Unit/Dte/DteGeneratorTests.cs`  |
+| DTE — Firma JWS       | 6     | `tests/NeoSTP.Tests.Unit/Dte/DteSignerTests.cs`     |
+| DTE — Recepción MH    | 5     | `tests/NeoSTP.Tests.Unit/Dte/MockHaciendaReceptionTests.cs` |
+| DTE — PDF             | 3     | `tests/NeoSTP.Tests.Unit/Dte/DtePdfServiceTests.cs` |
+| DTE — Correo (Mock)   | 3     | `tests/NeoSTP.Tests.Unit/Dte/MockEmailSenderTests.cs` |
