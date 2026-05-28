@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Clientes;
@@ -13,6 +14,7 @@ using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
+using NeoSTP.Application.Workers;
 using NeoSTP.Infrastructure.Auth;
 using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Infrastructure.Persistence;
@@ -56,11 +58,31 @@ public static class DependencyInjection
         services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
 
         // Cliente Hacienda: toggle "Mock" (default) vs "Http" según Hacienda:Client
+        // Sprint 9: clientes Http con Polly StandardResilience (retry + circuit-breaker + timeout)
         var haciendaClient = configuration["Hacienda:Client"];
         if (string.Equals(haciendaClient, "Http", StringComparison.OrdinalIgnoreCase))
         {
-            services.AddHttpClient(HttpHaciendaAuthClient.HttpClientName);
-            services.AddHttpClient(HttpHaciendaReceptionClient.HttpClientName);
+            services.AddHttpClient(HttpHaciendaAuthClient.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    // Hasta 3 reintentos con backoff exponencial + jitter
+                    opts.Retry.MaxRetryAttempts = 3;
+                    opts.Retry.Delay = TimeSpan.FromSeconds(1);
+                    // Timeout total por request (incluyendo reintentos)
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(90);
+                    // Timeout por intento individual
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(25);
+                });
+
+            services.AddHttpClient(HttpHaciendaReceptionClient.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 3;
+                    opts.Retry.Delay = TimeSpan.FromSeconds(2);
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(35);
+                });
+
             services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
             services.AddScoped<IHaciendaReceptionClient, HttpHaciendaReceptionClient>();
         }
@@ -86,6 +108,10 @@ public static class DependencyInjection
 
         // Sprint 8: Dashboard
         services.AddScoped<IDashboardService, DashboardService>();
+
+        // Sprint 9: Worker jobs
+        services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();
+        services.AddScoped<ILimpiezaTokensService, LimpiezaTokensService>();
 
         // Sprint 7: PDF + correo
         services.AddScoped<IDtePdfService, DtePdfService>();
