@@ -174,3 +174,22 @@ public class DteListQuery
     public DateTime? Desde { get; set; }
     public DateTime? Hasta { get; set; }
 }
+
+public class DteArchivosDto
+{
+    public string PdfFileName { get; set; } = null!;
+    public byte[] PdfContent { get; set; } = Array.Empty<byte>();
+    public string JsonFileName { get; set; } = null!;
+    public string JsonContent { get; set; } = null!;
+    public string NumeroControl { get; set; } = null!;
+}
+
+public class DteReenvioResultDto
+{
+    public bool Enviado { get; set; }
+    public string? Destinatario { get; set; }
+    public string? Mensaje { get; set; }
+    public string? Detalle { get; set; }
+    public string? MessageId { get; set; }
+    public DateTime EnviadoAt { get; set; } = DateTime.UtcNow;
+}

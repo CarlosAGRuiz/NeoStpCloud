@@ -27,8 +27,14 @@
             <span class="badge bg-light text-dark border">@Model.FechaEmision.ToString("yyyy-MM-dd") @Model.HoraEmision.ToString(@"hh\:mm")</span>
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">📄 PDF</a>
+        @if (!string.IsNullOrEmpty(Model.JsonDte))
+        {
+            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">{ } JSON</a>
+        }
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reenviarModal">✉ Reenviar por correo</button>
         @if (Model.EstadoCodigo is "BORRADOR" or "ERROR")
         {
             <form asp-action="Generar" asp-route-id="@Model.Id" method="post" class="d-inline">
@@ -168,6 +174,30 @@
                 <p class="text-muted small m-0 mt-2"><em>@Model.TotalLetras</em></p>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Modal Reenviar -->
+<div class="modal fade" id="reenviarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="Reenviar" asp-route-id="@Model.Id" method="post" class="modal-content">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <h5 class="modal-title">Reenviar DTE por correo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Destinatario</label>
+                    <input name="destinatario" type="email" class="form-control" value="@Model.ReceptorCorreo" placeholder="cliente@ejemplo.com" />
+                    <div class="form-text">Se enviará el PDF y el JSON del DTE como adjuntos.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Enviar</button>
+            </div>
+        </form>
     </div>
 </div>
 
