@@ -75,9 +75,15 @@ public class DteDocumentoDto
     public DateTime CreatedAt { get; set; }
     public DateTime? GeneradoAt { get; set; }
     public DateTime? ValidadoAt { get; set; }
+    public DateTime? FirmadoAt { get; set; }
+    public DateTime? EnviadoAt { get; set; }
+    public DateTime? ProcesadoAt { get; set; }
+    public DateTime? RespuestaAt { get; set; }
 
     public List<DteDocumentoDetalleDto> Detalles { get; set; } = new();
     public string? JsonDte { get; set; }
+    public string? JsonFirmado { get; set; }
+    public string? RespuestaHacienda { get; set; }
 }
 
 public class DteDocumentoDetalleDto
@@ -167,4 +173,23 @@ public class DteListQuery
     public string? EstadoCodigo { get; set; }
     public DateTime? Desde { get; set; }
     public DateTime? Hasta { get; set; }
+}
+
+public class DteArchivosDto
+{
+    public string PdfFileName { get; set; } = null!;
+    public byte[] PdfContent { get; set; } = Array.Empty<byte>();
+    public string JsonFileName { get; set; } = null!;
+    public string JsonContent { get; set; } = null!;
+    public string NumeroControl { get; set; } = null!;
+}
+
+public class DteReenvioResultDto
+{
+    public bool Enviado { get; set; }
+    public string? Destinatario { get; set; }
+    public string? Mensaje { get; set; }
+    public string? Detalle { get; set; }
+    public string? MessageId { get; set; }
+    public DateTime EnviadoAt { get; set; } = DateTime.UtcNow;
 }

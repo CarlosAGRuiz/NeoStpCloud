@@ -182,12 +182,78 @@ public class DteDocumentosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Firmar(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.FirmarAsync(eid, id, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "DTE firmado." : result.Error;
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Enviar(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.EnviarAsync(eid, id, _currentUser.Username, ct);
+        if (result.IsSuccess)
+        {
+            var estado = result.Value!.EstadoCodigo;
+            TempData[estado == "PROCESADO" ? "Success" : "Error"] =
+                estado == "PROCESADO" ? $"DTE procesado por Hacienda. Sello: {result.Value!.SelloRecibido}"
+                                      : $"Hacienda devolvió estado {estado}.";
+        }
+        else
+        {
+            TempData["Error"] = result.Error;
+        }
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Invalidar(int id, string? motivo, CancellationToken ct)
     {
         if (!Has("DTE.Invalidar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
         var result = await _service.InvalidarAsync(eid, id, motivo, _currentUser.Username, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "DTE invalidado." : result.Error;
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Pdf(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Consultar") && !Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ObtenerArchivosAsync(eid, id, ct);
+        if (result.IsFailure) return NotFound();
+        return File(result.Value!.PdfContent, "application/pdf", result.Value!.PdfFileName);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Json(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Consultar") && !Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ObtenerArchivosAsync(eid, id, ct);
+        if (result.IsFailure) return NotFound();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value!.JsonContent ?? string.Empty);
+        return File(bytes, "application/json", result.Value!.JsonFileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reenviar(int id, string? destinatario, CancellationToken ct)
+    {
+        if (!Has("DTE.Reenviar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ReenviarPorCorreoAsync(eid, id, destinatario, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? $"DTE reenviado a {result.Value!.Destinatario}."
+            : result.Error;
         return RedirectToAction(nameof(Details), new { id });
     }
 

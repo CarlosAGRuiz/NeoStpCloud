@@ -27,8 +27,14 @@
             <span class="badge bg-light text-dark border">@Model.FechaEmision.ToString("yyyy-MM-dd") @Model.HoraEmision.ToString(@"hh\:mm")</span>
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">📄 PDF</a>
+        @if (!string.IsNullOrEmpty(Model.JsonDte))
+        {
+            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">{ } JSON</a>
+        }
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reenviarModal">✉ Reenviar por correo</button>
         @if (Model.EstadoCodigo is "BORRADOR" or "ERROR")
         {
             <form asp-action="Generar" asp-route-id="@Model.Id" method="post" class="d-inline">
@@ -41,6 +47,20 @@
             <form asp-action="Validar" asp-route-id="@Model.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <button class="btn btn-sm btn-primary">Validar</button>
+            </form>
+        }
+        @if (Model.EstadoCodigo is "VALIDADO" or "GENERADO")
+        {
+            <form asp-action="Firmar" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-warning">Firmar</button>
+            </form>
+        }
+        @if (Model.EstadoCodigo is "FIRMADO" or "VALIDADO" or "CONTINGENCIA" or "RECHAZADO")
+        {
+            <form asp-action="Enviar" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-success" onclick="return confirm('¿Enviar a Hacienda?');">Enviar a Hacienda</button>
             </form>
         }
         @if (Model.EstadoCodigo != "PROCESADO" && Model.EstadoCodigo != "INVALIDADO")
@@ -157,11 +177,74 @@
     </div>
 </div>
 
+<!-- Modal Reenviar -->
+<div class="modal fade" id="reenviarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="Reenviar" asp-route-id="@Model.Id" method="post" class="modal-content">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <h5 class="modal-title">Reenviar DTE por correo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Destinatario</label>
+                    <input name="destinatario" type="email" class="form-control" value="@Model.ReceptorCorreo" placeholder="cliente@ejemplo.com" />
+                    <div class="form-text">Se enviará el PDF y el JSON del DTE como adjuntos.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Enviar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SelloRecibido) || !string.IsNullOrEmpty(Model.RespuestaHacienda))
+{
+    <div class="card mt-3 border-0 shadow-sm">
+        <div class="card-header">Respuesta de Hacienda</div>
+        <div class="card-body small">
+            @if (!string.IsNullOrEmpty(Model.SelloRecibido))
+            {
+                <p class="m-0"><strong>Sello recibido:</strong> <span class="font-monospace text-success">@Model.SelloRecibido</span></p>
+            }
+            @if (Model.ProcesadoAt.HasValue)
+            {
+                <p class="m-0"><strong>Procesado:</strong> @Model.ProcesadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</p>
+            }
+            @if (Model.EnviadoAt.HasValue)
+            {
+                <p class="m-0"><strong>Enviado:</strong> @Model.EnviadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</p>
+            }
+            @if (!string.IsNullOrEmpty(Model.RespuestaHacienda))
+            {
+                <details class="mt-2">
+                    <summary>Respuesta cruda</summary>
+                    <pre class="m-0 p-2 bg-light" style="max-height:200px;overflow:auto">@Model.RespuestaHacienda</pre>
+                </details>
+            }
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.JsonFirmado))
+{
+    <div class="card mt-3 border-0 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>JWS firmado</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('jws-pre').textContent)">Copiar</button>
+        </div>
+        <pre id="jws-pre" class="m-0 p-3 bg-light small text-break" style="max-height:200px;overflow:auto;white-space:pre-wrap">@Model.JsonFirmado</pre>
+    </div>
+}
+
 @if (!string.IsNullOrEmpty(Model.JsonDte))
 {
     <div class="card mt-3 border-0 shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>JSON DTE generado</span>
+            <span>JSON DTE sin firmar</span>
             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('json-pre').textContent)">Copiar</button>
         </div>
         <pre id="json-pre" class="m-0 p-3 bg-light small" style="max-height:400px;overflow:auto">@Model.JsonDte</pre>

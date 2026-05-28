@@ -92,6 +92,22 @@ public class DteController : ApiControllerBase
         return Respond(await _service.ValidarAsync(eid, id, _currentUser.Username, ct));
     }
 
+    [HttpPost("documentos/{id:int}/firmar")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> Firmar(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.FirmarAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    [HttpPost("documentos/{id:int}/enviar")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> Enviar(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.EnviarAsync(eid, id, _currentUser.Username, ct));
+    }
+
     [HttpPost("documentos/{id:int}/invalidar")]
     [RequirePermiso("DTE.Invalidar")]
     public async Task<IActionResult> Invalidar(int id, [FromQuery] int? empresaId, [FromBody] InvalidarRequest body, CancellationToken ct)
@@ -99,6 +115,39 @@ public class DteController : ApiControllerBase
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _service.InvalidarAsync(eid, id, body?.Motivo, _currentUser.Username, ct),
             "Documento invalidado.");
+    }
+
+    // ---- descarga y reenvío (Sprint 7) ----
+
+    [HttpGet("documentos/{id:int}/pdf")]
+    [RequirePermiso("DTE.Consultar")]
+    public async Task<IActionResult> DescargarPdf(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        var result = await _service.ObtenerArchivosAsync(eid, id, ct);
+        if (result.IsFailure)
+            return NotFound(Shared.ApiResponse.Fail(result.Error ?? "No encontrado", new[] { result.ErrorCode ?? "DTE_NOT_FOUND" }, HttpContext.TraceIdentifier));
+        return File(result.Value!.PdfContent, "application/pdf", result.Value!.PdfFileName);
+    }
+
+    [HttpGet("documentos/{id:int}/json")]
+    [RequirePermiso("DTE.Consultar")]
+    public async Task<IActionResult> DescargarJson(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        var result = await _service.ObtenerArchivosAsync(eid, id, ct);
+        if (result.IsFailure)
+            return NotFound(Shared.ApiResponse.Fail(result.Error ?? "No encontrado", new[] { result.ErrorCode ?? "DTE_NOT_FOUND" }, HttpContext.TraceIdentifier));
+        var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value!.JsonContent ?? string.Empty);
+        return File(bytes, "application/json", result.Value!.JsonFileName);
+    }
+
+    [HttpPost("documentos/{id:int}/reenviar")]
+    [RequirePermiso("DTE.Reenviar")]
+    public async Task<IActionResult> Reenviar(int id, [FromQuery] int? empresaId, [FromBody] ReenviarRequest body, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.ReenviarPorCorreoAsync(eid, id, body?.Destinatario, _currentUser.Username, ct));
     }
 
     // ---- helpers ----
@@ -119,5 +168,10 @@ public class DteController : ApiControllerBase
     public class InvalidarRequest
     {
         public string? Motivo { get; set; }
+    }
+
+    public class ReenviarRequest
+    {
+        public string? Destinatario { get; set; }
     }
 }
