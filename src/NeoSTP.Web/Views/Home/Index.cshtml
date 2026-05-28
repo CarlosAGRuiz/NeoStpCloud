@@ -1,86 +1,294 @@
+@model NeoSTP.Web.Models.DashboardViewModel
+@using System.Text.Json
+@using System.Text.Json.Serialization
 @{
     ViewData["Title"] = "Dashboard";
-    var username = ViewBag.Username as string;
-    var tipoUsuario = ViewBag.TipoUsuario as string;
-    var roles = (ViewBag.Roles as IReadOnlyList<string>) ?? Array.Empty<string>();
-    var permisos = (ViewBag.Permisos as IReadOnlyList<string>) ?? Array.Empty<string>();
+    var dto = Model.EmpresaDashboard;
+    var mesNombre = DateTime.UtcNow.ToString("MMMM yyyy");
 }
 
-<div class="row mb-4">
-    <div class="col">
-        <h1 class="h3 mb-1">Bienvenido, @username</h1>
-        <p class="text-muted">Tipo de usuario: <strong>@tipoUsuario</strong></p>
+@if (dto is null)
+{
+    <div class="alert alert-info mt-4">
+        No hay empresa asociada a tu cuenta. Solicita al administrador que te asigne a una empresa.
+    </div>
+    return;
+}
+
+@* ── Encabezado ───────────────────────────────────────────── *@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">Dashboard</h1>
+        <p class="text-muted mb-0">@Model.EmpresaNombre &mdash; @mesNombre</p>
+    </div>
+    <div>
+        <a asp-controller="DteDocumentos" asp-action="Create" asp-route-tipo="01"
+           class="btn btn-primary btn-sm me-1">+ Factura</a>
+        <a asp-controller="DteDocumentos" asp-action="Create" asp-route-tipo="03"
+           class="btn btn-outline-primary btn-sm">+ CCF</a>
     </div>
 </div>
 
+@* ── Fila 1: KPIs ───────────────────────────────────────────── *@
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="text-muted small">DTE hoy</div>
-                <div class="display-6">—</div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">DTE emitidos hoy</p>
+                        <h2 class="mb-0 fw-bold">@dto.DteHoy</h2>
+                    </div>
+                    <span class="fs-2 text-primary opacity-75">📄</span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="text-muted small">DTE mes</div>
-                <div class="display-6">—</div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">DTE este mes</p>
+                        <h2 class="mb-0 fw-bold">@dto.DteMes</h2>
+                        @if (dto.LimiteDteMensual is > 0)
+                        {
+                            <div class="progress mt-2" style="height: 4px;">
+                                <div class="progress-bar @(dto.PorcentajeUsoDte >= 90 ? "bg-danger" : dto.PorcentajeUsoDte >= 70 ? "bg-warning" : "bg-success")"
+                                     role="progressbar" style="width: @dto.PorcentajeUsoDte%"></div>
+                            </div>
+                            <small class="text-muted">@dto.DteMes / @dto.LimiteDteMensual (@dto.PorcentajeUsoDte%)</small>
+                        }
+                    </div>
+                    <span class="fs-2 text-success opacity-75">📊</span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="text-muted small">Pendientes</div>
-                <div class="display-6">—</div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Facturado mes (procesado)</p>
+                        <h2 class="mb-0 fw-bold">$@dto.TotalPagarMes.ToString("N2")</h2>
+                        <small class="text-success">@dto.Procesados procesado@(dto.Procesados != 1 ? "s" : "")</small>
+                    </div>
+                    <span class="fs-2 text-warning opacity-75">💰</span>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="text-muted small">Rechazados</div>
-                <div class="display-6">—</div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Alertas</p>
+                        <h2 class="mb-0 fw-bold @(dto.Rechazados > 0 ? "text-danger" : "")">@dto.Rechazados rechazado@(dto.Rechazados != 1 ? "s" : "")</h2>
+                        <small class="text-muted">@dto.Pendientes pendiente@(dto.Pendientes != 1 ? "s" : "")</small>
+                    </div>
+                    <span class="fs-2 @(dto.Rechazados > 0 ? "text-danger" : "text-secondary") opacity-75">⚠️</span>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+@* ── Fila 2: Charts ────────────────────────────────────────── *@
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0">
+                <strong>Emisión diaria — últimos 30 días</strong>
+            </div>
+            <div class="card-body">
+                <canvas id="chartTendencia" height="90"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0">
+                <strong>Estados este mes</strong>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                @if (dto.PorEstado.Any())
+                {
+                    <canvas id="chartEstados" style="max-height: 200px;"></canvas>
+                }
+                else
+                {
+                    <p class="text-muted">Sin documentos este mes.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Fila 3: Tablas ────────────────────────────────────────── *@
 <div class="row g-3">
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Roles asignados</strong></div>
-            <ul class="list-group list-group-flush">
-                @foreach (var rol in roles)
-                {
-                    <li class="list-group-item">@rol</li>
-                }
-                @if (!roles.Any())
-                {
-                    <li class="list-group-item text-muted">Sin roles</li>
-                }
-            </ul>
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
+                <strong>Por tipo de DTE — mes actual</strong>
+            </div>
+            @if (dto.PorTipo.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tipo</th>
+                                <th class="text-end">Cantidad</th>
+                                <th class="text-end">Total ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in dto.PorTipo)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-secondary me-1">@t.TipoCodigo</span>@t.TipoNombre</td>
+                                    <td class="text-end fw-semibold">@t.Cantidad</td>
+                                    <td class="text-end">@t.TotalPagar.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="card-body text-muted">Sin documentos emitidos este mes.</div>
+            }
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-lg-5">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white"><strong>Permisos (@permisos.Count)</strong></div>
-            <div class="card-body" style="max-height: 320px; overflow-y: auto;">
-                @foreach (var p in permisos)
+            <div class="card-header bg-white border-0">
+                <strong>Plan activo</strong>
+            </div>
+            <div class="card-body">
+                @if (dto.PlanNombre is not null)
                 {
-                    <span class="badge bg-secondary me-1 mb-1">@p</span>
+                    <div class="mb-3">
+                        <span class="badge bg-primary fs-6">@dto.PlanNombre</span>
+                    </div>
+                    @if (dto.LimiteDteMensual is > 0)
+                    {
+                        <p class="text-muted mb-1">Uso DTE mensual</p>
+                        <div class="progress mb-1" style="height: 12px;">
+                            <div class="progress-bar @(dto.PorcentajeUsoDte >= 90 ? "bg-danger" : dto.PorcentajeUsoDte >= 70 ? "bg-warning" : "bg-success")"
+                                 role="progressbar" style="width: @dto.PorcentajeUsoDte%">
+                                @dto.PorcentajeUsoDte%
+                            </div>
+                        </div>
+                        <small class="text-muted">@dto.DteMes de @dto.LimiteDteMensual DTE usados</small>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0"><i>Sin límite mensual de DTE.</i></p>
+                    }
                 }
-                @if (!permisos.Any())
+                else
                 {
-                    <em class="text-muted">Sin permisos</em>
+                    <p class="text-warning mb-0">⚠️ Sin plan activo asignado.</p>
                 }
+
+                <hr />
+                <div class="row g-2 text-center">
+                    <div class="col-6">
+                        <div class="text-success fw-bold fs-5">@dto.Procesados</div>
+                        <div class="text-muted small">Procesados</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold fs-5 @(dto.Rechazados > 0 ? "text-danger" : "")">@dto.Rechazados</div>
+                        <div class="text-muted small">Rechazados</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-warning fw-bold fs-5">@dto.Contingencias</div>
+                        <div class="text-muted small">Contingencias</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold fs-5">@dto.Pendientes</div>
+                        <div class="text-muted small">Pendientes</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<p class="text-muted small mt-4">
-    Sprint 1 — Auth, catálogos y modelo Core completos. Los KPIs reales se conectan en sprints siguientes.
-</p>
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    // ── Tendencia diaria ──────────────────────────────────────
+    const tendencia = @Html.Raw(JsonSerializer.Serialize(
+        dto.TendenciaDiaria.Select(x => new { fecha = x.Fecha.ToString("dd/MM"), cantidad = x.Cantidad }),
+        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+
+    new Chart(document.getElementById('chartTendencia'), {
+        type: 'bar',
+        data: {
+            labels: tendencia.map(x => x.fecha),
+            datasets: [{
+                label: 'DTE emitidos',
+                data: tendencia.map(x => x.cantidad),
+                backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                borderColor: 'rgba(13, 110, 253, 0.9)',
+                borderWidth: 1,
+                borderRadius: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { ticks: { maxRotation: 45, font: { size: 10 } } }
+            }
+        }
+    });
+
+    // ── Distribución por estado ────────────────────────────────
+    const estadosEl = document.getElementById('chartEstados');
+    if (estadosEl) {
+        const estados = @Html.Raw(JsonSerializer.Serialize(
+            dto.PorEstado.Select(x => new { estado = x.Estado, cantidad = x.Cantidad }),
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+
+        const colorMap = {
+            'PROCESADO':   '#198754',
+            'RECHAZADO':   '#dc3545',
+            'CONTINGENCIA':'#ffc107',
+            'FIRMADO':     '#0dcaf0',
+            'ENVIADO':     '#0d6efd',
+            'VALIDADO':    '#6610f2',
+            'GENERADO':    '#6c757d',
+            'BORRADOR':    '#adb5bd',
+            'INVALIDADO':  '#343a40',
+            'ERROR':       '#d63384',
+        };
+
+        new Chart(estadosEl, {
+            type: 'doughnut',
+            data: {
+                labels: estados.map(x => x.estado),
+                datasets: [{
+                    data: estados.map(x => x.cantidad),
+                    backgroundColor: estados.map(x => colorMap[x.estado] ?? '#6c757d'),
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 } } }
+                }
+            }
+        });
+    }
+})();
+</script>
+}
