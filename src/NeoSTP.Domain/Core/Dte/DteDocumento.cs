@@ -115,6 +115,13 @@ public class DteDocumento : AuditableEntity
     public DateTime? EnviadoAt { get; set; }
     public DateTime? ProcesadoAt { get; set; }
 
+    // ── Retransmisión automática (sprint 9) ───────────────────────────
+    /// <summary>Número de intentos de retransmisión realizados por el Worker.</summary>
+    public int IntentoRetransmision { get; set; }
+
+    /// <summary>Fecha y hora UTC del último intento de retransmisión automática.</summary>
+    public DateTime? UltimoIntentoRetransmisionAt { get; set; }
+
     public ICollection<DteDocumentoDetalle> Detalles { get; set; } = new List<DteDocumentoDetalle>();
     public DteDocumentoJson? Json { get; set; }
 

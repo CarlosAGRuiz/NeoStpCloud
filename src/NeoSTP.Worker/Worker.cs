@@ -1,16 +1,17 @@
 namespace NeoSTP.Worker;
 
+/// <summary>
+/// Worker de arranque: registra el inicio del host y termina.
+/// Los jobs reales están en <see cref="Jobs.RetransmisionContingenciaWorker"/>
+/// y <see cref="Jobs.LimpiezaTokensWorker"/>.
+/// </summary>
 public class Worker(ILogger<Worker> logger) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            if (logger.IsEnabled(LogLevel.Information))
-            {
-                logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-            }
-            await Task.Delay(1000, stoppingToken);
-        }
+        logger.LogInformation(
+            "NeoSTP.Worker arrancado a las {Time}. Jobs activos: RetransmisionContingencia, LimpiezaTokens",
+            DateTimeOffset.Now);
+        return Task.CompletedTask;
     }
 }

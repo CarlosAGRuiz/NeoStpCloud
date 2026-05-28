@@ -2,9 +2,9 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 8 — Dashboard operativo y panel SuperAdmin** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 83/83 pasando  
-> El ciclo completo de emisión está implementado de punta a punta. El dashboard muestra KPIs en tiempo real: DTE emitidos, facturación del mes, tendencia diaria y distribución por estado (Chart.js). El panel SuperAdmin incluye métricas globales, top 10 empresas y alertas de planes próximos a vencer.
+> **Versión actual: Sprint 9 — Worker Jobs y Resiliencia** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 97/97 pasando  
+> El ciclo completo de emisión está implementado de punta a punta. El Worker retransmite automáticamente DTE en CONTINGENCIA con backoff configurable y limpia refresh tokens vencidos. Las llamadas HTTP a Hacienda tienen resiliencia Polly con reintentos, circuit breaker y timeouts.
 
 ## Stack
 
@@ -14,7 +14,8 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **SQL Server 2022** + **Entity Framework Core 10**
 - **Serilog** (logs estructurados a consola y archivo)
 - **.NET Worker Service** (procesos en segundo plano)
-- **xUnit + FluentAssertions** (83 pruebas, todas pasando)
+- **xUnit + FluentAssertions** (97 pruebas, todas pasando)
+- **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** para resiliencia HTTP
 - **JWT** (Api) + **Cookies** (Web) para autenticación
 - **DataProtection** para cifrado de secretos DTE
 - **QuestPDF 2025.1** + **MailKit 4.17** para representación gráfica y correo
@@ -75,6 +76,36 @@ Cadena de conexión en `appsettings.Local.json` de los proyectos `Api`, `Web` y 
 > Las credenciales en `appsettings.Local.json` son solo para desarrollo. En producción
 > usar User Secrets, variables de entorno o Azure Key Vault.
 
+### Configuración del Worker
+
+El proceso `NeoSTP.Worker` se configura en la sección `Worker` de `appsettings.json`:
+
+```json
+{
+  "Worker": {
+    "RetransmisionContingencia": {
+      "IntervaloMinutos": 5,
+      "CooldownMinutos": 30,
+      "MaxIntentos": 5,
+      "LoteMaximo": 50
+    },
+    "LimpiezaTokens": {
+      "IntervaloHoras": 24,
+      "RetentionDias": 30
+    }
+  }
+}
+```
+
+| Parámetro                                | Descripción                                                                      |
+| ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `RetransmisionContingencia.IntervaloMinutos` | Cada cuántos minutos el Worker busca DTE en CONTINGENCIA (default 5)         |
+| `RetransmisionContingencia.CooldownMinutos`  | Tiempo de espera mínimo entre intentos para el mismo documento (default 30)  |
+| `RetransmisionContingencia.MaxIntentos`      | Intentos máximos antes de abandonar un documento (default 5)                 |
+| `RetransmisionContingencia.LoteMaximo`       | Máximo de documentos procesados por ciclo (default 50)                       |
+| `LimpiezaTokens.IntervaloHoras`              | Cada cuántas horas se ejecuta la limpieza de tokens (default 24)             |
+| `LimpiezaTokens.RetentionDias`               | Días de retención de tokens expirados/revocados antes de eliminarlos (default 30) |
+
 ### Toggles de integraciones externas
 
 Todas las integraciones externas tienen un toggle Mock/Real para poder desarrollar
@@ -108,9 +139,20 @@ sin credenciales productivas. En `appsettings.Local.json`:
 
 | Toggle           | Default | Implementación real                     |
 | ---------------- | ------- | --------------------------------------- |
-| `Hacienda:Client`| `Mock`  | `HttpHaciendaAuthClient` + `HttpHaciendaReceptionClient` (POST `/seguridad/auth` y `/fesv/recepciondte`) |
+| `Hacienda:Client`| `Mock`  | `HttpHaciendaAuthClient` + `HttpHaciendaReceptionClient` (POST `/seguridad/auth` y `/fesv/recepciondte`) con Polly: 3 reintentos, circuit breaker, timeouts configurados |
 | `Dte:Signer`     | `Mock`  | `Pkcs12DteSignerService` (RS256 con PFX en `DteConfiguracion`)                     |
 | `Email:Provider` | `Mock`  | `SmtpEmailSender` (MailKit, STARTTLS/SSL)                                          |
+
+### Resiliencia Polly (Sprint 9)
+
+Los dos clientes HTTP de Hacienda (`auth` y `recepcion`) tienen una pipeline de resiliencia estándar de Polly v8:
+
+| Cliente           | Reintentos | Delay base | Timeout total | Timeout por intento |
+| ----------------- | ---------- | ---------- | ------------- | ------------------- |
+| Auth (token MH)   | 3          | 1 s        | 90 s          | 25 s                |
+| Recepción DTE     | 3          | 2 s        | 120 s         | 35 s                |
+
+La pipeline incluye automáticamente: **retry** (exponential backoff + jitter), **circuit breaker** (abre después de fallos consecutivos), **hedging** para peticiones lentas y **timeout** de total y por intento. Configurado con `AddStandardResilienceHandler` de `Microsoft.Extensions.Http.Resilience`.
 
 El `MockEmailSender` deja los correos como `.eml` en `logs/email-outbox/` para inspección
 sin SMTP real.
@@ -130,7 +172,7 @@ dotnet run --project src/NeoSTP.Api
 # Levantar el Worker
 dotnet run --project src/NeoSTP.Worker
 
-# Correr pruebas (83 unit tests)
+# Correr pruebas (97 unit tests)
 dotnet test NeoSTP.slnx
 ```
 
@@ -144,7 +186,7 @@ el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
 servidor SMTP. En PowerShell, desde la raíz del repo:
 
 ```powershell
-# 1. Crear la BD y aplicar las 6 migraciones
+# 1. Crear la BD y aplicar las 7 migraciones
 dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 
 # 2. Levantar la Web (en otra ventana)
@@ -179,6 +221,7 @@ Migraciones aplicadas en orden:
 4. `Sprint35_MunicipiosES` — 42 municipios post-reforma 2024
 5. `Sprint4_DteConfiguracion` — configuración DTE por empresa con cifrado
 6. `Sprint5_DteDocumentos` — documentos DTE, detalles y JSON
+7. `Sprint9_RetransmisionTracking` — columnas `IntentoRetransmision` y `UltimoIntentoRetransmisionAt` en `Dte_Documentos`
 
 ```powershell
 # Crear una nueva migración
@@ -415,6 +458,29 @@ El endpoint superadmin devuelve:
 - `alertasPlanProximoVencer` — planes que vencen en los próximos 30 días
 - `topEmpresasDteMes` — top 10 empresas ordenadas por cantidad de DTE
 
+### Worker Jobs (Sprint 9)
+
+El proceso `NeoSTP.Worker` ejecuta dos `BackgroundService` de forma independiente:
+
+#### RetransmisionContingenciaWorker
+
+- Se ejecuta cada `IntervaloMinutos` (default 5 min).
+- Consulta documentos con `EstadoCodigo = CONTINGENCIA` que:
+  - No hayan superado `MaxIntentos` intentos.
+  - Cuyo último intento fue hace más de `CooldownMinutos` (o nunca intentados).
+- Toma hasta `LoteMaximo` documentos por ciclo (evita timeouts en BD muy cargada).
+- Llama a `IDteDocumentosService.EnviarAsync` para cada documento.
+- Incrementa `IntentoRetransmision` ANTES de enviar (evita loops infinitos si el proceso muere a mitad).
+- Resultado: `{ Procesados, Exitosos, Fallidos, Omitidos }` logueado con Serilog.
+
+#### LimpiezaTokensWorker
+
+- Se ejecuta cada `IntervaloHoras` (default 24 h).
+- Elimina de `Core_RefreshTokens` los tokens cuya `ExpiresAt < (ahora - RetentionDias)` o cuya `RevokedAt < (ahora - RetentionDias)`.
+- Previene crecimiento indefinido de la tabla de tokens.
+
+Ambos workers usan `IServiceScopeFactory` para resolver servicios scoped (EF Core `DbContext`) desde el contexto singleton del `BackgroundService`.
+
 ### Diagnóstico
 
 ```
@@ -502,27 +568,29 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 6      | Firma JWS y transmisión a Hacienda     | ✅     |
 | 7      | PDF, correo y descarga del DTE         | ✅     |
 | 8      | Dashboard operativo y SuperAdmin avzdo | ✅     |
-| 9      | Worker jobs y resiliencia              | ⏳     |
+| 9      | Worker jobs y resiliencia              | ✅     |
 
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 83 tests unit + integration
+dotnet test NeoSTP.slnx                          # corre los 97 tests unit + integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
 Cobertura por área:
 
-| Área                      | Tests | Ubicación                                              |
-| ------------------------- | ----- | ------------------------------------------------------ |
-| Auth (BCrypt, login)      | 11    | `tests/NeoSTP.Tests.Unit/Auth/`                        |
-| Empresas (límites)        | 5     | `tests/NeoSTP.Tests.Unit/Empresas/`                    |
-| Clientes (validadores)    | 21    | `tests/NeoSTP.Tests.Unit/Clientes/`                    |
-| DTE — DataProtection      | 4     | `tests/NeoSTP.Tests.Unit/Dte/`                         |
-| DTE — Cálculo totales     | 8     | `tests/NeoSTP.Tests.Unit/Dte/DteCalculatorTests.cs`    |
-| DTE — Generación JSON     | 5     | `tests/NeoSTP.Tests.Unit/Dte/DteGeneratorTests.cs`     |
-| DTE — Firma JWS           | 6     | `tests/NeoSTP.Tests.Unit/Dte/DteSignerTests.cs`        |
-| DTE — Recepción MH        | 5     | `tests/NeoSTP.Tests.Unit/Dte/MockHaciendaReceptionTests.cs` |
-| DTE — PDF                 | 3     | `tests/NeoSTP.Tests.Unit/Dte/DtePdfServiceTests.cs`    |
-| DTE — Correo (Mock)       | 3     | `tests/NeoSTP.Tests.Unit/Dte/MockEmailSenderTests.cs`  |
-| Dashboard (EF InMemory)   | 12    | `tests/NeoSTP.Tests.Unit/Dashboard/DashboardServiceTests.cs` |
+| Área                              | Tests | Ubicación                                                              |
+| --------------------------------- | ----- | ---------------------------------------------------------------------- |
+| Auth (BCrypt, login)              | 11    | `tests/NeoSTP.Tests.Unit/Auth/`                                        |
+| Empresas (límites)                | 5     | `tests/NeoSTP.Tests.Unit/Empresas/`                                    |
+| Clientes (validadores)            | 21    | `tests/NeoSTP.Tests.Unit/Clientes/`                                    |
+| DTE — DataProtection              | 4     | `tests/NeoSTP.Tests.Unit/Dte/`                                         |
+| DTE — Cálculo totales             | 8     | `tests/NeoSTP.Tests.Unit/Dte/DteCalculatorTests.cs`                    |
+| DTE — Generación JSON             | 5     | `tests/NeoSTP.Tests.Unit/Dte/DteGeneratorTests.cs`                     |
+| DTE — Firma JWS                   | 6     | `tests/NeoSTP.Tests.Unit/Dte/DteSignerTests.cs`                        |
+| DTE — Recepción MH                | 5     | `tests/NeoSTP.Tests.Unit/Dte/MockHaciendaReceptionTests.cs`            |
+| DTE — PDF                         | 3     | `tests/NeoSTP.Tests.Unit/Dte/DtePdfServiceTests.cs`                    |
+| DTE — Correo (Mock)               | 3     | `tests/NeoSTP.Tests.Unit/Dte/MockEmailSenderTests.cs`                  |
+| Dashboard (EF InMemory)           | 12    | `tests/NeoSTP.Tests.Unit/Dashboard/DashboardServiceTests.cs`           |
+| Worker — Retransmisión (EF + NSub)| 8     | `tests/NeoSTP.Tests.Unit/Workers/DteRetransmisionServiceTests.cs`      |
+| Worker — Limpieza tokens (EF)     | 6     | `tests/NeoSTP.Tests.Unit/Workers/LimpiezaTokensServiceTests.cs`        |
