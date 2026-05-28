@@ -2,7 +2,8 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 8 — Dashboard operativo y panel SuperAdmin** ✅
+> **Versión actual: Sprint 8 — Dashboard operativo y panel SuperAdmin** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 83/83 pasando  
 > El ciclo completo de emisión está implementado de punta a punta. El dashboard muestra KPIs en tiempo real: DTE emitidos, facturación del mes, tendencia diaria y distribución por estado (Chart.js). El panel SuperAdmin incluye métricas globales, top 10 empresas y alertas de planes próximos a vencer.
 
 ## Stack
