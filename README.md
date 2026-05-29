@@ -2,9 +2,9 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 10 — Backlog (Sucursales/PV UI, QR PDF, Contador Atómico)** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 97/97 pasando  
-> El backlog técnico está completo. Las sucursales y puntos de venta ya tienen UI en la Web. El PDF del DTE incluye QR con el código de generación. El NumeroControl se asigna con un contador atómico SQL (sin race conditions).
+> **Versión actual: Sprint 11 — Empresa de pruebas real + Ambiente Hacienda** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 101/101 pasando  
+> El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas de los 5 tipos DTE.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **SQL Server 2022** + **Entity Framework Core 10**
 - **Serilog** (logs estructurados a consola y archivo)
 - **.NET Worker Service** (procesos en segundo plano)
-- **xUnit + FluentAssertions** (97 pruebas, todas pasando)
+- **xUnit + FluentAssertions** (101 pruebas, todas pasando)
 - **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** para resiliencia HTTP
 - **JWT** (Api) + **Cookies** (Web) para autenticación
 - **DataProtection** para cifrado de secretos DTE
@@ -172,7 +172,7 @@ dotnet run --project src/NeoSTP.Api
 # Levantar el Worker
 dotnet run --project src/NeoSTP.Worker
 
-# Correr pruebas (97 unit tests)
+# Correr pruebas (101 unit tests)
 dotnet test NeoSTP.slnx
 ```
 
@@ -531,6 +531,37 @@ multi-tenant (Clientes, Productos, DTE…) entra en **modo soporte** seleccionan
 una empresa en `/Soporte`. La selección se guarda en una cookie y
 `IEmpresaContext` la usa para scope los queries.
 
+## Empresa de pruebas (provisioning automático, Sprint 11)
+
+`EmpresaPruebaSeeder` corre al arrancar la **Api** y crea —de forma **idempotente**—
+una empresa completa lista para pruebas reales: empresa + plan + módulos + sucursal
+Casa Matriz + punto de venta Principal + usuario admin + configuración DTE base.
+
+Se activa con la sección `EmpresaPrueba` en `appsettings.Local.json` de la Api:
+
+```json
+{
+  "EmpresaPrueba": {
+    "Enabled": true,
+    "Nit": "06140000000000",
+    "RazonSocial": "NeoSTP Pruebas, S.A. de C.V.",
+    "PlanCodigo": "ENTERPRISE",
+    "Admin": { "Username": "admin.prueba", "Password": "ChangeMe!2026" },
+    "Sucursal": { "Codigo": "0001", "Nombre": "Casa Matriz" },
+    "PuntoVenta": { "Codigo": "0001", "Nombre": "Principal" },
+    "Dte": { "AmbienteCodigo": "PRUEBAS", "UsuarioMh": "06140000000000" }
+  }
+}
+```
+
+> Los **secretos** (password MH, certificado PFX) NO se siembran aquí: se cargan vía
+> `/DteConfiguracion` para quedar cifrados con DataProtection. Si la empresa ya existe
+> (por NIT) el seeder no hace nada. **Pon `Enabled: false` tras la primera creación.**
+
+Guías paso a paso en `docs/`:
+- **`Sprint11-Runbook-Mocks-a-Real.md`** — cambiar de Mock a Hacienda HTTP + firma Pkcs12.
+- **`Sprint11-Matriz-Pruebas-DTE.md`** — checklist E2E de los 5 tipos DTE (01/03/05/06/14).
+
 ## Notas para pruebas manuales en PowerShell 5.1
 
 `Invoke-RestMethod` en PowerShell 5.1 **no codifica UTF-8** los `Body` con
@@ -573,11 +604,20 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 8      | Dashboard operativo y SuperAdmin avzdo | ✅     |
 | 9      | Worker jobs y resiliencia              | ✅     |
 | 10     | Backlog: Sucursales UI, QR PDF, AtomicCounter | ✅     |
+| 11     | Empresa de pruebas real + Ambiente Hacienda   | ✅     |
+| 12     | Legal + Términos + Consentimiento             | 🔜     |
+| 13     | Billing self-service (Stripe / MercadoPago)   | 🔜     |
+| 14     | Hardening pre-producción                      | 🔜     |
+| 15     | NeoProfit básico                              | 🔜     |
+| 16     | NeoScanAI integrado                           | 🔜     |
+| 17     | NeoConnect API comercial                      | 🔜     |
+| 18     | NeoPOS básico                                 | 🔜     |
+| 19     | NeoSTP Mobile MVP                             | 🔜     |
 
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 97 tests unit + integration
+dotnet test NeoSTP.slnx                          # corre los 101 tests unit + integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
@@ -598,3 +638,4 @@ Cobertura por área:
 | Dashboard (EF InMemory)           | 12    | `tests/NeoSTP.Tests.Unit/Dashboard/DashboardServiceTests.cs`           |
 | Worker — Retransmisión (EF + NSub)| 8     | `tests/NeoSTP.Tests.Unit/Workers/DteRetransmisionServiceTests.cs`      |
 | Worker — Limpieza tokens (EF)     | 6     | `tests/NeoSTP.Tests.Unit/Workers/LimpiezaTokensServiceTests.cs`        |
+| Provisioning empresa prueba (EF)  | 4     | `tests/NeoSTP.Tests.Unit/Provisioning/EmpresaPruebaSeederTests.cs`     |
