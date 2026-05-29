@@ -2,9 +2,11 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 11 — Empresa de pruebas real + Ambiente Hacienda** ✅  
+> **Versión actual: Sprint 11b — Primer DTE PROCESADO por Hacienda (apitest)** ✅  
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 101/101 pasando  
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas de los 5 tipos DTE.
+>
+> 🎉 **Hito:** una Factura (01) recorrió el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv` y fue **PROCESADA** por Hacienda (`codigoMsg=001`, `selloRecibido` emitido). Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 
 ## Stack
 
@@ -424,6 +426,32 @@ POST   /api/dte/documentos/{id}/enviar       # POST a Hacienda con Bearer token
   - `RECHAZADO` → estado `RECHAZADO` (permite re-emisión).
   - `CONTINGENCIA` → estado `CONTINGENCIA` (permite reintento).
 - Errores externos: `FIRMA_FAILED` y `HACIENDA_AUTH_FAILED` → HTTP **502**.
+
+### Integración real con Hacienda (lecciones del Sprint 11b)
+
+Al ejecutar el flujo completo contra `https://apitest.dtes.mh.gob.sv` con un NIT y
+certificado de prueba reales, se corrigieron cuatro discrepancias entre nuestra
+implementación y el comportamiento real de MH hasta lograr `estado=PROCESADO`:
+
+| Problema (respuesta MH) | Causa | Solución |
+|---|---|---|
+| HTTP 401 en recepción | `body.token` de `/seguridad/auth` ya incluye el prefijo `"Bearer "`; lo duplicábamos | `HttpHaciendaAuthClient` recorta el prefijo antes de cachear/usar el token |
+| `802 Firma no válida` | Firmábamos con RS256/SHA-256 | Hacienda exige **RS512** (RSA + SHA-512) con header mínimo `{"alg":"RS512"}`, idéntico al `svfe-api-firmador` oficial |
+| `identificacion.numeroControl no cumple el formato requerido` | Asumíamos `[A-Z0-9]{8}` para el bloque de establecimiento | El formato oficial es `(M\|B\|S\|P)([0-9]{3})(P)([0-9]{3})` → `M001P001`. Construido por `BuildBloqueEstablecimiento()` con la letra de tipo de establecimiento (CAT-009) |
+| `emisor/codEstableMH no cumple el tamaño mínimo` | Enviábamos `codEstableMH`/`codPuntoVentaMH` con 3 dígitos | Los códigos asignados por MH requieren **exactamente 4 caracteres** (ej. `0001`) |
+
+> **Credenciales (dos passwords distintos):** el del **portal** (login web) ≠ el de la
+> **API de recepción** (`passwordMh`). Usar el de la API en la configuración DTE.
+> Los secretos de prueba viven en `appsettings.Local.json` (gitignored), nunca en el repo.
+
+Evidencia del primer DTE aceptado: `selloRecibido=202610EB9EA7841B405899A4D149D56AFF3CBWDE`,
+`numeroControl=DTE-01-M001P001-000000000000014`, `codigoMsg=001` (RECIBIDO), `observaciones=[]`.
+
+> ⚠️ **Pendiente para producción:** los esquemas oficiales vigentes son **Factura v2**,
+> **CCF/NC/ND v4** y **FSE v2** (carpeta `svfe-json-schemas`). El generador actual emite
+> contra el esquema v1 (que apitest aún acepta). Migrar a v2/v4 implica: `identificacion.version`
+> por tipo (2/4), `emisor.direccion.distrito` (nueva división territorial 2024), eliminar
+> `extension` de la Factura y renombrar `resumen.ivaRete1`→`ivaRete`. Ver `docs/`.
 
 ### Documentos DTE — descarga y correo (Sprint 7)
 
