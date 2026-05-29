@@ -131,8 +131,11 @@ public class DteDocumentosService : IDteDocumentosService
         var config = await _db.DteConfiguracion.AsNoTracking()
             .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
         var ambiente = config?.AmbienteCodigo ?? "PRUEBAS";
-        var establecimiento = (config?.CodigoEstablecimientoMh ?? "0001").PadLeft(4, '0');
-        var puntoVenta = (config?.CodigoPuntoVentaMh ?? "0001").PadLeft(4, '0');
+        // numeroControl: DTE-XX-{bloqueEstab}-{15 digitos}.
+        // Formato oficial MH (esquemas svfe): el bloque de 8 chars es
+        //   (M|B|S|P)([0-9]{3})(P)([0-9]{3})  →  letraTipoEstablecimiento + codEstable(3) + 'P' + codPuntoVenta(3)
+        // Ej: DTE-01-M001P001-000000000000001  (NO es codEstable(4)+codPuntoVenta(4) como se creía).
+        var bloqueEstab = BuildBloqueEstablecimiento(config);
 
         var doc = new DteDocumento
         {
@@ -202,7 +205,7 @@ public class DteDocumentosService : IDteDocumentosService
         // UPSERT + incremento en una sola operación SQL para evitar race conditions.
         var correlativoNum = await NextCorrelativoAsync(empresaId, request.TipoDteCodigo, ct);
         var correlativo = correlativoNum.ToString().PadLeft(15, '0');
-        doc.NumeroControl = $"DTE-{request.TipoDteCodigo}-{establecimiento}{puntoVenta}-{correlativo}";
+        doc.NumeroControl = $"DTE-{request.TipoDteCodigo}-{bloqueEstab}-{correlativo}";
 
         // Detalles
         var numLinea = 1;
@@ -268,7 +271,10 @@ public class DteDocumentosService : IDteDocumentosService
         // Re-snapshot del cálculo por si cambiaron líneas
         _calculator.Recalcular(doc);
 
-        var json = _generator.Generar(doc);
+        // Cargar config DTE para inyectar codEstable/codPuntoVenta/tipoEstablecimiento en el bloque emisor.
+        var configForJson = await _db.DteConfiguracion.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        var json = _generator.Generar(doc, configForJson);
         if (json.IsFailure)
             return Result<DteDocumentoDto>.Fail(json.Error ?? "Error al generar JSON.", json.ErrorCode);
 
@@ -790,6 +796,36 @@ public class DteDocumentosService : IDteDocumentosService
     /// Obtiene el siguiente correlativo de forma atómica usando UPSERT + UPDATE SQL.
     /// Evita la race condition del COUNT(*)+1 en entornos concurrentes.
     /// </summary>
+    /// <summary>
+    /// Construye el bloque de 8 caracteres del numeroControl según el formato oficial MH:
+    /// <c>(M|B|S|P)([0-9]{3})(P)([0-9]{3})</c> = letraTipoEstablecimiento + codEstable(3) + 'P' + codPuntoVenta(3).
+    /// Ej: <c>M001P001</c>. Cuando no hay códigos asignados se usan 001/001.
+    /// </summary>
+    private static string BuildBloqueEstablecimiento(Domain.Core.Dte.DteConfiguracion? config)
+    {
+        // Letra de tipo de establecimiento (CAT-009). Acepta el código numérico MH o el código interno textual.
+        var letra = (config?.TipoEstablecimientoCodigo) switch
+        {
+            "01" or "SUCURSAL" => "S",   // Sucursal / Agencia
+            "02" or "CASA_MATRIZ" => "M",// Casa Matriz
+            "04" or "BODEGA" => "B",     // Bodega / Almacén
+            "07" or "PREDIO" or "PATIO" => "P", // Predio / Patio
+            _ => "M",
+        };
+        var est3 = Digits3(config?.CodigoEstablecimientoMh);
+        var pv3  = Digits3(config?.CodigoPuntoVentaMh);
+        return $"{letra}{est3}P{pv3}";
+    }
+
+    /// <summary>Extrae hasta 3 dígitos del valor (rellenando con ceros a la izquierda). Default "001".</summary>
+    private static string Digits3(string? value)
+    {
+        var digits = new string((value ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(digits)) return "001";
+        if (digits.Length > 3) digits = digits[^3..];
+        return digits.PadLeft(3, '0');
+    }
+
     private async Task<int> NextCorrelativoAsync(int empresaId, string tipoDte, CancellationToken ct)
     {
         // Intentar actualizar si ya existe el registro

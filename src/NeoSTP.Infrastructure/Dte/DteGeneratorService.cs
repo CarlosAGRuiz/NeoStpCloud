@@ -21,7 +21,7 @@ public class DteGeneratorService : IDteGeneratorService
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
     };
 
-    public Result<string> Generar(DteDocumento d)
+    public Result<string> Generar(DteDocumento d, DteConfiguracion? config = null)
     {
         if (string.IsNullOrWhiteSpace(d.NumeroControl))
             return Result<string>.Fail("Documento sin número de control.", "VALIDATION");
@@ -36,11 +36,11 @@ public class DteGeneratorService : IDteGeneratorService
 
         object dte = d.TipoDteCodigo switch
         {
-            TipoDteCodigos.FacturaConsumidorFinal => BuildFactura(d, emisor),
-            TipoDteCodigos.ComprobanteCreditoFiscal => BuildCcf(d, emisor),
-            TipoDteCodigos.NotaCredito => BuildNotaCreditoDebito(d, emisor, isNotaCredito: true),
-            TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, isNotaCredito: false),
-            TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor),
+            TipoDteCodigos.FacturaConsumidorFinal => BuildFactura(d, emisor, config),
+            TipoDteCodigos.ComprobanteCreditoFiscal => BuildCcf(d, emisor, config),
+            TipoDteCodigos.NotaCredito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: true),
+            TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: false),
+            TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor, config),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
@@ -49,13 +49,13 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 01 Factura Consumidor Final --------------------------
 
-    private static object BuildFactura(DteDocumento d, Empresa emisor)
+    private static object BuildFactura(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
             documentoRelacionado = (object?)null,
-            emisor = BuildEmisor(d, emisor),
+            emisor = BuildEmisor(d, emisor, config),
             receptor = BuildReceptorFactura(d),
             otrosDocumentos = (object?)null,
             ventaTercero = BuildVentaTercero(d),
@@ -104,13 +104,13 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 03 CCF -----------------------------------------------
 
-    private static object BuildCcf(DteDocumento d, Empresa emisor)
+    private static object BuildCcf(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
         return new
         {
             identificacion = BuildIdentificacion(d, 3),
             documentoRelacionado = (object?)null,
-            emisor = BuildEmisorCcf(d, emisor),
+            emisor = BuildEmisorCcf(d, emisor, config),
             receptor = BuildReceptorCcf(d),
             otrosDocumentos = (object?)null,
             ventaTercero = BuildVentaTercero(d),
@@ -151,13 +151,13 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 05 NC / 06 ND ---------------------------------------
 
-    private static object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, bool isNotaCredito)
+    private static object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool isNotaCredito)
     {
         return new
         {
             identificacion = BuildIdentificacion(d, 3),
             documentoRelacionado = BuildDocumentoRelacionado(d),
-            emisor = BuildEmisorCcf(d, emisor),
+            emisor = BuildEmisorCcf(d, emisor, config),
             receptor = BuildReceptorCcf(d),
             ventaTercero = BuildVentaTercero(d),
             cuerpoDocumento = BuildCuerpo(d, conIvaPorLinea: true),
@@ -184,12 +184,12 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 14 Sujeto Excluido ----------------------------------
 
-    private static object BuildSujetoExcluido(DteDocumento d, Empresa emisor)
+    private static object BuildSujetoExcluido(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
-            emisor = BuildEmisor(d, emisor),
+            emisor = BuildEmisor(d, emisor, config),
             sujetoExcluido = new
             {
                 tipoDocumento = d.ReceptorTipoDocumento ?? "13",
@@ -254,47 +254,66 @@ public class DteGeneratorService : IDteGeneratorService
         tipoMoneda = d.TipoMonedaCodigo ?? "USD",
     };
 
-    private static object BuildEmisor(DteDocumento d, Empresa e) => new
+    private static object BuildEmisor(DteDocumento d, Empresa e, DteConfiguracion? config)
     {
-        nit = e.Nit,
-        nrc = e.Nrc,
-        nombre = e.RazonSocial,
-        codActividad = e.CodigoActividad,
-        descActividad = e.ActividadEconomica,
-        nombreComercial = e.NombreComercial,
-        tipoEstablecimiento = "01",
-        direccion = new
-        {
-            departamento = e.Departamento,
-            municipio = e.Municipio,
-            complemento = e.Direccion,
-        },
-        telefono = e.Telefono,
-        correo = e.Correo,
-        codEstableMH = (string?)null,
-        codEstable = (string?)null,
-        codPuntoVentaMH = (string?)null,
-        codPuntoVenta = (string?)null,
-    };
+        // tipoEstablecimiento por defecto 02 (Casa Matriz) si la config no lo trae.
+        var tipoEst = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo;
+        var codEst  = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh)    ? null  : config!.CodigoEstablecimientoMh;
+        var codPv   = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)         ? null  : config!.CodigoPuntoVentaMh;
 
-    private static object BuildEmisorCcf(DteDocumento d, Empresa e) => new
-    {
-        nit = e.Nit,
-        nrc = e.Nrc,
-        nombre = e.RazonSocial,
-        codActividad = e.CodigoActividad,
-        descActividad = e.ActividadEconomica,
-        nombreComercial = e.NombreComercial,
-        tipoEstablecimiento = "01",
-        direccion = new
+        return new
         {
-            departamento = e.Departamento,
-            municipio = e.Municipio,
-            complemento = e.Direccion,
-        },
-        telefono = e.Telefono,
-        correo = e.Correo,
-    };
+            nit = e.Nit,
+            nrc = e.Nrc,
+            nombre = e.RazonSocial,
+            codActividad = e.CodigoActividad,
+            descActividad = e.ActividadEconomica,
+            nombreComercial = e.NombreComercial,
+            tipoEstablecimiento = tipoEst,
+            direccion = new
+            {
+                departamento = e.Departamento,
+                municipio = e.Municipio,
+                complemento = e.Direccion,
+            },
+            telefono = e.Telefono,
+            correo = e.Correo,
+            codEstableMH = codEst,
+            codEstable = codEst,
+            codPuntoVentaMH = codPv,
+            codPuntoVenta = codPv,
+        };
+    }
+
+    private static object BuildEmisorCcf(DteDocumento d, Empresa e, DteConfiguracion? config)
+    {
+        var tipoEst = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo;
+        var codEst  = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh)    ? null  : config!.CodigoEstablecimientoMh;
+        var codPv   = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)         ? null  : config!.CodigoPuntoVentaMh;
+
+        return new
+        {
+            nit = e.Nit,
+            nrc = e.Nrc,
+            nombre = e.RazonSocial,
+            codActividad = e.CodigoActividad,
+            descActividad = e.ActividadEconomica,
+            nombreComercial = e.NombreComercial,
+            tipoEstablecimiento = tipoEst,
+            direccion = new
+            {
+                departamento = e.Departamento,
+                municipio = e.Municipio,
+                complemento = e.Direccion,
+            },
+            telefono = e.Telefono,
+            correo = e.Correo,
+            codEstableMH = codEst,
+            codEstable = codEst,
+            codPuntoVentaMH = codPv,
+            codPuntoVenta = codPv,
+        };
+    }
 
     private static object? BuildReceptorFactura(DteDocumento d)
     {

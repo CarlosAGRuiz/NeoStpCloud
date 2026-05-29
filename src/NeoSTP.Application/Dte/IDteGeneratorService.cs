@@ -9,5 +9,7 @@ namespace NeoSTP.Application.Dte;
 public interface IDteGeneratorService
 {
     /// <summary>Construye el JSON sin firmar para el documento (validándolo previamente).</summary>
-    Result<string> Generar(DteDocumento documento);
+    /// <param name="documento">Documento DTE con detalles, empresa y receptor cargados.</param>
+    /// <param name="config">Configuración DTE de la empresa (para inyectar codEstable/codPuntoVenta/tipoEstablecimiento en el bloque emisor). Opcional para compatibilidad.</param>
+    Result<string> Generar(DteDocumento documento, DteConfiguracion? config = null);
 }
