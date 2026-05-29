@@ -104,10 +104,13 @@ public static class DependencyInjection
         services.AddScoped<IDteGeneratorService, DteGeneratorService>();
         services.AddScoped<IDteDocumentosService, DteDocumentosService>();
 
-        // Sprint 6: firma DTE — toggle "Mock" (default) vs "Pkcs12" según Dte:Signer
+        // Sprint 6: firma DTE — toggle "Mock" (default) | "Pkcs12" | "HaciendaCert" según Dte:Signer
         var dteSigner = configuration["Dte:Signer"];
         if (string.Equals(dteSigner, "Pkcs12", StringComparison.OrdinalIgnoreCase))
             services.AddScoped<IDteSignerService, Pkcs12DteSignerService>();
+        else if (string.Equals(dteSigner, "HaciendaCert", StringComparison.OrdinalIgnoreCase))
+            // Certificado en formato XML CertificadoMH de Hacienda El Salvador (.crt)
+            services.AddScoped<IDteSignerService, HaciendaCertMhDteSignerService>();
         else
             services.AddScoped<IDteSignerService, MockDteSignerService>();
 
