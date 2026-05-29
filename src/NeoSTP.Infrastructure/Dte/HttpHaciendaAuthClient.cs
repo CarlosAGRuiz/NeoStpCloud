@@ -75,8 +75,13 @@ public class HttpHaciendaAuthClient : IHaciendaAuthClient
             var root = doc.RootElement;
             var status = root.TryGetProperty("status", out var s) ? s.GetString() : null;
             var body = root.TryGetProperty("body", out var b) ? b : default;
-            var token = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("token", out var t)
+            // Hacienda devuelve el token con el prefijo "Bearer " incluido en el valor.
+            // Hay que quitarlo para que AuthenticationHeaderValue no lo duplique.
+            var rawToken = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("token", out var t)
                 ? t.GetString() : null;
+            var token = rawToken?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true
+                ? rawToken[7..].Trim()
+                : rawToken;
 
             if (string.IsNullOrEmpty(token) || !string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
             {

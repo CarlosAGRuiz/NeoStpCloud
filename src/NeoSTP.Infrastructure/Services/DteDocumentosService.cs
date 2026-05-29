@@ -472,12 +472,20 @@ public class DteDocumentosService : IDteDocumentosService
     private async Task<(bool Success, string? Token, string? Mensaje)> ObtenerTokenAsync(
         Domain.Core.Dte.DteConfiguracion config, CancellationToken ct)
     {
-        // Token cacheado vigente: 5 minutos de margen antes de expirar
+        // Token cacheado vigente: 5 minutos de margen antes de expirar.
+        // Defensivo: quitar prefijo "Bearer " si quedó almacenado con él (bug previo en el cliente MH).
         if (!string.IsNullOrEmpty(config.TokenMhCifrado)
             && config.TokenMhExpiraAt.HasValue
             && config.TokenMhExpiraAt.Value > DateTime.UtcNow.AddMinutes(5))
         {
-            try { return (true, _protector.Unprotect(config.TokenMhCifrado), null); }
+            try
+            {
+                var raw = _protector.Unprotect(config.TokenMhCifrado);
+                var clean = raw?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true
+                    ? raw[7..].Trim()
+                    : raw;
+                return (true, clean, null);
+            }
             catch { /* fall-through al refresh */ }
         }
 

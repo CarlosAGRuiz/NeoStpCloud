@@ -44,7 +44,8 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
             using (rsa)
             {
                 // JWS compacto: header.payload.signature (RFC 7515, alg RS256)
-                var headerJson = $$"""{"alg":"RS256","typ":"JWT","x5t":"{{x5t}}"}""";
+                // Para El Salvador: el x5t es SHA-1 del cert DER; sin él, Hacienda busca por NIT.
+                var headerJson = $$"""{"alg":"RS256","x5t":"{{x5t}}"}""";
                 var headerB64  = B64U(Encoding.UTF8.GetBytes(headerJson));
                 var payloadB64 = B64U(Encoding.UTF8.GetBytes(jsonDte));
 
@@ -111,8 +112,9 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
         var rsa = RSA.Create();
         rsa.ImportPkcs8PrivateKey(pkcs8Bytes, out _);
 
-        // x5t = Base64Url( SHA-1( SubjectPublicKeyInfo DER ) )
-        // Hacienda El Salvador identifica los certificados por este thumbprint en el JWS.
+        // x5t = Base64Url( SHA-1( SubjectPublicKeyInfo DER ) ) — estándar RFC 7515.
+        // Si Hacienda devuelve 802 "Firma no válida" con x5t correcto, el certificado
+        // necesita ser activado/verificado en el portal antes de usarse para firma DTE.
         var sha1 = SHA1.HashData(spkiBytes);
         var x5t  = B64U(sha1);
 

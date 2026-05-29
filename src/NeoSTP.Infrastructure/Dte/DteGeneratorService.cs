@@ -53,7 +53,7 @@ public class DteGeneratorService : IDteGeneratorService
     {
         return new
         {
-            identificacion = BuildIdentificacion(d, "1.0"),
+            identificacion = BuildIdentificacion(d, 1),
             documentoRelacionado = (object?)null,
             emisor = BuildEmisor(d, emisor),
             receptor = BuildReceptorFactura(d),
@@ -108,7 +108,7 @@ public class DteGeneratorService : IDteGeneratorService
     {
         return new
         {
-            identificacion = BuildIdentificacion(d, "3.0"),
+            identificacion = BuildIdentificacion(d, 3),
             documentoRelacionado = (object?)null,
             emisor = BuildEmisorCcf(d, emisor),
             receptor = BuildReceptorCcf(d),
@@ -153,10 +153,9 @@ public class DteGeneratorService : IDteGeneratorService
 
     private static object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, bool isNotaCredito)
     {
-        var version = isNotaCredito ? "3.0" : "3.0";
         return new
         {
-            identificacion = BuildIdentificacion(d, version),
+            identificacion = BuildIdentificacion(d, 3),
             documentoRelacionado = BuildDocumentoRelacionado(d),
             emisor = BuildEmisorCcf(d, emisor),
             receptor = BuildReceptorCcf(d),
@@ -189,7 +188,7 @@ public class DteGeneratorService : IDteGeneratorService
     {
         return new
         {
-            identificacion = BuildIdentificacion(d, "1.0"),
+            identificacion = BuildIdentificacion(d, 1),
             emisor = BuildEmisor(d, emisor),
             sujetoExcluido = new
             {
@@ -239,9 +238,9 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- Bloques comunes -------------------------------------
 
-    private static object BuildIdentificacion(DteDocumento d, string version) => new
+    private static object BuildIdentificacion(DteDocumento d, int version) => new
     {
-        version = version,
+        version = version,   // Entero según spec MH (1 para 01/14, 3 para 03/05/06)
         ambiente = d.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
         tipoDte = d.TipoDteCodigo,
         numeroControl = d.NumeroControl,
