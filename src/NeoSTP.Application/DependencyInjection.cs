@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.Configure<SuperAdminOptions>(configuration.GetSection(SuperAdminOptions.SectionName));
         services.Configure<NeoSTP.Application.Dte.HaciendaOptions>(configuration.GetSection(NeoSTP.Application.Dte.HaciendaOptions.SectionName));
         services.Configure<NeoSTP.Application.Dte.EmailOptions>(configuration.GetSection(NeoSTP.Application.Dte.EmailOptions.SectionName));
+        services.Configure<NeoSTP.Application.Provisioning.EmpresaPruebaOptions>(configuration.GetSection(NeoSTP.Application.Provisioning.EmpresaPruebaOptions.SectionName));
         return services;
     }
 }

@@ -70,6 +70,8 @@ var app = builder.Build();
 
 // Aplicar migraciones + seed inicial al arrancar
 await DatabaseSeeder.SeedAsync(app.Services);
+// Provisioning idempotente de la empresa de pruebas (Sprint 11) — solo si EmpresaPrueba:Enabled=true
+await EmpresaPruebaSeeder.SeedAsync(app.Services);
 
 app.UseSerilogRequestLogging();
 
