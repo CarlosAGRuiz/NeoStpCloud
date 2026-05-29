@@ -43,15 +43,14 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
         var http = _httpClientFactory.CreateClient(HttpClientName);
         http.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
 
-        var body = JsonSerializer.Serialize(new
-        {
-            ambiente = req.Ambiente,
-            idEnvio = req.IdEnvio,
-            version = req.Version,
-            tipoDte = req.TipoDte,
-            documento = req.Documento,
-            codigoGeneracion = req.CodigoGeneracion,
-        });
+        // Incluir nit solo si fue provisto; algunos endpoints MH lo requieren para
+        // identificar el certificado del emisor cuando el x5t no coincide exactamente.
+        object bodyObj = string.IsNullOrEmpty(req.Nit)
+            ? new { ambiente = req.Ambiente, idEnvio = req.IdEnvio, version = req.Version,
+                    tipoDte = req.TipoDte, documento = req.Documento, codigoGeneracion = req.CodigoGeneracion }
+            : (object)new { nit = req.Nit, ambiente = req.Ambiente, idEnvio = req.IdEnvio, version = req.Version,
+                            tipoDte = req.TipoDte, documento = req.Documento, codigoGeneracion = req.CodigoGeneracion };
+        var body = JsonSerializer.Serialize(bodyObj);
 
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
         using var message = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };

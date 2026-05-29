@@ -4,6 +4,8 @@ public class HaciendaReceptionRequest
 {
     /// <summary>"00" pruebas / "01" producción.</summary>
     public string Ambiente { get; set; } = "00";
+    /// <summary>NIT del emisor. Algunos endpoints MH lo requieren para identificar el certificado.</summary>
+    public string? Nit { get; set; }
     /// <summary>Identificador único del envío (cualquier número ascendente; suele usarse el id interno).</summary>
     public int IdEnvio { get; set; }
     public int Version { get; set; } = 2;

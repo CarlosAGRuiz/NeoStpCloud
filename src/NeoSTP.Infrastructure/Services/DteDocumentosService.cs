@@ -426,6 +426,7 @@ public class DteDocumentosService : IDteDocumentosService
 
         var resp = await _reception.EnviarAsync(new HaciendaReceptionRequest
         {
+            Nit = doc.Empresa?.Nit,                          // NIT del emisor para lookup de cert
             Ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
             AmbienteCodigo = config.AmbienteCodigo,
             IdEnvio = doc.Id,

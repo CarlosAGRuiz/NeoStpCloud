@@ -40,28 +40,34 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
 
         try
         {
-            var (rsa, x5t) = CargarCertificado(certificadoBlob);
+            var (rsa, spkiBytes) = CargarCertificado(certificadoBlob);
             using (rsa)
             {
-                // JWS compacto: header.payload.signature (RFC 7515, alg RS256)
-                // Para El Salvador: el x5t es SHA-1 del cert DER; sin él, Hacienda busca por NIT.
-                var headerJson = $$"""{"alg":"RS256","x5t":"{{x5t}}"}""";
+                // JWS compacto: header.payload.signature (RFC 7515).
+                // Hacienda El Salvador usa RS512 (RSA + SHA-512) y un header mínimo {"alg":"RS512"}
+                // — idéntico al firmador oficial svfe-api-firmador. NO lleva typ ni x5t.
+                var headerJson = """{"alg":"RS512"}""";
                 var headerB64  = B64U(Encoding.UTF8.GetBytes(headerJson));
                 var payloadB64 = B64U(Encoding.UTF8.GetBytes(jsonDte));
 
                 var sigInput = Encoding.UTF8.GetBytes($"{headerB64}.{payloadB64}");
-                var sig      = rsa.SignData(sigInput, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                var sig      = rsa.SignData(sigInput, HashAlgorithmName.SHA512, RSASignaturePadding.Pkcs1);
                 var sigB64   = B64U(sig);
 
+                // Auto-verificación local: confirma que la firma es correcta antes de enviar
+                using var rsaVerify = RSA.Create();
+                rsaVerify.ImportSubjectPublicKeyInfo(spkiBytes, out _);
+                var selfOk = rsaVerify.VerifyData(sigInput, sig, HashAlgorithmName.SHA512, RSASignaturePadding.Pkcs1);
                 _logger.LogInformation(
-                    "HaciendaCertMhDteSignerService: DTE firmado con certificado MH (x5t={X5t}).", x5t);
+                    "HaciendaCertMhDteSignerService: DTE firmado con RS512. Auto-verificacion local: {Ok}",
+                    selfOk ? "PASS" : "FAIL");
 
                 return Task.FromResult(new DteSignResult
                 {
                     Success     = true,
                     JsonFirmado = $"{headerB64}.{payloadB64}.{sigB64}",
                     Mensaje     = "OK",
-                    Detalle     = $"RS256 con certificado CertificadoMH Hacienda (x5t={x5t[..Min(12, x5t.Length)]}…).",
+                    Detalle     = $"RS512 con certificado CertificadoMH Hacienda (auto-verif={(selfOk ? "OK" : "FAIL")}).",
                 });
             }
         }
@@ -75,9 +81,10 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Parsea el XML CertificadoMH y devuelve el RSA (con clave privada) y el x5t.
+    /// Parsea el XML CertificadoMH y devuelve el RSA (con clave privada) y los bytes
+    /// del SubjectPublicKeyInfo DER (para auto-verificación de la firma).
     /// </summary>
-    private static (RSA rsa, string x5t) CargarCertificado(byte[] blob)
+    private static (RSA rsa, byte[] spkiBytes) CargarCertificado(byte[] blob)
     {
         var xml = XDocument.Parse(Encoding.UTF8.GetString(blob));
         var root = xml.Root ?? throw new InvalidOperationException("XML vacío.");
@@ -112,13 +119,7 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
         var rsa = RSA.Create();
         rsa.ImportPkcs8PrivateKey(pkcs8Bytes, out _);
 
-        // x5t = Base64Url( SHA-1( SubjectPublicKeyInfo DER ) ) — estándar RFC 7515.
-        // Si Hacienda devuelve 802 "Firma no válida" con x5t correcto, el certificado
-        // necesita ser activado/verificado en el portal antes de usarse para firma DTE.
-        var sha1 = SHA1.HashData(spkiBytes);
-        var x5t  = B64U(sha1);
-
-        return (rsa, x5t);
+        return (rsa, spkiBytes);
     }
 
     private static string LimpiarB64(string s) =>
@@ -126,8 +127,6 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
 
     private static string B64U(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static int Min(int a, int b) => a < b ? a : b;
 
     private static DteSignResult Fail(string mensaje, string detalle) => new()
     {
