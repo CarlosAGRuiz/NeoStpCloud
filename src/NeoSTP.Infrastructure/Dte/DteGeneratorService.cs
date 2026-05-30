@@ -192,7 +192,7 @@ public class DteGeneratorService : IDteGeneratorService
             emisor = BuildEmisor(d, emisor, config),
             sujetoExcluido = new
             {
-                tipoDocumento = d.ReceptorTipoDocumento ?? "13",
+                tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "13",
                 numDocumento = d.ReceptorNumeroDocumento,
                 nombre = d.ReceptorNombre,
                 codActividad = d.ReceptorCodigoActividad,
@@ -322,7 +322,7 @@ public class DteGeneratorService : IDteGeneratorService
             return null;
         return new
         {
-            tipoDocumento = d.ReceptorTipoDocumento,
+            tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento),
             numDocumento = d.ReceptorNumeroDocumento,
             nrc = d.ReceptorNrc,
             nombre = d.ReceptorNombre,
@@ -391,4 +391,26 @@ public class DteGeneratorService : IDteGeneratorService
 
     private static int ToInt(string? s, int defaultValue = 0)
         => int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : defaultValue;
+
+    /// <summary>
+    /// Mapea el código interno de tipo de documento de identidad (catálogo TIPO_DOC_IDENTIDAD)
+    /// al código oficial de Hacienda CAT-022 que va en <c>receptor.tipoDocumento</c>:
+    /// 36=NIT, 13=DUI, 03=Pasaporte, 02=Carnet de Residente, 37=Otro.
+    /// Si ya viene un código numérico MH válido se respeta tal cual.
+    /// </summary>
+    private static string? MapTipoDocReceptorMh(string? interno)
+    {
+        if (string.IsNullOrWhiteSpace(interno)) return null;
+        return interno.Trim().ToUpperInvariant() switch
+        {
+            "NIT" => "36",
+            "DUI" => "13",
+            "PASAPORTE" => "03",
+            "CARNET_RESIDENTE" or "CARNET RESIDENTE" => "02",
+            "OTRO" or "OTRO_DOCUMENTO" => "37",
+            // Códigos MH válidos pasan directo
+            "36" or "13" or "03" or "02" or "37" => interno.Trim(),
+            _ => interno.Trim(),
+        };
+    }
 }
