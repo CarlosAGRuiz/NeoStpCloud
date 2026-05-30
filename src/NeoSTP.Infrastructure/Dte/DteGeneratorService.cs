@@ -190,7 +190,7 @@ public class DteGeneratorService : IDteGeneratorService
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
-            emisor = BuildEmisor(d, emisor, config),
+            emisor = BuildEmisorFse(emisor, config),
             sujetoExcluido = new
             {
                 tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "13",
@@ -254,6 +254,33 @@ public class DteGeneratorService : IDteGeneratorService
         horEmi = d.HoraEmision.ToString(@"hh\:mm\:ss"),
         tipoMoneda = d.TipoMonedaCodigo ?? "USD",
     };
+
+    /// <summary>Emisor para Factura de Sujeto Excluido (14): sin nombreComercial ni tipoEstablecimiento.</summary>
+    private static object BuildEmisorFse(Empresa e, DteConfiguracion? config)
+    {
+        var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
+        return new
+        {
+            nit = e.Nit,
+            nrc = e.Nrc,
+            nombre = e.RazonSocial,
+            codActividad = e.CodigoActividad,
+            descActividad = e.ActividadEconomica,
+            direccion = new
+            {
+                departamento = e.Departamento,
+                municipio = e.Municipio,
+                complemento = e.Direccion,
+            },
+            telefono = e.Telefono,
+            codEstableMH = codEst,
+            codEstable = codEst,
+            codPuntoVentaMH = codPv,
+            codPuntoVenta = codPv,
+            correo = e.Correo,
+        };
+    }
 
     private static object BuildEmisor(DteDocumento d, Empresa e, DteConfiguracion? config)
     {
