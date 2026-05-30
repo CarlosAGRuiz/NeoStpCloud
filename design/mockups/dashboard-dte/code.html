@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeoSTP Cloud | Centro de Control DTE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Hanken+Grotesk:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#191c1e",
+                    "secondary": "#6b38d4",
+                    "on-secondary-container": "#fffbff",
+                    "on-secondary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#45464d",
+                    "outline": "#76777d",
+                    "on-primary-fixed": "#131b2e",
+                    "surface-container-low": "#f2f4f6",
+                    "outline-variant": "#c6c6cd",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "secondary-container": "#8455ef",
+                    "status-draft": "#64748B",
+                    "surface-container-highest": "#e0e3e5",
+                    "inverse-surface": "#2d3133",
+                    "secondary-fixed-dim": "#d0bcff",
+                    "surface-variant": "#e0e3e5",
+                    "on-tertiary-fixed": "#1b0063",
+                    "primary": "#000000",
+                    "tertiary-container": "#1b0063",
+                    "primary-container": "#131b2e",
+                    "surface-bright": "#f7f9fb",
+                    "on-error-container": "#93000a",
+                    "on-error": "#ffffff",
+                    "surface-dark": "#1E293B",
+                    "on-secondary-fixed-variant": "#5516be",
+                    "primary-fixed": "#dae2fd",
+                    "background": "#f7f9fb",
+                    "error-container": "#ffdad6",
+                    "surface-tint": "#565e74",
+                    "on-primary-container": "#7c839b",
+                    "on-surface": "#191c1e",
+                    "on-secondary-fixed": "#23005c",
+                    "tertiary-fixed": "#e6deff",
+                    "on-tertiary-container": "#856cff",
+                    "border-subtle": "#E2E8F0",
+                    "surface-dim": "#d8dadc",
+                    "inverse-primary": "#bec6e0",
+                    "error": "#ba1a1a",
+                    "on-tertiary-fixed-variant": "#4618ca",
+                    "status-contingency": "#F59E0B",
+                    "surface-container-lowest": "#ffffff",
+                    "status-processed": "#10B981",
+                    "status-rejected": "#EF4444",
+                    "primary-fixed-dim": "#bec6e0",
+                    "tertiary-fixed-dim": "#c9beff",
+                    "tertiary": "#000000",
+                    "surface-container": "#eceef0",
+                    "surface": "#f7f9fb",
+                    "on-primary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "header-height": "64px",
+                    "sidebar-width": "260px",
+                    "gutter": "16px",
+                    "card-padding": "20px",
+                    "container-margin": "24px"
+            },
+            "fontFamily": {
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "body-lg": ["Inter"],
+                    "title-md": ["Inter"],
+                    "data-mono": ["JetBrains Mono"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "display-lg": ["Hanken Grotesk"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { background-color: #f7f9fb; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .fill-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface select-none">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-primary-container dark:bg-surface-dark flex flex-col py-container-margin z-50 shadow-sm">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">cloud_done</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-white leading-none">NeoSTP</h1>
+<p class="font-label-md text-label-md text-on-primary-container opacity-80 uppercase tracking-widest mt-1">Enterprise SaaS</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+<!-- Navigation Items Mapping from JSON -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Start</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg border-l-4 border-secondary" href="#">
+<span class="material-symbols-outlined fill-icon">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Operation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md">Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">robot</span>
+<span class="font-label-md text-label-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">Integrations</span>
+</a>
+<div class="pt-4 pb-2 px-4">
+<p class="font-label-md text-xs text-on-primary-container opacity-40 uppercase tracking-tighter">System</p>
+</div>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">door_open</span>
+<span class="font-label-md text-label-md">Portal</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">smartphone</span>
+<span class="font-label-md text-label-md">Mobile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Configuration</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-label-md text-label-md">SuperAdmin</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<div class="p-4 bg-white/5 rounded-xl border border-white/10">
+<div class="flex items-center gap-3">
+<img alt="User" class="w-8 h-8 rounded-full object-cover" data-alt="A professional headshot of a Hispanic male executive in his late 40s, wearing a crisp dark navy suit and looking confidently into the camera. The background is a blurred high-end corporate office with soft, cool blue lighting. The overall aesthetic is clean, sophisticated, and trustworthy, perfectly matching a professional enterprise SaaS environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlWn6Jyj_UbOBoQjCDLTlHGaZRDjyt9qLGoIyS7iFiJK-Uz3RhQzZuLZx584kHe2EY3gMaYVekKgaGxPqAnsZrrLlyvhcbO7aPS6TBvkCLWmQN-E51jjo4XxRHQoeuiFYGSlXroM3UlsYiwwEGI9hqjXfNUcUj0ZWqjz4BYWbDOylKkUOIj61uc_j8yTu3NUYNwXBk2qwwYdYjfXP_shn_x-JQJLXa0wGjuU0KcJ6J_8EKrQel7G4K-N7ML0k6JzSM_Aqpkt0UWaE"/>
+<div class="overflow-hidden">
+<p class="font-label-md text-white truncate">Carlos Mendez</p>
+<p class="text-[10px] text-on-primary-container truncate">Admin Regional</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[260px] min-h-screen">
+<!-- Top Navigation -->
+<header class="h-header-height sticky top-0 bg-surface/80 backdrop-blur-md z-40 flex items-center justify-between px-container-margin shadow-sm border-b border-border-subtle">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-md text-headline-md font-bold text-primary">Centro de Control DTE</h2>
+<div class="flex items-center gap-2 bg-status-processed/10 text-status-processed px-3 py-1 rounded-full border border-status-processed/20">
+<span class="w-2 h-2 rounded-full bg-status-processed animate-pulse"></span>
+<span class="font-label-md text-[11px] font-bold">PROD - EL SALVADOR</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<input class="w-64 bg-surface-container-low border-none rounded-lg font-body-md text-body-md px-10 focus:ring-2 focus:ring-secondary/20 transition-all" placeholder="Buscar DTE, Cliente o NIT..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+</div>
+<div class="flex items-center gap-2 border-l border-border-subtle pl-4">
+<button class="p-2 hover:bg-surface-container-low rounded-full transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<button class="p-2 hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">help</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Operational Dashboard -->
+<div class="p-container-margin space-y-gutter">
+<!-- Quick Stats & Contingency Focus -->
+<div class="grid grid-cols-12 gap-gutter">
+<div class="col-span-12 lg:col-span-4 p-card-padding bg-white border border-border-subtle rounded-xl shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 w-32 h-32 bg-status-contingency/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+<div class="flex items-start justify-between relative z-10">
+<div>
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider text-[11px]">En Contingencia</p>
+<h3 class="font-display-lg text-display-lg text-status-contingency mt-1">14</h3>
+<div class="mt-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-status-contingency text-sm animate-spin-slow">history</span>
+<span class="font-label-md text-status-contingency font-bold">02:14:45 restante</span>
+</div>
+</div>
+<div class="bg-status-contingency/10 p-3 rounded-lg text-status-contingency">
+<span class="material-symbols-outlined text-3xl">warning</span>
+</div>
+</div>
+<button class="w-full mt-4 py-2 bg-status-contingency text-white rounded-lg font-label-md text-label-md hover:bg-status-contingency/90 transition-colors">
+                        Resolver Críticos
+                    </button>
+</div>
+<div class="col-span-12 lg:col-span-4 p-card-padding bg-white border border-border-subtle rounded-xl shadow-sm">
+<div class="flex items-start justify-between">
+<div>
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider text-[11px]">DTEs Fallidos (Hoy)</p>
+<h3 class="font-display-lg text-display-lg text-status-rejected mt-1">28</h3>
+<p class="text-[12px] text-on-surface-variant mt-2">Corregidos: <span class="font-bold text-status-processed">156 (82%)</span></p>
+</div>
+<div class="bg-status-rejected/10 p-3 rounded-lg text-status-rejected">
+<span class="material-symbols-outlined text-3xl">error_med</span>
+</div>
+</div>
+<div class="mt-6 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-status-rejected w-[22%]"></div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-4 p-card-padding bg-white border border-border-subtle rounded-xl shadow-sm">
+<div class="flex items-start justify-between">
+<div>
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider text-[11px]">NeoScanAI Correction</p>
+<h3 class="font-display-lg text-display-lg text-secondary mt-1">94%</h3>
+<p class="text-[12px] text-on-surface-variant mt-2 italic">Optimización de flujo activa</p>
+</div>
+<div class="bg-secondary/10 p-3 rounded-lg text-secondary">
+<span class="material-symbols-outlined text-3xl fill-icon">smart_toy</span>
+</div>
+</div>
+<div class="mt-6 flex gap-2">
+<div class="flex-1 h-1 bg-secondary rounded-full"></div>
+<div class="flex-1 h-1 bg-secondary rounded-full"></div>
+<div class="flex-1 h-1 bg-secondary rounded-full"></div>
+<div class="flex-1 h-1 bg-secondary/30 rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Main Operational Grid -->
+<div class="grid grid-cols-12 gap-gutter">
+<div class="col-span-12 lg:col-span-9 bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden">
+<div class="p-4 border-b border-border-subtle flex items-center justify-between">
+<h4 class="font-title-md text-title-md">Operaciones de Resenvío y Corrección</h4>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-2 px-3 py-1.5 border border-border-subtle rounded-lg font-label-md text-label-md hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+                                Filtrar
+                            </button>
+<button class="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg font-label-md text-label-md hover:opacity-90 transition-colors">
+<span class="material-symbols-outlined text-sm">send</span>
+                                Resenvío Masivo
+                            </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-low border-b border-border-subtle">
+<tr>
+<th class="px-4 py-3 font-label-md text-[11px] text-on-surface-variant uppercase tracking-widest">DTE / No. Control</th>
+<th class="px-4 py-3 font-label-md text-[11px] text-on-surface-variant uppercase tracking-widest">Cliente / NIT</th>
+<th class="px-4 py-3 font-label-md text-[11px] text-on-surface-variant uppercase tracking-widest">Monto</th>
+<th class="px-4 py-3 font-label-md text-[11px] text-on-surface-variant uppercase tracking-widest">Estado</th>
+<th class="px-4 py-3 font-label-md text-[11px] text-on-surface-variant uppercase tracking-widest">Acciones Rápidas</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<!-- Row 1 (Contingency) -->
+<tr class="hover:bg-status-contingency/5 transition-colors group">
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold">FE-2023-000492</span>
+<span class="text-[10px] text-on-surface-variant">Factura Electrónica</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-label-md">Droguería El Salvador S.A.</span>
+<span class="font-data-mono text-[10px] text-on-surface-variant">0614-230912-101-5</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<span class="font-data-mono font-bold">$12,450.00</span>
+</td>
+<td class="px-4 py-4">
+<span class="px-2 py-1 bg-status-contingency/10 text-status-contingency rounded font-label-md text-[10px] font-bold uppercase">Contingencia</span>
+</td>
+<td class="px-4 py-4">
+<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm hover:text-secondary hover:border-secondary transition-all" title="Corrección">
+<span class="material-symbols-outlined text-sm">edit_square</span>
+</button>
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm hover:text-secondary hover:border-secondary transition-all" title="Regenerar PDF">
+<span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+</button>
+<button class="p-2 bg-secondary text-white rounded shadow-sm hover:bg-secondary-container transition-all" title="Manual Resend">
+<span class="material-symbols-outlined text-sm">replay</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 (Rejected) -->
+<tr class="hover:bg-status-rejected/5 transition-colors group">
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold text-status-rejected">CC-2023-001284</span>
+<span class="text-[10px] text-on-surface-variant">Comprobante de Crédito Fiscal</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-label-md">Transportes Globales S.A. de C.V.</span>
+<span class="font-data-mono text-[10px] text-on-surface-variant">0101-150288-103-2</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<span class="font-data-mono font-bold">$3,892.45</span>
+</td>
+<td class="px-4 py-4">
+<div class="flex items-center gap-1 cursor-help group/tip" title="Error de validación: CAT-012">
+<span class="px-2 py-1 bg-status-rejected/10 text-status-rejected rounded font-label-md text-[10px] font-bold uppercase">Rechazado</span>
+<span class="material-symbols-outlined text-xs text-status-rejected">info</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<div class="flex items-center gap-1">
+<button class="p-2 bg-secondary text-white rounded shadow-sm hover:bg-secondary-container transition-all" title="Corrección">
+<span class="material-symbols-outlined text-sm">auto_fix_high</span>
+</button>
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm hover:text-secondary hover:border-secondary transition-all" title="Regenerar PDF">
+<span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+</button>
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm opacity-50 cursor-not-allowed" title="Manual Resend">
+<span class="material-symbols-outlined text-sm">replay</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 (Processed) -->
+<tr class="hover:bg-status-processed/5 transition-colors group">
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold">FE-2023-000491</span>
+<span class="text-[10px] text-on-surface-variant">Factura Electrónica</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-label-md">Consultoría Integral IT</span>
+<span class="font-data-mono text-[10px] text-on-surface-variant">0614-110590-001-2</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<span class="font-data-mono font-bold">$840.00</span>
+</td>
+<td class="px-4 py-4">
+<span class="px-2 py-1 bg-status-processed/10 text-status-processed rounded font-label-md text-[10px] font-bold uppercase">Procesado</span>
+</td>
+<td class="px-4 py-4">
+<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm hover:text-primary transition-all" title="Descargar">
+<span class="material-symbols-outlined text-sm">download</span>
+</button>
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm hover:text-secondary hover:border-secondary transition-all" title="Regenerar PDF">
+<span class="material-symbols-outlined text-sm">picture_as_pdf</span>
+</button>
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm hover:text-secondary hover:border-secondary transition-all" title="Manual Resend">
+<span class="material-symbols-outlined text-sm">mail</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-status-contingency/5 transition-colors group">
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold">FE-2023-000490</span>
+<span class="text-[10px] text-on-surface-variant">Factura Electrónica</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-label-md">Inversiones del Pacífico</span>
+<span class="font-data-mono text-[10px] text-on-surface-variant">0501-220375-101-1</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<span class="font-data-mono font-bold">$1,200.00</span>
+</td>
+<td class="px-4 py-4">
+<span class="px-2 py-1 bg-status-contingency/10 text-status-contingency rounded font-label-md text-[10px] font-bold uppercase">Contingencia</span>
+</td>
+<td class="px-4 py-4">
+<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm">
+<span class="material-symbols-outlined text-sm">edit_square</span>
+</button>
+<button class="p-2 bg-secondary text-white rounded shadow-sm">
+<span class="material-symbols-outlined text-sm">replay</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-status-rejected/5 transition-colors group">
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-data-mono text-data-mono font-bold">NC-2023-000104</span>
+<span class="text-[10px] text-on-surface-variant">Nota de Crédito</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<div class="flex flex-col">
+<span class="font-label-md">Almacenes Siman</span>
+<span class="font-data-mono text-[10px] text-on-surface-variant">0614-010150-101-9</span>
+</div>
+</td>
+<td class="px-4 py-4">
+<span class="font-data-mono font-bold">$450.75</span>
+</td>
+<td class="px-4 py-4">
+<span class="px-2 py-1 bg-status-rejected/10 text-status-rejected rounded font-label-md text-[10px] font-bold uppercase">Rechazado</span>
+</td>
+<td class="px-4 py-4">
+<div class="flex items-center gap-1">
+<button class="p-2 bg-secondary text-white rounded shadow-sm">
+<span class="material-symbols-outlined text-sm">auto_fix_high</span>
+</button>
+<button class="p-2 bg-white border border-border-subtle rounded shadow-sm">
+<span class="material-symbols-outlined text-sm">replay</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Specialized Sidebar: Email History -->
+<div class="col-span-12 lg:col-span-3 space-y-gutter">
+<div class="bg-white border border-border-subtle rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
+<div class="p-4 border-b border-border-subtle bg-surface-container-low flex items-center justify-between">
+<h4 class="font-label-md text-label-md font-bold uppercase tracking-wider text-on-surface-variant">Historial de Correo</h4>
+<span class="material-symbols-outlined text-sm text-secondary">alternate_email</span>
+</div>
+<div class="p-4 space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar">
+<!-- Email Item 1 -->
+<div class="p-3 bg-surface-container-lowest border border-border-subtle rounded-lg space-y-2 group hover:border-secondary transition-colors cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-data-mono text-[10px] text-on-surface-variant">FE-2023-000491</span>
+<span class="px-1.5 py-0.5 bg-status-processed/10 text-status-processed rounded text-[9px] font-bold uppercase">Abierto</span>
+</div>
+<p class="font-label-md text-[12px] truncate">cliente_it@it-consulting.com</p>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">visibility</span>
+<span>Hace 5 min</span>
+</div>
+<span>2 Aperturas</span>
+</div>
+</div>
+<!-- Email Item 2 -->
+<div class="p-3 bg-surface-container-lowest border border-border-subtle rounded-lg space-y-2 group hover:border-secondary transition-colors cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-data-mono text-[10px] text-on-surface-variant">CC-2023-001284</span>
+<span class="px-1.5 py-0.5 bg-status-rejected/10 text-status-rejected rounded text-[9px] font-bold uppercase">Error Envío</span>
+</div>
+<p class="font-label-md text-[12px] truncate">facturacion@trans-globales.sv</p>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">error</span>
+<span>Rebotado (DNS)</span>
+</div>
+</div>
+</div>
+<!-- Email Item 3 -->
+<div class="p-3 bg-surface-container-lowest border border-border-subtle rounded-lg space-y-2 group hover:border-secondary transition-colors cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-data-mono text-[10px] text-on-surface-variant">FE-2023-000490</span>
+<span class="px-1.5 py-0.5 bg-status-draft/10 text-status-draft rounded text-[9px] font-bold uppercase">Enviado</span>
+</div>
+<p class="font-label-md text-[12px] truncate">admin@pacific-inv.com</p>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+<span>Enviado: 10:45 AM</span>
+</div>
+</div>
+</div>
+<!-- Email Item 4 -->
+<div class="p-3 bg-surface-container-lowest border border-border-subtle rounded-lg space-y-2 group hover:border-secondary transition-colors cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-data-mono text-[10px] text-on-surface-variant">NC-2023-000104</span>
+<span class="px-1.5 py-0.5 bg-status-processed/10 text-status-processed rounded text-[9px] font-bold uppercase">Abierto</span>
+</div>
+<p class="font-label-md text-[12px] truncate">pagos@siman.com.sv</p>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">visibility</span>
+<span>Hace 1 hora</span>
+</div>
+<span>5 Aperturas</span>
+</div>
+</div>
+<!-- NeoScanAI Promotion Small -->
+<div class="p-4 bg-secondary/5 border border-secondary/20 rounded-xl mt-4">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary text-sm fill-icon">auto_fix_high</span>
+<span class="font-label-md text-[10px] font-bold text-secondary uppercase">Sugerencia AI</span>
+</div>
+<p class="text-[11px] leading-relaxed text-on-surface">Detectamos 4 correos rebotados por errores de sintaxis en el dominio. ¿Deseas corregirlos automáticamente?</p>
+<button class="mt-3 text-[11px] font-bold text-secondary hover:underline">Aplicar Corrección AI</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-secondary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all group z-50">
+<span class="material-symbols-outlined text-2xl group-hover:rotate-12 transition-transform">add</span>
+<div class="absolute right-16 px-4 py-2 bg-primary text-white text-[12px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                Nueva Operación Manual
+            </div>
+</button>
+</main>
+<script>
+        // Micro-interactions and countdown effect
+        document.addEventListener('DOMContentLoaded', () => {
+            const countdownEl = document.querySelector('.font-label-md.text-status-contingency.font-bold');
+            let seconds = 2 * 3600 + 14 * 60 + 45;
+
+            function updateTimer() {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                countdownEl.innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} restante`;
+                if(seconds > 0) seconds--;
+            }
+
+            setInterval(updateTimer, 1000);
+
+            // Simple search simulation
+            const searchInput = document.querySelector('input[type="text"]');
+            searchInput.addEventListener('input', (e) => {
+                const rows = document.querySelectorAll('tbody tr');
+                const term = e.target.value.toLowerCase();
+                
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(term) ? '' : 'none';
+                });
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .touch-action-none { touch-action: manipulation; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "outline": "#76777d",
+                      "status-contingency": "#F59E0B",
+                      "secondary-fixed-dim": "#d0bcff",
+                      "surface-variant": "#e0e3e5",
+                      "secondary": "#6b38d4",
+                      "primary-fixed-dim": "#bec6e0",
+                      "surface-container-highest": "#e0e3e5",
+                      "on-primary-container": "#7c839b",
+                      "tertiary": "#000000",
+                      "on-tertiary-fixed-variant": "#4618ca",
+                      "on-error-container": "#93000a",
+                      "status-draft": "#64748B",
+                      "on-tertiary-container": "#856cff",
+                      "primary": "#000000",
+                      "error-container": "#ffdad6",
+                      "status-rejected": "#EF4444",
+                      "surface-bright": "#f7f9fb",
+                      "secondary-fixed": "#e9ddff",
+                      "surface": "#f7f9fb",
+                      "status-processed": "#10B981",
+                      "on-primary-fixed-variant": "#3f465c",
+                      "inverse-surface": "#2d3133",
+                      "on-error": "#ffffff",
+                      "tertiary-container": "#1b0063",
+                      "on-secondary-fixed-variant": "#5516be",
+                      "inverse-on-surface": "#eff1f3",
+                      "surface-dark": "#1E293B",
+                      "secondary-container": "#8455ef",
+                      "outline-variant": "#c6c6cd",
+                      "on-surface": "#191c1e",
+                      "surface-container-high": "#e6e8ea",
+                      "surface-dim": "#d8dadc",
+                      "tertiary-fixed-dim": "#c9beff",
+                      "on-tertiary-fixed": "#1b0063",
+                      "inverse-primary": "#bec6e0",
+                      "on-secondary-fixed": "#23005c",
+                      "surface-tint": "#565e74",
+                      "primary-fixed": "#dae2fd",
+                      "primary-container": "#131b2e",
+                      "tertiary-fixed": "#e6deff",
+                      "error": "#ba1a1a",
+                      "on-surface-variant": "#45464d",
+                      "surface-container": "#eceef0",
+                      "on-primary": "#ffffff",
+                      "on-primary-fixed": "#131b2e",
+                      "on-secondary": "#ffffff",
+                      "background": "#f7f9fb",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-low": "#f2f4f6",
+                      "border-subtle": "#E2E8F0",
+                      "surface-container-lowest": "#ffffff",
+                      "on-background": "#191c1e",
+                      "on-secondary-container": "#fffbff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "4px",
+                      "sidebar-width": "260px",
+                      "card-padding": "20px",
+                      "gutter": "16px",
+                      "container-margin": "24px",
+                      "header-height": "64px"
+              },
+              "fontFamily": {
+                      "headline-lg": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"],
+                      "title-md": ["Inter"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "body-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "data-mono": ["JetBrains Mono"]
+              },
+              "fontSize": {
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                      "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background font-body-md text-on-surface antialiased overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-primary-container dark:bg-surface-dark flex flex-col py-container-margin z-50 shadow-sm transition-all duration-200 ease-in-out">
+<div class="px-6 mb-8">
+<h1 class="font-headline-md text-headline-md font-bold text-white mb-1">NeoSTP Cloud</h1>
+<p class="font-label-md text-label-md text-on-primary-container opacity-70">Enterprise SaaS</p>
+</div>
+<nav class="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-hide">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Start</span>
+</a>
+<!-- Active State: Operation -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg border-l-4 border-secondary transition-all" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Operation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md">Intelligence</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">robot</span>
+<span class="font-label-md text-label-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">Integrations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">door_open</span>
+<span class="font-label-md text-label-md">Portal</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">smartphone</span>
+<span class="font-label-md text-label-md">Mobile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Configuration</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-label-md text-label-md">SuperAdmin</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<div class="bg-surface-variant/10 rounded-xl p-4 flex items-center gap-3">
+<img alt="NeoSTP Cloud Logo" class="w-10 h-10 rounded-full border border-outline-variant/30" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnNe86wAgnu0FKE63WUngFfgoHPcACbmayOkfm5EQgSsBNvWHkB_TqeewdKDtmthr-z2_mPbJX2as6zc8sePh_N2mL_WJ7aB6piI-IW5IvDfmo8Cl5Sg-gUEjnZ4YlwlZVogXS93tEeeVW7AGjFA6WzZRKN11T2JWm6zPvMgyxZFpaVMVZMD8haN870_ie-G5XJH1lhS3z5jL8p4it3oS8okNVbDI_blZCcXZVuJLMRt1ZNdp2V13HrlkGUUN0i-DvQztfJ9qvGWA"/>
+<div class="overflow-hidden">
+<p class="font-label-md text-white truncate">Operador POS 04</p>
+<p class="text-[10px] text-on-primary-container uppercase tracking-wider">Sucursal Central</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 right-0 h-header-height z-40 bg-surface/80 backdrop-blur-md flex justify-between items-center px-container-margin w-[calc(100%-theme(spacing.sidebar-width))] border-b border-border-subtle shadow-sm">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">shopping_cart</span>
+<h2 class="font-headline-md text-headline-md font-bold text-primary">NeoPOS</h2>
+</div>
+<div class="h-8 w-px bg-border-subtle"></div>
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-status-processed/10 text-status-processed text-[11px] font-bold uppercase tracking-tight border border-status-processed/20">
+<span class="w-2 h-2 rounded-full bg-status-processed mr-2 animate-pulse"></span>
+                    Caja Abierta
+                </span>
+<p class="text-on-surface-variant font-data-mono text-label-md">Fondo: $150.000 CLP</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center gap-6 mr-4">
+<a class="font-label-md text-secondary font-bold border-b-2 border-secondary h-header-height flex items-center px-2" href="#">Venta Rápida</a>
+<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors h-header-height flex items-center px-2" href="#">Historial</a>
+<a class="font-label-md text-on-surface-variant hover:text-primary transition-colors h-header-height flex items-center px-2" href="#">Arqueo</a>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant active:scale-95">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+<button class="p-2 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant active:scale-95">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-sidebar-width pt-header-height h-screen flex overflow-hidden">
+<!-- Left Section: Catalog & Search -->
+<section class="flex-1 flex flex-col p-container-margin min-w-0">
+<!-- Search & Filters -->
+<div class="flex flex-wrap items-center gap-4 mb-gutter">
+<div class="flex-1 relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline">search</span>
+<input class="w-full pl-12 pr-4 py-3 bg-white border border-border-subtle rounded-xl shadow-sm focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all font-body-md" placeholder="Buscar productos por nombre, código o SKU..." type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[20px]">barcode_scanner</span>
+</button>
+</div>
+<div class="flex bg-white p-1 rounded-xl border border-border-subtle shadow-sm">
+<button class="p-2 rounded-lg bg-secondary-container text-on-secondary-container shadow-sm">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined">list</span>
+</button>
+</div>
+<button class="flex items-center gap-2 px-4 py-3 bg-white border border-border-subtle rounded-xl shadow-sm hover:bg-surface-container-lowest transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+<span class="font-label-md">Categorías</span>
+</button>
+</div>
+<!-- Categories Pill Bar -->
+<div class="flex gap-2 mb-gutter overflow-x-auto scrollbar-hide py-1">
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-primary text-white font-label-md shadow-sm">Todos</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-white border border-border-subtle text-on-surface-variant font-label-md hover:border-secondary transition-colors">Almacén</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-white border border-border-subtle text-on-surface-variant font-label-md hover:border-secondary transition-colors">Bebidas</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-white border border-border-subtle text-on-surface-variant font-label-md hover:border-secondary transition-colors">Lácteos</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-white border border-border-subtle text-on-surface-variant font-label-md hover:border-secondary transition-colors">Cuidado Personal</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-white border border-border-subtle text-on-surface-variant font-label-md hover:border-secondary transition-colors">Limpieza</button>
+<button class="whitespace-nowrap px-4 py-2 rounded-full bg-white border border-border-subtle text-on-surface-variant font-label-md hover:border-secondary transition-colors">Mascotas</button>
+</div>
+<!-- Product Grid -->
+<div class="flex-1 overflow-y-auto scrollbar-hide">
+<div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-gutter">
+<!-- Product Card 1 -->
+<div class="group bg-white border border-border-subtle rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 touch-action-none">
+<div class="relative aspect-square rounded-lg bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional studio product shot of a high-end red running shoe set against a clean minimalist light gray background. The lighting is soft and diffused from the top right, creating a clean modern retail atmosphere. The image is crisp, highlighting the texture of the material and the vibrant red color, embodying a sophisticated tech-driven design aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuByNyJlUHh1666GkygnG2odrdGjzOPPyANDgMoa434IWC-9-tQ7PmGQv_13wKVUHvugNXflhClnO3CnJpUxLkb7ZHLi8NuX9Qs7NThSO2v8kgIBLnYq5APXkvMXeL1kqSZxgRF9R7agSmVhH0foVpe4rXxvnDNyGFScQD1hsYihqS30y-cZXARAN5OiOpWghYwRXdWqZ4h_ahVnM1IX0dTA4aDWlANJreA616ffiJJU_GOxtZ_6wSi_za7GytZbRzGEl857yij8vkM"/>
+<div class="absolute top-2 right-2 px-2 py-0.5 bg-status-processed text-white text-[10px] font-bold rounded shadow-sm uppercase">Stock 15</div>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider mb-1">Calzado</p>
+<h3 class="font-title-md text-on-surface line-clamp-2 h-12 leading-tight">Zapatilla Sport Elite Red 2.0</h3>
+<div class="mt-2 flex items-center justify-between">
+<span class="font-data-mono font-bold text-lg text-primary">$89.990</span>
+<span class="material-symbols-outlined text-secondary bg-secondary-container/20 p-1.5 rounded-lg group-hover:bg-secondary group-hover:text-white transition-all">add_shopping_cart</span>
+</div>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="group bg-white border border-border-subtle rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95 touch-action-none">
+<div class="relative aspect-square rounded-lg bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A luxurious product photography scene of a minimalist white smart watch with a clean silicone strap. The watch is placed on a smooth textured surface with soft natural light creating delicate shadows. The scene has a bright airy feel, focusing on precision and premium engineering. The overall color palette is composed of neutrals and subtle whites, fitting a high-performance modern workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpwaDvFpkdiO8TwqGzDdKkIfzbbsKuVB-YHQNMcyBQbcsKglpvbcEkN7f8TwAbKvAvLWvGwl6WliJCX5zm-Jw0kWQo3RTGCtQ4fXMWucOwXeDObYvCvhcZSgvfN4XW8jq9SrCloSpCSjH5L1ofvWUpQB8ggw_tOjliwouNQSh2uYKZyoTW_hc1ni4t-svaJ8arQ5LPZbws73KIPQCFl_AMFrVnRJinmsUIwjxyC5IHGlEg42UxH15GWdCrmr1PzVbTtdXLm_LI4ac"/>
+<div class="absolute top-2 right-2 px-2 py-0.5 bg-status-contingency text-white text-[10px] font-bold rounded shadow-sm uppercase">Stock 3</div>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider mb-1">Relojería</p>
+<h3 class="font-title-md text-on-surface line-clamp-2 h-12 leading-tight">SmartWatch Horizon Pure White</h3>
+<div class="mt-2 flex items-center justify-between">
+<span class="font-data-mono font-bold text-lg text-primary">$125.000</span>
+<span class="material-symbols-outlined text-secondary bg-secondary-container/20 p-1.5 rounded-lg group-hover:bg-secondary group-hover:text-white transition-all">add_shopping_cart</span>
+</div>
+</div>
+</div>
+<!-- More Product Cards (Replicated for visual density) -->
+<div class="group bg-white border border-border-subtle rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95">
+<div class="relative aspect-square rounded-lg bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A premium pair of matte black over-ear headphones displayed in a professional studio setting. The lighting is cinematic, featuring soft rim lights that accentuate the sleek curves and metallic details. The background is a dark, sophisticated gradient of charcoal tones, projecting a high-tech and exclusive vibe. The composition is centered and balanced, emphasizing acoustic excellence and premium build quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAptCbmmIg2gk9na5JHni5KR0pFyB7TXCYMJdOtFGthI0JlNZ8lQ8eNe6IQ29PktLtQS3mW544fcRqsAiaiM63s97QdQGn84fV9wqjP4Pe7OY-Ls9Lb9Xy4qTQ5ZlcGxiy0019BHuu7PD8A3BQ1BUgblMe3VJQsYe6rYNMxm-d6EIJIf4QV54BH3ytJPotoVEav1QByLZw4oa_g0PaBFOd8g0RudroGBdl-S5IR9rlAXv3X_BNny2etFRbXEKI7RXgP1cj2v9JwCHM"/>
+<div class="absolute top-2 right-2 px-2 py-0.5 bg-status-processed text-white text-[10px] font-bold rounded shadow-sm uppercase">Stock 8</div>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider mb-1">Audio</p>
+<h3 class="font-title-md text-on-surface line-clamp-2 h-12 leading-tight">Headphones Noise Cancel Pro</h3>
+<div class="mt-2 flex items-center justify-between">
+<span class="font-data-mono font-bold text-lg text-primary">$159.990</span>
+<span class="material-symbols-outlined text-secondary bg-secondary-container/20 p-1.5 rounded-lg group-hover:bg-secondary group-hover:text-white transition-all">add_shopping_cart</span>
+</div>
+</div>
+</div>
+<!-- Repeating generic items to fill density -->
+<div class="group bg-white border border-border-subtle rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95">
+<div class="relative aspect-square rounded-lg bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-6xl text-outline-variant">inventory_2</span>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider mb-1">Bazar</p>
+<h3 class="font-title-md text-on-surface line-clamp-2 h-12 leading-tight">Kit Limpieza Premium Multi-Superficie</h3>
+<div class="mt-2 flex items-center justify-between">
+<span class="font-data-mono font-bold text-lg text-primary">$12.500</span>
+<span class="material-symbols-outlined text-secondary bg-secondary-container/20 p-1.5 rounded-lg">add_shopping_cart</span>
+</div>
+</div>
+</div>
+<!-- Additional generic placeholder -->
+<div class="group bg-white border border-border-subtle rounded-xl p-3 flex flex-col gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-95">
+<div class="relative aspect-square rounded-lg bg-surface-container flex items-center justify-center">
+<span class="material-symbols-outlined text-6xl text-outline-variant">coffee</span>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-on-surface-variant uppercase tracking-wider mb-1">Gourmet</p>
+<h3 class="font-title-md text-on-surface line-clamp-2 h-12 leading-tight">Café de Grano Arábica 500g</h3>
+<div class="mt-2 flex items-center justify-between">
+<span class="font-data-mono font-bold text-lg text-primary">$8.400</span>
+<span class="material-symbols-outlined text-secondary bg-secondary-container/20 p-1.5 rounded-lg">add_shopping_cart</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Section: Active Cart Sidebar -->
+<aside class="w-[420px] bg-white border-l border-border-subtle flex flex-col shadow-[-4px_0_12px_rgba(0,0,0,0.02)] z-30">
+<!-- Cart Header -->
+<div class="p-6 border-b border-border-subtle">
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-headline-md text-headline-md font-bold text-primary flex items-center gap-2">
+                        Venta Actual
+                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-white text-[11px] font-bold">3</span>
+</h3>
+<button class="text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined">delete_sweep</span>
+</button>
+</div>
+<!-- Customer Selection -->
+<button class="w-full flex items-center justify-between px-4 py-3 bg-surface-container-low border border-border-subtle rounded-xl hover:bg-surface-container transition-all group">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</div>
+<div class="text-left">
+<p class="font-label-md text-on-surface-variant leading-none mb-0.5">Cliente</p>
+<p class="font-body-md font-bold text-primary leading-none">Venta Público General</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-secondary">edit</span>
+</button>
+</div>
+<!-- Cart Items List -->
+<div class="flex-1 overflow-y-auto p-6 space-y-4">
+<!-- Cart Item 1 -->
+<div class="flex gap-4 group">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Red running shoe detail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnVPi7GYLBPgwLNwuW9zGT6RPqqEp6FLdoT8cOD0ePVMEyA2PvaRRT_NFu5ijiBVnwvxo4Eb6YPWB390UJPqRJClbJYtprJ35tVp27mrS4otbP8mw5RNGZc_h8v2r_mfUXn2kzNIyX_WdPS4bC8XRj6e2mg-mZLN-c3tQyB3KKnKAXK30vMrnxU58bjk9FZLKupUE6DBSJCr7r_rPkBRC0UAd7eLyM-nkfQ2BXMtCXM1sI_Rj9t11svUiEMt3isl2sc0guuZLtafk"/>
+</div>
+<div class="flex-1 flex flex-col justify-center">
+<div class="flex justify-between">
+<h4 class="font-body-md font-bold text-primary line-clamp-1">Zapatilla Sport Elite Red 2.0</h4>
+<span class="font-data-mono font-bold text-primary">$89.990</span>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center bg-surface-container-low rounded-lg border border-border-subtle overflow-hidden">
+<button class="px-2 py-1 hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[16px]">remove</span></button>
+<span class="px-3 font-data-mono font-bold">1</span>
+<button class="px-2 py-1 hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[16px]">add</span></button>
+</div>
+<span class="text-on-surface-variant text-[11px] font-label-md italic">IVA Incl.</span>
+</div>
+</div>
+</div>
+<!-- Cart Item 2 -->
+<div class="flex gap-4 group">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="Smartwatch detail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-5FP4fVyvMOR_R_viNMwx4h7JvuvLJ_5GilfLgVO8GJRyUKmoTbIsjH9vVpZsUB7bftrtlP_gdTD-4pkvZmw_dR9CjxLho3k6xvrihffuuYGYuF5aS2rwI14wvRHVj9s4HEJX2cUPoiMgmPfIZfTxvG7LFyNJ3wP4bmdWqDdrJsl7NEvSijcZVfg5gZ_GKQ0g-B2Xz6dErROuVPgeKernJZm9NkSq-mTzROMMkrJL2GeBO3Mln2R29MfRgkwD05TUszW2yOD4cKE"/>
+</div>
+<div class="flex-1 flex flex-col justify-center">
+<div class="flex justify-between">
+<h4 class="font-body-md font-bold text-primary line-clamp-1">SmartWatch Horizon</h4>
+<span class="font-data-mono font-bold text-primary">$125.000</span>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center bg-surface-container-low rounded-lg border border-border-subtle overflow-hidden">
+<button class="px-2 py-1 hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[16px]">remove</span></button>
+<span class="px-3 font-data-mono font-bold">2</span>
+<button class="px-2 py-1 hover:bg-surface-container-high transition-colors"><span class="material-symbols-outlined text-[16px]">add</span></button>
+</div>
+<span class="text-on-surface-variant text-[11px] font-label-md italic">IVA Incl.</span>
+</div>
+</div>
+</div>
+<!-- Promotion Applied -->
+<div class="bg-secondary/5 border border-dashed border-secondary/30 rounded-lg p-3 flex items-center justify-between">
+<div class="flex items-center gap-2 text-secondary">
+<span class="material-symbols-outlined text-[20px]">sell</span>
+<span class="font-label-md font-bold">DCTO_CYBER: -10%</span>
+</div>
+<span class="font-data-mono font-bold text-secondary">-$33.998</span>
+</div>
+</div>
+<!-- Totals & Payment -->
+<div class="p-6 bg-surface-container-lowest border-t border-border-subtle shadow-[0_-8px_16px_rgba(0,0,0,0.02)]">
+<div class="space-y-2 mb-6">
+<div class="flex justify-between text-on-surface-variant font-body-md">
+<span>Subtotal</span>
+<span class="font-data-mono">$339.980</span>
+</div>
+<div class="flex justify-between text-on-surface-variant font-body-md">
+<span>Descuentos</span>
+<span class="font-data-mono text-status-processed">-$33.998</span>
+</div>
+<div class="flex justify-between text-on-surface-variant font-body-md">
+<span>Impuestos (IVA 19%)</span>
+<span class="font-data-mono">$58.136</span>
+</div>
+<div class="h-px bg-border-subtle my-2"></div>
+<div class="flex justify-between items-end">
+<span class="font-headline-md text-primary">TOTAL</span>
+<span class="font-display-lg text-display-lg text-primary font-bold leading-none">$305.982</span>
+</div>
+</div>
+<!-- Payment Methods -->
+<div class="grid grid-cols-3 gap-2 mb-6">
+<button class="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-secondary bg-secondary-container/10 text-secondary transition-all">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-label-md font-bold">Efectivo</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white text-on-surface-variant hover:border-secondary transition-all">
+<span class="material-symbols-outlined">credit_card</span>
+<span class="font-label-md">Tarjeta</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border-subtle bg-white text-on-surface-variant hover:border-secondary transition-all">
+<span class="material-symbols-outlined">account_balance</span>
+<span class="font-label-md">Transf.</span>
+</button>
+</div>
+<!-- Action Button -->
+<button class="w-full py-4 bg-primary text-white rounded-xl font-headline-md font-bold shadow-lg shadow-primary/20 flex items-center justify-center gap-3 hover:bg-neutral-800 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">receipt_long</span>
+                    Emitir DTE
+                </button>
+</div>
+</aside>
+</main>
+<!-- Contextual FAB (Only for Home/POS context as per mandate) -->
+<div class="fixed bottom-8 left-[284px] z-50">
+<button class="flex items-center gap-3 px-6 py-4 bg-secondary text-white rounded-full font-title-md shadow-xl hover:shadow-secondary/30 transition-all hover:scale-105 active:scale-95 group">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+<span>Escanear Producto</span>
+</button>
+</div>
+<!-- Quick Micro-interactions Script -->
+<script>
+        // Simple scale effect for product cards on click
+        document.querySelectorAll('.group').forEach(card => {
+            card.addEventListener('mousedown', () => card.classList.add('scale-95'));
+            card.addEventListener('mouseup', () => card.classList.remove('scale-95'));
+            card.addEventListener('mouseleave', () => card.classList.remove('scale-95'));
+        });
+
+        // Toggle payment method selection visuals
+        const paymentButtons = document.querySelectorAll('.grid.grid-cols-3 button');
+        paymentButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                paymentButtons.forEach(b => {
+                    b.classList.remove('border-secondary', 'bg-secondary-container/10', 'text-secondary');
+                    b.classList.add('border-border-subtle', 'bg-white', 'text-on-surface-variant');
+                });
+                btn.classList.add('border-secondary', 'bg-secondary-container/10', 'text-secondary');
+                btn.classList.remove('border-border-subtle', 'bg-white', 'text-on-surface-variant');
+            });
+        });
+    </script>
+</body></html>

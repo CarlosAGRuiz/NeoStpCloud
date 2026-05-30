@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NeoSTP Cloud - NeoProfit Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#76777d",
+                        "status-contingency": "#F59E0B",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "surface-variant": "#e0e3e5",
+                        "secondary": "#6b38d4",
+                        "primary-fixed-dim": "#bec6e0",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-primary-container": "#7c839b",
+                        "tertiary": "#000000",
+                        "on-tertiary-fixed-variant": "#4618ca",
+                        "on-error-container": "#93000a",
+                        "status-draft": "#64748B",
+                        "on-tertiary-container": "#856cff",
+                        "primary": "#000000",
+                        "error-container": "#ffdad6",
+                        "status-rejected": "#EF4444",
+                        "surface-bright": "#f7f9fb",
+                        "secondary-fixed": "#e9ddff",
+                        "surface": "#f7f9fb",
+                        "status-processed": "#10B981",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "inverse-surface": "#2d3133",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#1b0063",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-dark": "#1E293B",
+                        "secondary-container": "#8455ef",
+                        "outline-variant": "#c6c6cd",
+                        "on-surface": "#191c1e",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-dim": "#d8dadc",
+                        "tertiary-fixed-dim": "#c9beff",
+                        "on-tertiary-fixed": "#1b0063",
+                        "inverse-primary": "#bec6e0",
+                        "on-secondary-fixed": "#23005c",
+                        "surface-tint": "#565e74",
+                        "primary-fixed": "#dae2fd",
+                        "primary-container": "#131b2e",
+                        "tertiary-fixed": "#e6deff",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#45464d",
+                        "surface-container": "#eceef0",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed": "#131b2e",
+                        "on-secondary": "#ffffff",
+                        "background": "#f7f9fb",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "border-subtle": "#E2E8F0",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#191c1e",
+                        "on-secondary-container": "#fffbff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "sidebar-width": "260px",
+                        "card-padding": "20px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "header-height": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "title-md": ["Inter"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .glass-card:hover {
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .sparkline-container { height: 40px; width: 100%; }
+        .sidebar-active-indicator { width: 4px; height: 100%; position: absolute; left: 0; background-color: #6b38d4; border-radius: 0 4px 4px 0; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+<!-- Sidebar Wrapper -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-primary-container dark:bg-surface-dark flex flex-col py-container-margin z-50 shadow-sm">
+<div class="px-6 mb-10 flex items-center gap-3">
+<div class="w-10 h-10 bg-secondary-container rounded-lg flex items-center justify-center text-white font-bold text-headline-md">
+                N
+            </div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-white leading-tight">NeoSTP Cloud</h1>
+<p class="font-label-md text-label-md text-on-primary-container">Enterprise SaaS</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1 px-4 overflow-y-auto">
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Start</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Operation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg border-l-4 border-secondary group relative" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md font-bold">Intelligence</span>
+</a>
+<div class="ml-10 mt-1 space-y-1">
+<a class="flex items-center gap-2 px-3 py-2 text-on-secondary-container bg-white/5 rounded-md font-label-md text-label-md" href="#">NeoProfit</a>
+<a class="flex items-center gap-2 px-3 py-2 text-on-primary-container/70 hover:text-white transition-colors font-label-md text-label-md" href="#">Predictive Analytics</a>
+</div>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">robot</span>
+<span class="font-label-md text-label-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">Integrations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">door_open</span>
+<span class="font-label-md text-label-md">Portal</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">smartphone</span>
+<span class="font-label-md text-label-md">Mobile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Configuration</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-label-md text-label-md">SuperAdmin</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<div class="p-4 bg-white/5 rounded-xl flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Professional headshot of a financial director in a dark navy suit against a soft-lit modern office background. The lighting is sophisticated and directional, creating a polished corporate aesthetic. The overall mood is confident, trustworthy, and expert, matching the high-performance LATAM enterprise environment of the dashboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSQbx8pFEdaoB1K4e8xXAgYc56iXYVHnbAvVQIHhZ3Nc7lb-gFMS4yCy6D0syQSKUB8CmWbOn8Nuc-zqPw6D-v4cmGSySEk0XIiZ6-HU_4Y36XBoh7RfdJCR2GynvCpQlzpsdBWM-e0Fx7SuXts-BMX7suMhRoIaeihg0Lj0VMptvPFfXjfYlh7qwzpByXaTHxA6H35Zjyd4OW_q6t9Q9Hok8Tt-gXAU8_iObNQh2laOwQ3Z5_WEgjg--_bLzw8PmFc_7Ll3b4V54"/>
+</div>
+<div class="truncate">
+<p class="font-label-md text-label-md text-white font-bold truncate">Rodrigo Méndez</p>
+<p class="font-label-md text-label-md text-on-primary-container truncate">CFO Operations</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-[260px] min-h-screen">
+<!-- Top Navigation -->
+<header class="h-header-height sticky top-0 bg-surface/80 backdrop-blur-md z-40 border-b border-border-subtle flex items-center justify-between px-container-margin">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md font-bold text-primary">NeoProfit</span>
+<span class="px-3 py-1 bg-status-processed/10 text-status-processed rounded-full text-[10px] font-bold uppercase tracking-wider">Prod Environment</span>
+</div>
+<div class="hidden md:flex items-center gap-4">
+<div class="relative group">
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md py-2">
+<span>Environment</span>
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+</div>
+<div class="relative group">
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-body-md text-body-md py-2">
+<span>Company: Corporativo LATAM</span>
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-surface-container-low px-3 py-1.5 rounded-lg flex items-center gap-3 border border-border-subtle w-64">
+<span class="material-symbols-outlined text-outline text-[20px]">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md w-full p-0 placeholder:text-outline-variant" placeholder="Search financials..." type="text"/>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-container-margin space-y-gutter">
+<!-- Filters Header -->
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary">Financial Overview</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Consolidated data for fiscal period Q3 2023</p>
+</div>
+<div class="flex items-center gap-3">
+<div class="bg-white border border-border-subtle rounded-lg px-3 py-2 flex items-center gap-3 shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[20px]">calendar_today</span>
+<select class="border-none focus:ring-0 font-label-md text-label-md bg-transparent p-0 pr-8">
+<option>Last 30 Days</option>
+<option>Year to Date</option>
+<option>Previous Quarter</option>
+<option selected="">July 1 - Sep 30, 2023</option>
+</select>
+</div>
+<div class="bg-white border border-border-subtle rounded-lg px-3 py-2 flex items-center gap-3 shadow-sm">
+<span class="material-symbols-outlined text-secondary text-[20px]">account_tree</span>
+<select class="border-none focus:ring-0 font-label-md text-label-md bg-transparent p-0 pr-8">
+<option>All Branches</option>
+<option>CDMX Main</option>
+<option>Monterrey Logistics</option>
+<option>Guadalajara Sales</option>
+</select>
+</div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md text-label-md font-bold flex items-center gap-2 hover:bg-primary/90 transition-all active:scale-95 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                        Export Report
+                    </button>
+</div>
+</div>
+<!-- KPI Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- KPI Card 1 -->
+<div class="glass-card p-card-padding rounded-xl bg-white flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-primary/5 rounded-lg">
+<span class="material-symbols-outlined text-primary">payments</span>
+</div>
+<div class="flex items-center gap-1 text-status-processed">
+<span class="material-symbols-outlined text-[16px] font-bold">trending_up</span>
+<span class="font-data-mono text-label-md font-bold">+12.4%</span>
+</div>
+</div>
+<div class="mt-4">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Gross Sales</p>
+<h3 class="font-display-lg text-headline-lg font-bold mt-1">$4,281,092</h3>
+</div>
+<div class="mt-4 sparkline-container">
+<svg class="w-full h-full stroke-primary/30 fill-none" preserveaspectratio="none" viewbox="0 0 100 20">
+<path d="M0 15 Q 10 12, 20 18 T 40 10 T 60 14 T 80 5 T 100 12" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- KPI Card 2 -->
+<div class="glass-card p-card-padding rounded-xl bg-white flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-secondary/5 rounded-lg">
+<span class="material-symbols-outlined text-secondary">account_balance</span>
+</div>
+<div class="flex items-center gap-1 text-status-processed">
+<span class="material-symbols-outlined text-[16px] font-bold">trending_up</span>
+<span class="font-data-mono text-label-md font-bold">+8.1%</span>
+</div>
+</div>
+<div class="mt-4">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Net Sales</p>
+<h3 class="font-display-lg text-headline-lg font-bold mt-1">$3,618,220</h3>
+</div>
+<div class="mt-4 sparkline-container">
+<svg class="w-full h-full stroke-secondary/30 fill-none" preserveaspectratio="none" viewbox="0 0 100 20">
+<path d="M0 18 Q 10 5, 25 15 T 50 10 T 75 12 T 100 4" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- KPI Card 3 -->
+<div class="glass-card p-card-padding rounded-xl bg-white flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-status-contingency/10 rounded-lg">
+<span class="material-symbols-outlined text-status-contingency">receipt_long</span>
+</div>
+<div class="flex items-center gap-1 text-status-rejected">
+<span class="material-symbols-outlined text-[16px] font-bold">trending_up</span>
+<span class="font-data-mono text-label-md font-bold">+15.2%</span>
+</div>
+</div>
+<div class="mt-4">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">IVA Generated</p>
+<h3 class="font-display-lg text-headline-lg font-bold mt-1">$578,914</h3>
+</div>
+<div class="mt-4 sparkline-container">
+<svg class="w-full h-full stroke-status-contingency/30 fill-none" preserveaspectratio="none" viewbox="0 0 100 20">
+<path d="M0 10 Q 15 15, 30 5 T 60 12 T 90 8 T 100 15" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- KPI Card 4 -->
+<div class="glass-card p-card-padding rounded-xl bg-white flex flex-col justify-between">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-secondary-container/10 rounded-lg">
+<span class="material-symbols-outlined text-secondary-container">query_stats</span>
+</div>
+<div class="flex items-center gap-1 text-status-processed">
+<span class="material-symbols-outlined text-[16px] font-bold">trending_up</span>
+<span class="font-data-mono text-label-md font-bold">+2.4%</span>
+</div>
+</div>
+<div class="mt-4">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Profit Margin</p>
+<h3 class="font-display-lg text-headline-lg font-bold mt-1">28.4%</h3>
+</div>
+<div class="mt-4 sparkline-container">
+<svg class="w-full h-full stroke-secondary-container/30 fill-none" preserveaspectratio="none" viewbox="0 0 100 20">
+<path d="M0 15 L 20 12 L 40 14 L 60 10 L 80 8 L 100 5" stroke-linecap="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Main Analytics Sections -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Sales Over Time Chart -->
+<div class="lg:col-span-8 glass-card p-card-padding rounded-xl bg-white min-h-[400px] flex flex-col">
+<div class="flex items-center justify-between mb-6">
+<div>
+<h4 class="font-title-md text-title-md text-primary">Sales Velocity</h4>
+<p class="font-label-md text-label-md text-on-surface-variant">Daily gross vs net performance</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="font-label-md text-label-md">Gross</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+<span class="font-label-md text-label-md">Net</span>
+</div>
+</div>
+</div>
+<div class="flex-1 flex items-end gap-3 px-2">
+<!-- Mock Chart Columns -->
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-32 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-20 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Mon</span>
+</div>
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-40 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-24 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Tue</span>
+</div>
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-48 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-32 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Wed</span>
+</div>
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-36 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-22 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Thu</span>
+</div>
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-56 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-40 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Fri</span>
+</div>
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-28 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-16 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Sat</span>
+</div>
+<div class="flex-1 flex flex-col gap-1 group">
+<div class="w-full bg-primary/10 h-20 rounded-t transition-all group-hover:bg-primary/20"></div>
+<div class="w-full bg-secondary/20 h-10 rounded-t transition-all group-hover:bg-secondary/40"></div>
+<span class="font-data-mono text-[10px] text-center mt-2">Sun</span>
+</div>
+</div>
+</div>
+<!-- Sales By Branch -->
+<div class="lg:col-span-4 glass-card p-card-padding rounded-xl bg-white flex flex-col">
+<h4 class="font-title-md text-title-md text-primary mb-6">Distribution by Branch</h4>
+<div class="flex-1 flex flex-col justify-center items-center py-4">
+<div class="relative w-48 h-48">
+<!-- SVG Donut Chart -->
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<circle cx="18" cy="18" fill="none" r="15.915" stroke="#E2E8F0" stroke-width="4"></circle>
+<circle cx="18" cy="18" fill="none" r="15.915" stroke="#0F172A" stroke-dasharray="45 55" stroke-dashoffset="0" stroke-width="4"></circle>
+<circle cx="18" cy="18" fill="none" r="15.915" stroke="#6b38d4" stroke-dasharray="30 70" stroke-dashoffset="-45" stroke-width="4"></circle>
+<circle cx="18" cy="18" fill="none" r="15.915" stroke="#8455ef" stroke-dasharray="25 75" stroke-dashoffset="-75" stroke-width="4"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-data-mono text-title-md font-bold text-primary">100%</span>
+<span class="font-label-md text-[10px] text-on-surface-variant">TOTAL</span>
+</div>
+</div>
+</div>
+<div class="mt-6 space-y-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-body-md text-body-md">CDMX Main</span>
+</div>
+<span class="font-data-mono text-label-md font-bold">45%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-body-md text-body-md">Monterrey</span>
+</div>
+<span class="font-data-mono text-label-md font-bold">30%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+<span class="font-body-md text-body-md">Guadalajara</span>
+</div>
+<span class="font-data-mono text-label-md font-bold">25%</span>
+</div>
+</div>
+</div>
+<!-- Top Customers Table (Bento Style) -->
+<div class="lg:col-span-12 glass-card p-card-padding rounded-xl bg-white">
+<div class="flex items-center justify-between mb-6">
+<div>
+<h4 class="font-title-md text-title-md text-primary">Top Revenue Customers</h4>
+<p class="font-label-md text-label-md text-on-surface-variant">High-value partnerships for the current period</p>
+</div>
+<button class="text-secondary font-label-md text-label-md font-bold flex items-center gap-1 hover:underline">
+                            View Full Client List
+                            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full border-collapse">
+<thead>
+<tr class="text-left border-b border-border-subtle">
+<th class="pb-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Client Identity</th>
+<th class="pb-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Acquisition Date</th>
+<th class="pb-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</th>
+<th class="pb-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Volume</th>
+<th class="pb-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Total Revenue</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle/50">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary/5 flex items-center justify-center text-primary font-bold">SM</div>
+<div>
+<p class="font-body-md text-body-md font-semibold">Supermercados Mexicanos S.A.</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Retail &amp; Distribution</p>
+</div>
+</div>
+</td>
+<td class="py-4 font-data-mono text-body-md">Mar 12, 2021</td>
+<td class="py-4">
+<span class="px-2 py-1 bg-status-processed/10 text-status-processed rounded text-[10px] font-bold uppercase">Active</span>
+</td>
+<td class="py-4 text-right font-data-mono text-body-md">1,240 ops</td>
+<td class="py-4 text-right font-data-mono text-body-md font-bold text-primary">$842,500</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-secondary/5 flex items-center justify-center text-secondary font-bold">TC</div>
+<div>
+<p class="font-body-md text-body-md font-semibold">TechCorp Solutions</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Cloud Services</p>
+</div>
+</div>
+</td>
+<td class="py-4 font-data-mono text-body-md">Oct 05, 2022</td>
+<td class="py-4">
+<span class="px-2 py-1 bg-status-processed/10 text-status-processed rounded text-[10px] font-bold uppercase">Active</span>
+</td>
+<td class="py-4 text-right font-data-mono text-body-md">842 ops</td>
+<td class="py-4 text-right font-data-mono text-body-md font-bold text-primary">$612,300</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-status-contingency/10 flex items-center justify-center text-status-contingency font-bold">GL</div>
+<div>
+<p class="font-body-md text-body-md font-semibold">Global Logistics Ltd.</p>
+<p class="font-label-md text-label-md text-on-surface-variant">Transportation</p>
+</div>
+</div>
+</td>
+<td class="py-4 font-data-mono text-body-md">Jan 20, 2023</td>
+<td class="py-4">
+<span class="px-2 py-1 bg-status-contingency/10 text-status-contingency rounded text-[10px] font-bold uppercase">Critical</span>
+</td>
+<td class="py-4 text-right font-data-mono text-body-md">415 ops</td>
+<td class="py-4 text-right font-data-mono text-body-md font-bold text-primary">$245,100</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) - Suppressed as per instructions for Details/Settings, but this is a Dashboard so it might be useful for Quick Analysis -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-secondary text-on-secondary rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50 group">
+<span class="material-symbols-outlined text-[28px]">smart_toy</span>
+<div class="absolute right-16 bg-primary text-white px-3 py-1 rounded text-label-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            NeoScanAI Analysis
+        </div>
+</button>
+<script>
+        // Micro-interaction for number counting animation (optional flair)
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Dashboard Loaded: Intelligence > NeoProfit Active");
+        });
+    </script>
+</body></html>

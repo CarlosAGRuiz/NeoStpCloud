@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Hanken+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#76777d",
+                        "status-contingency": "#F59E0B",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "surface-variant": "#e0e3e5",
+                        "secondary": "#6b38d4",
+                        "primary-fixed-dim": "#bec6e0",
+                        "surface-container-highest": "#e0e3e5",
+                        "on-primary-container": "#7c839b",
+                        "tertiary": "#000000",
+                        "on-tertiary-fixed-variant": "#4618ca",
+                        "on-error-container": "#93000a",
+                        "status-draft": "#64748B",
+                        "on-tertiary-container": "#856cff",
+                        "primary": "#000000",
+                        "error-container": "#ffdad6",
+                        "status-rejected": "#EF4444",
+                        "surface-bright": "#f7f9fb",
+                        "secondary-fixed": "#e9ddff",
+                        "surface": "#f7f9fb",
+                        "status-processed": "#10B981",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "inverse-surface": "#2d3133",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#1b0063",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "inverse-on-surface": "#eff1f3",
+                        "surface-dark": "#1E293B",
+                        "secondary-container": "#8455ef",
+                        "outline-variant": "#c6c6cd",
+                        "on-surface": "#191c1e",
+                        "surface-container-high": "#e6e8ea",
+                        "surface-dim": "#d8dadc",
+                        "tertiary-fixed-dim": "#c9beff",
+                        "on-tertiary-fixed": "#1b0063",
+                        "inverse-primary": "#bec6e0",
+                        "on-secondary-fixed": "#23005c",
+                        "surface-tint": "#565e74",
+                        "primary-fixed": "#dae2fd",
+                        "primary-container": "#131b2e",
+                        "tertiary-fixed": "#e6deff",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#45464d",
+                        "surface-container": "#eceef0",
+                        "on-primary": "#ffffff",
+                        "on-primary-fixed": "#131b2e",
+                        "on-secondary": "#ffffff",
+                        "background": "#f7f9fb",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "border-subtle": "#E2E8F0",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#191c1e",
+                        "on-secondary-container": "#fffbff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "sidebar-width": "260px",
+                        "card-padding": "20px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "header-height": "64px"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ai-shimmer {
+            background: linear-gradient(90deg, rgba(132, 85, 239, 0) 0%, rgba(132, 85, 239, 0.1) 50%, rgba(132, 85, 239, 0) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite linear;
+        }
+        @keyframes shimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-background min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-primary-container dark:bg-surface-dark shadow-sm flex flex-col py-container-margin z-50">
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-8 h-8 bg-secondary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">cloud</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-white leading-tight">NeoSTP Cloud</h1>
+<p class="font-label-md text-label-md text-on-primary-container opacity-70">Enterprise SaaS</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<!-- Mapping Logic: Automation is parent, but active navigation requested for Automation cluster -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Start</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Operation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-md text-label-md">Intelligence</span>
+</a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg border-l-4 border-secondary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">robot</span>
+<span class="font-label-md text-label-md font-bold">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">hub</span>
+<span class="font-label-md text-label-md">Integrations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">door_open</span>
+<span class="font-label-md text-label-md">Portal</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">smartphone</span>
+<span class="font-label-md text-label-md">Mobile</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Configuration</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-label-md text-label-md">SuperAdmin</span>
+</a>
+</nav>
+<div class="px-6 mt-auto">
+<div class="p-3 bg-surface-variant/10 rounded-xl flex items-center gap-3 border border-outline-variant/20">
+<div class="w-10 h-10 rounded-full bg-secondary overflow-hidden">
+<img alt="NeoSTP Cloud Logo" class="w-full h-full object-cover" data-alt="A professional portrait of a senior executive in a high-tech corporate office, with soft cinematic lighting illuminating their face against a background of sleek glass and dark steel. The image maintains a cool, professional aesthetic with deep tech blue and subtle violet tones, echoing a sophisticated enterprise SaaS environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxdXayf4IjEX32VO5yApSQFkEIR54xhpeYdE7wbowPNoMNnXML622tog5OqxlwFcIp4pmA9K0JVevPZi3YUBL3m8-bvacqJ0Yb4EnBmA1DibLen6O4sDynu7VY08sgKSuqFeiVgTkTb8lnMmC0sPg9kJTyNkqoA-5WoKegJmGvLaPCOkfyHTRGGyEesdUpmZZ6H0Qn8SuzVH_986cgzHOzrAKdQZuUnX9whyLg-SEzSG-Tb51EgvjlmsLi7NnyVzlfjmj26PI4dtU"/>
+</div>
+<div class="overflow-hidden">
+<p class="font-label-md text-label-md text-white truncate">Admin NeoScan</p>
+<p class="text-[10px] text-on-primary-container truncate">Corporativo LATAM</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 h-header-height z-40 bg-surface/80 backdrop-blur-md dark:bg-surface-dark/80 flex justify-between items-center px-container-margin w-[calc(100%-theme(spacing.sidebar-width))]">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-on-primary-fixed">NeoScanAI</span>
+<span class="px-2 py-0.5 bg-secondary/10 text-secondary border border-secondary/20 rounded-full text-[10px] font-bold tracking-wider">PROD</span>
+</div>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="pl-10 pr-4 py-1.5 bg-surface-container-lowest border border-border-subtle rounded-full text-body-md focus:ring-2 focus:ring-secondary/20 focus:border-secondary outline-none transition-all w-64" placeholder="Buscar documentos..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<nav class="hidden md:flex items-center gap-6 mr-6">
+<a class="text-on-surface-variant hover:text-primary font-label-md text-label-md transition-colors" href="#">Environment</a>
+<a class="text-secondary font-bold border-b-2 border-secondary font-label-md text-label-md py-1" href="#">Company</a>
+</nav>
+<div class="flex items-center gap-2 border-l border-border-subtle pl-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-width pt-header-height min-h-screen">
+<div class="p-container-margin grid grid-cols-12 gap-gutter">
+<!-- Header Section -->
+<div class="col-span-12 flex justify-between items-end mb-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary">Bandeja de Revisión</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Confirma la extracción inteligente de documentos DTE y facturas.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 border border-border-subtle rounded-lg bg-surface-container-lowest hover:bg-surface-container-low transition-colors font-label-md text-label-md">
+<span class="material-symbols-outlined">filter_list</span>
+                        Filtros Avanzados
+                    </button>
+<button class="flex items-center gap-2 px-6 py-2 bg-secondary text-white rounded-lg hover:shadow-lg hover:shadow-secondary/20 transition-all font-label-md text-label-md active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">upload_file</span>
+                        Subir Documentos
+                    </button>
+</div>
+</div>
+<!-- Left Panel: Scanned Documents List -->
+<div class="col-span-7 space-y-4">
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant border-b border-border-subtle">
+<th class="px-6 py-4 font-label-md text-label-md uppercase tracking-wider">Preview</th>
+<th class="px-6 py-4 font-label-md text-label-md uppercase tracking-wider">Proveedor / NIT</th>
+<th class="px-6 py-4 font-label-md text-label-md uppercase tracking-wider text-right">Total</th>
+<th class="px-6 py-4 font-label-md text-label-md uppercase tracking-wider">Confianza AI</th>
+<th class="px-6 py-4 font-label-md text-label-md uppercase tracking-wider">Estado</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<!-- Row 1 Active -->
+<tr class="group hover:bg-secondary/5 cursor-pointer bg-secondary/5 border-l-4 border-secondary transition-colors">
+<td class="px-6 py-4">
+<div class="w-12 h-16 bg-surface-container rounded-md border border-outline-variant overflow-hidden shadow-sm relative">
+<img class="w-full h-full object-cover" data-alt="A close-up view of a high-density corporate financial document with complex data grids and numbers. The lighting is crisp and professional, suggesting a modern administrative environment. The image uses a clean palette of whites, light greys, and sharp black text, evoking precision and high-performance financial management." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDg_P6KXZXKoT29E7QSFvVxn4_QfHZO2TuJzVJVkWsxDDKFTEXwApNURtJ2APOxZDfQ3k7dj9LGWsZLejtEYJ7S0_nlLBFwi4RZ4ISs_gNPbFO4JyY3Tdq-7QEM1yipbfAAX2DmueKFRdO2mjmxXqQBU0Efyizm3RecYc-ROLvRkdAK9IGMMb9fCWxQzi1WboWiHdZ-b0Al567aErElMLJnAYupFoyCSGH_ZmsAqXX9CAp7QnS3ITKz5J0KiWhgFw7DMlDLtUC6eg4"/>
+<div class="absolute inset-0 bg-secondary/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-secondary text-lg">visibility</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="font-title-md text-title-md text-primary">Inversiones Global S.A.</p>
+<p class="font-data-mono text-data-mono text-on-surface-variant">900.234.122-1</p>
+</td>
+<td class="px-6 py-4 text-right">
+<p class="font-data-mono text-data-mono font-bold text-primary">$4.520.000</p>
+<p class="text-[10px] text-on-surface-variant">CLP</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-1.5 px-2 py-1 bg-green-50 text-status-processed rounded-full w-fit border border-green-100">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-label-md text-label-md font-bold">98% High</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-status-draft/10 text-status-draft rounded text-[10px] font-bold uppercase">Pending Review</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-surface-container-low cursor-pointer transition-colors">
+<td class="px-6 py-4">
+<div class="w-12 h-16 bg-surface-container rounded-md border border-outline-variant overflow-hidden shadow-sm relative">
+<img class="w-full h-full object-cover" data-alt="An abstract, high-quality photograph of organized business paperwork and receipts on a white designer desk. The scene is illuminated by soft, natural window light, creating a bright and airy atmosphere. The focus is sharp on the textures of the paper, reflecting an organized and efficient workspace dedicated to accounting and automation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnaEI1eJd0DpvVfMc4ArecKpSXiYqRUnUnZ-d7caOLbmHvDwcjtFY0wxXDrh96WEv15gzJMjEjbAd5Vo4oDnKuCzsoQzchKSNxDFiveg9Z84qrxltA9RtmNxmbTF5u4PWF-30wr7wxJZkjjasDy4wHP-sHXwDrdAYaCQeHark6MbYmcD606tqLsqEIbuySqc6w2xTRmU5Sdphk8lhX4t6c4UjzDQ_7iUKizExY0_8TGl_kR972FFTJLWd_C5v4R_ula0UBY6fc65k"/>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="font-title-md text-title-md text-primary">Tech Solutions SpA</p>
+<p class="font-data-mono text-data-mono text-on-surface-variant">76.453.000-K</p>
+</td>
+<td class="px-6 py-4 text-right">
+<p class="font-data-mono text-data-mono font-bold text-primary">$125.400</p>
+<p class="text-[10px] text-on-surface-variant">USD</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-1.5 px-2 py-1 bg-amber-50 text-status-contingency rounded-full w-fit border border-amber-100">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+<span class="font-label-md text-label-md font-bold">82% Med</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-status-draft/10 text-status-draft rounded text-[10px] font-bold uppercase">Pending Review</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-surface-container-low cursor-pointer transition-colors">
+<td class="px-6 py-4">
+<div class="w-12 h-16 bg-surface-container rounded-md border border-outline-variant overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="A detailed overhead view of professional accounting forms and an expensive fountain pen on a polished dark wood surface. The lighting is warm and directional, emphasizing the tactile quality of the paper and the sophisticated tools of trade. The overall composition is elegant and corporate, suitable for a premium financial software application." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqbL_b1RWgWpdjYB7XJVlv0Nudj656B5JmHU_XGFp2gpCi3SoiHQiWlddbYQGUel5Hrc9C4H33B4W4E-5z1rpdj4XJ3tIiDkevK_f_YHWQkoXtmqQD4UJxR-xXmTYUv4K1JHNY0TUO8Yaxs7uQVdQo_OnKV26iPnesbl8ZcThnJSe8CjBubcosul4yeEL5TilpldUhnLxMDJxO-0QJGMal2yQQgRH0mNN61JMgJg9MaeL7ZYoGJlQcdACCwrvw0O3YLclMSVImUj4"/>
+</div>
+</td>
+<td class="px-6 py-4">
+<p class="font-title-md text-title-md text-primary">Logística Central</p>
+<p class="font-data-mono text-data-mono text-on-surface-variant">88.221.444-9</p>
+</td>
+<td class="px-6 py-4 text-right">
+<p class="font-data-mono text-data-mono font-bold text-primary">$890.320</p>
+<p class="text-[10px] text-on-surface-variant">CLP</p>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-1.5 px-2 py-1 bg-green-50 text-status-processed rounded-full w-fit border border-green-100">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-label-md text-label-md font-bold">95% High</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 bg-status-draft/10 text-status-draft rounded text-[10px] font-bold uppercase">Pending Review</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Summary Stat Bento -->
+<div class="grid grid-cols-3 gap-4">
+<div class="p-5 bg-white border border-border-subtle rounded-xl shadow-sm">
+<div class="flex justify-between items-start mb-2">
+<span class="material-symbols-outlined text-secondary">analytics</span>
+<span class="text-status-processed font-bold text-[10px]">+12.5%</span>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant">Tasa de Acierto AI</p>
+<h4 class="font-headline-md text-headline-md font-bold text-primary">94.2%</h4>
+</div>
+<div class="p-5 bg-white border border-border-subtle rounded-xl shadow-sm">
+<div class="flex justify-between items-start mb-2">
+<span class="material-symbols-outlined text-secondary">history</span>
+<span class="text-on-surface-variant font-bold text-[10px]">Prom. 2m</span>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant">Documentos hoy</p>
+<h4 class="font-headline-md text-headline-md font-bold text-primary">128</h4>
+</div>
+<div class="p-5 bg-white border border-border-subtle rounded-xl shadow-sm">
+<div class="flex justify-between items-start mb-2">
+<span class="material-symbols-outlined text-secondary">pending_actions</span>
+<span class="text-status-rejected font-bold text-[10px]">Prioridad</span>
+</div>
+<p class="font-label-md text-label-md text-on-surface-variant">Por Procesar</p>
+<h4 class="font-headline-md text-headline-md font-bold text-primary">14</h4>
+</div>
+</div>
+</div>
+<!-- Right Panel: Review Detail -->
+<div class="col-span-5 sticky top-[calc(theme(spacing.header-height)+theme(spacing.container-margin))]">
+<div class="bg-white border border-border-subtle rounded-2xl shadow-xl overflow-hidden flex flex-col h-[calc(100vh-theme(spacing.header-height)-2*theme(spacing.container-margin))]">
+<!-- Review Header -->
+<div class="p-6 bg-primary-container text-white relative">
+<div class="ai-shimmer absolute inset-0 pointer-events-none"></div>
+<div class="relative z-10">
+<div class="flex justify-between items-center mb-1">
+<span class="px-2 py-0.5 bg-secondary rounded text-[10px] font-bold uppercase tracking-widest">NeoScanAI Active</span>
+<span class="material-symbols-outlined cursor-pointer hover:rotate-90 transition-transform">close</span>
+</div>
+<h3 class="font-headline-md text-headline-md">Detalle de Extracción</h3>
+<p class="text-on-primary-container text-sm">Escaneado hace 4 minutos • ID: #SCN-98421</p>
+</div>
+</div>
+<!-- Scrollable Form Area -->
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<!-- AI Confidence Alert -->
+<div class="p-4 bg-green-50 border border-green-100 rounded-xl flex gap-4 items-start">
+<span class="material-symbols-outlined text-status-processed">auto_awesome</span>
+<div>
+<p class="font-title-md text-title-md text-status-processed leading-none mb-1">Extracción Exitosa</p>
+<p class="font-body-md text-body-md text-status-processed opacity-80">La IA ha identificado todos los campos obligatorios con una confianza superior al 95%.</p>
+</div>
+</div>
+<!-- Detected Fields -->
+<div class="space-y-4">
+<div>
+<label class="font-label-md text-label-md text-on-surface-variant mb-1.5 block">Nombre del Proveedor</label>
+<div class="relative">
+<input class="w-full bg-surface-container-low border-2 border-secondary/30 rounded-lg px-4 py-3 font-title-md text-title-md focus:border-secondary outline-none" type="text" value="Inversiones Global S.A."/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 bg-secondary/10 rounded text-[10px] font-bold text-secondary">
+<span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                        99%
+                                    </div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="font-label-md text-label-md text-on-surface-variant mb-1.5 block">NIT / RUT</label>
+<div class="relative">
+<input class="w-full bg-surface-container-low border-2 border-secondary/30 rounded-lg px-4 py-3 font-data-mono text-data-mono focus:border-secondary outline-none" type="text" value="900.234.122-1"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 text-secondary">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+</div>
+</div>
+<div>
+<label class="font-label-md text-label-md text-on-surface-variant mb-1.5 block">Fecha Emisión</label>
+<div class="relative">
+<input class="w-full bg-surface-container-low border-border-subtle rounded-lg px-4 py-3 font-data-mono text-data-mono focus:border-secondary outline-none" type="text" value="24/05/2024"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 text-secondary">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<label class="font-label-md text-label-md text-on-surface-variant mb-1.5 block">Monto Total Bruto</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="text-on-surface-variant font-bold">$</span>
+</div>
+<input class="w-full bg-surface-container-low border-2 border-secondary rounded-lg pl-8 pr-4 py-4 font-headline-md text-headline-md text-secondary focus:ring-0 outline-none" type="text" value="4.520.000"/>
+<div class="absolute right-3 top-1/2 -translate-y-1/2 bg-secondary text-white text-[10px] font-bold px-2 py-1 rounded">
+                                        CLP
+                                    </div>
+</div>
+</div>
+</div>
+<!-- Mini Map / Location detected -->
+<div class="p-4 bg-surface-container-low rounded-xl border border-border-subtle flex items-center gap-4">
+<div class="w-16 h-16 rounded-lg bg-slate-200 overflow-hidden shrink-0">
+<img class="w-full h-full object-cover" data-alt="A stylized, minimalist map illustration of a modern urban business district. The design uses a cool color palette with shades of slate blue, white, and subtle violet accents. It depicts clean grid streets and geometric building shapes, conveying a sense of organized logistics and high-tech urban infrastructure." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvJyvZCipPombVC6uXVSNpjDicEZ0n6zGCn38dp5_XwJDsFv4Q_DF9ynYlTPttEFnIMgc-9spTSPWxjRfGR8wa3sqK2JA4p6slid98iF2uCroe4wMSr3584gvI0OeB9NwQuwhZcnQpupyhqZDVzy6jJDWLEZ3lVevfQw4CUNcjs29sEcmNVwKlLGtHLFYGvS6t8eUKfxuQwd0NcYxNNHigI0fKze22ti9K9Sx1i7YslKIxrSsN3mnZnzf2tYijB7CoIemPJrjd4KE"/>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-tighter">Dirección Detectada</p>
+<p class="font-body-md text-body-md text-primary font-semibold">Av. Las Condes 12420, Oficina 402, Santiago</p>
+</div>
+</div>
+</div>
+<!-- Actions Footer -->
+<div class="p-6 bg-surface-container-low border-t border-border-subtle grid grid-cols-2 gap-3">
+<button class="flex items-center justify-center gap-2 px-4 py-3 border-2 border-secondary text-secondary rounded-xl font-bold text-label-md hover:bg-secondary/5 transition-colors active:scale-95">
+<span class="material-symbols-outlined">receipt_long</span>
+                            Registrar como Gasto
+                        </button>
+<button class="flex items-center justify-center gap-2 px-4 py-3 bg-secondary text-white rounded-xl font-bold text-label-md hover:shadow-lg hover:shadow-secondary/20 transition-all active:scale-95">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shopping_cart</span>
+                            Registrar como Compra
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Contextual FAB (Only for main landing of this flow) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-50 group">
+<span class="material-symbols-outlined text-[28px]">add</span>
+<span class="absolute right-full mr-4 bg-primary text-white px-3 py-1.5 rounded-lg text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">Cargar Factura</span>
+</button>
+<script>
+        // Micro-interactions for table rows
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', () => {
+                // Remove active classes from all rows
+                document.querySelectorAll('tbody tr').forEach(r => {
+                    r.classList.remove('bg-secondary/5', 'border-l-4', 'border-secondary');
+                    r.classList.add('hover:bg-surface-container-low');
+                });
+                // Add active classes to clicked row
+                row.classList.add('bg-secondary/5', 'border-l-4', 'border-secondary');
+                row.classList.remove('hover:bg-surface-container-low');
+            });
+        });
+    </script>
+</body></html>

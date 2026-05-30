@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#76777d",
+                    "status-contingency": "#F59E0B",
+                    "secondary-fixed-dim": "#d0bcff",
+                    "surface-variant": "#e0e3e5",
+                    "secondary": "#6b38d4",
+                    "primary-fixed-dim": "#bec6e0",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-primary-container": "#7c839b",
+                    "tertiary": "#000000",
+                    "on-tertiary-fixed-variant": "#4618ca",
+                    "on-error-container": "#93000a",
+                    "status-draft": "#64748B",
+                    "on-tertiary-container": "#856cff",
+                    "primary": "#000000",
+                    "error-container": "#ffdad6",
+                    "status-rejected": "#EF4444",
+                    "surface-bright": "#f7f9fb",
+                    "secondary-fixed": "#e9ddff",
+                    "surface": "#f7f9fb",
+                    "status-processed": "#10B981",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "inverse-surface": "#2d3133",
+                    "on-error": "#ffffff",
+                    "tertiary-container": "#1b0063",
+                    "on-secondary-fixed-variant": "#5516be",
+                    "inverse-on-surface": "#eff1f3",
+                    "surface-dark": "#1E293B",
+                    "secondary-container": "#8455ef",
+                    "outline-variant": "#c6c6cd",
+                    "on-surface": "#191c1e",
+                    "surface-container-high": "#e6e8ea",
+                    "surface-dim": "#d8dadc",
+                    "tertiary-fixed-dim": "#c9beff",
+                    "on-tertiary-fixed": "#1b0063",
+                    "inverse-primary": "#bec6e0",
+                    "on-secondary-fixed": "#23005c",
+                    "surface-tint": "#565e74",
+                    "primary-fixed": "#dae2fd",
+                    "primary-container": "#131b2e",
+                    "tertiary-fixed": "#e6deff",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#45464d",
+                    "surface-container": "#eceef0",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed": "#131b2e",
+                    "on-secondary": "#ffffff",
+                    "background": "#f7f9fb",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-low": "#f2f4f6",
+                    "border-subtle": "#E2E8F0",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#191c1e",
+                    "on-secondary-container": "#fffbff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "sidebar-width": "260px",
+                    "card-padding": "20px",
+                    "gutter": "16px",
+                    "container-margin": "24px",
+                    "header-height": "64px"
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .hanken { font-family: 'Hanken Grotesk', sans-serif; }
+        .data-table-mono { font-family: 'JetBrains Mono', monospace; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased">
+<!-- Shared SideNavBar -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-primary-container dark:bg-surface-dark flex flex-col py-container-margin shadow-sm z-50">
+<div class="px-6 mb-8 flex flex-col gap-1">
+<span class="font-headline-md text-headline-md font-bold text-white">NeoSTP Cloud</span>
+<span class="font-label-md text-label-md text-on-primary-container">Enterprise SaaS</span>
+</div>
+<nav class="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar">
+<!-- Start -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Start</span>
+</a>
+<!-- Operation (Active) -->
+<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-lg border-l-4 border-secondary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+<span class="font-label-md text-label-md">Operation</span>
+</a>
+<!-- Intelligence -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span class="font-label-md text-label-md">Intelligence</span>
+</a>
+<!-- Automation -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="robot">robot</span>
+<span class="font-label-md text-label-md">Automation</span>
+</a>
+<!-- Integrations -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="hub">hub</span>
+<span class="font-label-md text-label-md">Integrations</span>
+</a>
+<!-- Portal -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="door_open">door_open</span>
+<span class="font-label-md text-label-md">Portal</span>
+</a>
+<!-- Mobile -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="smartphone">smartphone</span>
+<span class="font-label-md text-label-md">Mobile</span>
+</a>
+<!-- Configuration -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Configuration</span>
+</a>
+<!-- SuperAdmin -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary-container hover:bg-surface-variant/10 transition-colors rounded-lg group" href="#">
+<span class="material-symbols-outlined" data-icon="admin_panel_settings">admin_panel_settings</span>
+<span class="font-label-md text-label-md">SuperAdmin</span>
+</a>
+</nav>
+<div class="px-6 pt-4 border-t border-white/10">
+<div class="flex items-center gap-3">
+<img alt="NeoSTP Cloud Logo" class="w-10 h-10 rounded-full border-2 border-secondary" data-alt="A professional portrait of a senior business analyst in a corporate setting, looking confidently at the camera. The background is a blurred high-end office with modern tech blue lighting. The overall mood is serious, trustworthy, and sophisticated." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB70RH3m86fMG-SOqUxJUk0o62coTBxViBd7gu-dgMr3-G3_cgD4FbA6UT_DC3jShLqoAXGn_QGbJmvKh97rON3ng0U5awvKMI7qOTBjTa08ELPcnsOmQKvyTTl_blLZvt5vckTDuCF7H60dWxucPm1lyVQUfKHpo_hRji6AMS5oWm7MG5Se6YGNG6CWQ9KetgCiPC-y4mTHFHOt_4kznfuezyyV-x6okEdy8qWBQMmWz2qUhCStyrpsMJwC6Wsg7gzyIrzYFnc2ac"/>
+<div class="flex flex-col">
+<span class="text-white font-label-md text-label-md">Admin User</span>
+<span class="text-on-primary-container text-[10px] uppercase">Super Admin</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 h-header-height z-40 bg-surface/80 backdrop-blur-md flex justify-between items-center px-container-margin w-[calc(100%-theme(spacing.sidebar-width))] border-b border-border-subtle shadow-sm">
+<div class="flex items-center gap-4">
+<span class="font-headline-md text-headline-md font-bold text-primary">NeoSTP Cloud</span>
+<div class="h-6 w-px bg-outline-variant mx-2"></div>
+<div class="flex gap-4">
+<span class="text-secondary font-bold border-b-2 border-secondary font-label-md text-label-md cursor-pointer">Environment</span>
+<span class="text-on-surface-variant hover:text-primary transition-colors font-label-md text-label-md cursor-pointer">Company</span>
+</div>
+<!-- Environment Indicator -->
+<div class="ml-4 flex items-center gap-2 px-3 py-1 rounded-full bg-status-processed/10 text-status-processed text-[10px] font-bold border border-status-processed/20">
+<span class="w-2 h-2 rounded-full bg-status-processed animate-pulse"></span>
+                PRODUCCIÓN
+            </div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative group">
+<span class="material-symbols-outlined p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors cursor-pointer" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-white"></span>
+</div>
+<span class="material-symbols-outlined p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors cursor-pointer" data-icon="dark_mode">dark_mode</span>
+<span class="material-symbols-outlined p-2 text-on-surface-variant hover:bg-surface-container-low rounded-full transition-colors cursor-pointer" data-icon="help">help</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-[calc(theme(spacing.header-height)+24px)] pl-[calc(theme(spacing.sidebar-width)+24px)] pr-container-margin pb-container-margin min-h-screen flex flex-col gap-6">
+<!-- Header & Primary Actions -->
+<div class="flex justify-between items-end">
+<div>
+<nav class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md mb-2">
+<span>Operación</span>
+<span class="material-symbols-outlined text-[14px]" data-icon="chevron_right">chevron_right</span>
+<span class="text-primary font-semibold">Facturación DTE</span>
+</nav>
+<h1 class="font-headline-lg text-headline-lg text-primary">Creación de Documento Tributario Electrónico</h1>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 border border-outline-variant text-on-surface hover:bg-surface-container-low transition-colors rounded-lg font-label-md text-label-md flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="save">save</span> Guardar Borrador
+                </button>
+<button class="px-6 py-2 bg-primary text-on-primary hover:opacity-90 active:scale-95 transition-all rounded-lg font-label-md text-label-md flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined" data-icon="verified">verified</span> Validar y Firmar
+                </button>
+</div>
+</div>
+<!-- Stepper -->
+<section class="bg-surface-container-lowest border border-border-subtle rounded-xl p-6 shadow-sm">
+<div class="relative flex justify-between items-center max-w-4xl mx-auto">
+<!-- Connector Line -->
+<div class="absolute top-1/2 left-0 w-full h-[2px] bg-outline-variant -translate-y-1/2 z-0"></div>
+<!-- Step 1: Borrador -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-secondary text-white flex items-center justify-center shadow-md ring-4 ring-secondary/20">
+<span class="material-symbols-outlined" data-icon="edit_note" style="font-variation-settings: 'FILL' 1;">edit_note</span>
+</div>
+<span class="font-label-md text-label-md font-bold text-secondary">BORRADOR</span>
+</div>
+<!-- Step 2: Validado -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-surface-container text-outline flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined" data-icon="task_alt">task_alt</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">VALIDADO</span>
+</div>
+<!-- Step 3: Firmado -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-surface-container text-outline flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined" data-icon="draw">draw</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">FIRMADO</span>
+</div>
+<!-- Step 4: Enviado -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-surface-container text-outline flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">ENVIADO</span>
+</div>
+<!-- Step 5: Procesado -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-surface-container text-outline flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined" data-icon="cloud_done">cloud_done</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">PROCESADO</span>
+</div>
+</div>
+</section>
+<!-- Main Form Grid -->
+<div class="grid grid-cols-12 gap-6 items-start">
+<!-- Left Column: Form Fields -->
+<div class="col-span-8 flex flex-col gap-6">
+<!-- Section: Datos Generales -->
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-border-subtle flex items-center gap-3 bg-surface-container-low">
+<span class="material-symbols-outlined text-secondary" data-icon="info">info</span>
+<h2 class="font-title-md text-title-md text-primary">Datos Generales del Documento</h2>
+</div>
+<div class="p-6 grid grid-cols-3 gap-6">
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Tipo de Documento</label>
+<select class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary">
+<option>Factura de Exportación (61)</option>
+<option>Factura Electrónica (33)</option>
+<option>Guía de Despacho (52)</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Fecha de Emisión</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" type="date" value="2023-10-27"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Moneda</label>
+<select class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary">
+<option>USD - Dólar Americano</option>
+<option>CLP - Peso Chileno</option>
+<option>EUR - Euro</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Forma de Pago</label>
+<select class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary">
+<option>Crédito 30 días</option>
+<option>Contado</option>
+<option>Transferencia</option>
+</select>
+</div>
+<div class="col-span-2 flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Glosa Descriptiva</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" placeholder="Ej: Servicios de consultoría mes Octubre..." type="text"/>
+</div>
+</div>
+</div>
+<!-- Section: Receptor -->
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-border-subtle flex items-center gap-3 bg-surface-container-low">
+<span class="material-symbols-outlined text-secondary" data-icon="person">person</span>
+<h2 class="font-title-md text-title-md text-primary">Detalles del Receptor / Cliente</h2>
+<button class="ml-auto text-secondary font-label-md text-label-md flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-[16px]" data-icon="search">search</span> Buscar Cliente
+                        </button>
+</div>
+<div class="p-6 grid grid-cols-3 gap-6">
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">RUT / Tax ID</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" placeholder="76.000.000-K" type="text"/>
+</div>
+<div class="col-span-2 flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Razón Social</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" placeholder="Global Tech Solutions S.A." type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Giro</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" placeholder="Servicios Informáticos" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Dirección</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" placeholder="Av. Providencia 1234, Of 502" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant">Comuna / Ciudad</label>
+<input class="rounded-lg border-outline-variant bg-surface text-body-md font-body-md focus:ring-secondary/50 focus:border-secondary" placeholder="Santiago" type="text"/>
+</div>
+</div>
+</div>
+<!-- Section: Items Table -->
+<div class="bg-surface-container-lowest border border-border-subtle rounded-xl shadow-sm overflow-hidden">
+<div class="px-6 py-4 border-b border-border-subtle flex items-center justify-between bg-surface-container-low">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="list_alt">list_alt</span>
+<h2 class="font-title-md text-title-md text-primary">Ítems y Productos</h2>
+</div>
+<button class="bg-secondary text-on-secondary px-4 py-1.5 rounded-lg font-label-md text-label-md flex items-center gap-2 hover:opacity-90 shadow-sm transition-opacity">
+<span class="material-symbols-outlined text-[18px]" data-icon="add">add</span> Añadir Línea
+                        </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low border-b border-border-subtle">
+<tr>
+<th class="px-6 py-3 font-label-md text-label-md text-on-surface-variant">Cód.</th>
+<th class="px-6 py-3 font-label-md text-label-md text-on-surface-variant">Descripción</th>
+<th class="px-6 py-3 font-label-md text-label-md text-on-surface-variant">Cant.</th>
+<th class="px-6 py-3 font-label-md text-label-md text-on-surface-variant">P. Unitario</th>
+<th class="px-6 py-3 font-label-md text-label-md text-on-surface-variant">Desc. (%)</th>
+<th class="px-6 py-3 font-label-md text-label-md text-on-surface-variant text-right">Subtotal</th>
+<th class="px-6 py-3"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-subtle">
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono text-on-surface-variant">PROD-001</td>
+<td class="px-6 py-4 font-body-md text-body-md text-primary">Licencia Anual NeoScanAI Core</td>
+<td class="px-6 py-4 font-data-mono text-data-mono">1.00</td>
+<td class="px-6 py-4 font-data-mono text-data-mono">1,250.00</td>
+<td class="px-6 py-4 font-data-mono text-data-mono">0.00</td>
+<td class="px-6 py-4 font-data-mono text-data-mono text-right font-bold">$1,250.00</td>
+<td class="px-6 py-4 text-right">
+<button class="text-error hover:bg-error/10 p-1 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="px-6 py-4 font-data-mono text-data-mono text-on-surface-variant">SRV-082</td>
+<td class="px-6 py-4 font-body-md text-body-md text-primary">Consultoría de Integración ERP (Horas)</td>
+<td class="px-6 py-4 font-data-mono text-data-mono">12.00</td>
+<td class="px-6 py-4 font-data-mono text-data-mono">85.00</td>
+<td class="px-6 py-4 font-data-mono text-data-mono">5.00</td>
+<td class="px-6 py-4 font-data-mono text-data-mono text-right font-bold">$969.00</td>
+<td class="px-6 py-4 text-right">
+<button class="text-error hover:bg-error/10 p-1 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column: Summary & NeoScanAI -->
+<div class="col-span-4 flex flex-col gap-6 sticky top-[calc(theme(spacing.header-height)+24px)]">
+<!-- Totals Sidebar -->
+<div class="bg-surface-dark text-white rounded-xl shadow-xl overflow-hidden">
+<div class="px-6 py-4 border-b border-white/10 bg-white/5">
+<h2 class="font-title-md text-title-md">Resumen de Totales</h2>
+</div>
+<div class="p-6 flex flex-col gap-4">
+<div class="flex justify-between items-center text-on-primary-container">
+<span class="font-label-md text-label-md uppercase">Monto Neto</span>
+<span class="font-data-mono text-data-mono">$2,219.00</span>
+</div>
+<div class="flex justify-between items-center text-on-primary-container">
+<span class="font-label-md text-label-md uppercase">IVA (19%)</span>
+<span class="font-data-mono text-data-mono">$421.61</span>
+</div>
+<div class="flex justify-between items-center text-on-primary-container">
+<span class="font-label-md text-label-md uppercase">Otros Impuestos</span>
+<span class="font-data-mono text-data-mono">$0.00</span>
+</div>
+<div class="h-px bg-white/10 my-2"></div>
+<div class="flex justify-between items-end">
+<span class="font-label-md text-label-md text-on-primary-container uppercase">Total Documento</span>
+<span class="font-display-lg text-headline-lg text-secondary-fixed">$2,640.61</span>
+</div>
+</div>
+<div class="p-6 bg-white/5 flex flex-col gap-3">
+<button class="w-full py-3 bg-secondary-container text-on-secondary-container font-bold rounded-lg flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="send">send</span> Enviar Documento
+                        </button>
+<div class="flex gap-2">
+<button class="flex-1 py-2 border border-white/20 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="picture_as_pdf">picture_as_pdf</span> PDF
+                            </button>
+<button class="flex-1 py-2 border border-white/20 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="code">code</span> JSON
+                            </button>
+</div>
+</div>
+</div>
+<!-- AI Insight Card -->
+<div class="bg-gradient-to-br from-secondary/10 to-status-processed/10 border border-secondary/20 rounded-xl p-6 shadow-sm relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 opacity-5 group-hover:scale-110 transition-transform duration-700">
+<span class="material-symbols-outlined text-[120px]" data-icon="robot">robot</span>
+</div>
+<div class="flex items-center gap-2 mb-3">
+<div class="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[20px]" data-icon="bolt" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<h3 class="font-title-md text-title-md text-primary">NeoScanAI Insights</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">
+                        Hemos detectado que el cliente <span class="font-bold text-primary">Global Tech Solutions S.A.</span> tiene una retención especial pendiente. ¿Deseas aplicar el cálculo automático?
+                    </p>
+<button class="w-full py-2 bg-secondary text-white rounded-lg font-label-md text-label-md shadow-sm hover:shadow-md transition-shadow">
+                        Optimizar Documento
+                    </button>
+</div>
+<!-- Help Context -->
+<div class="bg-surface-container-low rounded-xl p-5 border border-border-subtle flex gap-4">
+<span class="material-symbols-outlined text-outline" data-icon="contact_support">contact_support</span>
+<div>
+<h4 class="font-label-md text-label-md font-bold text-primary mb-1">¿Necesitas ayuda con el DTE?</h4>
+<p class="font-body-md text-[12px] text-on-surface-variant leading-tight">Consulte el manual de usuario o contacte a soporte técnico para resolver dudas sobre timbraje o validación ante el SII.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interactions for form inputs
+        document.querySelectorAll('input, select').forEach(element => {
+            element.addEventListener('focus', () => {
+                element.parentElement.querySelector('label')?.classList.add('text-secondary');
+            });
+            element.addEventListener('blur', () => {
+                element.parentElement.querySelector('label')?.classList.remove('text-secondary');
+            });
+        });
+
+        // Simple mock behavior for "Validar y Firmar"
+        const validateBtn = document.querySelector('button.bg-primary');
+        if(validateBtn) {
+            validateBtn.addEventListener('click', () => {
+                const originalContent = validateBtn.innerHTML;
+                validateBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" data-icon="progress_activity">progress_activity</span> Validando...';
+                validateBtn.classList.add('opacity-70');
+                
+                setTimeout(() => {
+                    validateBtn.innerHTML = '<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span> Validado con Éxito';
+                    validateBtn.classList.remove('bg-primary');
+                    validateBtn.classList.add('bg-status-processed');
+                }, 1500);
+            });
+        }
+    </script>
+</body></html>
