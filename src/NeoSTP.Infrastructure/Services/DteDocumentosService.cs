@@ -426,6 +426,19 @@ public class DteDocumentosService : IDteDocumentosService
         if (config is null)
             return Result<DteDocumentoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
 
+        // Guardrail anti-mock: nunca enviar una firma mock/none al Hacienda real (cliente Http).
+        // El firmador Mock produce header {"alg":"none-mock",...}; si se enviara, MH responde 802
+        // y se desperdicia un intento de la matriz de pruebas. Se bloquea antes de llamar a MH.
+        if (_reception is NeoSTP.Infrastructure.Dte.HttpHaciendaReceptionClient
+            && EsFirmaMock(doc.Json?.JsonFirmado))
+        {
+            await Audit(empresaId, actor, "ENVIAR", "FAIL",
+                "Bloqueado: firma mock/none no enviable a Hacienda real. Configurar Dte:Signer=HaciendaCert.", doc.Id);
+            return Result<DteDocumentoDto>.Fail(
+                "No se puede enviar a Hacienda con firma mock. Configure el firmador real (Dte:Signer=HaciendaCert) y vuelva a firmar.",
+                "FIRMA_MOCK_NO_ENVIABLE");
+        }
+
         var tokenResult = await ObtenerTokenAsync(config, ct);
         if (!tokenResult.Success)
             return Result<DteDocumentoDto>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token Hacienda.", "HACIENDA_AUTH_FAILED");
@@ -796,6 +809,26 @@ public class DteDocumentosService : IDteDocumentosService
     /// Obtiene el siguiente correlativo de forma atómica usando UPSERT + UPDATE SQL.
     /// Evita la race condition del COUNT(*)+1 en entornos concurrentes.
     /// </summary>
+    /// <summary>
+    /// Detecta si un JWS fue producido por un firmador mock/none inspeccionando el header.
+    /// El firmador real de Hacienda usa <c>alg=RS512</c>; el mock usa un alg que contiene "none"/"mock".
+    /// </summary>
+    internal static bool EsFirmaMock(string? jws)
+    {
+        if (string.IsNullOrEmpty(jws)) return false;
+        var dot = jws.IndexOf('.');
+        if (dot <= 0) return false;
+        try
+        {
+            var b64 = jws[..dot].Replace('-', '+').Replace('_', '/');
+            b64 = (b64.Length % 4) switch { 2 => b64 + "==", 3 => b64 + "=", _ => b64 };
+            var headerJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(b64));
+            return headerJson.Contains("none", StringComparison.OrdinalIgnoreCase)
+                || headerJson.Contains("mock", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
     /// <summary>
     /// Construye el bloque de 8 caracteres del numeroControl según el formato oficial MH:
     /// <c>(M|B|S|P)([0-9]{3})(P)([0-9]{3})</c> = letraTipoEstablecimiento + codEstable(3) + 'P' + codPuntoVenta(3).

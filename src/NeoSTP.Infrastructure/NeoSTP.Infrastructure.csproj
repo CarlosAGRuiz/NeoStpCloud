@@ -28,4 +28,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="NeoSTP.Tests.Unit" />
+  </ItemGroup>
+
 </Project>
