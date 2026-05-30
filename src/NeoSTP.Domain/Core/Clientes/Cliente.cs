@@ -28,6 +28,8 @@ public class Cliente : AuditableEntity
 
     public string? DepartamentoCodigo { get; set; }
     public string? MunicipioCodigo { get; set; }
+    /// <summary>Código de Distrito (CAT-008, división territorial 2024). Requerido para DTE v2/v4.</summary>
+    public string? DistritoCodigo { get; set; }
     public string? Direccion { get; set; }
 
     public string? Correo { get; set; }

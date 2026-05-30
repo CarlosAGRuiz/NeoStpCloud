@@ -63,6 +63,8 @@ public class DteDocumento : AuditableEntity
     public string? ReceptorActividadEconomica { get; set; }
     public string? ReceptorDepartamentoCodigo { get; set; }
     public string? ReceptorMunicipioCodigo { get; set; }
+    /// <summary>Código de Distrito del receptor (CAT-008). Snapshot al crear el DTE.</summary>
+    public string? ReceptorDistritoCodigo { get; set; }
     public string? ReceptorDireccion { get; set; }
     public string? ReceptorCorreo { get; set; }
     public string? ReceptorTelefono { get; set; }

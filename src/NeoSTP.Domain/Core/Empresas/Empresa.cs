@@ -12,6 +12,8 @@ public class Empresa : AuditableEntity
     public string? ActividadEconomica { get; set; }
     public string? Departamento { get; set; }
     public string? Municipio { get; set; }
+    /// <summary>Código de Distrito (CAT-008, división territorial 2024). Requerido para DTE v2/v4.</summary>
+    public string? Distrito { get; set; }
     public string? Direccion { get; set; }
     public string? Telefono { get; set; }
     public string? Correo { get; set; }

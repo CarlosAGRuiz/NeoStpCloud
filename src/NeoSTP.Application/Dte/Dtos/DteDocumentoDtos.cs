@@ -43,6 +43,7 @@ public class DteDocumentoDto
     public string? ReceptorActividadEconomica { get; set; }
     public string? ReceptorDepartamentoCodigo { get; set; }
     public string? ReceptorMunicipioCodigo { get; set; }
+    public string? ReceptorDistritoCodigo { get; set; }
     public string? ReceptorDireccion { get; set; }
     public string? ReceptorCorreo { get; set; }
     public string? ReceptorTelefono { get; set; }
@@ -159,6 +160,7 @@ public class ReceptorDto
     public string? ActividadEconomica { get; set; }
     public string? DepartamentoCodigo { get; set; }
     public string? MunicipioCodigo { get; set; }
+    public string? DistritoCodigo { get; set; }
     public string? Direccion { get; set; }
     public string? Correo { get; set; }
     public string? Telefono { get; set; }

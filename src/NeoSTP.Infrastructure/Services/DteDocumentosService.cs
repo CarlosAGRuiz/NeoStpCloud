@@ -181,6 +181,7 @@ public class DteDocumentosService : IDteDocumentosService
             doc.ReceptorActividadEconomica = cliente.ActividadEconomica;
             doc.ReceptorDepartamentoCodigo = cliente.DepartamentoCodigo;
             doc.ReceptorMunicipioCodigo = cliente.MunicipioCodigo;
+            doc.ReceptorDistritoCodigo = cliente.DistritoCodigo;
             doc.ReceptorDireccion = cliente.Direccion;
             doc.ReceptorCorreo = cliente.Correo;
             doc.ReceptorTelefono = cliente.Telefono;
@@ -196,6 +197,7 @@ public class DteDocumentosService : IDteDocumentosService
             doc.ReceptorActividadEconomica = r.ActividadEconomica;
             doc.ReceptorDepartamentoCodigo = r.DepartamentoCodigo;
             doc.ReceptorMunicipioCodigo = r.MunicipioCodigo;
+            doc.ReceptorDistritoCodigo = r.DistritoCodigo;
             doc.ReceptorDireccion = r.Direccion;
             doc.ReceptorCorreo = r.Correo;
             doc.ReceptorTelefono = r.Telefono;

@@ -19,6 +19,7 @@ public class EmpresaConfiguration : IEntityTypeConfiguration<Empresa>
         builder.Property(e => e.ActividadEconomica).HasMaxLength(250);
         builder.Property(e => e.Departamento).HasMaxLength(100);
         builder.Property(e => e.Municipio).HasMaxLength(100);
+        builder.Property(e => e.Distrito).HasMaxLength(100);
         builder.Property(e => e.Direccion).HasMaxLength(500);
         builder.Property(e => e.Telefono).HasMaxLength(30);
         builder.Property(e => e.Correo).HasMaxLength(150);

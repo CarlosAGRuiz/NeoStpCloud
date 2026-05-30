@@ -21,6 +21,7 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
         builder.Property(c => c.ActividadEconomica).HasMaxLength(250);
         builder.Property(c => c.DepartamentoCodigo).HasMaxLength(20);
         builder.Property(c => c.MunicipioCodigo).HasMaxLength(20);
+        builder.Property(c => c.DistritoCodigo).HasMaxLength(20);
         builder.Property(c => c.Direccion).HasMaxLength(500);
         builder.Property(c => c.Correo).HasMaxLength(150);
         builder.Property(c => c.Telefono).HasMaxLength(30);
