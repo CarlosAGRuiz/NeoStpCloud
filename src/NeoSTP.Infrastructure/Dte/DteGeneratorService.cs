@@ -41,6 +41,7 @@ public class DteGeneratorService : IDteGeneratorService
             TipoDteCodigos.NotaCredito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: true),
             TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: false),
             TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor, config),
+            TipoDteCodigos.NotaRemision => BuildNotaRemision(d, emisor, config),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
@@ -236,6 +237,84 @@ public class DteGeneratorService : IDteGeneratorService
             apendice = (object?)null,
         };
     }
+
+    // ----------- 04 Nota de Remisión ---------------------------------
+
+    private static object BuildNotaRemision(DteDocumento d, Empresa emisor, DteConfiguracion? config) => new
+    {
+        identificacion = BuildIdentificacion(d, 3),
+        documentoRelacionado = BuildDocumentoRelacionado(d),
+        emisor = BuildEmisor(d, emisor, config),
+        receptor = BuildReceptorRemision(d),
+        ventaTercero = BuildVentaTercero(d),
+        cuerpoDocumento = BuildCuerpoRemision(d),
+        resumen = BuildResumenRemision(d),
+        extension = new   // NR: extension sin placaVehiculo
+        {
+            nombEntrega = (string?)null,
+            docuEntrega = (string?)null,
+            nombRecibe = d.ReceptorNombre,
+            docuRecibe = d.ReceptorNumeroDocumento,
+            observaciones = d.Observaciones,
+        },
+        apendice = (object?)null,
+    };
+
+    private static object BuildReceptorRemision(DteDocumento d) => new
+    {
+        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento),
+        numDocumento = d.ReceptorNumeroDocumento,
+        nrc = d.ReceptorNrc,
+        nombre = d.ReceptorNombre,
+        codActividad = d.ReceptorCodigoActividad,
+        descActividad = d.ReceptorActividadEconomica,
+        nombreComercial = (string?)null,
+        direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
+        {
+            departamento = d.ReceptorDepartamentoCodigo,
+            municipio = d.ReceptorMunicipioCodigo,
+            complemento = d.ReceptorDireccion,
+        },
+        telefono = d.ReceptorTelefono,
+        correo = d.ReceptorCorreo,
+        bienTitulo = "05",   // CAT-018 "Bienes Remitidos a Título de" — 05 Traslado entre establecimientos
+    };
+
+    private static object[] BuildCuerpoRemision(DteDocumento d) =>
+        d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+        {
+            numItem = idx + 1,
+            tipoItem = l.TipoItem,
+            numeroDocumento = (string?)null,
+            codigo = l.Codigo,
+            codTributo = (string?)null,
+            descripcion = l.Descripcion,
+            cantidad = (double)l.Cantidad,
+            uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
+            precioUni = (double)l.PrecioUnitario,
+            montoDescu = (double)l.MontoDescuento,
+            ventaNoSuj = (double)l.VentaNoSujeta,
+            ventaExenta = (double)l.VentaExenta,
+            ventaGravada = (double)l.VentaGravada,
+            tributos = l.VentaGravada > 0 ? new[] { "20" } : null,
+        }).ToArray();
+
+    private static object BuildResumenRemision(DteDocumento d) => new
+    {
+        totalNoSuj = (double)d.TotalNoSujeto,
+        totalExenta = (double)d.TotalExenta,
+        totalGravada = (double)d.TotalGravada,
+        subTotalVentas = (double)d.SubTotalVentas,
+        descuNoSuj = 0d,
+        descuExenta = 0d,
+        descuGravada = (double)d.DescuentoGravada,
+        porcentajeDescuento = (double)d.PorcentajeDescuento,
+        totalDescu = (double)d.TotalDescuento,
+        tributos = (object?)null,
+        subTotal = (double)d.SubTotal,
+        montoTotalOperacion = (double)d.MontoTotalOperacion,
+        totalLetras = d.TotalLetras,
+    };
 
     // ----------- Bloques comunes -------------------------------------
 

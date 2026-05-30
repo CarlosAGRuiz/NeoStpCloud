@@ -19,6 +19,9 @@ public class DteDocumentosService : IDteDocumentosService
         TipoDteCodigos.NotaCredito,
         TipoDteCodigos.NotaDebito,
         TipoDteCodigos.FacturaSujetoExcluido,
+        TipoDteCodigos.NotaRemision,
+        TipoDteCodigos.FacturaExportacion,
+        TipoDteCodigos.ComprobanteDonacion,
     };
 
     private readonly NeoStpDbContext _db;
@@ -143,9 +146,16 @@ public class DteDocumentosService : IDteDocumentosService
             SucursalId = request.SucursalId,
             PuntoVentaId = request.PuntoVentaId,
             TipoDteCodigo = request.TipoDteCodigo,
-            VersionDte = request.TipoDteCodigo is TipoDteCodigos.ComprobanteCreditoFiscal
-                                              or TipoDteCodigos.NotaCredito
-                                              or TipoDteCodigos.NotaDebito ? 3 : 1,
+            VersionDte = request.TipoDteCodigo switch
+            {
+                TipoDteCodigos.ComprobanteCreditoFiscal => 3,
+                TipoDteCodigos.NotaCredito => 3,
+                TipoDteCodigos.NotaDebito => 3,
+                TipoDteCodigos.NotaRemision => 3,
+                TipoDteCodigos.FacturaExportacion => 1,
+                TipoDteCodigos.ComprobanteDonacion => 1,
+                _ => 1,
+            },
             AmbienteCodigo = ambiente,
             CodigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
             FechaEmision = DateTime.UtcNow.Date,
