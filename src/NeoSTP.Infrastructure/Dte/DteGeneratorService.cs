@@ -147,6 +147,7 @@ public class DteGeneratorService : IDteGeneratorService
         saldoFavor = 0d,
         condicionOperacion = ToInt(d.CondicionOperacionCodigo),
         pagos = (object?)null,
+        numPagoElectronico = (string?)null,
     };
 
     // ----------- 05 NC / 06 ND ---------------------------------------
@@ -365,27 +366,55 @@ public class DteGeneratorService : IDteGeneratorService
 
     private static object[] BuildCuerpo(DteDocumento d, bool conIvaPorLinea)
     {
-        return d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+        // Factura (v1) lleva ivaItem por línea; CCF/NC/ND (v3) NO lo permiten en el cuerpo
+        // (el IVA va desglosado en resumen.tributos). Por eso se emiten dos formas distintas.
+        return d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) =>
         {
-            numItem = idx + 1,
-            tipoItem = l.TipoItem,
-            numeroDocumento = (string?)null,
-            cantidad = (double)l.Cantidad,
-            codigo = l.Codigo,
-            codTributo = (string?)null,
-            uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
-            descripcion = l.Descripcion,
-            precioUni = (double)l.PrecioUnitario,
-            montoDescu = (double)l.MontoDescuento,
-            ventaNoSuj = (double)l.VentaNoSujeta,
-            ventaExenta = (double)l.VentaExenta,
-            ventaGravada = (double)l.VentaGravada,
-            tributos = conIvaPorLinea && l.VentaGravada > 0
-                ? new[] { "20" }
-                : null,
-            psv = 0d,
-            noGravado = (double)(l.NoGravado ? l.VentaNoSujeta : 0m),
-            ivaItem = conIvaPorLinea ? (double?)null : (double)l.IvaItem,
+            var tributos = conIvaPorLinea && l.VentaGravada > 0 ? new[] { "20" } : null;
+            var noGravado = (double)(l.NoGravado ? l.VentaNoSujeta : 0m);
+            var uni = ToInt(l.UnidadMedidaCodigo, defaultValue: 59);
+
+            if (conIvaPorLinea) // CCF / NC / ND — sin ivaItem
+                return (object)new
+                {
+                    numItem = idx + 1,
+                    tipoItem = l.TipoItem,
+                    numeroDocumento = (string?)null,
+                    cantidad = (double)l.Cantidad,
+                    codigo = l.Codigo,
+                    codTributo = (string?)null,
+                    uniMedida = uni,
+                    descripcion = l.Descripcion,
+                    precioUni = (double)l.PrecioUnitario,
+                    montoDescu = (double)l.MontoDescuento,
+                    ventaNoSuj = (double)l.VentaNoSujeta,
+                    ventaExenta = (double)l.VentaExenta,
+                    ventaGravada = (double)l.VentaGravada,
+                    tributos,
+                    psv = 0d,
+                    noGravado,
+                };
+
+            return (object)new // Factura — con ivaItem
+            {
+                numItem = idx + 1,
+                tipoItem = l.TipoItem,
+                numeroDocumento = (string?)null,
+                cantidad = (double)l.Cantidad,
+                codigo = l.Codigo,
+                codTributo = (string?)null,
+                uniMedida = uni,
+                descripcion = l.Descripcion,
+                precioUni = (double)l.PrecioUnitario,
+                montoDescu = (double)l.MontoDescuento,
+                ventaNoSuj = (double)l.VentaNoSujeta,
+                ventaExenta = (double)l.VentaExenta,
+                ventaGravada = (double)l.VentaGravada,
+                tributos,
+                psv = 0d,
+                noGravado,
+                ivaItem = (double)l.IvaItem,
+            };
         }).ToArray();
     }
 
