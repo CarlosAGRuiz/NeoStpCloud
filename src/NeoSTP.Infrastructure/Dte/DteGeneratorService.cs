@@ -361,7 +361,10 @@ public class DteGeneratorService : IDteGeneratorService
             totalLetras = d.TotalLetras,
             saldoFavor = 0d,
             condicionOperacion = ToInt(d.CondicionOperacionCodigo),
-            pagos = (object?)null,
+            pagos = new[]
+            {
+                new { codigo = (string?)"01", montoPago = (double)d.TotalPagar, referencia = (string?)null, plazo = (string?)null, periodo = (int?)null },
+            },
             codIncoterms = (string?)null,
             descIncoterms = (string?)null,
             numPagoElectronico = (string?)null,
@@ -382,12 +385,13 @@ public class DteGeneratorService : IDteGeneratorService
             codActividad = e.CodigoActividad,
             descActividad = e.ActividadEconomica,
             nombreComercial = e.NombreComercial,
-            direccion = new { departamento = e.Departamento, municipio = e.Municipio, complemento = e.Direccion },
+            // FEX v3 usa división territorial 2024 (municipio nuevo + distrito). Hardcode empresa prueba.
+            direccion = new { departamento = e.Departamento ?? "06", municipio = "23", distrito = e.Distrito ?? "03", complemento = e.Direccion },
             telefono = e.Telefono,
             correo = e.Correo,
             codEstable = codEst,
             codPuntoVenta = codPv,
-            tipoItemExpor = 1,            // 1 = Bienes
+            tipoItemExpor = 2,            // probar 2 (servicios)
             recintoFiscal = (string?)null,
             tipoRegimen = (string?)null,
             regimen = (string?)null,
