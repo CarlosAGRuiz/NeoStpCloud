@@ -958,6 +958,126 @@ public class DteDocumentosService : IDteDocumentosService
             config, empresaId, "EVENTO_OPERACIONES_ESPECIALES", actor, ct);
     }
 
+    /// <summary>Evento de Retorno (ERET, tipoEvento 18). Esquema fe-eret v1, transmisión vía recepciondte. Aplica a FE/FEXE/FSEE.</summary>
+    public async Task<Result<string>> TransmitirEventoRetornoAsync(
+        int empresaId, int documentoOrigenId, string? actor, CancellationToken ct = default)
+    {
+        var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
+        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config?.CertificadoBlob is null) return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+
+        var orig = await _db.DteDocumentos.Include(d => d.Detalles).AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == documentoOrigenId && d.EmpresaId == empresaId, ct);
+        if (orig is null) return Result<string>.Fail("Documento origen no encontrado.", "DTE_NOT_FOUND");
+        if (orig.EstadoCodigo != DteEstadoCodigos.Procesado)
+            return Result<string>.Fail("El documento origen del retorno debe estar PROCESADO.", "INVALID_STATE");
+
+        var ahora = DateTime.Now;
+        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+        var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
+        var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
+        var gravada = (double)orig.TotalGravada;
+        var iva = Math.Round(gravada * 0.13 / 1.13, 2);
+
+        var evento = new
+        {
+            identificacion = new
+            {
+                version = 1,
+                ambiente,
+                tipoModelo = 1,
+                tipoOperacion = 1,
+                tipoEvento = "18",
+                tipoContingencia = (int?)null,
+                motivoContin = (string?)null,
+                codigoGeneracion = codGen,
+                fecEmi = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                horEmi = ahora.ToString(@"HH\:mm\:ss"),
+                fusion = (string?)null,
+                tipoMoneda = "USD",
+            },
+            documentoRelacionado = new[]
+            {
+                new { tipoDocumento = orig.TipoDteCodigo, codigoGeneracion = orig.CodigoGeneracion,
+                      fechaEmision = orig.FechaEmision.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) },
+            },
+            emisor = new
+            {
+                nit = empresa.Nit,
+                nombre = empresa.RazonSocial,
+                codEstableMH = codEst,   // requiere el código MH real registrado del establecimiento
+                codEstable = codEst,
+                codPuntoVentaMH = codPv,
+                codPuntoVenta = codPv,
+                recintoFiscal = (string?)null,
+                tipoRegimen = (string?)null,
+                regimen = (string?)null,
+                tipoItemExpor = (int?)null,
+            },
+            documento = (object?)null,
+            ventaTercero = (object?)null,
+            compraTercero = (object?)null,
+            cuerpoDocumento = new[]
+            {
+                new
+                {
+                    numItem = 1,
+                    tipoItem = 1,
+                    codigoGeneracion = orig.CodigoGeneracion,
+                    cantidad = 1d,
+                    precioUni = gravada,
+                    descripcion = "Retorno de operación",
+                    codigo = (string?)null,
+                    uniMedida = 59,
+                    montoDescu = 0d,
+                    codTributo = (string?)null,
+                    ventaNoSuj = 0d,
+                    ventaExenta = 0d,
+                    ventaGravada = gravada,
+                    compra = 0d,
+                    tributos = (object?)null,
+                    psv = 0d,
+                    ivaItem = iva,
+                    noGravado = 0d,
+                    seguro = 0d,
+                    flete = 0d,
+                    ivaRete = 0d,
+                    reteRenta = 0d,
+                },
+            },
+            resumen = new
+            {
+                totalNoSuj = 0d,
+                totalExenta = 0d,
+                totalGravada = gravada,
+                totalCompraExcluidos = 0d,
+                subTotalVentas = gravada,
+                tributos = (object?)null,
+                totalSeguro = 0d,
+                totalFlete = 0d,
+                montoTotalOperacion = gravada,
+                ivaRete = 0d,
+                reteRenta = (double?)0d,
+                totalNoGravado = 0d,
+                totalPagar = gravada,
+                totalLetras = (string?)null,
+                totalNoOnerosas = 0d,
+                totalIva = iva,
+                saldoFavor = 0d,
+            },
+            apendice = (object?)null,
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(evento,
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+        return await FirmarYTransmitirEventoAsync(json, "/fesv/recepciondte",
+            jws => new { ambiente, idEnvio = ahora.Millisecond + 1, version = 1, tipoDte = "18", documento = jws, codigoGeneracion = codGen },
+            config, empresaId, "EVENTO_RETORNO", actor, ct);
+    }
+
     // ---- validación de request ----
 
     private static List<string> ValidateRequest(CreateDteDocumentoRequest r)

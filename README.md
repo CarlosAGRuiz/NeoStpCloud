@@ -6,8 +6,8 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 106/106 pasando  
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
-> 🎉 **Hito:** **5 tipos de DTE PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
-> **01 Factura** · **11 Factura de Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación** (los 5 tipos que no requieren receptor inscrito en IVA). Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
+> 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
+> DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
 
@@ -475,9 +475,29 @@ un **guardrail anti-mock** que bloquea enviar una firma `none/mock` al Hacienda 
 (`FIRMA_MOCK_NO_ENVIABLE`) — la Web firma con sus propios servicios, así que su
 `appsettings.Local.json` también debe fijar `Dte:Signer=HaciendaCert`.
 
-> ⏳ **Pendiente de matriz:** 03 CCF / 05 NC / 06 ND y 07/08/09 requieren receptor
-> **inscrito en IVA** (NIT + NRC reales). Faltan también los **eventos** (Invalidación,
-> Contingencia, Retorno, Operaciones Especiales). Migración a v2/v4 solo cuando apitest la adopte.
+> ⏳ **Pendiente de matriz (DTE):** 03 CCF / 05 NC / 06 ND y 07/08/09 requieren receptor
+> **inscrito en IVA** (NIT + NRC reales). Migración a v2/v4 solo cuando apitest la adopte.
+
+#### Eventos DTE — Sprint 12
+
+Subsistema de eventos completo (generación + firma RS512 + transmisión). El Manual Técnico v2.0
+confirma que **solo Contingencia e Invalidación tienen endpoint propio**; Retorno y Operaciones
+Especiales (esquemas `fe-eret`/`fe-eop`, prefijo `fe-` como los DTE) se transmiten por
+`/fesv/recepciondte`.
+
+| Evento | Endpoint | Estado | Nota |
+|---|---|---|---|
+| **Contingencia** | `/fesv/contingencia` | ✅ PROCESADO | emisor `codEstableMH`+`codPuntoVenta` (asimétrico); DTE en contingencia con `tipoTransmision=2` |
+| **Invalidación** | `/fesv/anulardte` | ✅ PROCESADO | `fecAnula`/`horAnula` (no fecEmi); `nomEstablecimiento` requerido; tipo 2 = rescindir |
+| **Operaciones Especiales** | `/fesv/recepciondte` | 🟡 estructura OK | `tipoEvento=17`, `tipoDocumento=97` (Control Interno); bloqueado por `095` (cuenta no autorizada) |
+| **Retorno** | `/fesv/recepciondte` | 🟡 estructura OK | `tipoEvento=18`, referencia FE/FEXE/FSEE; bloqueado por `codEstableMH` (requiere código MH registrado real) |
+
+Endpoints API: `POST /api/dte/evento/{contingencia|invalidacion|operaciones-especiales|retorno}`.
+Clientes: `IHaciendaContingenciaClient` (dedicado) + `IHaciendaEventoClient` (genérico, endpoint parametrizable).
+
+> ⏳ **Bloqueos de cuenta (no de código):** Op-Especiales necesita autorización del contribuyente
+> para Factura Simplificada/Control Interno; Retorno necesita el `codEstableMH` real registrado.
+> Ambas estructuras ya pasan la validación de esquema de Hacienda.
 
 ### Documentos DTE — descarga y correo (Sprint 7)
 

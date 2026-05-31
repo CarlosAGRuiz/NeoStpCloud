@@ -147,6 +147,14 @@ public class DteController : ApiControllerBase
             eid, body.CodigoGeneracionRef, body.Descripcion, body.Monto, _currentUser.Username, ct));
     }
 
+    [HttpPost("evento/retorno")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> EventoRetorno([FromBody] EventoRetornoRequest body, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.TransmitirEventoRetornoAsync(eid, body.DocumentoOrigenId, _currentUser.Username, ct));
+    }
+
     // ---- descarga y reenvío (Sprint 7) ----
 
     [HttpGet("documentos/{id:int}/pdf")]
@@ -231,5 +239,10 @@ public class DteController : ApiControllerBase
         public string? CodigoGeneracionRef { get; set; }
         public string Descripcion { get; set; } = "Operación especial";
         public decimal Monto { get; set; } = 10m;
+    }
+
+    public class EventoRetornoRequest
+    {
+        public int DocumentoOrigenId { get; set; }
     }
 }
