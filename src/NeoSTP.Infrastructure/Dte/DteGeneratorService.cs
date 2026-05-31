@@ -42,6 +42,8 @@ public class DteGeneratorService : IDteGeneratorService
             TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: false),
             TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor, config),
             TipoDteCodigos.NotaRemision => BuildNotaRemision(d, emisor, config),
+            TipoDteCodigos.FacturaExportacion => BuildFacturaExportacion(d, emisor, config),
+            TipoDteCodigos.ComprobanteDonacion => BuildComprobanteDonacion(d, emisor, config),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
@@ -315,6 +317,184 @@ public class DteGeneratorService : IDteGeneratorService
         montoTotalOperacion = (double)d.MontoTotalOperacion,
         totalLetras = d.TotalLetras,
     };
+
+    // ----------- 11 Factura de Exportación ---------------------------
+
+    private static object BuildFacturaExportacion(DteDocumento d, Empresa e, DteConfiguracion? config) => new
+    {
+        identificacion = BuildIdentificacion(d, 3),
+        documentoRelacionado = (object?)null,
+        emisor = BuildEmisorExportacion(e, config),
+        receptor = BuildReceptorExportacion(d),
+        otrosDocumentos = (object?)null,
+        ventaTercero = (object?)null,
+        compraTercero = (object?)null,
+        cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+        {
+            numItem = idx + 1,
+            tipoItem = l.TipoItem,
+            numeroDocumento = (string?)null,
+            cantidad = (double)l.Cantidad,
+            codigo = l.Codigo,
+            codTributo = (string?)null,
+            uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
+            descripcion = l.Descripcion,
+            precioUni = (double)l.PrecioUnitario,
+            montoDescu = (double)l.MontoDescuento,
+            ventaGravada = (double)(l.VentaGravada + l.VentaExenta + l.VentaNoSujeta),
+            tributos = (object?)null,
+            noGravado = 0d,
+        }).ToArray(),
+        resumen = new
+        {
+            totalGravada = (double)d.SubTotalVentas,
+            descuGravada = (double)d.DescuentoGravada,
+            porcentajeDescuento = (double)d.PorcentajeDescuento,
+            totalDescu = (double)d.TotalDescuento,
+            seguro = 0d,
+            flete = 0d,
+            tributos = (object?)null,
+            montoTotalOperacion = (double)d.MontoTotalOperacion,
+            totalNoGravado = 0d,
+            totalNoOnerosas = 0d,
+            totalPagar = (double)d.TotalPagar,
+            totalLetras = d.TotalLetras,
+            saldoFavor = 0d,
+            condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+            pagos = (object?)null,
+            codIncoterms = (string?)null,
+            descIncoterms = (string?)null,
+            numPagoElectronico = (string?)null,
+            observaciones = d.Observaciones,
+        },
+        apendice = (object?)null,
+    };
+
+    private static object BuildEmisorExportacion(Empresa e, DteConfiguracion? config)
+    {
+        var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
+        return new
+        {
+            nit = e.Nit,
+            nrc = e.Nrc,
+            nombre = e.RazonSocial,
+            codActividad = e.CodigoActividad,
+            descActividad = e.ActividadEconomica,
+            nombreComercial = e.NombreComercial,
+            direccion = new { departamento = e.Departamento, municipio = e.Municipio, complemento = e.Direccion },
+            telefono = e.Telefono,
+            correo = e.Correo,
+            codEstable = codEst,
+            codPuntoVenta = codPv,
+            tipoItemExpor = 1,            // 1 = Bienes
+            recintoFiscal = (string?)null,
+            tipoRegimen = (string?)null,
+            regimen = (string?)null,
+        };
+    }
+
+    private static object BuildReceptorExportacion(DteDocumento d) => new
+    {
+        nombre = d.ReceptorNombre,
+        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "37",
+        numDocumento = d.ReceptorNumeroDocumento,
+        descActividad = d.ReceptorActividadEconomica ?? "Comercio exterior",
+        nombreComercial = (string?)d.ReceptorNombre,
+        codPais = "9300",                // CAT-020 (placeholder: ajustar)
+        nombrePais = "ESTADOS UNIDOS",
+        complemento = d.ReceptorDireccion ?? "Exterior",
+        tipoPersona = 2,                 // 1=natural, 2=jurídica
+        telefono = d.ReceptorTelefono,
+        correo = d.ReceptorCorreo,
+    };
+
+    // ----------- 15 Comprobante de Donación --------------------------
+
+    private static object BuildComprobanteDonacion(DteDocumento d, Empresa e, DteConfiguracion? config)
+    {
+        var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
+        return new
+        {
+            identificacion = new   // CD no lleva tipoContingencia/motivoContin
+            {
+                version = 2,
+                ambiente = d.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
+                tipoDte = d.TipoDteCodigo,
+                numeroControl = d.NumeroControl,
+                codigoGeneracion = d.CodigoGeneracion,
+                tipoModelo = d.ModeloFacturacion,
+                tipoOperacion = d.TipoTransmision,
+                fecEmi = d.FechaEmision.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                horEmi = d.HoraEmision.ToString(@"hh\:mm\:ss"),
+                tipoMoneda = d.TipoMonedaCodigo ?? "USD",
+            },
+            emisor = new   // Donatario
+            {
+                tipoDocumento = "36",   // NIT
+                numDocumento = e.Nit,
+                nrc = e.Nrc,
+                nombre = e.RazonSocial,
+                codActividad = e.CodigoActividad,
+                descActividad = e.ActividadEconomica,
+                nombreComercial = e.NombreComercial,
+                // CD v2 usa división territorial 2024 (municipio nuevo + distrito).
+                // TODO: derivar municipio nuevo desde catálogo; hardcode para empresa de prueba (Ayutuxtepeque = SS Centro 23 / distrito 03).
+                direccion = new { departamento = e.Departamento ?? "06", municipio = "23", distrito = e.Distrito ?? "03", complemento = e.Direccion },
+                telefono = e.Telefono,
+                correo = e.Correo,
+                codEstable = codEst,
+                codPuntoVenta = codPv,
+            },
+            receptor = new   // Donante
+            {
+                tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "36",
+                numDocumento = d.ReceptorNumeroDocumento,
+                nrc = d.ReceptorNrc,
+                nombre = d.ReceptorNombre,
+                codActividad = d.ReceptorCodigoActividad,
+                descActividad = d.ReceptorActividadEconomica,
+                direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
+                {
+                    departamento = d.ReceptorDepartamentoCodigo,
+                    municipio = "23",   // división 2024 (ver TODO emisor)
+                    distrito = d.ReceptorDistritoCodigo ?? "03",
+                    complemento = d.ReceptorDireccion,
+                },
+                telefono = d.ReceptorTelefono,
+                correo = d.ReceptorCorreo,
+                codDomiciliado = 1,
+                codPais = "9300",
+            },
+            otrosDocumentos = new[]
+            {
+                new { codDocAsociado = 1, descDocumento = (string?)"Acta de donacion", detalleDocumento = (string?)"Donacion de bienes" },
+            },
+            cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+            {
+                numItem = idx + 1,
+                tipoDonacion = 1,
+                cantidad = (double)l.Cantidad,
+                codigo = l.Codigo,
+                uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
+                descripcion = l.Descripcion,
+                tipoDepreciacion = 0d,
+                valorUni = (double)l.PrecioUnitario,
+                valor = (double)(l.Cantidad * l.PrecioUnitario),
+            }).ToArray(),
+            resumen = new
+            {
+                valorTotal = (double)d.TotalPagar,
+                totalLetras = d.TotalLetras,
+                pagos = new[]
+                {
+                    new { codigo = (string?)"01", montoPago = (double)d.TotalPagar, referencia = (string?)null },
+                },
+            },
+            apendice = (object?)null,
+        };
+    }
 
     // ----------- Bloques comunes -------------------------------------
 
