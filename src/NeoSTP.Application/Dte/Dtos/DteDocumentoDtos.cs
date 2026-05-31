@@ -130,6 +130,12 @@ public class CreateDteDocumentoRequest
 
     public string? Observaciones { get; set; }
 
+    // Contingencia (MOMENTO 1): tipoTransmision=2 + modelo diferido. CAT-005 tipoContingencia (1..5).
+    public int ModeloFacturacion { get; set; }
+    public int TipoTransmision { get; set; }
+    public string? TipoContingenciaCodigo { get; set; }
+    public string? MotivoContingencia { get; set; }
+
     public List<CreateDteDocumentoLineaRequest> Lineas { get; set; } = new();
 }
 

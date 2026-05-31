@@ -29,6 +29,7 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly IDteGeneratorService _generator;
     private readonly IDteSignerService _signer;
     private readonly IHaciendaReceptionClient _reception;
+    private readonly IHaciendaContingenciaClient _contingencia;
     private readonly IHaciendaAuthClient _haciendaAuth;
     private readonly ISecretProtector _protector;
     private readonly IDtePdfService _pdf;
@@ -41,6 +42,7 @@ public class DteDocumentosService : IDteDocumentosService
         IDteGeneratorService generator,
         IDteSignerService signer,
         IHaciendaReceptionClient reception,
+        IHaciendaContingenciaClient contingencia,
         IHaciendaAuthClient haciendaAuth,
         ISecretProtector protector,
         IDtePdfService pdf,
@@ -52,6 +54,7 @@ public class DteDocumentosService : IDteDocumentosService
         _generator = generator;
         _signer = signer;
         _reception = reception;
+        _contingencia = contingencia;
         _haciendaAuth = haciendaAuth;
         _protector = protector;
         _pdf = pdf;
@@ -169,6 +172,11 @@ public class DteDocumentosService : IDteDocumentosService
             TipoDteRelacionado = request.TipoDteRelacionado,
             TipoGeneracionRelacionado = request.TipoGeneracionRelacionado,
             Observaciones = request.Observaciones,
+            // Contingencia (MOMENTO 1): modelo diferido (2) + transmisión contingencia (2) + tipo/motivo CAT-005.
+            ModeloFacturacion = request.TipoTransmision == 2 ? 2 : (request.ModeloFacturacion == 0 ? 1 : request.ModeloFacturacion),
+            TipoTransmision = request.TipoTransmision == 0 ? 1 : request.TipoTransmision,
+            TipoContingenciaCodigo = request.TipoContingenciaCodigo,
+            MotivoContingencia = request.MotivoContingencia,
             EstadoCodigo = DteEstadoCodigos.Borrador,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = actor,
@@ -668,6 +676,100 @@ public class DteDocumentosService : IDteDocumentosService
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "INVALIDAR", "OK", motivo ?? "Sin motivo", doc.Id);
         return Result.Ok();
+    }
+
+    /// <summary>
+    /// MOMENTO 2: transmite el Evento de Contingencia (contingencia-schema v4) informando los
+    /// códigos de generación de los DTE generados en contingencia. Firma RS512 + POST /fesv/contingencia.
+    /// </summary>
+    public async Task<Result<string>> TransmitirEventoContingenciaAsync(
+        int empresaId, IReadOnlyList<int> documentoIds, int tipoContingencia, string? motivo,
+        string nombreResponsable, string tipoDocResponsable, string numeroDocResponsable,
+        string? actor, CancellationToken ct = default)
+    {
+        var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
+        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config?.CertificadoBlob is null || config.CertificadoBlob.Length == 0)
+            return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+
+        var docs = await _db.DteDocumentos.AsNoTracking()
+            .Where(d => d.EmpresaId == empresaId && documentoIds.Contains(d.Id))
+            .ToListAsync(ct);
+        if (docs.Count == 0) return Result<string>.Fail("No hay documentos para el evento.", "VALIDATION");
+
+        var ahora = DateTime.Now;
+        var fechaMin = docs.Min(d => d.FechaEmision);
+        var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
+        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+
+        var evento = new
+        {
+            identificacion = new
+            {
+                version = 3,
+                ambiente,
+                codigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
+                fTransmision = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                hTransmision = ahora.ToString(@"HH\:mm\:ss"),
+            },
+            emisor = new
+            {
+                nit = empresa.Nit,
+                nombre = empresa.RazonSocial,
+                nombreResponsable,
+                tipoDocResponsable,
+                numeroDocResponsable,
+                tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
+                codEstableMH = codEst,    // evento contingencia: establecimiento con MH, punto de venta sin MH (asimétrico)
+                codPuntoVenta = codPv,
+                telefono = empresa.Telefono,
+                correo = empresa.Correo,
+            },
+            detalleDTE = docs.Select((d, i) => new
+            {
+                noItem = i + 1,
+                tipoDoc = d.TipoDteCodigo,
+                codigoGeneracion = d.CodigoGeneracion,
+            }).ToArray(),
+            motivo = new
+            {
+                fInicio = fechaMin.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                fFin = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                hInicio = "00:00:00",
+                hFin = ahora.ToString(@"HH\:mm\:ss"),
+                tipoContingencia,
+                motivoContingencia = tipoContingencia == 5 ? (motivo ?? "Falla de conexión") : motivo,
+            },
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(evento,
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+        var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
+        if (!firma.Success)
+            return Result<string>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
+
+        var tokenResult = await ObtenerTokenAsync(config, ct);
+        if (!tokenResult.Success)
+            return Result<string>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
+
+        var resp = await _contingencia.EnviarAsync(new ContingenciaRequest
+        {
+            Nit = empresa.Nit!,
+            Ambiente = ambiente,
+            AmbienteCodigo = config.AmbienteCodigo,
+            Documento = firma.JsonFirmado!,
+            Token = tokenResult.Token!,
+        }, ct);
+
+        await Audit(empresaId, actor, "EVENTO_CONTINGENCIA", resp.Success ? "OK" : "FAIL",
+            $"estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg} obs={string.Join("; ", resp.Observaciones)}", 0);
+
+        return resp.Success
+            ? Result<string>.Ok(resp.SelloRecibido ?? resp.Estado ?? "OK")
+            : Result<string>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), "CONTINGENCIA_RECHAZADA");
     }
 
     // ---- validación de request ----

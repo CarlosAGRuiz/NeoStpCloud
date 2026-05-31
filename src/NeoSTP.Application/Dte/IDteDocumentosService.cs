@@ -13,6 +13,7 @@ public interface IDteDocumentosService
     Task<Result<DteDocumentoDto>> FirmarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result<DteDocumentoDto>> EnviarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default);
+    Task<Result<string>> TransmitirEventoContingenciaAsync(int empresaId, IReadOnlyList<int> documentoIds, int tipoContingencia, string? motivo, string nombreResponsable, string tipoDocResponsable, string numeroDocResponsable, string? actor, CancellationToken ct = default);
     Task<Result<DteArchivosDto>> ObtenerArchivosAsync(int empresaId, int id, CancellationToken ct = default);
     Task<Result<DteReenvioResultDto>> ReenviarPorCorreoAsync(int empresaId, int id, string? destinatario, string? actor, CancellationToken ct = default);
 }

@@ -88,13 +88,25 @@ public static class DependencyInjection
                     opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
                 });
 
+            services.AddHttpClient(HttpHaciendaContingenciaClient.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 3;
+                    opts.Retry.Delay = TimeSpan.FromSeconds(2);
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(35);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
+                });
+
             services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
             services.AddScoped<IHaciendaReceptionClient, HttpHaciendaReceptionClient>();
+            services.AddScoped<IHaciendaContingenciaClient, HttpHaciendaContingenciaClient>();
         }
         else
         {
             services.AddScoped<IHaciendaAuthClient, MockHaciendaAuthClient>();
             services.AddScoped<IHaciendaReceptionClient, MockHaciendaReceptionClient>();
+            services.AddScoped<IHaciendaContingenciaClient, MockHaciendaContingenciaClient>();
         }
 
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();

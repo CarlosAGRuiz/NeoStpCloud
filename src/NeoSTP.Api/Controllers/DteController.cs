@@ -117,6 +117,17 @@ public class DteController : ApiControllerBase
             "Documento invalidado.");
     }
 
+    [HttpPost("evento/contingencia")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> EventoContingencia([FromBody] EventoContingenciaRequest body, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.TransmitirEventoContingenciaAsync(
+            eid, body.DocumentoIds ?? new List<int>(), body.TipoContingencia, body.Motivo,
+            body.NombreResponsable, body.TipoDocResponsable, body.NumeroDocResponsable,
+            _currentUser.Username, ct));
+    }
+
     // ---- descarga y reenvío (Sprint 7) ----
 
     [HttpGet("documentos/{id:int}/pdf")]
@@ -173,5 +184,15 @@ public class DteController : ApiControllerBase
     public class ReenviarRequest
     {
         public string? Destinatario { get; set; }
+    }
+
+    public class EventoContingenciaRequest
+    {
+        public List<int>? DocumentoIds { get; set; }
+        public int TipoContingencia { get; set; } = 1;
+        public string? Motivo { get; set; }
+        public string NombreResponsable { get; set; } = null!;
+        public string TipoDocResponsable { get; set; } = "36";
+        public string NumeroDocResponsable { get; set; } = null!;
     }
 }
