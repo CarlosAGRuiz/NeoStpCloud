@@ -342,7 +342,7 @@ public class DteGeneratorService : IDteGeneratorService
             precioUni = (double)l.PrecioUnitario,
             montoDescu = (double)l.MontoDescuento,
             ventaGravada = (double)(l.VentaGravada + l.VentaExenta + l.VentaNoSujeta),
-            tributos = (object?)null,
+            tributos = new[] { "C3" },   // CAT-015 C3 = IVA exportaciones 0%
             noGravado = 0d,
         }).ToArray(),
         resumen = new
@@ -353,7 +353,10 @@ public class DteGeneratorService : IDteGeneratorService
             totalDescu = (double)d.TotalDescuento,
             seguro = 0d,
             flete = 0d,
-            tributos = (object?)null,
+            tributos = new[]
+            {
+                new { codigo = "C3", descripcion = "Impuesto al Valor Agregado (exportaciones) 0%", valor = 0.0 },
+            },
             montoTotalOperacion = (double)d.MontoTotalOperacion,
             totalNoGravado = 0d,
             totalNoOnerosas = 0d,
@@ -405,7 +408,7 @@ public class DteGeneratorService : IDteGeneratorService
         numDocumento = d.ReceptorNumeroDocumento,
         descActividad = d.ReceptorActividadEconomica ?? "Comercio exterior",
         nombreComercial = (string?)d.ReceptorNombre,
-        codPais = "9300",                // CAT-020 (placeholder: ajustar)
+        codPais = "9539",                // CAT-020: 9539 Estados Unidos (9300=El Salvador)
         nombrePais = "ESTADOS UNIDOS",
         complemento = d.ReceptorDireccion ?? "Exterior",
         tipoPersona = 2,                 // 1=natural, 2=jurídica
