@@ -30,6 +30,7 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly IDteSignerService _signer;
     private readonly IHaciendaReceptionClient _reception;
     private readonly IHaciendaContingenciaClient _contingencia;
+    private readonly IHaciendaEventoClient _evento;
     private readonly IHaciendaAuthClient _haciendaAuth;
     private readonly ISecretProtector _protector;
     private readonly IDtePdfService _pdf;
@@ -43,6 +44,7 @@ public class DteDocumentosService : IDteDocumentosService
         IDteSignerService signer,
         IHaciendaReceptionClient reception,
         IHaciendaContingenciaClient contingencia,
+        IHaciendaEventoClient evento,
         IHaciendaAuthClient haciendaAuth,
         ISecretProtector protector,
         IDtePdfService pdf,
@@ -55,6 +57,7 @@ public class DteDocumentosService : IDteDocumentosService
         _signer = signer;
         _reception = reception;
         _contingencia = contingencia;
+        _evento = evento;
         _haciendaAuth = haciendaAuth;
         _protector = protector;
         _pdf = pdf;
@@ -770,6 +773,116 @@ public class DteDocumentosService : IDteDocumentosService
         return resp.Success
             ? Result<string>.Ok(resp.SelloRecibido ?? resp.Estado ?? "OK")
             : Result<string>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), "CONTINGENCIA_RECHAZADA");
+    }
+
+    /// <summary>Firma RS512 un evento (JSON) y lo transmite al endpoint indicado vía el cliente genérico.</summary>
+    private async Task<Result<string>> FirmarYTransmitirEventoAsync(
+        string json, string endpointPath, Func<string, object> bodyFactory,
+        Domain.Core.Dte.DteConfiguracion config, int empresaId, string accion, string? actor, CancellationToken ct)
+    {
+        var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
+        if (!firma.Success) return Result<string>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
+
+        var tok = await ObtenerTokenAsync(config, ct);
+        if (!tok.Success) return Result<string>.Fail(tok.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
+
+        var body = System.Text.Json.JsonSerializer.Serialize(bodyFactory(firma.JsonFirmado!),
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        var resp = await _evento.PostAsync(endpointPath, body, tok.Token!, config.AmbienteCodigo, ct);
+
+        await Audit(empresaId, actor, accion, resp.Success ? "OK" : "FAIL",
+            $"estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg} obs={string.Join("; ", resp.Observaciones)} RAW={Truncate(resp.Raw ?? "", 600)}", 0);
+
+        return resp.Success
+            ? Result<string>.Ok(resp.SelloRecibido ?? resp.Estado ?? "OK")
+            : Result<string>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), $"{accion}_RECHAZADA");
+    }
+
+    private static string Truncate(string s, int max) => string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max];
+
+    /// <summary>Evento de Invalidación (anulación) de un DTE ya PROCESADO. POST /fesv/anulardte.</summary>
+    public async Task<Result<string>> TransmitirInvalidacionEventoAsync(
+        int empresaId, int documentoId, int tipoAnulacion, string? motivoAnulacion, string? codigoGeneracionReemplazo,
+        string nombreResponsable, string tipoDocResponsable, string numDocResponsable, string? actor, CancellationToken ct = default)
+    {
+        var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
+        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config?.CertificadoBlob is null) return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+
+        var doc = await _db.DteDocumentos.AsNoTracking().FirstOrDefaultAsync(d => d.Id == documentoId && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result<string>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+        if (doc.EstadoCodigo != DteEstadoCodigos.Procesado || string.IsNullOrEmpty(doc.SelloRecibido))
+            return Result<string>.Fail("Solo se puede invalidar un DTE PROCESADO con sello de recepción.", "INVALID_STATE");
+        if (tipoAnulacion is 1 or 3 && string.IsNullOrEmpty(codigoGeneracionReemplazo))
+            return Result<string>.Fail("Tipo de invalidación 1/3 requiere código de generación del documento de reemplazo.", "VALIDATION");
+
+        var ahora = DateTime.Now;
+        var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
+        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+
+        var evento = new
+        {
+            identificacion = new
+            {
+                version = 2,
+                ambiente,
+                codigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
+                fecAnula = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                horAnula = ahora.ToString(@"HH\:mm\:ss"),
+            },
+            emisor = new
+            {
+                nit = empresa.Nit,
+                nombre = empresa.RazonSocial,
+                tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
+                nomEstablecimiento = string.IsNullOrWhiteSpace(empresa.NombreComercial) ? "Casa Matriz" : empresa.NombreComercial,
+                codEstableMH = codEst,
+                codEstable = codEst,
+                codPuntoVentaMH = codPv,
+                codPuntoVenta = codPv,
+                telefono = empresa.Telefono,
+                correo = empresa.Correo,
+            },
+            documento = new
+            {
+                tipoDte = doc.TipoDteCodigo,
+                codigoGeneracion = doc.CodigoGeneracion,
+                selloRecibido = doc.SelloRecibido,
+                numeroControl = doc.NumeroControl,
+                fecEmi = doc.FechaEmision.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                montoIva = (double)doc.IvaTotal,
+                codigoGeneracionR = tipoAnulacion is 1 or 3 ? codigoGeneracionReemplazo : null,
+                tipoDocumento = doc.ReceptorTipoDocumento?.Trim().ToUpperInvariant() switch
+                {
+                    "NIT" => "36", "DUI" => "13", "PASAPORTE" => "03",
+                    "CARNET_RESIDENTE" => "02", "OTRO" => "37", var x => x,
+                },
+                numDocumento = doc.ReceptorNumeroDocumento,
+                nombre = doc.ReceptorNombre,
+                telefono = doc.ReceptorTelefono,
+                correo = doc.ReceptorCorreo,
+            },
+            motivo = new
+            {
+                tipoAnulacion,
+                motivoAnulacion = tipoAnulacion == 2 ? (motivoAnulacion ?? "Rescindir de la operación realizada") : motivoAnulacion,
+                nombreResponsable,
+                tipDocResponsable = tipoDocResponsable,
+                numDocResponsable,
+                nombreSolicita = nombreResponsable,
+                tipDocSolicita = tipoDocResponsable,
+                numDocSolicita = numDocResponsable,
+            },
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(evento,
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+        return await FirmarYTransmitirEventoAsync(json, "/fesv/anulardte",
+            jws => new { ambiente, idEnvio = doc.Id, version = 2, documento = jws },
+            config, empresaId, "EVENTO_INVALIDACION", actor, ct);
     }
 
     // ---- validación de request ----

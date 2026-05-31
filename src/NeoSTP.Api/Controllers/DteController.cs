@@ -128,6 +128,16 @@ public class DteController : ApiControllerBase
             _currentUser.Username, ct));
     }
 
+    [HttpPost("evento/invalidacion")]
+    [RequirePermiso("DTE.Invalidar")]
+    public async Task<IActionResult> EventoInvalidacion([FromBody] EventoInvalidacionRequest body, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.TransmitirInvalidacionEventoAsync(
+            eid, body.DocumentoId, body.TipoAnulacion, body.MotivoAnulacion, body.CodigoGeneracionReemplazo,
+            body.NombreResponsable, body.TipoDocResponsable, body.NumDocResponsable, _currentUser.Username, ct));
+    }
+
     // ---- descarga y reenvío (Sprint 7) ----
 
     [HttpGet("documentos/{id:int}/pdf")]
@@ -194,5 +204,16 @@ public class DteController : ApiControllerBase
         public string NombreResponsable { get; set; } = null!;
         public string TipoDocResponsable { get; set; } = "36";
         public string NumeroDocResponsable { get; set; } = null!;
+    }
+
+    public class EventoInvalidacionRequest
+    {
+        public int DocumentoId { get; set; }
+        public int TipoAnulacion { get; set; } = 2;
+        public string? MotivoAnulacion { get; set; }
+        public string? CodigoGeneracionReemplazo { get; set; }
+        public string NombreResponsable { get; set; } = null!;
+        public string TipoDocResponsable { get; set; } = "36";
+        public string NumDocResponsable { get; set; } = null!;
     }
 }
