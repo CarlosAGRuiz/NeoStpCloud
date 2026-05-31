@@ -138,6 +138,15 @@ public class DteController : ApiControllerBase
             body.NombreResponsable, body.TipoDocResponsable, body.NumDocResponsable, _currentUser.Username, ct));
     }
 
+    [HttpPost("evento/operaciones-especiales")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> EventoOperacionesEspeciales([FromBody] EventoOpEspecialesRequest body, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.TransmitirEventoOperacionesEspecialesAsync(
+            eid, body.CodigoGeneracionRef, body.Descripcion, body.Monto, _currentUser.Username, ct));
+    }
+
     // ---- descarga y reenvío (Sprint 7) ----
 
     [HttpGet("documentos/{id:int}/pdf")]
@@ -215,5 +224,12 @@ public class DteController : ApiControllerBase
         public string NombreResponsable { get; set; } = null!;
         public string TipoDocResponsable { get; set; } = "36";
         public string NumDocResponsable { get; set; } = null!;
+    }
+
+    public class EventoOpEspecialesRequest
+    {
+        public string? CodigoGeneracionRef { get; set; }
+        public string Descripcion { get; set; } = "Operación especial";
+        public decimal Monto { get; set; } = 10m;
     }
 }

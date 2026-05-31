@@ -885,6 +885,79 @@ public class DteDocumentosService : IDteDocumentosService
             config, empresaId, "EVENTO_INVALIDACION", actor, ct);
     }
 
+    /// <summary>Evento de Operaciones Especiales (EOE, tipoEvento 17). Esquema fe-eop (transmisión vía recepciondte).</summary>
+    public async Task<Result<string>> TransmitirEventoOperacionesEspecialesAsync(
+        int empresaId, string? codigoGeneracionRef, string descripcion, decimal monto, string? actor, CancellationToken ct = default)
+    {
+        var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
+        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config?.CertificadoBlob is null) return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+
+        var ahora = DateTime.Now;
+        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+        var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
+        var m = (double)monto;
+
+        var evento = new
+        {
+            identificacion = new
+            {
+                version = 1,
+                ambiente,
+                tipoModelo = 1,
+                tipoOperacion = 1,
+                tipoEvento = "17",
+                codigoGeneracion = codGen,
+                fecEmi = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                horEmi = ahora.ToString(@"HH\:mm\:ss"),
+                tipoMoneda = "USD",
+            },
+            emisor = new { nit = empresa.Nit, nombre = empresa.RazonSocial },
+            cuerpoDocumento = new[]
+            {
+                new
+                {
+                    numItem = 1,
+                    codigoGeneracionRef = (string?)null,   // referencia a OTRO EOE (anulados); null en caso normal
+                    tipoDocumento = "97",                  // CAT: 97 = Comprobante de Control Interno
+                    numDocumento = string.IsNullOrWhiteSpace(codigoGeneracionRef) ? "DCI0001" : codigoGeneracionRef,  // Documento origen
+                    fechaEmision = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                    cantidad = 1,
+                    descripcion,
+                    docDel = (string?)null,
+                    docAl = (string?)null,
+                    precioUni = m,
+                    ventaNoSuj = 0d,
+                    ventaExenta = 0d,
+                    ventaGravada = m,
+                    tributos = new[] { "20" },
+                },
+            },
+            resumen = new
+            {
+                totalNoSuj = 0d,
+                totalExenta = 0d,
+                totalGravada = m,
+                subTotal = m,
+                tributos = new[]
+                {
+                    new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = Math.Round(m * 0.13, 2) },
+                },
+                total = Math.Round(m + m * 0.13, 2),
+                totalLetras = (string?)null,
+            },
+            apendice = (object?)null,
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(evento,
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
+        return await FirmarYTransmitirEventoAsync(json, "/fesv/recepciondte",
+            jws => new { ambiente, idEnvio = ahora.Millisecond + 1, version = 1, tipoDte = "17", documento = jws, codigoGeneracion = codGen },
+            config, empresaId, "EVENTO_OPERACIONES_ESPECIALES", actor, ct);
+    }
+
     // ---- validación de request ----
 
     private static List<string> ValidateRequest(CreateDteDocumentoRequest r)
