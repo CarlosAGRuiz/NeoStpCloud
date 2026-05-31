@@ -2,11 +2,14 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 11b — Primer DTE PROCESADO por Hacienda (apitest)** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 101/101 pasando  
-> El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas de los 5 tipos DTE.
+> **Versión actual: Sprint 12 — 5 tipos DTE certificados contra Hacienda (apitest)** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 106/106 pasando  
+> El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
-> 🎉 **Hito:** una Factura (01) recorrió el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv` y fue **PROCESADA** por Hacienda (`codigoMsg=001`, `selloRecibido` emitido). Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
+> 🎉 **Hito:** **5 tipos de DTE PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
+> **01 Factura** · **11 Factura de Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación** (los 5 tipos que no requieren receptor inscrito en IVA). Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
+>
+> 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
 
 ## Stack
 
@@ -447,11 +450,34 @@ implementación y el comportamiento real de MH hasta lograr `estado=PROCESADO`:
 Evidencia del primer DTE aceptado: `selloRecibido=202610EB9EA7841B405899A4D149D56AFF3CBWDE`,
 `numeroControl=DTE-01-M001P001-000000000000014`, `codigoMsg=001` (RECIBIDO), `observaciones=[]`.
 
-> ⚠️ **Pendiente para producción:** los esquemas oficiales vigentes son **Factura v2**,
-> **CCF/NC/ND v4** y **FSE v2** (carpeta `svfe-json-schemas`). El generador actual emite
-> contra el esquema v1 (que apitest aún acepta). Migrar a v2/v4 implica: `identificacion.version`
-> por tipo (2/4), `emisor.direccion.distrito` (nueva división territorial 2024), eliminar
-> `extension` de la Factura y renombrar `resumen.ivaRete1`→`ivaRete`. Ver `docs/`.
+#### Matriz de certificación — Sprint 12 (5 tipos PROCESADOS)
+
+Hallazgo decisivo: **el ambiente apitest valida contra los esquemas v1/v3, NO v2/v4.**
+Los archivos `svfe-json-schemas` (v2/v4) son más nuevos que lo desplegado en apitest.
+Se envió una Factura v2 (con `distrito`, `ivaRete`, sin `extension`) y MH la rechazó
+exigiendo lo contrario; al volver a v1 → PROCESADO. **La certificación se hace contra
+v1/v3**, que es lo que el generador emite. La infraestructura de `distrito` (CAT-008)
+queda lista pero dormante para Factura v1 — aunque **sí se usa** en los tipos v2/v3.
+
+| Tipo DTE | Versión apitest | Estado | Aprendizaje clave |
+|---|---|---|---|
+| 01 Factura | v1 | ✅ PROCESADO | `extension`, `ivaRete1`+`reteRenta`, `codEstableMH`+`tipoEstablecimiento`, división territorial **vieja** (municipio `03`) |
+| 14 Sujeto Excluido | v1 | ✅ PROCESADO | emisor **sin** `tipoEstablecimiento`/`nombreComercial` |
+| 04 Nota de Remisión | v3 | ✅ PROCESADO | `extension` sin `placaVehiculo`; con línea **NO_SUJETA** se acepta receptor sin NRC (cod 002) |
+| 15 Donación | v2 | ✅ PROCESADO | emisor=Donatario (`tipoDocumento`), `pagos` requerido, división territorial **2024** (municipio `23` + distrito `03`) |
+| 11 Factura Exportación | v3 | ✅ PROCESADO | receptor extranjero `codPais` CAT-020 (`9539`=EUA, `9300`=El Salvador), tributo **`C3`** (IVA export 0%), división 2024 |
+
+**Patrón territorial por versión:** los DTE v1 usan la división vieja (Ayutuxtepeque = municipio `03`);
+los v2/v3 usan la división 2024 (San Salvador Centro `23` + distrito Ayutuxtepeque `03`).
+
+**Salvaguardas añadidas:** mapeo interno→CAT-022 en `receptor.tipoDocumento` (DUI→13, NIT→36…) y
+un **guardrail anti-mock** que bloquea enviar una firma `none/mock` al Hacienda real
+(`FIRMA_MOCK_NO_ENVIABLE`) — la Web firma con sus propios servicios, así que su
+`appsettings.Local.json` también debe fijar `Dte:Signer=HaciendaCert`.
+
+> ⏳ **Pendiente de matriz:** 03 CCF / 05 NC / 06 ND y 07/08/09 requieren receptor
+> **inscrito en IVA** (NIT + NRC reales). Faltan también los **eventos** (Invalidación,
+> Contingencia, Retorno, Operaciones Especiales). Migración a v2/v4 solo cuando apitest la adopte.
 
 ### Documentos DTE — descarga y correo (Sprint 7)
 
