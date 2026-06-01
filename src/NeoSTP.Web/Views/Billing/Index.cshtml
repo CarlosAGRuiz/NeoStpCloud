@@ -1,0 +1,118 @@
+@{
+    ViewData["Title"] = "Mi Suscripción";
+    var sub      = ViewBag.Subscription as NeoSTP.Application.Billing.Dtos.BillingSubscriptionDto;
+    var payments = ViewBag.Payments as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingPaymentDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingPaymentDto>();
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+                    <li class="breadcrumb-item active">Billing</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0"><i class="bi bi-credit-card me-2"></i>Mi Suscripción</h2>
+        </div>
+        <div class="col-auto">
+            @if (sub == null)
+            {
+                <a asp-action="Checkout" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Activar plan
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-2"></i>@TempData["Success"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+
+    @if (sub != null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">Plan Activo</h6>
+                        <h4 class="card-title">@sub.PlanNombre</h4>
+                        <span class="badge @(sub.Status == "ACTIVE" ? "bg-success" : sub.Status == "TRIALING" ? "bg-info" : sub.Status == "PAST_DUE" ? "bg-warning" : "bg-danger")">
+                            @sub.Status
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            @(sub.Status == "TRIALING" ? "Trial hasta" : "Próxima renovación")
+                        </h6>
+                        <h4>@((sub.Status == "TRIALING" ? sub.TrialEnd : sub.CurrentPeriodEnd)?.ToString("dd/MM/yyyy") ?? "—")</h4>
+                        @if (sub.CancelAtPeriodEnd)
+                        {
+                            <span class="badge bg-warning text-dark">Se cancela al vencer</span>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column gap-2">
+                        <h6 class="card-subtitle text-muted">Acciones</h6>
+                        <a asp-action="Portal" class="btn btn-outline-primary btn-sm"><i class="bi bi-gear me-1"></i>Portal de facturación</a>
+                        <form asp-action="Cancel" method="post" onsubmit="return confirm('¿Confirmar cancelación?')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="atPeriodEnd" value="true" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-x-circle me-1"></i>Cancelar suscripción</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Últimos pagos -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-receipt me-2"></i>Últimos pagos</div>
+            <div class="card-body p-0">
+                @if (!payments.Any())
+                {
+                    <p class="text-muted p-3 mb-0">Sin pagos registrados.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light"><tr><th>Fecha</th><th>Monto</th><th>Moneda</th><th>Estado</th><th>Recibo</th></tr></thead>
+                            <tbody>
+                                @foreach (var p in payments.Take(10))
+                                {
+                                    <tr>
+                                        <td>@p.PaidAt.ToString("dd/MM/yyyy")</td>
+                                        <td>@p.Amount.ToString("N2")</td>
+                                        <td>@p.Currency</td>
+                                        <td><span class="badge @(p.Status == "SUCCEEDED" ? "bg-success" : "bg-secondary")">@p.Status</span></td>
+                                        <td>@(p.ReceiptUrl != null ? Html.Raw($"<a href='{p.ReceiptUrl}' target='_blank'>Ver</a>") : Html.Raw("—"))</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            No tienes ninguna suscripción activa. <a asp-action="Checkout">Activa un plan</a> para comenzar.
+        </div>
+    }
+</div>

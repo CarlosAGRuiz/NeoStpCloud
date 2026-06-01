@@ -1,0 +1,226 @@
+@{
+    ViewData["Title"] = "Portal de Facturación";
+    var sub      = ViewBag.Subscription as NeoSTP.Application.Billing.Dtos.BillingSubscriptionDto;
+    var payments = ViewBag.Payments as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingPaymentDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingPaymentDto>();
+    var invoices = ViewBag.Invoices as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingInvoiceDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingInvoiceDto>();
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Index">Billing</a></li>
+                    <li class="breadcrumb-item active">Portal</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0"><i class="bi bi-gear me-2"></i>Portal de Facturación</h2>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (sub != null)
+    {
+        <!-- Resumen de suscripción -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-layers me-2"></i>Suscripción actual</span>
+                <form asp-action="OpenExternalPortal" method="post" class="mb-0">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Portal del proveedor
+                    </button>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-sm-3">
+                        <div class="text-muted small">Plan</div>
+                        <div class="fw-semibold">@sub.PlanNombre</div>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="text-muted small">Estado</div>
+                        <span class="badge @(sub.Status == "ACTIVE" ? "bg-success" : sub.Status == "TRIALING" ? "bg-info" : sub.Status == "PAST_DUE" ? "bg-warning text-dark" : "bg-danger")">
+                            @sub.Status
+                        </span>
+                    </div>
+                    <div class="col-sm-3">
+                        <div class="text-muted small">@(sub.Status == "TRIALING" ? "Trial hasta" : "Renovación")</div>
+                        <div class="fw-semibold">
+                            @((sub.Status == "TRIALING" ? sub.TrialEnd : sub.CurrentPeriodEnd)?.ToString("dd/MM/yyyy") ?? "—")
+                        </div>
+                    </div>
+                    <div class="col-sm-3 d-flex align-items-end gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                data-bs-toggle="modal" data-bs-target="#changePlanModal">
+                            <i class="bi bi-arrow-repeat me-1"></i>Cambiar plan
+                        </button>
+                        @if (!sub.CancelAtPeriodEnd)
+                        {
+                            <form asp-action="Cancel" method="post"
+                                  onsubmit="return confirm('¿Confirmar cancelación al final del período?')">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="atPeriodEnd" value="true" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x-circle me-1"></i>Cancelar
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Se cancela al vencer</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Facturas -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-file-earmark-text me-2"></i>Facturas
+            </div>
+            <div class="card-body p-0">
+                @if (!invoices.Any())
+                {
+                    <p class="text-muted p-3 mb-0">Sin facturas disponibles.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th><th>Vence</th><th>Monto</th><th>Estado</th><th>PDF</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var inv in invoices)
+                                {
+                                    <tr>
+                                        <td>@inv.InvoiceDate.ToString("dd/MM/yyyy")</td>
+                                        <td>@(inv.DueDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                        <td>@inv.Amount.ToString("N2") @inv.Currency</td>
+                                        <td>
+                                            <span class="badge @(inv.Status == "PAID" ? "bg-success" : inv.Status == "OPEN" ? "bg-warning text-dark" : "bg-secondary")">
+                                                @inv.Status
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (inv.PdfUrl != null)
+                                            {
+                                                <a href="@inv.PdfUrl" target="_blank"><i class="bi bi-file-pdf"></i></a>
+                                            }
+                                            else
+                                            {
+                                                <span>—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Pagos -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-cash-stack me-2"></i>Historial de pagos
+            </div>
+            <div class="card-body p-0">
+                @if (!payments.Any())
+                {
+                    <p class="text-muted p-3 mb-0">Sin pagos registrados.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr><th>Fecha</th><th>Monto</th><th>Estado</th><th>Recibo</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in payments)
+                                {
+                                    <tr>
+                                        <td>@p.PaidAt.ToString("dd/MM/yyyy")</td>
+                                        <td>@p.Amount.ToString("N2") @p.Currency</td>
+                                        <td>
+                                            <span class="badge @(p.Status == "SUCCEEDED" ? "bg-success" : "bg-secondary")">
+                                                @p.Status
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (p.ReceiptUrl != null)
+                                            {
+                                                <a href="@p.ReceiptUrl" target="_blank">Ver</a>
+                                            }
+                                            else
+                                            {
+                                                <span>—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No tienes una suscripción activa.
+            <a asp-action="Checkout">Elige un plan</a> para comenzar.
+        </div>
+    }
+</div>
+
+<!-- Modal cambio de plan -->
+<div class="modal fade" id="changePlanModal" tabindex="-1" aria-labelledby="changePlanModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePlanModalLabel">Cambiar plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form asp-action="ChangePlan" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nuevo plan</label>
+                        <select name="newPlanId" class="form-select">
+                            <option value="1">Básico — $299/mes</option>
+                            <option value="2">Profesional — $699/mes</option>
+                        </select>
+                    </div>
+                    <p class="text-muted small mb-0">El cambio se aplica de forma inmediata. La diferencia de precio se prorratea.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar cambio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -2,7 +2,7 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 18 — Legal + consentimiento** ✅  
+> **Versión actual: Sprint 19 — Billing self-service** ✅  
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179 pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
@@ -10,6 +10,8 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 📦 **Sprint 19 (Billing self-service):** Módulo de facturación completo — trial 14 días, checkout (Stripe / MercadoPago / Mock), portal de facturación, upgrade/downgrade de plan, cancelación, webhooks idempotentes (`Billing_WebhookEvents`), activación automática de licencias (`Core_EmpresaPlan`), emails transaccionales en cada transición de estado. Tablas: `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`. Toggle `Billing:Provider = Mock | Stripe | MercadoPago`. Migración `Sprint19_BillingSelfService`.
 >
 > 📦 **Sprint 18 (Legal + consentimiento):** Módulo legal completo — páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalDocumentService` con reemplazo de placeholders desde `LegalOptions`, tabla `Core_UserConsents` con registro de IP/UserAgent/versión, checkbox obligatorio de aceptación en creación de usuario, enlace al footer en el layout, migración `Sprint18_LegalConsentimiento`.
 
@@ -28,6 +30,7 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **DataProtection** para cifrado de secretos DTE
 - **QuestPDF 2025.1** + **MailKit 4.17** para representación gráfica y correo
 - **BCrypt.Net-Next** (work factor 11) para hash de passwords
+- **Stripe.net 47** + **mercadopago-sdk 3.1** para pagos (toggle Mock / Stripe / MercadoPago)
 
 ## Arquitectura
 
@@ -245,6 +248,7 @@ Migraciones aplicadas en orden:
 20. `Sprint17_DiagnosticoErrores` — tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias` + permiso `DTE.Diagnostico`
 21. `Sprint17_SeedErrorCatalogo` — seed de 11 códigos de error MH e internos en `Dte_ErrorCatalogo`
 22. `Sprint18_LegalConsentimiento` — tabla `Core_UserConsents` para registro de consentimientos legales
+23. `Sprint19_BillingSelfService` — tablas `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`
 
 ```powershell
 # Crear una nueva migración
@@ -787,10 +791,10 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 13     | Catálogos MH (CRUD + import/export + 36 catálogos oficiales v1.4) | ✅     |
 | 14     | Certificación DTE (matriz, progreso, escenarios) | ✅     |
 | 15     | Eventos DTE persistentes + UI + PDF + integración certificación | ✅     |
-| 16     | Contingencia avanzada y recepción por lotes   | 🔜     |
-| 17     | Diagnóstico de errores Hacienda               | 🔜     |
-| 18     | Legal + consentimiento                        | 🔜     |
-| 19     | Billing self-service (Stripe / MercadoPago)   | 🔜     |
+| 16     | Contingencia avanzada y recepción por lotes   | ✅     |
+| 17     | Diagnóstico de errores Hacienda               | ✅     |
+| 18     | Legal + consentimiento                        | ✅     |
+| 19     | Billing self-service (Stripe / MercadoPago)   | ✅     |
 | 20     | Hardening pre-producción                      | 🔜     |
 | 21     | UI/UX AppShell + design system                | 🔜     |
 | 22     | NeoProfit básico                              | 🔜     |

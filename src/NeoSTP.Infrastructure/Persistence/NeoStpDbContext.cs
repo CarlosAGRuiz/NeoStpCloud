@@ -8,6 +8,7 @@ using NeoSTP.Domain.Core.Dte.Contingencia;
 using NeoSTP.Domain.Core.Dte.Diagnostico;
 using NeoSTP.Domain.Core.Dte.Eventos;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Billing;
 using NeoSTP.Domain.Core.Legal;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Productos;
@@ -79,6 +80,14 @@ public class NeoStpDbContext : DbContext
 
     // Legal — consentimiento (Sprint 18)
     public DbSet<UserConsent> UserConsents => Set<UserConsent>();
+
+    // Billing — self-service (Sprint 19)
+    public DbSet<BillingCustomer> BillingCustomers => Set<BillingCustomer>();
+    public DbSet<BillingSubscription> BillingSubscriptions => Set<BillingSubscription>();
+    public DbSet<BillingPayment> BillingPayments => Set<BillingPayment>();
+    public DbSet<BillingInvoice> BillingInvoices => Set<BillingInvoice>();
+    public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
+    public DbSet<BillingPlanProviderMapping> BillingPlanProviderMappings => Set<BillingPlanProviderMapping>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

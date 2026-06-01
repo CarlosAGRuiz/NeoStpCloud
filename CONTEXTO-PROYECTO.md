@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Sprint 18 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179
+> **Versión:** Sprint 19 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -160,7 +160,7 @@ certificación se hace contra **v1/v3**.
 `Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
 `Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion` ·
 `Sprint15_DteEventos` · `Sprint15_PermisoEventos` · `Sprint15_CertificacionPruebaEvento` ·
-`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento`.
+`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService`.
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -213,6 +213,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | ~~**Contingencia avanzada**~~ | ✅ Sprint 16 — `Dte_ContingenciaLotes`, `Dte_ContingenciaLoteDetalles`, `ContingenciaLoteService`, workers y UI |
 | ~~**Diagnóstico errores Hacienda**~~ | ✅ Sprint 17 — `Dte_ErrorCatalogo`, `Dte_ErrorOcurrencias`, `DiagnosticoHaciendaService`, seed 11 errores, API + UI |
 | ~~**Legal / Consentimiento**~~ | ✅ Sprint 18 — `Core_UserConsents`, `LegalDocumentService`, páginas `/legal/*`, checkbox en registro |
+| ~~**Billing self-service**~~ | ✅ Sprint 19 — `Billing_Customers/Subscriptions/Payments/Invoices/WebhookEvents/PlanProviderMappings`, `BillingService`, providers Stripe/MercadoPago/Mock, webhooks idempotentes, activación licencias, emails transaccionales, UI `/billing` |
 | ~~**Certificación**~~ | ✅ Sprint 14 — `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` con seed 625 escenarios |
 | ~~**Catálogos MH**~~ | ✅ Sprint 13 — `Core_Catalogos.Version`/`MetadataJson` y `Core_CatalogoItems.ParentCodigo` agregados |
 | **NeoProfit** | `Profit_Gastos`, `Profit_Compras`, `Profit_SnapshotsMensuales`, `Profit_Alertas` |
@@ -603,8 +604,8 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 15 | **NeoSTP Mobile** | ❌ | App MVP (login, DTE básico, escaneo) | Media |
 | 16 | **Mobile Management** | ❌ | Gestión de dispositivos | Media-baja |
 | 17 | **SuperAdmin** | ✅ parcial | Billing, salud sistema, incidentes, churn, soporte | Alta |
-| 18 | **Billing SaaS** | ❌ | Trial, Stripe/MercadoPago, webhooks, licencias auto | Crítico (venta) |
-| 19 | **Legal / Compliance** | ❌ | Términos, privacidad, consentimiento | Crítico (venta) |
+| 18 | **Billing SaaS** | ✅ Sprint 19 | Trial, Stripe/MercadoPago, webhooks, licencias auto | Crítico (venta) |
+| 19 | **Legal / Compliance** | ✅ Sprint 18 | Términos, privacidad, consentimiento | Crítico (venta) |
 | 20 | **Hardening** | ❌ | Backups, k6, OWASP ZAP, quotas, MFA, DR | Alto (pre-prod) |
 
 ---

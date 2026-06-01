@@ -1,0 +1,108 @@
+@{
+    ViewData["Title"] = "Elegir Plan";
+}
+
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col text-center">
+            <h2><i class="bi bi-stars me-2"></i>Elige tu plan</h2>
+            <p class="text-muted">Comienza con 14 días gratis. Sin tarjeta requerida para el trial.</p>
+        </div>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+
+    <div class="row g-4 justify-content-center">
+        <!-- Plan Básico -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-light text-center py-3">
+                    <h5 class="mb-0">Básico</h5>
+                    <div class="display-6 fw-bold mt-2">$299 <small class="fs-6 fw-normal text-muted">/mes</small></div>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Hasta 500 DTEs/mes</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>1 sucursal</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Soporte por email</li>
+                        <li class="text-muted"><i class="bi bi-x-circle me-2"></i>Multi-empresa</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-white border-0 pb-4 d-flex flex-column gap-2">
+                    <form asp-action="StartTrial" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="planId" value="1" />
+                        <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-play-circle me-1"></i>Iniciar trial gratis</button>
+                    </form>
+                    <form asp-action="CreateCheckout" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="planId" value="1" />
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-credit-card me-1"></i>Contratar ahora</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plan Profesional -->
+        <div class="col-md-4">
+            <div class="card shadow h-100 border-primary border-2">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <span class="badge bg-warning text-dark mb-1">Más popular</span>
+                    <h5 class="mb-0">Profesional</h5>
+                    <div class="display-6 fw-bold mt-2">$699 <small class="fs-6 fw-normal opacity-75">/mes</small></div>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>DTEs ilimitados</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Hasta 5 sucursales</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Soporte prioritario</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>API access</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-white border-0 pb-4 d-flex flex-column gap-2">
+                    <form asp-action="StartTrial" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="planId" value="2" />
+                        <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-play-circle me-1"></i>Iniciar trial gratis</button>
+                    </form>
+                    <form asp-action="CreateCheckout" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="planId" value="2" />
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-credit-card me-1"></i>Contratar ahora</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plan Enterprise -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-dark text-white text-center py-3">
+                    <h5 class="mb-0">Enterprise</h5>
+                    <div class="display-6 fw-bold mt-2">Custom</div>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Todo de Profesional</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Multi-empresa</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>SLA garantizado</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Onboarding dedicado</li>
+                    </ul>
+                </div>
+                <div class="card-footer bg-white border-0 pb-4">
+                    <a href="mailto:ventas@neostp.com" class="btn btn-dark w-100"><i class="bi bi-envelope me-1"></i>Contactar ventas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col text-center text-muted small">
+            <i class="bi bi-shield-check me-1"></i>Pagos seguros procesados por Stripe y MercadoPago.
+            Al contratar aceptas nuestros <a asp-controller="Legal" asp-action="Index" asp-route-slug="terms">Términos de Servicio</a>.
+        </div>
+    </div>
+</div>

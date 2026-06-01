@@ -18,9 +18,11 @@ using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
+using NeoSTP.Application.Billing;
 using NeoSTP.Application.Legal;
 using NeoSTP.Application.Workers;
 using NeoSTP.Infrastructure.Auth;
+using NeoSTP.Infrastructure.Billing;
 using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
@@ -185,6 +187,18 @@ public static class DependencyInjection
 
         // Sprint 18: Legal + consentimiento
         services.AddScoped<ILegalDocumentService, LegalDocumentService>();
+
+        // Sprint 19: Billing self-service — toggle "Mock" (default) | "Stripe" | "MercadoPago"
+        services.Configure<BillingOptions>(configuration.GetSection("Billing"));
+        var billingProvider = configuration["Billing:Provider"];
+        if (string.Equals(billingProvider, "Stripe", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<IPaymentProvider, StripeBillingProvider>();
+        else if (string.Equals(billingProvider, "MercadoPago", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<IPaymentProvider, MercadoPagoBillingProvider>();
+        else
+            services.AddScoped<IPaymentProvider, MockPaymentProvider>();
+        services.AddScoped<IBillingService, BillingService>();
+        services.AddScoped<IBillingWebhookHandler, BillingWebhookHandler>();
 
         // Sprint 7: PDF + correo
         services.AddScoped<IDtePdfService, DtePdfService>();
