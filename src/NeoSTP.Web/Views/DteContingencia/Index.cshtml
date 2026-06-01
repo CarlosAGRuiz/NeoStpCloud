@@ -1,0 +1,120 @@
+@using NeoSTP.Application.Dte.Contingencia.Dtos
+@model IReadOnlyList<ContingenciaDocumentoDto>
+@{
+    ViewData["Title"] = "Cola de Contingencia";
+    var resumen = ViewBag.Resumen as ContingenciaResumenDto;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>⚡ Cola de Contingencia</h2>
+    <a asp-action="Lotes" class="btn btn-outline-primary btn-sm">📦 Ver Lotes</a>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-md-3">
+            <div class="card border-warning text-center p-3">
+                <div class="display-6 fw-bold text-warning">@resumen.DocumentosPendientes</div>
+                <div class="small text-muted">DTE en contingencia</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="card border-info text-center p-3">
+                <div class="display-6 fw-bold text-info">@resumen.LotesPendientes</div>
+                <div class="small text-muted">Lotes pendientes</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="card border-success text-center p-3">
+                <div class="display-6 fw-bold text-success">@resumen.DocumentosProcesados</div>
+                <div class="small text-muted">DTE procesados</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3">
+            <div class="card border-danger text-center p-3">
+                <div class="display-6 fw-bold text-danger">@resumen.DocumentosConError</div>
+                <div class="small text-muted">DTE con error</div>
+            </div>
+        </div>
+    </div>
+
+    @if (resumen.VencimientoLoteMasAntiguo.HasValue)
+    {
+        var diff = resumen.VencimientoLoteMasAntiguo.Value - DateTime.UtcNow;
+        var alertClass = diff.TotalHours < 12 ? "alert-danger" : diff.TotalHours < 24 ? "alert-warning" : "alert-info";
+        <div class="alert @alertClass">
+            ⏱️ Vencimiento del lote más antiguo: <strong>@resumen.VencimientoLoteMasAntiguo.Value.ToString("dd/MM/yyyy HH:mm")</strong>
+            (@((int)diff.TotalHours)h restantes)
+        </div>
+    }
+
+    @if (resumen.EventoSinLoteId.HasValue)
+    {
+        <div class="alert alert-warning d-flex align-items-center justify-content-between">
+            <span>⚠️ Hay un evento de contingencia PROCESADO sin lote creado (Evento #@resumen.EventoSinLoteId).</span>
+            <form asp-action="CrearLote" method="post" class="ms-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="eventoContingenciaId" value="@resumen.EventoSinLoteId" />
+                <button type="submit" class="btn btn-warning btn-sm">📤 Crear y enviar lote</button>
+            </form>
+        </div>
+    }
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-success">✅ No hay documentos en contingencia.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Fecha emisión</th>
+                    <th>Número control</th>
+                    <th>Tipo</th>
+                    <th>Receptor</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Intentos</th>
+                    <th class="text-center">Horas</th>
+                    <th>Último intento</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var d in Model)
+            {
+                var horasClass = d.HorasDesdeEmision > 48 ? "text-danger fw-bold" : d.HorasDesdeEmision > 24 ? "text-warning" : "";
+                <tr>
+                    <td>@d.FechaEmision.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><code class="small">@d.NumeroControl</code></td>
+                    <td><span class="badge bg-secondary">@d.TipoDteCodigo</span></td>
+                    <td>@d.ReceptorNombre</td>
+                    <td class="text-end">$@d.TotalPagar.ToString("N2")</td>
+                    <td class="text-center">@d.IntentoRetransmision</td>
+                    <td class="text-center @horasClass">@d.HorasDesdeEmision h</td>
+                    <td>@(d.UltimoIntentoAt.HasValue ? d.UltimoIntentoAt.Value.ToString("dd/MM HH:mm") : "—")</td>
+                    <td>
+                        <form asp-action="ReintentarDocumento" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="dteId" value="@d.Id" />
+                            <button type="submit" class="btn btn-outline-warning btn-sm" title="Reintentar">↺</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

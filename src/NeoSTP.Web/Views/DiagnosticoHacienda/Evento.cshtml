@@ -1,0 +1,63 @@
+@using NeoSTP.Application.Dte.Diagnostico.Dtos
+@model DiagnosticoEventoDto
+@{
+    ViewData["Title"] = $"Diagnóstico Evento #{Model.DteEventoId}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">🔍 Diagnóstico evento DTE</h1>
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">← Volver</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0"><strong>Información del evento</strong></div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">ID</dt>
+            <dd class="col-sm-8">#@Model.DteEventoId</dd>
+            <dt class="col-sm-4">Tipo evento</dt>
+            <dd class="col-sm-8"><span class="badge bg-secondary">@Model.TipoEventoCodigo</span></dd>
+            <dt class="col-sm-4">Estado</dt>
+            <dd class="col-sm-8"><span class="badge bg-info">@Model.EstadoCodigo</span></dd>
+        </dl>
+    </div>
+</div>
+
+@if (Model.Errores.Any())
+{
+    <h2 class="h6 mb-2">Errores registrados (@Model.Errores.Count)</h2>
+    @foreach (var o in Model.Errores)
+    {
+        var alertClass = o.Severidad switch { "WARNING" => "alert-warning", "INFO" => "alert-info", _ => "alert-danger" };
+        <div class="alert @alertClass @(o.Resuelta ? "opacity-50" : "")">
+            <div class="d-flex justify-content-between">
+                <strong>@o.CodigoError — @(o.Descripcion ?? o.Mensaje)</strong>
+                <small class="text-muted">@o.OcurrioAt.ToString("dd/MM/yyyy HH:mm") · @o.Fuente</small>
+            </div>
+            @if (o.CausaProbable is not null) { <div class="mt-1"><strong>Causa:</strong> @o.CausaProbable</div> }
+            @if (o.AccionSugerida is not null) { <div><strong>Acción sugerida:</strong> @o.AccionSugerida</div> }
+            @if (!o.Resuelta)
+            {
+                <div class="mt-2">
+                    <form asp-action="MarcarResuelta" asp-route-id="@o.Id" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm btn-success">✓ Marcar resuelta</button>
+                    </form>
+                </div>
+            }
+            else { <div class="mt-1"><span class="badge bg-success">✓ Resuelta</span></div> }
+        </div>
+    }
+}
+else
+{
+    <div class="alert alert-success">✅ No hay errores registrados para este evento.</div>
+}
+
+@if (Model.RespuestaMhJson is not null)
+{
+    <details class="mt-2">
+        <summary class="btn btn-sm btn-outline-secondary">📨 Última respuesta de Hacienda</summary>
+        <pre class="bg-dark text-light p-3 rounded mt-2 small" style="max-height:400px;overflow:auto">@Model.RespuestaMhJson</pre>
+    </details>
+}

@@ -96,17 +96,34 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
     public async Task<Result<EmpresaDto>> GetByIdAsync(int? scopeEmpresaId, int id, CancellationToken ct = default)
     {
         if (scopeEmpresaId is not null && scopeEmpresaId != id)
-        {
             return Result<EmpresaDto>.Fail("Empresa fuera de tu alcance.", "EMPRESA_FORBIDDEN");
-        }
 
-        var page = await GetListAsync(scopeEmpresaId, new PagedQuery { Page = 1, PageSize = 1 }, ct);
-        if (page.IsFailure) return Result<EmpresaDto>.Fail(page.Error!, page.ErrorCode);
+        var e = await _db.Empresas.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (e is null) return Result<EmpresaDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
 
-        var first = page.Value!.Items.FirstOrDefault(e => e.Id == id);
-        return first is null
-            ? Result<EmpresaDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND")
-            : Result<EmpresaDto>.Ok(first);
+        var plan = await _db.EmpresaPlanes.AsNoTracking()
+            .Where(ep => ep.EmpresaId == id)
+            .Include(ep => ep.Plan)
+            .OrderByDescending(ep => ep.FechaInicio)
+            .FirstOrDefaultAsync(ct);
+
+        var dto = new EmpresaDto
+        {
+            Id = e.Id, Nit = e.Nit, Nrc = e.Nrc,
+            RazonSocial = e.RazonSocial, NombreComercial = e.NombreComercial,
+            CodigoActividad = e.CodigoActividad, ActividadEconomica = e.ActividadEconomica,
+            Departamento = e.Departamento, Municipio = e.Municipio,
+            Direccion = e.Direccion, Telefono = e.Telefono, Correo = e.Correo,
+            LogoUrl = e.LogoUrl, EstadoCodigo = e.EstadoCodigo, CreatedAt = e.CreatedAt,
+            Sucursales = await _db.Sucursales.CountAsync(s => s.EmpresaId == id, ct),
+            PuntosVenta = await _db.PuntosVenta.CountAsync(p => p.Sucursal.EmpresaId == id, ct),
+            Usuarios = await _db.Usuarios.CountAsync(u => u.EmpresaId == id, ct),
+            PlanActualCodigo = plan?.Plan.Codigo,
+            PlanActualNombre = plan?.Plan.Nombre,
+            PlanFechaFin = plan?.FechaFin,
+        };
+
+        return Result<EmpresaDto>.Ok(dto);
     }
 
     public async Task<Result<EmpresaDto>> CreateAsync(CreateEmpresaRequest request, string? actor, CancellationToken ct = default)

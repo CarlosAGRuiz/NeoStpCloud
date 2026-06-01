@@ -16553,6 +16553,9 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int?>("EventoId")
+                        .HasColumnType("int");
+
                     b.Property<int>("IntentoNumero")
                         .HasColumnType("int");
 
@@ -16580,12 +16583,437 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EscenarioId");
 
+                    b.HasIndex("EventoId");
+
                     b.HasIndex("EmpresaId", "EstadoCodigo");
 
                     b.HasIndex("EmpresaId", "EscenarioId", "IntentoNumero")
                         .IsUnique();
 
                     b.ToTable("Dte_CertificacionPruebas", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AmbienteCodigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("CodigoLote")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EnviadoAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EstadoCodigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("EventoContingenciaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Intentos")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawConsulta")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RawEnvio")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SelloRecibido")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UltimaConsultaAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventoContingenciaId");
+
+                    b.HasIndex("EmpresaId", "EstadoCodigo");
+
+                    b.ToTable("Dte_ContingenciaLotes", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLoteDetalle", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CodigoGeneracion")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("nvarchar(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DteDocumentoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EstadoCodigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("LoteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MensajeHacienda")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SelloRecibido")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TipoDteCodigo")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DteDocumentoId");
+
+                    b.HasIndex("LoteId", "CodigoGeneracion");
+
+                    b.ToTable("Dte_ContingenciaLoteDetalles", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Diagnostico.DteErrorCatalogo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccionSugerida")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CausaProbable")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("MensajeTecnico")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Severidad")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.HasIndex("Tipo");
+
+                    b.ToTable("Dte_ErrorCatalogo", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            AccionSugerida = "No requiere acción. El sello llegará en el campo selloRecibido.",
+                            Activo = true,
+                            CausaProbable = "El documento fue transmitido y recibido correctamente.",
+                            Codigo = "001",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "Documento recibido por Hacienda",
+                            MensajeTecnico = "001 - RECIBIDO",
+                            Severidad = "INFO",
+                            Tipo = "HACIENDA"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            AccionSugerida = "Revisar el campo observaciones en la respuesta y corregir en el próximo documento.",
+                            Activo = true,
+                            CausaProbable = "El documento fue aceptado pero Hacienda reportó observaciones menores.",
+                            Codigo = "002",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "Documento recibido con observaciones",
+                            MensajeTecnico = "002 - OBSERVACIONES",
+                            Severidad = "WARNING",
+                            Tipo = "HACIENDA"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            AccionSugerida = "Revisar el JSON enviado contra el esquema MH vigente. Corregir los campos señalados y retransmitir.",
+                            Activo = true,
+                            CausaProbable = "El JSON enviado no cumple con el esquema de validación de Hacienda.",
+                            Codigo = "006",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "Documento rechazado por Hacienda",
+                            MensajeTecnico = "006 - RECHAZADO",
+                            Severidad = "ERROR",
+                            Tipo = "HACIENDA"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            AccionSugerida = "Regenerar el token de autenticación. Verificar NIT y credenciales en Config DTE. Contactar a Hacienda si persiste.",
+                            Activo = true,
+                            CausaProbable = "El token de autenticación expiró, es inválido o la cuenta no tiene los permisos requeridos.",
+                            Codigo = "095",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "Error de autenticación con Hacienda",
+                            MensajeTecnico = "095 - Error de autenticación",
+                            Severidad = "ERROR",
+                            Tipo = "HACIENDA"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            AccionSugerida = "Solicitar habilitación del tipo de documento ante el Ministerio de Hacienda.",
+                            Activo = true,
+                            CausaProbable = "La cuenta de pruebas o producción no tiene habilitado el tipo de DTE o la operación solicitada.",
+                            Codigo = "096",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "La cuenta no está autorizada para este tipo de operación",
+                            MensajeTecnico = "096 - Error de autorización",
+                            Severidad = "ERROR",
+                            Tipo = "HACIENDA"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            AccionSugerida = "Verificar si el documento ya fue procesado. Si es un reintento, usar el mismo codigoGeneracion y no generar uno nuevo.",
+                            Activo = true,
+                            CausaProbable = "Se intentó enviar un DTE con un UUID (codigoGeneracion) que ya fue procesado anteriormente.",
+                            Codigo = "802",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "CodigoGeneracion ya existe en Hacienda",
+                            MensajeTecnico = "802 - Documento duplicado",
+                            Severidad = "WARNING",
+                            Tipo = "HACIENDA"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            AccionSugerida = "Verificar el certificado en Config DTE: cargarlo nuevamente con la contraseña correcta y asegurarse que no esté vencido.",
+                            Activo = true,
+                            CausaProbable = "El archivo PFX/P12 es incorrecto, la contraseña es inválida, o el certificado está vencido.",
+                            Codigo = "FIRMA_FAILED",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "Fallo en la firma RS512 del DTE",
+                            MensajeTecnico = "Error al firmar el documento",
+                            Severidad = "ERROR",
+                            Tipo = "FIRMA"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            AccionSugerida = "Verificar las credenciales en Config DTE (usuario/contraseña Hacienda). Revisar conectividad con apitest.dtes.mh.gob.sv.",
+                            Activo = true,
+                            CausaProbable = "El NIT, usuario o contraseña configurados para Hacienda son incorrectos, o el servicio de autenticación no está disponible.",
+                            Codigo = "HACIENDA_AUTH_FAILED",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "No se pudo obtener token JWT de Hacienda",
+                            MensajeTecnico = "Error al obtener token de autenticación",
+                            Severidad = "ERROR",
+                            Tipo = "INTERNO"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            AccionSugerida = "Cambiar el toggle de firma a REAL en Config DTE y regenerar el documento.",
+                            Activo = true,
+                            CausaProbable = "El toggle de firma está en modo simulado (Mock). Los documentos generados en modo Mock no tienen firma real.",
+                            Codigo = "FIRMA_MOCK_NO_ENVIABLE",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "El documento fue firmado en modo MOCK y no puede transmitirse a Hacienda real",
+                            MensajeTecnico = "Documento firmado con mock no es enviable",
+                            Severidad = "WARNING",
+                            Tipo = "INTERNO"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            AccionSugerida = "Revisar la respuesta raw del lote en el detalle. Verificar conectividad y reintentar desde la pantalla de Contingencia.",
+                            Activo = true,
+                            CausaProbable = "El servicio /fesv/recepcionlote de Hacienda no está disponible o devolvió un error de validación.",
+                            Codigo = "LOTE_ENVIO_FAILED",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "El endpoint de recepción de lote respondió con error o no fue alcanzable",
+                            MensajeTecnico = "Error al enviar lote de contingencia",
+                            Severidad = "ERROR",
+                            Tipo = "INTERNO"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            AccionSugerida = "Reintentar la consulta del lote desde la pantalla de Detalle de Lote.",
+                            Activo = true,
+                            CausaProbable = "El servicio /fesv/recepcion/consultadtelote de Hacienda no está disponible.",
+                            Codigo = "LOTE_CONSULTA_FAILED",
+                            CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "El endpoint de consulta de lote no fue alcanzable o devolvió error",
+                            MensajeTecnico = "Error al consultar lote de contingencia",
+                            Severidad = "WARNING",
+                            Tipo = "INTERNO"
+                        });
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Diagnostico.DteErrorOcurrencia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CodigoError")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DteDocumentoId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DteEventoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Fuente")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("JsonEnviado")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Mensaje")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("OcurrioAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RespuestaMhJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Resuelta")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DteDocumentoId");
+
+                    b.HasIndex("DteEventoId");
+
+                    b.HasIndex("EmpresaId", "CodigoError");
+
+                    b.HasIndex("EmpresaId", "OcurrioAt");
+
+                    b.ToTable("Dte_ErrorOcurrencias", (string)null);
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.DteConfiguracion", b =>
@@ -17139,6 +17567,228 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Dte_DocumentoJson", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AmbienteCodigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("CodigoGeneracion")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("nvarchar(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EstadoCodigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("FechaTransmision")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FinalizadoAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MotivoLibre")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NumeroControlReferencia")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("SelloRecibido")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TipoEventoCodigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodigoGeneracion")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "FechaTransmision");
+
+                    b.HasIndex("EmpresaId", "TipoEventoCodigo", "EstadoCodigo");
+
+                    b.ToTable("Dte_Eventos", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEventoDocumentoRelacionado", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DocumentoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EventoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NumeroControlSnapshot")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("RolCodigo")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentoId");
+
+                    b.HasIndex("EventoId", "DocumentoId")
+                        .IsUnique();
+
+                    b.ToTable("Dte_EventoDocumentosRelacionados", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEventoJson", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EventoId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("JsonSinFirmar")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("JwsFirmado")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventoId")
+                        .IsUnique();
+
+                    b.ToTable("Dte_EventoJson", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEventoRespuestaHacienda", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CodigoMsg")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DescripcionMsg")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Estado")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("EventoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RecibidoAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RespuestaCrudaJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SelloRecibido")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodigoMsg");
+
+                    b.HasIndex("EventoId", "RecibidoAt");
+
+                    b.ToTable("Dte_EventoRespuestasHacienda", (string)null);
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Empresas.Empresa", b =>
@@ -18411,6 +19061,15 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = 315,
+                            Codigo = "DTE.Eventos.Ver",
+                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedBy = "SYSTEM",
+                            Descripcion = "Consultar eventos DTE persistidos",
+                            Modulo = "NEODTE"
+                        },
+                        new
+                        {
                             Id = 320,
                             Codigo = "DTE.Configurar",
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -18866,6 +19525,12 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         new
                         {
                             RolId = 500,
+                            PermisoId = 315,
+                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RolId = 500,
                             PermisoId = 320,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -19070,6 +19735,12 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         new
                         {
                             RolId = 501,
+                            PermisoId = 315,
+                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RolId = 501,
                             PermisoId = 320,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -19202,6 +19873,12 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         new
                         {
                             RolId = 502,
+                            PermisoId = 315,
+                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RolId = 502,
                             PermisoId = 321,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -19311,6 +19988,12 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         {
                             RolId = 503,
                             PermisoId = 313,
+                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            RolId = 503,
+                            PermisoId = 315,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -19551,9 +20234,38 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", "Evento")
+                        .WithMany()
+                        .HasForeignKey("EventoId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("DteDocumento");
 
                     b.Navigation("Escenario");
+
+                    b.Navigation("Evento");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLoteDetalle", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", "Lote")
+                        .WithMany("Detalles")
+                        .HasForeignKey("LoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lote");
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.DteConfiguracion", b =>
@@ -19619,6 +20331,58 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Documento");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEventoDocumentoRelacionado", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Dte.DteDocumento", "Documento")
+                        .WithMany()
+                        .HasForeignKey("DocumentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", "Evento")
+                        .WithMany("DocumentosRelacionados")
+                        .HasForeignKey("EventoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Documento");
+
+                    b.Navigation("Evento");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEventoJson", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", "Evento")
+                        .WithOne("Json")
+                        .HasForeignKey("NeoSTP.Domain.Core.Dte.Eventos.DteEventoJson", "EventoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Evento");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEventoRespuestaHacienda", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", "Evento")
+                        .WithMany("Respuestas")
+                        .HasForeignKey("EventoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Evento");
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Empresas.PuntoVenta", b =>
@@ -19795,11 +20559,25 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Errores");
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", b =>
+                {
+                    b.Navigation("Detalles");
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.DteDocumento", b =>
                 {
                     b.Navigation("Detalles");
 
                     b.Navigation("Json");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Eventos.DteEvento", b =>
+                {
+                    b.Navigation("DocumentosRelacionados");
+
+                    b.Navigation("Json");
+
+                    b.Navigation("Respuestas");
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Empresas.Empresa", b =>

@@ -1,4 +1,5 @@
 using NeoSTP.Domain.Common;
+using NeoSTP.Domain.Core.Dte.Eventos;
 
 namespace NeoSTP.Domain.Core.Dte.Certificacion;
 
@@ -16,9 +17,16 @@ public class CertificacionPrueba : AuditableEntity
     public int EscenarioId { get; set; }
     public CertificacionEscenario Escenario { get; set; } = null!;
 
-    /// <summary>DTE asociado al intento. Null cuando solo se reservó la prueba.</summary>
+    /// <summary>DTE asociado al intento. Null cuando solo se reservó la prueba o cuando el escenario es de un evento (ver <see cref="EventoId"/>).</summary>
     public int? DteDocumentoId { get; set; }
     public DteDocumento? DteDocumento { get; set; }
+
+    /// <summary>
+    /// Evento DTE asociado al intento — para matrices CAT-INVALIDACION/CONTINGENCIA/
+    /// RETORNO/OPERACIONES_ESPECIALES (Sprint 15.5). Excluye mutuamente con DteDocumentoId.
+    /// </summary>
+    public int? EventoId { get; set; }
+    public DteEvento? Evento { get; set; }
 
     /// <summary>PENDIENTE / EN_PROGRESO / COMPLETADO / ERROR.</summary>
     public string EstadoCodigo { get; set; } = CertificacionEstadoCodigos.Pendiente;

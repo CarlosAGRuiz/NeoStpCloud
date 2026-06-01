@@ -10,6 +10,9 @@ using NeoSTP.Application.Dashboard;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Certificacion;
+using NeoSTP.Application.Dte.Contingencia;
+using NeoSTP.Application.Dte.Diagnostico;
+using NeoSTP.Application.Dte.Eventos;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Productos;
@@ -45,6 +48,8 @@ public static class DependencyInjection
         services.AddScoped<IRolesService, RolesService>();
         services.AddScoped<ICatalogosService, CatalogosService>();
         services.AddScoped<ICertificacionDteService, CertificacionDteService>();
+        services.AddScoped<IDteEventoService, DteEventoService>();
+        services.AddScoped<IDteEventoPdfService, NeoSTP.Infrastructure.Dte.DteEventoPdfService>();
         services.AddScoped<EmpresasService>();
         services.AddScoped<IEmpresasService>(sp => sp.GetRequiredService<EmpresasService>());
         services.AddScoped<ILicenciaResolver>(sp => sp.GetRequiredService<EmpresasService>());
@@ -110,10 +115,32 @@ public static class DependencyInjection
                     opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
                 });
 
+            services.AddHttpClient(HttpHaciendaLoteClient.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 3;
+                    opts.Retry.Delay = TimeSpan.FromSeconds(2);
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(35);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
+                });
+
+            services.AddHttpClient(HttpHaciendaConsultaLoteClient.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 3;
+                    opts.Retry.Delay = TimeSpan.FromSeconds(2);
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(35);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
+                });
+
             services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
             services.AddScoped<IHaciendaReceptionClient, HttpHaciendaReceptionClient>();
             services.AddScoped<IHaciendaContingenciaClient, HttpHaciendaContingenciaClient>();
             services.AddScoped<IHaciendaEventoClient, HttpHaciendaEventoClient>();
+            services.AddScoped<IHaciendaLoteClient, HttpHaciendaLoteClient>();
+            services.AddScoped<IHaciendaConsultaLoteClient, HttpHaciendaConsultaLoteClient>();
         }
         else
         {
@@ -121,6 +148,8 @@ public static class DependencyInjection
             services.AddScoped<IHaciendaReceptionClient, MockHaciendaReceptionClient>();
             services.AddScoped<IHaciendaContingenciaClient, MockHaciendaContingenciaClient>();
             services.AddScoped<IHaciendaEventoClient, MockHaciendaEventoClient>();
+            services.AddScoped<IHaciendaLoteClient, MockHaciendaLoteClient>();
+            services.AddScoped<IHaciendaConsultaLoteClient, MockHaciendaConsultaLoteClient>();
         }
 
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
@@ -146,6 +175,12 @@ public static class DependencyInjection
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();
         services.AddScoped<ILimpiezaTokensService, LimpiezaTokensService>();
+
+        // Sprint 16: Contingencia avanzada — lotes
+        services.AddScoped<IContingenciaLoteService, ContingenciaLoteService>();
+
+        // Sprint 17: Diagnóstico de errores Hacienda
+        services.AddScoped<IDiagnosticoHaciendaService, DiagnosticoHaciendaService>();
 
         // Sprint 7: PDF + correo
         services.AddScoped<IDtePdfService, DtePdfService>();

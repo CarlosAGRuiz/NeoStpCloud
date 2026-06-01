@@ -1,0 +1,41 @@
+@model NeoSTP.Application.Dte.Eventos.Dtos.CrearEventoOperacionesEspecialesRequest
+@{
+    ViewData["Title"] = "Operaciones especiales";
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Eventos DTE</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Operaciones especiales</li>
+    </ol>
+</nav>
+
+<h2>Operaciones especiales</h2>
+<p class="text-muted">Reporta operaciones que no se documentaron como DTE (Factura Simplificada / Control Interno). Esquema <code>fe-eop</code>, <code>tipoEvento=17</code>, <code>tipoDocumento=97</code>. Requiere que la cuenta esté autorizada por Hacienda para emisión simplificada.</p>
+
+<form method="post" class="card card-body bg-light">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-8">
+            <label class="form-label">Descripción de la operación</label>
+            <textarea asp-for="Descripcion" class="form-control" rows="2" required placeholder="Ej. Ventas de Control Interno período enero-febrero"></textarea>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Monto total</label>
+            <input asp-for="Monto" type="number" step="0.01" min="0.01" class="form-control" required placeholder="0.00" />
+            <small class="text-muted">USD. El IVA 13% se calcula automático.</small>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Código de generación de referencia (opcional)</label>
+        <input asp-for="CodigoGeneracionRef" class="form-control font-monospace" placeholder="UUID de un EOE previo si corresponde" />
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-secondary">Transmitir operación especial</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>

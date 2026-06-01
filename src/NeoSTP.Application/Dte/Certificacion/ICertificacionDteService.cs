@@ -21,6 +21,13 @@ public interface ICertificacionDteService
     /// <summary>Asocia un DteDocumento a un escenario y registra COMPLETADO si el DTE tiene sello.</summary>
     Task<Result<CertificacionPruebaDto>> MarcarCompletadoAsync(int documentoId, MarcarCompletadoRequest request, int empresaId, string? actor, CancellationToken ct = default);
 
+    /// <summary>
+    /// Sprint 15.5 — Asocia un evento DTE (invalidación / contingencia / retorno /
+    /// operaciones especiales) a un escenario de las matrices respectivas. Promueve
+    /// a COMPLETADO si el evento está PROCESADO y tiene sello.
+    /// </summary>
+    Task<Result<CertificacionPruebaDto>> MarcarCompletadoPorEventoAsync(int eventoId, MarcarCompletadoRequest request, int empresaId, string? actor, CancellationToken ct = default);
+
     /// <summary>Marca la prueba actual del documento como ERROR y abre un nuevo intento.</summary>
     Task<Result<CertificacionPruebaDto>> ReintentarAsync(int documentoId, int empresaId, string? actor, CancellationToken ct = default);
 

@@ -9,6 +9,9 @@
     var enModoSoporte = EmpresaContext.IsSupportMode;
     var puedeVerCatalogos = isSuperAdmin || User.HasClaim("permiso", "Core.Catalogos.Ver");
     var puedeVerCertificacion = isSuperAdmin || User.HasClaim("permiso", "Core.Certificacion.Ver");
+    var puedeVerEventos = isSuperAdmin || User.HasClaim("permiso", "DTE.Eventos.Ver");
+    var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
+    var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 }
 <!DOCTYPE html>
 <html lang="es">
@@ -49,6 +52,18 @@
                             <li class="nav-item"><a class="nav-link" asp-controller="Clientes" asp-action="Index">Clientes</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Productos" asp-action="Index">Productos</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="DteDocumentos" asp-action="Index">DTE</a></li>
+                            @if (puedeVerEventos)
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="DteEventos" asp-action="Index">Eventos</a></li>
+                            }
+                            @if (puedeVerContingencia)
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="DteContingencia" asp-action="Index">⚡ Contingencia</a></li>
+                            }
+                            @if (puedeVerDiagnostico)
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="DiagnosticoHacienda" asp-action="Index">🔍 Diagnóstico</a></li>
+                            }
                             @if (puedeVerCertificacion)
                             {
                                 <li class="nav-item"><a class="nav-link" asp-controller="Certificacion" asp-action="Index">Certificación</a></li>

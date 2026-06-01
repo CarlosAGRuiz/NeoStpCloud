@@ -35,6 +35,9 @@ public class SoporteController : Controller
         return View(result.Value);
     }
 
+    [HttpGet("Soporte/Entrar/{id:int}")]
+    public IActionResult EntrarGet(int id) => RedirectToAction(nameof(Index));
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Entrar(int id, string? returnUrl, CancellationToken ct)

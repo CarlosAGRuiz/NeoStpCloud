@@ -36,9 +36,11 @@ public abstract class ApiControllerBase : ControllerBase
             or "SUCURSAL_NOT_FOUND" or "PV_NOT_FOUND"
             or "CLIENTE_NOT_FOUND" or "PRODUCTO_NOT_FOUND"
             or "CONFIG_NOT_FOUND" or "DTE_NOT_FOUND"
-            or "CERT_MATRIZ_NOT_FOUND" or "CERT_ESCENARIO_NOT_FOUND" or "CERT_PRUEBA_NOT_FOUND" => NotFound(payload),
+            or "CERT_MATRIZ_NOT_FOUND" or "CERT_ESCENARIO_NOT_FOUND" or "CERT_PRUEBA_NOT_FOUND"
+            or "EVENTO_NOT_FOUND" or "LOTE_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" => Conflict(payload),
-        "FIRMA_FAILED" or "HACIENDA_AUTH_FAILED" or "EMAIL_FAILED" => StatusCode(StatusCodes.Status502BadGateway, payload),
+        "FIRMA_FAILED" or "HACIENDA_AUTH_FAILED" or "EMAIL_FAILED"
+            or "LOTE_ENVIO_FAILED" or "LOTE_CONSULTA_FAILED" => StatusCode(StatusCodes.Status502BadGateway, payload),
         "DECRYPT_FAILED" => StatusCode(StatusCodes.Status500InternalServerError, payload),
         "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" or "EMPRESA_DUPLICATE"
             or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED"
@@ -46,7 +48,9 @@ public abstract class ApiControllerBase : ControllerBase
             or "CAT_DUPLICATE" or "CAT_ITEM_DUPLICATE"
             or "CAT_SYSTEM_NOT_EDITABLE" or "CAT_ITEM_SYSTEM" or "CAT_ITEM_HAS_CHILDREN" => Conflict(payload),
         "CAT_PARENT_NOT_FOUND" or "CAT_PARENT_SELF" => BadRequest(payload),
-        "CERT_TIPO_MISMATCH" or "CERT_NADA_PENDIENTE" or "CERT_NO_ESCENARIOS" => Conflict(payload),
+        "CERT_TIPO_MISMATCH" or "CERT_NADA_PENDIENTE" or "CERT_NO_ESCENARIOS"
+            or "EVENTO_SIN_SELLO" or "SIN_DTE_RELACIONADOS" or "SIN_JWS_DISPONIBLE"
+            or "ESTADO_INVALIDO" or "SIN_CODIGO_LOTE" => Conflict(payload),
         "EMPRESA_FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, payload),
         "LICENSE_INVALID" => StatusCode(StatusCodes.Status402PaymentRequired, payload),
         "VALIDATION" or "PWD_WEAK" => BadRequest(payload),

@@ -5,6 +5,7 @@ using NeoSTP.Application.Dte.Certificacion;
 using NeoSTP.Application.Dte.Certificacion.Dtos;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Certificacion;
+using NeoSTP.Domain.Core.Dte.Eventos;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -255,6 +256,84 @@ public class CertificacionDteService : ICertificacionDteService
             "CertificacionPrueba", prueba.Id);
 
         return Result<CertificacionPruebaDto>.Ok(MapPrueba(prueba, escenario.Codigo, escenario.Nombre, doc.NumeroControl));
+    }
+
+    public async Task<Result<CertificacionPruebaDto>> MarcarCompletadoPorEventoAsync(int eventoId, MarcarCompletadoRequest request, int empresaId, string? actor, CancellationToken ct = default)
+    {
+        if (request.EscenarioId <= 0)
+        {
+            return Result<CertificacionPruebaDto>.Fail("EscenarioId es obligatorio.", "VALIDATION");
+        }
+
+        var evento = await _db.DteEventos.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == eventoId && e.EmpresaId == empresaId, ct);
+        if (evento is null) return Result<CertificacionPruebaDto>.Fail("Evento no encontrado.", "EVENTO_NOT_FOUND");
+
+        var escenario = await _db.CertificacionEscenarios
+            .Include(e => e.Matriz)
+            .FirstOrDefaultAsync(e => e.Id == request.EscenarioId && e.Activo, ct);
+        if (escenario is null) return Result<CertificacionPruebaDto>.Fail("Escenario no encontrado.", "CERT_ESCENARIO_NOT_FOUND");
+
+        // El tipo de la matriz debe ser un evento (no un código DTE 01/03/...).
+        if (IsDteTipo(escenario.Matriz.TipoDteCodigo) || escenario.Matriz.TipoDteCodigo != evento.TipoEventoCodigo)
+        {
+            return Result<CertificacionPruebaDto>.Fail(
+                $"El evento {evento.TipoEventoCodigo} no corresponde a la matriz {escenario.Matriz.TipoDteCodigo}.",
+                "CERT_TIPO_MISMATCH");
+        }
+
+        var ultima = await _db.CertificacionPruebas
+            .Where(p => p.EmpresaId == empresaId && p.EscenarioId == escenario.Id)
+            .OrderByDescending(p => p.IntentoNumero)
+            .FirstOrDefaultAsync(ct);
+
+        CertificacionPrueba prueba;
+        if (ultima is not null && ultima.EstadoCodigo != CertificacionEstadoCodigos.Completado)
+        {
+            prueba = ultima;
+            prueba.EventoId = evento.Id;
+            prueba.DteDocumentoId = null;
+            prueba.Notas = request.Notas ?? prueba.Notas;
+        }
+        else
+        {
+            var nuevoIntento = (ultima?.IntentoNumero ?? 0) + 1;
+            prueba = new CertificacionPrueba
+            {
+                EmpresaId = empresaId,
+                EscenarioId = escenario.Id,
+                EventoId = evento.Id,
+                IntentoNumero = nuevoIntento,
+                Notas = request.Notas,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = actor,
+            };
+            _db.CertificacionPruebas.Add(prueba);
+        }
+
+        if (!string.IsNullOrWhiteSpace(evento.SelloRecibido) && evento.EstadoCodigo == DteEventoEstadoCodigos.Procesado)
+        {
+            prueba.EstadoCodigo = CertificacionEstadoCodigos.Completado;
+            prueba.SelloRecibido = evento.SelloRecibido;
+            prueba.ProcesadoAt = evento.FinalizadoAt ?? DateTime.UtcNow;
+        }
+        else if (evento.EstadoCodigo is DteEventoEstadoCodigos.Rechazado or DteEventoEstadoCodigos.Error)
+        {
+            prueba.EstadoCodigo = CertificacionEstadoCodigos.Error;
+        }
+        else
+        {
+            prueba.EstadoCodigo = CertificacionEstadoCodigos.EnProgreso;
+        }
+        prueba.UpdatedAt = DateTime.UtcNow;
+        prueba.UpdatedBy = actor;
+
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "MARCAR_COMPLETADO_EVENTO",
+            $"Evento #{evento.Id} ({evento.TipoEventoCodigo}) → escenario {escenario.Codigo}; estado {prueba.EstadoCodigo}",
+            "CertificacionPrueba", prueba.Id);
+
+        return Result<CertificacionPruebaDto>.Ok(MapPrueba(prueba, escenario.Codigo, escenario.Nombre, evento.CodigoGeneracion));
     }
 
     public async Task<Result<CertificacionPruebaDto>> ReintentarAsync(int documentoId, int empresaId, string? actor, CancellationToken ct = default)

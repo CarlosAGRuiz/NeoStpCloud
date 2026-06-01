@@ -1,0 +1,116 @@
+@using NeoSTP.Application.Dte.Contingencia.Dtos
+@model ContingenciaLoteDto
+@{
+    ViewData["Title"] = $"Lote #{Model.Id}";
+    string badge = Model.EstadoCodigo switch
+    {
+        "PROCESADO" => "bg-success",
+        "ENVIADO" => "bg-info text-dark",
+        "CONSULTADO" => "bg-primary",
+        "ERROR" => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>📦 Lote #@Model.Id <span class="badge @badge fs-6">@Model.EstadoCodigo</span></h2>
+    <div class="d-flex gap-2">
+        @if (Model.EstadoCodigo == "ENVIADO" && !string.IsNullOrEmpty(Model.CodigoLote))
+        {
+            <form asp-action="ConsultarLote" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="loteId" value="@Model.Id" />
+                <button type="submit" class="btn btn-primary btn-sm">🔍 Consultar en Hacienda</button>
+            </form>
+        }
+        <a asp-action="Lotes" class="btn btn-outline-secondary btn-sm">← Lotes</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <dl class="row mb-0">
+            <dt class="col-sm-5">Evento contingencia</dt>
+            <dd class="col-sm-7">
+                <a asp-controller="DteEventos" asp-action="Details" asp-route-id="@Model.EventoContingenciaId">#@Model.EventoContingenciaId</a>
+            </dd>
+            <dt class="col-sm-5">Código lote</dt>
+            <dd class="col-sm-7"><code>@(Model.CodigoLote ?? "—")</code></dd>
+            <dt class="col-sm-5">Sello lote</dt>
+            <dd class="col-sm-7"><code class="small">@(Model.SelloRecibido ?? "—")</code></dd>
+            <dt class="col-sm-5">Ambiente</dt>
+            <dd class="col-sm-7"><span class="badge bg-light text-dark border">@Model.AmbienteCodigo</span></dd>
+        </dl>
+    </div>
+    <div class="col-md-6">
+        <dl class="row mb-0">
+            <dt class="col-sm-5">DTE total / procesados</dt>
+            <dd class="col-sm-7">@Model.TotalDte / @Model.DteProcesados</dd>
+            <dt class="col-sm-5">Intentos</dt>
+            <dd class="col-sm-7">@Model.Intentos</dd>
+            <dt class="col-sm-5">Enviado</dt>
+            <dd class="col-sm-7">@(Model.EnviadoAt.HasValue ? Model.EnviadoAt.Value.ToString("dd/MM/yyyy HH:mm") : "—")</dd>
+            <dt class="col-sm-5">Última consulta</dt>
+            <dd class="col-sm-7">@(Model.UltimaConsultaAt.HasValue ? Model.UltimaConsultaAt.Value.ToString("dd/MM/yyyy HH:mm") : "—")</dd>
+            <dt class="col-sm-5">Creado</dt>
+            <dd class="col-sm-7">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</dd>
+        </dl>
+    </div>
+</div>
+
+<h5>Detalle por DTE</h5>
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Código generación</th>
+                <th class="text-center">Tipo</th>
+                <th class="text-center">Estado</th>
+                <th>Sello individual</th>
+                <th>Mensaje Hacienda</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var d in Model.Detalles)
+        {
+            string dbadge = d.EstadoCodigo switch
+            {
+                "PROCESADO" => "bg-success",
+                "ERROR" => "bg-danger",
+                _ => "bg-secondary"
+            };
+            <tr>
+                <td><code class="small">@d.CodigoGeneracion</code></td>
+                <td class="text-center"><span class="badge bg-secondary">@d.TipoDteCodigo</span></td>
+                <td class="text-center"><span class="badge @dbadge">@d.EstadoCodigo</span></td>
+                <td><code class="small">@(d.SelloRecibido ?? "—")</code></td>
+                <td class="small text-muted">@(d.MensajeHacienda ?? "—")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.RawEnvio))
+{
+    <details class="mt-3">
+        <summary class="text-muted small">Raw envío Hacienda</summary>
+        <pre class="bg-light p-2 rounded small mt-1" style="max-height:200px;overflow:auto">@Model.RawEnvio</pre>
+    </details>
+}
+@if (!string.IsNullOrEmpty(Model.RawConsulta))
+{
+    <details class="mt-2">
+        <summary class="text-muted small">Raw consulta Hacienda</summary>
+        <pre class="bg-light p-2 rounded small mt-1" style="max-height:200px;overflow:auto">@Model.RawConsulta</pre>
+    </details>
+}

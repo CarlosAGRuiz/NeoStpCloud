@@ -1,0 +1,83 @@
+@model NeoSTP.Application.Dte.Eventos.Dtos.CrearEventoInvalidacionRequest
+@{
+    ViewData["Title"] = "Invalidar DTE";
+    var dtes = (ViewBag.Dtes as IReadOnlyList<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>) ?? new List<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>();
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Eventos DTE</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Invalidar DTE</li>
+    </ol>
+</nav>
+
+<h2>Invalidar DTE</h2>
+<p class="text-muted">Sólo aplica a documentos <strong>PROCESADO</strong> con sello de Hacienda. CAT-024 define los motivos oficiales.</p>
+
+<form method="post" class="card card-body bg-light">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+    <div class="mb-3">
+        <label class="form-label">DTE a invalidar</label>
+        <select asp-for="DocumentoId" class="form-select" required>
+            <option value="">— Seleccionar DTE PROCESADO —</option>
+            @foreach (var d in dtes)
+            {
+                <option value="@d.Id">[@d.TipoDteCodigo] @d.NumeroControl · @d.FechaEmision.ToString("dd/MM/yyyy") · @d.ReceptorNombre · $@d.TotalPagar.ToString("0.00")</option>
+            }
+        </select>
+        @if (dtes.Count == 0)
+        {
+            <small class="text-warning">No hay DTE PROCESADO disponibles para invalidar.</small>
+        }
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Tipo de anulación</label>
+            <select asp-for="TipoAnulacion" class="form-select">
+                <option value="1">1 — Rescindir + reemplazo</option>
+                <option value="2" selected>2 — Rescindir de la operación</option>
+                <option value="3">3 — Error en información + reemplazo</option>
+            </select>
+            <small class="text-muted">Tipo 1 y 3 requieren código de generación del reemplazo.</small>
+        </div>
+        <div class="col-md-8">
+            <label class="form-label">Código de generación del reemplazo (si tipo 1 ó 3)</label>
+            <input asp-for="CodigoGeneracionReemplazo" class="form-control font-monospace" placeholder="UUID en mayúsculas" />
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Motivo de anulación</label>
+        <textarea asp-for="MotivoAnulacion" class="form-control" rows="2" placeholder="Detalle del motivo (CAT-024)"></textarea>
+    </div>
+
+    <h6 class="mt-2">Responsable de la anulación</h6>
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Nombre del responsable</label>
+            <input asp-for="NombreResponsable" class="form-control" required />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Tipo doc.</label>
+            <select asp-for="TipoDocResponsable" class="form-select">
+                <option value="13">13 — DUI</option>
+                <option value="36">36 — NIT</option>
+                <option value="03">03 — Pasaporte</option>
+                <option value="02">02 — Carnet de Residente</option>
+                <option value="37">37 — Otro</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Número de documento</label>
+            <input asp-for="NumDocResponsable" class="form-control" required />
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Transmitir invalidación</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>

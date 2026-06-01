@@ -25,6 +25,7 @@ builder.Services.Configure<WorkerOptions>(
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<RetransmisionContingenciaWorker>();
 builder.Services.AddHostedService<LimpiezaTokensWorker>();
+builder.Services.AddHostedService<ContingenciaLoteWorker>();
 
 var host = builder.Build();
 

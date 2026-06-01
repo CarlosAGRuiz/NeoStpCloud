@@ -1,0 +1,74 @@
+@using NeoSTP.Application.Dte.Contingencia.Dtos
+@model IReadOnlyList<ContingenciaLoteListItemDto>
+@{
+    ViewData["Title"] = "Lotes de Contingencia";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>📦 Lotes de Contingencia</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Cola DTE</a>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No hay lotes registrados.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Evento</th>
+                    <th>Código lote</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-center">Amb.</th>
+                    <th class="text-center">DTE</th>
+                    <th class="text-center">Procesados</th>
+                    <th class="text-center">Intentos</th>
+                    <th>Enviado</th>
+                    <th>Última consulta</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var l in Model)
+            {
+                string badge = l.EstadoCodigo switch
+                {
+                    "PROCESADO" => "bg-success",
+                    "ENVIADO" => "bg-info text-dark",
+                    "CONSULTADO" => "bg-primary",
+                    "ERROR" => "bg-danger",
+                    _ => "bg-secondary"
+                };
+                <tr>
+                    <td>@l.Id</td>
+                    <td><a asp-controller="DteEventos" asp-action="Details" asp-route-id="@l.EventoContingenciaId">#@l.EventoContingenciaId</a></td>
+                    <td><code class="small">@(l.CodigoLote ?? "—")</code></td>
+                    <td class="text-center"><span class="badge @badge">@l.EstadoCodigo</span></td>
+                    <td class="text-center"><span class="badge bg-light text-dark border">@l.AmbienteCodigo</span></td>
+                    <td class="text-center">@l.TotalDte</td>
+                    <td class="text-center">@l.DteProcesados</td>
+                    <td class="text-center">@l.Intentos</td>
+                    <td>@(l.EnviadoAt.HasValue ? l.EnviadoAt.Value.ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                    <td>@(l.UltimaConsultaAt.HasValue ? l.UltimaConsultaAt.Value.ToString("dd/MM/yyyy HH:mm") : "—")</td>
+                    <td class="text-end">
+                        <a asp-action="DetalleLote" asp-route-id="@l.Id" class="btn btn-outline-primary btn-sm">Ver</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

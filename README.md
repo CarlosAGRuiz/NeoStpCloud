@@ -2,14 +2,16 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 14 — Módulo de Certificación DTE + 36 catálogos MH oficiales** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 155/155 pasando  
+> **Versión actual: Sprint 17 — Diagnóstico de errores Hacienda** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179 pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 📦 **Sprint 17 (Diagnóstico de errores Hacienda):** Módulo de diagnóstico DTE completo — entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, `IDiagnosticoHaciendaService`/`DiagnosticoHaciendaService`, catálogo seed con 11 códigos de error MH+internos, API REST (`/api/dte/diagnostico`), UI web (`/DiagnosticoHacienda`), migraciones `Sprint17_DiagnosticoErrores` + `Sprint17_SeedErrorCatalogo`. Fix de modo soporte empresa (`EmpresasService.GetByIdAsync` corregido para buscar por Id directo).
 
 ## Stack
 
@@ -19,7 +21,7 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **SQL Server 2022** + **Entity Framework Core 10**
 - **Serilog** (logs estructurados a consola y archivo)
 - **.NET Worker Service** (procesos en segundo plano)
-- **xUnit + FluentAssertions** (155 pruebas, todas pasando)
+- **xUnit + FluentAssertions** (179 pruebas, todas pasando)
 - **ClosedXML 0.104** (import/export Excel de catálogos)
 - **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** para resiliencia HTTP
 - **JWT** (Api) + **Cookies** (Web) para autenticación
@@ -192,7 +194,7 @@ el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
 servidor SMTP. En PowerShell, desde la raíz del repo:
 
 ```powershell
-# 1. Crear la BD y aplicar las 15 migraciones
+# 1. Crear la BD y aplicar las 21 migraciones
 dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 
 # 2. Levantar la Web (en otra ventana)
@@ -236,6 +238,12 @@ Migraciones aplicadas en orden:
 13. `Sprint13_CatalogosMhOficial` — paquete oficial Manual v1.4: 11 catálogos nuevos (CAT-006/018/021/023/025/026/027/029/030/031/032) + reemplazo de UNIDAD_MEDIDA/PAIS/TIPO_DOC_IDENTIDAD/MOTIVO_INVALIDACION con `Codigo=codigoMH` (275 países, 56 unidades, 45 recintos fiscales…)
 14. `Sprint14_CertificacionDte` — tablas `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` + matriz oficial seedeada (15 tipos × 625 escenarios numerados)
 15. `Sprint14_PermisosCertificacion` — permisos `Core.Certificacion.Ver/.Operar`
+16. `Sprint15_DteEventos` — tablas `Dte_Eventos/EventoJson/EventoRespuestasHacienda/EventoDocumentosRelacionados` (eventos persistentes)
+17. `Sprint15_PermisoEventos` — permiso `DTE.Eventos.Ver`
+18. `Sprint15_CertificacionPruebaEvento` — `CertificacionPrueba.EventoId` para asociar pruebas a eventos
+19. `Sprint16_ContingenciaLotes` — tablas `Dte_ContingenciaLotes`/`Dte_ContingenciaLoteDetalles` para recepción en lote
+20. `Sprint17_DiagnosticoErrores` — tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias` + permiso `DTE.Diagnostico`
+21. `Sprint17_SeedErrorCatalogo` — seed de 11 códigos de error MH e internos en `Dte_ErrorCatalogo`
 
 ```powershell
 # Crear una nueva migración
@@ -552,6 +560,35 @@ POST  /api/certificacion/documentos/{id}/reintentar             # marca prueba E
 - El cálculo de progreso considera solo el **último intento** por escenario, no la suma.
 - `Reintentar` abre intento `N+1` sin DTE asociado; el usuario emite uno nuevo y lo asocia con `marcar-completado`.
 
+### Eventos DTE persistentes (Sprint 15)
+
+Subsistema dedicado para invalidación, contingencia, retorno y operaciones especiales con persistencia completa (cabecera + JSON sin firmar + JWS + respuestas Hacienda + DTE relacionados). La transmisión real sigue siendo la lógica certificada de Sprint 12 — Sprint 15 agrega `PersistirEventoAsync` (best-effort) que captura el ciclo completo en `Dte_Eventos*`.
+
+Permisos:
+- `DTE.Eventos.Ver` — consultar listado, detalle, JSON y PDF
+- `DTE.Invalidar` / `DTE.Contingencia` / `DTE.Emitir` — crear cada tipo (reusados del Sprint 5)
+
+```
+GET   /api/dte/eventos?tipo=&estado=             # top 500 ordenado por fecha desc
+GET   /api/dte/eventos/{id}                       # cabecera + json/jws flags + relacionados + respuestas
+GET   /api/dte/eventos/{id}/json                  # JSON sin firmar
+GET   /api/dte/eventos/{id}/pdf                   # representación gráfica QuestPDF
+
+POST  /api/dte/eventos/invalidacion               # DTE.Invalidar
+POST  /api/dte/eventos/contingencia               # DTE.Contingencia
+POST  /api/dte/eventos/retorno                    # DTE.Emitir
+POST  /api/dte/eventos/operaciones-especiales     # DTE.Emitir
+
+# Legacy (Sprint 12) — siguen funcionando con adaptador interno
+POST  /api/dte/evento/{invalidacion|contingencia|retorno|operaciones-especiales}
+```
+
+**Reglas / decisiones**:
+- La lógica de transmisión NO se extrajo del `DteDocumentosService` (está certificada con Hacienda y refactorizarla era riesgoso). En su lugar, los 4 métodos persisten el evento con `PersistirEventoAsync` envuelto en try/catch: un fallo de persistencia nunca rompe el flujo de transmisión.
+- El `EventoId` retornado en el `CrearEventoResultadoDto` puede ser `null` si la persistencia falló (best-effort).
+- Estados del evento: `BORRADOR → FIRMADO → ENVIADO → PROCESADO | RECHAZADO | ERROR`.
+- Una `CertificacionPrueba` ahora puede asociarse a un `DteDocumento` **o** a un `DteEvento` (mutuamente excluyente). Endpoint `POST /api/certificacion/eventos/{id}/marcar-completado` permite contar eventos PROCESADO en las matrices CAT INVALIDACION/CONTINGENCIA/RETORNO/OPERACIONES_ESPECIALES.
+
 ### Documentos DTE — descarga y correo (Sprint 7)
 
 ```
@@ -645,6 +682,12 @@ Bajo el dominio `/` con auth por cookie:
 | `/Certificacion/Matriz`       | 14     | Matriz completa con totales y % por tipo |
 | `/Certificacion/Tipo/{codigo}`| 14     | Detalle por tipo con badges de estado, botón generar prueba y reintentar |
 | `/Certificacion/Errores`      | 14     | Listado de errores MH con respuesta cruda colapsable |
+| `/DteEventos`                 | 15     | Listado con filtros tipo/estado, badges semánticos, accesos rápidos a 4 tipos de evento |
+| `/DteEventos/Details/{id}`    | 15     | Cabecera + motivo + DTE relacionados + respuestas MH colapsables; descargas JSON/PDF |
+| `/DteEventos/CreateInvalidacion`     | 15 | Form con DTE PROCESADO + tipo anulación 1/2/3 (CAT-024) + responsable |
+| `/DteEventos/CreateContingencia`     | 15 | Form con DTE en CONTINGENCIA multi-select + tipo 1-5 (CAT-005) + responsable |
+| `/DteEventos/CreateRetorno`          | 15 | Form con DTE PROCESADO origen (FE/FEXE/FSEE) |
+| `/DteEventos/CreateOperacionesEspeciales` | 15 | Form libre con descripción + monto (IVA auto) |
 
 ## SuperAdmin inicial
 
@@ -742,7 +785,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 12     | Certificación apitest 5 DTE + 2 eventos       | ✅     |
 | 13     | Catálogos MH (CRUD + import/export + 36 catálogos oficiales v1.4) | ✅     |
 | 14     | Certificación DTE (matriz, progreso, escenarios) | ✅     |
-| 15     | Eventos DTE persistentes + UI + PDF de evento | 🔜     |
+| 15     | Eventos DTE persistentes + UI + PDF + integración certificación | ✅     |
 | 16     | Contingencia avanzada y recepción por lotes   | 🔜     |
 | 17     | Diagnóstico de errores Hacienda               | 🔜     |
 | 18     | Legal + consentimiento                        | 🔜     |
@@ -761,7 +804,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 155 tests unit + integration
+dotnet test NeoSTP.slnx                          # corre los 179 tests unit + integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
@@ -784,4 +827,5 @@ Cobertura por área:
 | Worker — Limpieza tokens (EF)     | 6     | `tests/NeoSTP.Tests.Unit/Workers/LimpiezaTokensServiceTests.cs`        |
 | Provisioning empresa prueba (EF)  | 4     | `tests/NeoSTP.Tests.Unit/Provisioning/EmpresaPruebaSeederTests.cs`     |
 | Catálogos — esquema/CRUD/Import   | 31    | `tests/NeoSTP.Tests.Unit/Catalogos/*Tests.cs` (Sprint 13)              |
-| Certificación DTE — schema/servicio | 18  | `tests/NeoSTP.Tests.Unit/Dte/Certificacion/*Tests.cs` (Sprint 14)      |
+| Certificación DTE — schema/servicio/eventos | 24 | `tests/NeoSTP.Tests.Unit/Dte/Certificacion/*Tests.cs` (Sprints 14, 15.5) |
+| Eventos DTE — schema/servicio/PDF | 18    | `tests/NeoSTP.Tests.Unit/Dte/Eventos/*Tests.cs` (Sprint 15)            |

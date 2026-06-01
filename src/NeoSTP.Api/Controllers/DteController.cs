@@ -122,7 +122,7 @@ public class DteController : ApiControllerBase
     public async Task<IActionResult> EventoContingencia([FromBody] EventoContingenciaRequest body, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.TransmitirEventoContingenciaAsync(
+        return RespondEvento(await _service.TransmitirEventoContingenciaAsync(
             eid, body.DocumentoIds ?? new List<int>(), body.TipoContingencia, body.Motivo,
             body.NombreResponsable, body.TipoDocResponsable, body.NumeroDocResponsable,
             _currentUser.Username, ct));
@@ -133,7 +133,7 @@ public class DteController : ApiControllerBase
     public async Task<IActionResult> EventoInvalidacion([FromBody] EventoInvalidacionRequest body, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.TransmitirInvalidacionEventoAsync(
+        return RespondEvento(await _service.TransmitirInvalidacionEventoAsync(
             eid, body.DocumentoId, body.TipoAnulacion, body.MotivoAnulacion, body.CodigoGeneracionReemplazo,
             body.NombreResponsable, body.TipoDocResponsable, body.NumDocResponsable, _currentUser.Username, ct));
     }
@@ -143,7 +143,7 @@ public class DteController : ApiControllerBase
     public async Task<IActionResult> EventoOperacionesEspeciales([FromBody] EventoOpEspecialesRequest body, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.TransmitirEventoOperacionesEspecialesAsync(
+        return RespondEvento(await _service.TransmitirEventoOperacionesEspecialesAsync(
             eid, body.CodigoGeneracionRef, body.Descripcion, body.Monto, _currentUser.Username, ct));
     }
 
@@ -152,8 +152,14 @@ public class DteController : ApiControllerBase
     public async Task<IActionResult> EventoRetorno([FromBody] EventoRetornoRequest body, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.TransmitirEventoRetornoAsync(eid, body.DocumentoOrigenId, _currentUser.Username, ct));
+        return RespondEvento(await _service.TransmitirEventoRetornoAsync(eid, body.DocumentoOrigenId, _currentUser.Username, ct));
     }
+
+    /// <summary>Adapta el resultado rico de evento (Sprint 15) al contrato legacy {data: "&lt;sello&gt;"}.</summary>
+    private IActionResult RespondEvento(NeoSTP.Application.Common.Result<NeoSTP.Application.Dte.Eventos.Dtos.CrearEventoResultadoDto> r)
+        => r.IsSuccess
+            ? Respond(NeoSTP.Application.Common.Result<string>.Ok(r.Value!.SelloOEstado))
+            : Respond(NeoSTP.Application.Common.Result<string>.Fail(r.Error ?? "Error", r.ErrorCode, r.ValidationErrors));
 
     // ---- descarga y reenvío (Sprint 7) ----
 

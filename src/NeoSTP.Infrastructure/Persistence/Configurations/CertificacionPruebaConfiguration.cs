@@ -33,6 +33,13 @@ public class CertificacionPruebaConfiguration : IEntityTypeConfiguration<Certifi
             .HasForeignKey(p => p.DteDocumentoId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(p => p.Evento)
+            .WithMany()
+            .HasForeignKey(p => p.EventoId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(p => p.EventoId);
+
         builder.HasMany(p => p.Errores)
             .WithOne(e => e.Prueba)
             .HasForeignKey(e => e.PruebaId)

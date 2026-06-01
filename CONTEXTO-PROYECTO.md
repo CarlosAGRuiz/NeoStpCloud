@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Sprint 14 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 155/155
+> **Versión:** Sprint 17 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -74,7 +74,7 @@ contratados, permisos del usuario, auditoría, multiempresa, seguridad y **aisla
 - **Serilog** (logs estructurados) · **QuestPDF 2025.1** · **MailKit 4.17**
 - **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** (resiliencia HTTP)
 - **JWT** (Api) + **Cookies** (Web) · **DataProtection** (cifrado de secretos) · **BCrypt** (passwords)
-- **xUnit + FluentAssertions** (155 tests)
+- **xUnit + FluentAssertions** (179 tests)
 - **ClosedXML 0.104** (export/import Excel del módulo de catálogos)
 
 ## Arquitectura — modular monolith por capas
@@ -122,7 +122,8 @@ automática · Toggles Mock/Real · **Módulo de mantenimiento de Catálogos** (
 CSV/JSON/XLSX + export + versionado + cascadas padre/hijo, vía API y UI MVC) · **Módulo de
 Certificación DTE** (matriz 625 escenarios, progreso por tipo, asociación documentos a
 escenarios, reintentos, snapshots de errores MH, dashboard con barras de progreso) ·
-155 tests unit/integración.
+**Módulo de Eventos DTE persistentes** (4 tablas Dte_Eventos*, persistencia best-effort de los 4 flujos certificados, consulta + creación + PDF + UI MVC; integración con certificación vía marcar-completado-por-evento) ·
+**Módulo de Contingencia avanzada / Lotes** (tablas `Dte_ContingenciaLotes`/`Dte_ContingenciaLoteDetalles`, servicio `ContingenciaLoteService`, clientes HTTP `HttpHaciendaLoteClient`/`HttpHaciendaConsultaLoteClient`, worker periódico `ContingenciaLoteWorker`, API REST y UI `/DteContingencia`) · **Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 179 tests unit/integración.
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
@@ -157,7 +158,9 @@ certificación se hace contra **v1/v3**.
 `Sprint35_MunicipiosES` · `Sprint4_DteConfiguracion` · `Sprint5_DteDocumentos` ·
 `Sprint9_RetransmisionTracking` · `Sprint10_DteCorrelativos` · `Sprint12_DistritoCAT008` ·
 `Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
-`Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion`.
+`Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion` ·
+`Sprint15_DteEventos` · `Sprint15_PermisoEventos` · `Sprint15_CertificacionPruebaEvento` ·
+`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo`.
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -196,11 +199,19 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | `Dte_DocumentoJson` | JSON sin firmar, JWS firmado, respuesta cruda de Hacienda |
 | `Dte_Correlativos` | Contador atómico de `NumeroControl` por (empresa, tipoDte) |
 
+### DTE — Diagnóstico (Sprint 17)
+| Tabla | Contenido |
+|---|---|
+| `Dte_ErrorCatalogo` | Catálogo de errores MH e internos con descripción amigable, causa probable y acción sugerida |
+| `Dte_ErrorOcurrencias` | Ocurrencias concretas de error por empresa, con link a documento/evento, JSON enviado/respuesta y flag `Resuelta` |
+
 ## Tablas propuestas (por módulo pendiente)
 
 | Módulo | Tablas |
 |---|---|
-| **Eventos DTE** | `Dte_Eventos`, `Dte_EventoJson`, `Dte_EventoRespuestasHacienda`, `Dte_EventoDocumentosRelacionados` |
+| ~~**Eventos DTE**~~ | ✅ Sprint 15 — `Dte_Eventos`, `Dte_EventoJson`, `Dte_EventoRespuestasHacienda`, `Dte_EventoDocumentosRelacionados` + `CertificacionPrueba.EventoId` |
+| ~~**Contingencia avanzada**~~ | ✅ Sprint 16 — `Dte_ContingenciaLotes`, `Dte_ContingenciaLoteDetalles`, `ContingenciaLoteService`, workers y UI |
+| ~~**Diagnóstico errores Hacienda**~~ | ✅ Sprint 17 — `Dte_ErrorCatalogo`, `Dte_ErrorOcurrencias`, `DiagnosticoHaciendaService`, seed 11 errores, API + UI |
 | ~~**Certificación**~~ | ✅ Sprint 14 — `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` con seed 625 escenarios |
 | ~~**Catálogos MH**~~ | ✅ Sprint 13 — `Core_Catalogos.Version`/`MetadataJson` y `Core_CatalogoItems.ParentCodigo` agregados |
 | **NeoProfit** | `Profit_Gastos`, `Profit_Compras`, `Profit_SnapshotsMensuales`, `Profit_Alertas` |
@@ -544,7 +555,8 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 **Sucursales/PV:** `GET/POST/PUT /api/sucursales` · `/api/puntos-venta` · `PATCH .../inactivar`
 **Planes/Módulos:** `GET /api/planes` · `GET /api/modulos`
 **Catálogos:** `GET/POST /api/catalogos` · `GET/PUT /api/catalogos/{codigo}` · `GET/POST/PUT/DELETE /api/catalogos/{codigo}/items` (`?parent=` cascada) · `POST /api/catalogos/{codigo}/import` · `GET /api/catalogos/{codigo}/export?format=csv|json|xlsx`
-**Certificación DTE:** `GET /api/certificacion/{resumen|matriz|errores}` · `GET /api/certificacion/tipos/{codigo}/escenarios` · `POST /api/certificacion/tipos/{codigo}/generar-prueba` · `POST /api/certificacion/documentos/{id}/{marcar-completado|reintentar}`
+**Certificación DTE:** `GET /api/certificacion/{resumen|matriz|errores}` · `GET /api/certificacion/tipos/{codigo}/escenarios` · `POST /api/certificacion/tipos/{codigo}/generar-prueba` · `POST /api/certificacion/documentos/{id}/{marcar-completado|reintentar}` · `POST /api/certificacion/eventos/{id}/marcar-completado`
+**Eventos DTE:** `GET /api/dte/eventos?tipo=&estado=` · `GET /api/dte/eventos/{id}` · `GET /api/dte/eventos/{id}/json` · `GET /api/dte/eventos/{id}/pdf` · `POST /api/dte/eventos/{invalidacion|contingencia|retorno|operaciones-especiales}` (legacy `POST /api/dte/evento/{...}` se mantiene como adapter)
 **Clientes/Productos:** `GET/POST/PUT /api/clientes` · `/api/productos` · `PATCH .../inactivar`
 **Config DTE:** `GET/PUT /api/dte/configuracion` · `POST .../certificado` · `DELETE .../certificado` · `POST .../probar-conexion`
 **Documentos DTE:** `GET /api/dte/documentos` · `POST /api/dte/{factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido|documentos}` · `POST .../{id}/{generar|validar|firmar|enviar|invalidar|reenviar}` · `GET .../{id}/{pdf|json}`
@@ -576,8 +588,8 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 1 | **Core / Administración** | ✅ avanzado | Mejor UI admin, consumo por plan, upselling, MFA SuperAdmin, IP allowlist | Crítico |
 | 2 | **NeoDTE** | ✅ avanzado | Catálogos MH completos, mejorar diagnóstico de errores | Crítico |
 | 3 | **Certificación DTE** | ✅ Sprint 14 — módulo completo (matriz, progreso, escenarios, reintentos, errores) | Completar matriz oficial cuando MH publique descripción detallada por escenario | Media |
-| 4 | **Eventos DTE** | 🟡 4 implementados (2 PROCESADO, 2 estructura-OK) | Persistir eventos (tablas), UI, PDF de evento | Alta |
-| 5 | **Contingencia/Worker** | ✅ parcial | UI cola, reintento manual, MOMENTO 3 (lote), consulta de lotes, alertas | Alta |
+| 4 | **Eventos DTE** | ✅ Sprint 15 — persistencia + UI + PDF + integración certificación | Op-Especiales / Retorno aún bloqueados por autorización de cuenta MH | Media |
+| 5 | **Contingencia/Worker** | ✅ Sprint 16 — MOMENTO 3 completo: lotes, consulta, worker, UI, API | — | Alta |
 | 6 | **Clientes** | ✅ | Cascada Depto→Muni→Distrito, normalizar numDocumento, mapeo CAT-022 (hecho) | Alta |
 | 7 | **Productos** | ✅ | Mapear unidad→CAT-014, tributos por tipo, carga masiva | Media |
 | 8 | **Catálogos MH** | ✅ Sprint 13 — módulo completo (CRUD/import/export/versión/cascada) | Sembrar resto vía import oficial (CAT-008 Distrito, CAT-019/020 completos) | Media |
@@ -602,8 +614,9 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 1. ✅ **Módulo de mantenimiento de Catálogos** (§6.2) — CRUD/Import/Export/versionado. **Sprint 13.**
 2. ✅ **Catálogos MH oficiales** — Sprint 13.7 cargó el paquete completo Manual v1.4 (CAT-006/014/018/020/021/022/023/024/025/026/027/029/030/031/032 con `Codigo = codigoMH`). Solo CAT-008 Distrito queda como placeholder vacío (cargar via `/Catalogos/Import/DISTRITO_ES` cuando MH publique la lista oficial).
 3. **Eliminar hardcodeos** (municipio/distrito en builders) → derivar de catálogo.
-4. **Persistir eventos DTE** (tablas `Dte_Eventos*`) + UI + PDF de evento. *(Sprint 15)*
-5. ✅ **Módulo de Certificación DTE** — matriz de progreso (15 tipos × 625 escenarios), generar prueba, reintentar, errores. **Sprint 14.**
+4. ✅ **Eventos DTE persistentes** (tablas `Dte_Eventos*`) + UI + PDF + integración con certificación. **Sprint 15.**
+5. ✅ **Contingencia avanzada / Lotes** — MOMENTO 3: `DteContingenciaLote`/`DteContingenciaLoteDetalle`, `ContingenciaLoteService`, worker periódico, clientes HTTP reales + mocks, UI `/DteContingencia`. **Sprint 16.**
+6. ✅ **Módulo de Certificación DTE** — matriz de progreso (15 tipos × 625 escenarios), generar prueba, reintentar, errores. **Sprint 14.**
 6. **Completar matriz** (con datos de cuenta: NRC, codEstableMH real, autorizaciones).
 7. **Diagnóstico de errores Hacienda** — pantalla que mapea códigos MH a explicaciones y acciones. *(Sprint 17)*
 
@@ -749,7 +762,7 @@ Clientes → Productos → Plan/Licencia → NeoProfit → NeoScanAI → NeoConn
   secretos cifrados → reingresar).
 
 ## 13.5 Testing
-- 155 tests verde (106 base + 31 catálogos Sprint 13 + 18 certificación Sprint 14). Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
+- 179 tests verde (106 base + 31 catálogos Sprint 13 + 24 certificación Sprint 14 + 18 eventos Sprint 15). Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
   los **eventos** (estructura). Agregar tests de regresión que validen el JSON contra los esquemas
   `svfe-json-schemas` y contra lo que apitest realmente exige (v1/v3).
 

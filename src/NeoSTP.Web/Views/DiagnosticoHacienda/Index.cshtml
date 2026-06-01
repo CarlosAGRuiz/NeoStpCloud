@@ -1,0 +1,229 @@
+@using NeoSTP.Application.Dte.Diagnostico.Dtos
+@model NeoSTP.Application.Common.PagedResult<ErrorOcurrenciaListItemDto>
+@{
+    ViewData["Title"] = "Diagnóstico de errores Hacienda";
+    var resumen = ViewBag.Resumen as DiagnosticoResumenDto;
+    var catalogo = ViewBag.Catalogo as IReadOnlyList<ErrorCatalogoDto>;
+    var filtro = ViewBag.FiltroActual as DiagnosticoFiltroRequest;
+}
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible"><button type="button" class="btn-close" data-bs-dismiss="alert"></button>@ok</div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible"><button type="button" class="btn-close" data-bs-dismiss="alert"></button>@err</div> }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">🔍 Diagnóstico de errores Hacienda</h1>
+    <form asp-action="Sincronizar" method="post" class="d-inline">
+        @Html.AntiForgeryToken()
+        <button class="btn btn-sm btn-outline-secondary">🔄 Sincronizar historial</button>
+    </form>
+</div>
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-2 fw-bold text-danger">@resumen.TotalErrores</div>
+                <div class="text-muted small">Total errores</div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-2 fw-bold text-warning">@resumen.ErroresNoResueltos</div>
+                <div class="text-muted small">Sin resolver</div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-2 fw-bold text-info">@resumen.ErroresHoy</div>
+                <div class="text-muted small">Errores hoy</div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="fs-2 fw-bold text-success">@(resumen.TotalErrores - resumen.ErroresNoResueltos)</div>
+                <div class="text-muted small">Resueltos</div>
+            </div>
+        </div>
+    </div>
+
+    @if (resumen.TopCodigos.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0"><strong>Top códigos de error</strong></div>
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var top in resumen.TopCodigos)
+                    {
+                        <a asp-action="Index" asp-route-codigoError="@top.CodigoError"
+                           class="badge bg-danger text-decoration-none fs-6">
+                            @top.CodigoError <span class="badge bg-white text-danger ms-1">@top.Cantidad</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@* Filtros *@
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="codigoError" class="form-select form-select-sm">
+            <option value="">Todos los códigos</option>
+            @if (catalogo is not null)
+            {
+                @foreach (var c in catalogo)
+                {
+                    if (filtro?.CodigoError == c.Codigo)
+                    {
+                        <option value="@c.Codigo" selected>@c.Codigo — @c.Descripcion</option>
+                    }
+                    else
+                    {
+                        <option value="@c.Codigo">@c.Codigo — @c.Descripcion</option>
+                    }
+                }
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="fuente" class="form-select form-select-sm">
+            <option value="">Todas las fuentes</option>
+            @{ var f = filtro?.Fuente; }
+            @if (f == "TRANSMISION") { <option value="TRANSMISION" selected>Transmisión</option> } else { <option value="TRANSMISION">Transmisión</option> }
+            @if (f == "CERTIFICACION") { <option value="CERTIFICACION" selected>Certificación</option> } else { <option value="CERTIFICACION">Certificación</option> }
+            @if (f == "EVENTO") { <option value="EVENTO" selected>Evento</option> } else { <option value="EVENTO">Evento</option> }
+            @if (f == "INTERNO") { <option value="INTERNO" selected>Interno</option> } else { <option value="INTERNO">Interno</option> }
+        </select>
+    </div>
+    <div class="col-auto">
+        <div class="form-check mt-1">
+            @if (filtro?.SoloNoResueltas == true)
+            {
+                <input class="form-check-input" type="checkbox" name="soloNoResueltas" value="true" id="chkNoResueltas" checked />
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" name="soloNoResueltas" value="true" id="chkNoResueltas" />
+            }
+            <label class="form-check-label small" for="chkNoResueltas">Solo sin resolver</label>
+        </div>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrar</button>
+        <a asp-action="Index" class="btn btn-link btn-sm">Limpiar</a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        @if (Model is null || !Model.Items.Any())
+        {
+            <p class="text-muted text-center py-4">No hay errores registrados con los filtros actuales.</p>
+        }
+        else
+        {
+            <table class="table table-hover mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th>Código</th>
+                        <th>Mensaje</th>
+                        <th>Fuente</th>
+                        <th>Documento / Evento</th>
+                        <th>Ocurrió</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in Model.Items)
+                    {
+                        var severityClass = o.Severidad switch
+                        {
+                            "WARNING" => "table-warning",
+                            "INFO" => "table-info",
+                            _ => o.Resuelta ? "" : "table-danger"
+                        };
+                        <tr class="@severityClass">
+                            <td>
+                                <span class="badge bg-secondary">@o.CodigoError</span>
+                            </td>
+                            <td>
+                                <div>@o.Mensaje</div>
+                                @if (o.Descripcion is not null)
+                                {
+                                    <div class="text-muted">@o.Descripcion</div>
+                                }
+                            </td>
+                            <td><span class="badge bg-light text-dark border">@o.Fuente</span></td>
+                            <td>
+                                @if (o.DteDocumentoId is not null)
+                                {
+                                    <a asp-action="Documento" asp-route-id="@o.DteDocumentoId">DTE #@o.DteDocumentoId</a>
+                                }
+                                @if (o.DteEventoId is not null)
+                                {
+                                    <a asp-controller="DteEventos" asp-action="Details" asp-route-id="@o.DteEventoId">Evento #@o.DteEventoId</a>
+                                }
+                            </td>
+                            <td class="text-nowrap">@o.OcurrioAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (o.Resuelta)
+                                {
+                                    <span class="badge bg-success">✓ Resuelta</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!o.Resuelta)
+                                {
+                                    <form asp-action="MarcarResuelta" asp-route-id="@o.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-xs btn-outline-success btn-sm py-0">✓</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                        @if (o.CausaProbable is not null || o.AccionSugerida is not null)
+                        {
+                            <tr class="@severityClass border-0">
+                                <td colspan="7" class="pt-0 pb-2">
+                                    @if (o.CausaProbable is not null)
+                                    {
+                                        <span class="text-muted small">⚠️ <strong>Causa:</strong> @o.CausaProbable</span>
+                                    }
+                                    @if (o.AccionSugerida is not null)
+                                    {
+                                        <span class="text-muted small ms-3">💡 <strong>Acción:</strong> @o.AccionSugerida</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm">
+            @for (int p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index"
+                       asp-route-page="@p"
+                       asp-route-codigoError="@filtro?.CodigoError"
+                       asp-route-fuente="@filtro?.Fuente"
+                       asp-route-soloNoResueltas="@filtro?.SoloNoResueltas">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

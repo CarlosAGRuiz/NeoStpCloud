@@ -237,10 +237,14 @@ Formalizar el módulo de eventos DTE para que invalidación, contingencia, retor
 
 ---
 
-# Sprint 16 — Contingencia avanzada y recepción por lotes
+# ~~Sprint 16~~ ✅ ENTREGADO — Contingencia avanzada y recepción por lotes
 
-## Objetivo
-Completar el flujo de contingencia con los 3 momentos operativos: emisión diferida, evento de contingencia y posterior transmisión por lote/consulta de lote.
+> **Estado:** Completado. Migración `Sprint16_ContingenciaLotes` aplicada. Build verde. 179/179 tests.
+> Entidades `DteContingenciaLote`/`DteContingenciaLoteDetalle`, `ContingenciaLoteService`,
+> `HttpHaciendaLoteClient` (POST `/fesv/recepcionlote`), `HttpHaciendaConsultaLoteClient` (GET `/fesv/recepcion/consultadtelote/{codigoLote}`),
+> mocks, `ContingenciaLoteWorker` (10 min), API REST 7 endpoints, UI MVC `/DteContingencia`, `/DteContingencia/Lotes`, `/DteContingencia/DetalleLote/{id}`.
+
+
 
 ## Alcance
 - UI de cola de contingencia.

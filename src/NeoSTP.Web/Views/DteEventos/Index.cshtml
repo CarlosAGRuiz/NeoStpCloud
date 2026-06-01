@@ -1,0 +1,110 @@
+@model IReadOnlyList<NeoSTP.Application.Dte.Eventos.Dtos.DteEventoListDto>
+@{
+    ViewData["Title"] = "Eventos DTE";
+    var tipo = ViewBag.Tipo as string;
+    var estado = ViewBag.Estado as string;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Eventos DTE</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="CreateInvalidacion" class="btn btn-outline-danger btn-sm">⊘ Invalidar</a>
+        <a asp-action="CreateContingencia" class="btn btn-outline-warning btn-sm">⚡ Contingencia</a>
+        <a asp-action="CreateRetorno" class="btn btn-outline-info btn-sm">↩ Retorno</a>
+        <a asp-action="CreateOperacionesEspeciales" class="btn btn-outline-secondary btn-sm">⚙ Op. Especiales</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+        <select name="tipo" class="form-select form-select-sm">
+            <option value="">— Todos los tipos —</option>
+            <option value="INVALIDACION" selected="@(tipo == "INVALIDACION")">Invalidación</option>
+            <option value="CONTINGENCIA" selected="@(tipo == "CONTINGENCIA")">Contingencia</option>
+            <option value="RETORNO" selected="@(tipo == "RETORNO")">Retorno</option>
+            <option value="OPERACIONES_ESPECIALES" selected="@(tipo == "OPERACIONES_ESPECIALES")">Operaciones Especiales</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select name="estado" class="form-select form-select-sm">
+            <option value="">— Todos los estados —</option>
+            <option value="PROCESADO" selected="@(estado == "PROCESADO")">Procesado</option>
+            <option value="ENVIADO" selected="@(estado == "ENVIADO")">Enviado</option>
+            <option value="FIRMADO" selected="@(estado == "FIRMADO")">Firmado</option>
+            <option value="RECHAZADO" selected="@(estado == "RECHAZADO")">Rechazado</option>
+            <option value="ERROR" selected="@(estado == "ERROR")">Error</option>
+            <option value="BORRADOR" selected="@(estado == "BORRADOR")">Borrador</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+        @if (!string.IsNullOrEmpty(tipo) || !string.IsNullOrEmpty(estado))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+        }
+    </div>
+    <div class="col-auto ms-auto small text-muted align-self-center">@Model.Count evento(s)</div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Código de generación</th>
+                <th class="text-center">Ambiente</th>
+                <th class="text-center">DTE rel.</th>
+                <th class="text-center">Estado</th>
+                <th>Sello</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var e in Model)
+        {
+            string badge = e.EstadoCodigo switch
+            {
+                "PROCESADO" => "bg-success",
+                "ENVIADO" or "FIRMADO" => "bg-info text-dark",
+                "RECHAZADO" or "ERROR" => "bg-danger",
+                _ => "bg-secondary"
+            };
+            <tr>
+                <td><small>@e.FechaTransmision.ToString("dd/MM/yyyy HH:mm")</small></td>
+                <td><span class="badge bg-light text-dark border">@e.TipoEventoCodigo</span></td>
+                <td><code class="small">@e.CodigoGeneracion</code></td>
+                <td class="text-center"><small>@e.AmbienteCodigo</small></td>
+                <td class="text-center"><span class="badge bg-secondary">@e.DocumentosRelacionados</span></td>
+                <td class="text-center"><span class="badge @badge">@e.EstadoCodigo</span></td>
+                <td>
+                    @if (!string.IsNullOrEmpty(e.SelloRecibido))
+                    {
+                        <small class="text-success font-monospace">@e.SelloRecibido.Substring(0, Math.Min(14, e.SelloRecibido.Length))…</small>
+                    }
+                    else
+                    {
+                        <small class="text-muted">—</small>
+                    }
+                </td>
+                <td class="text-end">
+                    <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-outline-primary btn-sm">Ver</a>
+                </td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="8" class="text-center text-muted py-4">Sin eventos registrados.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,165 @@
+@model NeoSTP.Application.Dte.Eventos.Dtos.DteEventoDetalleDto
+@{
+    ViewData["Title"] = $"Evento {Model.TipoEventoCodigo} · {Model.CodigoGeneracion}";
+    string badge = Model.EstadoCodigo switch
+    {
+        "PROCESADO" => "bg-success",
+        "ENVIADO" or "FIRMADO" => "bg-info text-dark",
+        "RECHAZADO" or "ERROR" => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Eventos DTE</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.TipoEventoCodigo</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="mb-1">@Model.TipoEventoCodigo</h2>
+        <div class="text-muted">
+            <code>@Model.CodigoGeneracion</code> · v@(Model.Version) · @Model.AmbienteCodigo
+        </div>
+        <div class="mt-2">
+            <span class="badge @badge">@Model.EstadoCodigo</span>
+            @if (!string.IsNullOrEmpty(Model.SelloRecibido))
+            {
+                <span class="ms-2 small text-success font-monospace">Sello: @Model.SelloRecibido</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        @if (Model.TieneJson)
+        {
+            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">⬇ JSON</a>
+        }
+        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-outline-danger btn-sm">⬇ PDF</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card"><div class="card-body p-2">
+            <div class="text-muted small">Transmisión</div>
+            <div class="h6 m-0">@Model.FechaTransmision.ToString("dd/MM/yyyy HH:mm")</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body p-2">
+            <div class="text-muted small">Versión / Ambiente</div>
+            <div class="h6 m-0">v@(Model.Version) · @Model.AmbienteCodigo</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body p-2">
+            <div class="text-muted small">DTE referenciado</div>
+            <div class="h6 m-0 font-monospace small">@(Model.NumeroControlReferencia ?? "—")</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body p-2">
+            <div class="text-muted small">Finalizado</div>
+            <div class="h6 m-0">@(Model.FinalizadoAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</div>
+        </div></div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.MotivoLibre))
+{
+    <div class="card mb-4">
+        <div class="card-header py-2 small fw-bold">
+            @switch (Model.TipoEventoCodigo)
+            {
+                case "INVALIDACION":
+                    <span>Motivo de invalidación</span>
+                    break;
+                case "CONTINGENCIA":
+                    <span>Motivo de contingencia</span>
+                    break;
+                case "OPERACIONES_ESPECIALES":
+                    <span>Descripción de la operación</span>
+                    break;
+                default:
+                    <span>Motivo / descripción</span>
+                    break;
+            }
+        </div>
+        <div class="card-body py-2">@Model.MotivoLibre</div>
+    </div>
+}
+
+@if (Model.Relacionados.Any())
+{
+    <h5 class="mb-2">DTE relacionados</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-sm">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Tipo</th>
+                    <th>Número de control</th>
+                    <th>Rol</th>
+                </tr>
+            </thead>
+            <tbody>
+            @{
+                var n = 1;
+            }
+            @foreach (var r in Model.Relacionados)
+            {
+                <tr>
+                    <td><small>@(n++)</small></td>
+                    <td><span class="badge bg-light text-dark border">@r.TipoDteCodigo</span></td>
+                    <td><code class="small">@r.NumeroControl</code></td>
+                    <td><span class="badge bg-secondary">@r.RolCodigo</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (Model.Respuestas.Any())
+{
+    <h5 class="mb-2">Respuestas de Hacienda</h5>
+    @foreach (var r in Model.Respuestas)
+    {
+        string rb = r.Estado switch
+        {
+            "PROCESADO" => "bg-success",
+            "RECHAZADO" => "bg-danger",
+            _ => "bg-secondary"
+        };
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge @rb">@(r.Estado ?? "—")</span>
+                        <strong class="ms-2">@(r.CodigoMsg ?? "—")</strong>
+                        @if (!string.IsNullOrEmpty(r.DescripcionMsg))
+                        {
+                            <span class="text-muted ms-2">@r.DescripcionMsg</span>
+                        }
+                    </div>
+                    <small class="text-muted">@r.RecibidoAt.ToString("dd/MM/yyyy HH:mm")</small>
+                </div>
+                @if (!string.IsNullOrEmpty(r.SelloRecibido))
+                {
+                    <div class="mt-1 small">Sello: <code>@r.SelloRecibido</code></div>
+                }
+                <details class="mt-2">
+                    <summary class="small text-muted">Respuesta MH cruda</summary>
+                    <pre class="small bg-light p-2 mt-1 mb-0" style="max-height: 14em; overflow:auto;">@r.RespuestaCrudaJson</pre>
+                </details>
+            </div>
+        </div>
+    }
+}

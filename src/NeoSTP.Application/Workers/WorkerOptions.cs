@@ -10,6 +10,7 @@ public class WorkerOptions
 
     public RetransmisionContingenciaOptions RetransmisionContingencia { get; set; } = new();
     public LimpiezaTokensOptions LimpiezaTokens { get; set; } = new();
+    public ContingenciaLoteOptions ContingenciaLote { get; set; } = new();
 }
 
 public class RetransmisionContingenciaOptions
@@ -37,4 +38,10 @@ public class LimpiezaTokensOptions
     /// Default: 30 días.
     /// </summary>
     public int RetentionDias { get; set; } = 30;
+}
+
+public class ContingenciaLoteOptions
+{
+    /// <summary>Intervalo entre ejecuciones del job (minutos). Default: 10.</summary>
+    public int IntervaloMinutos { get; set; } = 10;
 }

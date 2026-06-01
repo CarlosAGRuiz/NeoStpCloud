@@ -1,0 +1,107 @@
+@model NeoSTP.Application.Dte.Eventos.Dtos.CrearEventoContingenciaRequest
+@{
+    ViewData["Title"] = "Evento de contingencia";
+    var dtes = (ViewBag.Dtes as IReadOnlyList<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>) ?? new List<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>();
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Eventos DTE</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Contingencia</li>
+    </ol>
+</nav>
+
+<h2>Evento de contingencia</h2>
+<p class="text-muted">Reporta a Hacienda el lote de DTE emitidos en contingencia. Debe transmitirse en las primeras 24 h tras restablecer la conexión. CAT-005 define los tipos oficiales.</p>
+
+<form method="post" class="card card-body bg-light">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+    <div class="mb-3">
+        <label class="form-label">Tipo de contingencia (CAT-005)</label>
+        <select asp-for="TipoContingencia" class="form-select">
+            <option value="1">1 — No disponibilidad del sistema MH</option>
+            <option value="2">2 — Falla de conexión emisor↔MH</option>
+            <option value="3">3 — Falla servicios SVT</option>
+            <option value="4">4 — Falla conexión receptor</option>
+            <option value="5">5 — Otros (justificar)</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Motivo (requerido si tipo = 5)</label>
+        <textarea asp-for="Motivo" class="form-control" rows="2" placeholder="Detalle del motivo"></textarea>
+    </div>
+
+    <h6 class="mt-2">DTE en contingencia a reportar</h6>
+    @if (dtes.Count == 0)
+    {
+        <div class="alert alert-warning small">No hay DTE en estado CONTINGENCIA pendientes.</div>
+    }
+    else
+    {
+        <div class="table-responsive border rounded bg-white mb-3" style="max-height:18em;overflow:auto;">
+            <table class="table table-sm m-0">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th class="text-center" style="width:5%"><input type="checkbox" id="selAll" /></th>
+                        <th>Tipo</th>
+                        <th>Número de control</th>
+                        <th>Fecha</th>
+                        <th>Receptor</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var d in dtes)
+                {
+                    <tr>
+                        <td class="text-center"><input type="checkbox" name="DocumentoIds" value="@d.Id" class="form-check-input" /></td>
+                        <td><span class="badge bg-light text-dark border">@d.TipoDteCodigo</span></td>
+                        <td><code class="small">@d.NumeroControl</code></td>
+                        <td><small>@d.FechaEmision.ToString("dd/MM/yyyy")</small></td>
+                        <td>@d.ReceptorNombre</td>
+                        <td class="text-end"><small>$@d.TotalPagar.ToString("0.00")</small></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <h6 class="mt-2">Responsable del envío</h6>
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Nombre del responsable</label>
+            <input asp-for="NombreResponsable" class="form-control" required />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Tipo doc.</label>
+            <select asp-for="TipoDocResponsable" class="form-select">
+                <option value="13">13 — DUI</option>
+                <option value="36">36 — NIT</option>
+                <option value="03">03 — Pasaporte</option>
+                <option value="02">02 — Carnet de Residente</option>
+                <option value="37">37 — Otro</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Número de documento</label>
+            <input asp-for="NumeroDocResponsable" class="form-control" required />
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-warning">Transmitir contingencia</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        document.getElementById('selAll')?.addEventListener('change', function () {
+            document.querySelectorAll('input[name="DocumentoIds"]').forEach(cb => cb.checked = this.checked);
+        });
+    </script>
+}

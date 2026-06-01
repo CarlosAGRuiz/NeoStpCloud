@@ -72,6 +72,14 @@ public class CertificacionController : ApiControllerBase
         return Respond(await _service.MarcarCompletadoAsync(id, request, eid, _currentUser.Username, ct));
     }
 
+    [HttpPost("eventos/{id:int}/marcar-completado")]
+    [RequirePermiso("Core.Certificacion.Operar")]
+    public async Task<IActionResult> MarcarCompletadoEvento(int id, [FromBody] MarcarCompletadoRequest request, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (ResolveEmpresaId(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.MarcarCompletadoPorEventoAsync(id, request, eid, _currentUser.Username, ct));
+    }
+
     [HttpPost("documentos/{id:int}/reintentar")]
     [RequirePermiso("Core.Certificacion.Operar")]
     public async Task<IActionResult> Reintentar(int id, [FromQuery] int? empresaId, CancellationToken ct)

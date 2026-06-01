@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Catalogos;
+using NeoSTP.Domain.Core.Dte.Diagnostico;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Seguridad;
 
@@ -34,6 +35,8 @@ internal static partial class SeedData
         SeedRolPermisos(modelBuilder);
         // Sprint 14 — Matriz oficial de certificación Hacienda.
         ApplyCertificacion(modelBuilder);
+        // Sprint 17 — Catálogo de errores Hacienda.
+        SeedErrorCatalogo(modelBuilder);
     }
 
     private static void SeedCatalogos(ModelBuilder modelBuilder)
@@ -444,6 +447,7 @@ internal static partial class SeedData
             Perm(312, "Core.Catalogos.Importar",   "CORE",      "Importar / exportar catálogos"),
             Perm(313, "Core.Certificacion.Ver",    "NEODTE",    "Ver matriz y progreso de certificación DTE"),
             Perm(314, "Core.Certificacion.Operar", "NEODTE",    "Generar pruebas, asociar documentos, reintentar"),
+            Perm(315, "DTE.Eventos.Ver",           "NEODTE",    "Consultar eventos DTE persistidos"),
 
             // DTE
             Perm(320, "DTE.Configurar",   "NEODTE", "Configurar emisor, ambiente y credenciales DTE"),
@@ -495,7 +499,7 @@ internal static partial class SeedData
         // SUPERADMIN (500) → todos los permisos
         var superAdmin = new[]
         {
-            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314,
+            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
@@ -505,25 +509,25 @@ internal static partial class SeedData
         // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin
         var admin = new[]
         {
-            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314,
+            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
         };
 
-        // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación
+        // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
         var operador = new[]
         {
-            300, 302, 307, 308, 311, 313,
+            300, 302, 307, 308, 311, 313, 315,
             321, 322, 323, 325,
             330, 331, 332, 335, 336, 337,
             345, 346,
         };
 
-        // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación
+        // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
         var contador = new[]
         {
-            300, 302, 307, 308, 309, 311, 313,
+            300, 302, 307, 308, 309, 311, 313, 315,
             322, 324,
             330, 335,
             340,
@@ -637,5 +641,87 @@ internal static partial class SeedData
         EmpresaId = null,
         CreatedAt = SeededAt,
         CreatedBy = SeededBy,
+    };
+}
+
+// ── Sprint 17 ────────────────────────────────────────────────────────────────
+internal static partial class SeedData
+{
+    /// <summary>IDs reservados para DteErrorCatalogo: 1 – 99.</summary>
+    private static void SeedErrorCatalogo(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DteErrorCatalogo>().HasData(
+            Err(1,  "001",                    DteErrorTipo.Hacienda, "001 - RECIBIDO",
+                "Documento recibido por Hacienda",
+                "El documento fue transmitido y recibido correctamente.",
+                "No requiere acción. El sello llegará en el campo selloRecibido.", "INFO"),
+
+            Err(2,  "002",                    DteErrorTipo.Hacienda, "002 - OBSERVACIONES",
+                "Documento recibido con observaciones",
+                "El documento fue aceptado pero Hacienda reportó observaciones menores.",
+                "Revisar el campo observaciones en la respuesta y corregir en el próximo documento.", "WARNING"),
+
+            Err(3,  "006",                    DteErrorTipo.Hacienda, "006 - RECHAZADO",
+                "Documento rechazado por Hacienda",
+                "El JSON enviado no cumple con el esquema de validación de Hacienda.",
+                "Revisar el JSON enviado contra el esquema MH vigente. Corregir los campos señalados y retransmitir.", "ERROR"),
+
+            Err(4,  "095",                    DteErrorTipo.Hacienda, "095 - Error de autenticación",
+                "Error de autenticación con Hacienda",
+                "El token de autenticación expiró, es inválido o la cuenta no tiene los permisos requeridos.",
+                "Regenerar el token de autenticación. Verificar NIT y credenciales en Config DTE. Contactar a Hacienda si persiste.", "ERROR"),
+
+            Err(5,  "096",                    DteErrorTipo.Hacienda, "096 - Error de autorización",
+                "La cuenta no está autorizada para este tipo de operación",
+                "La cuenta de pruebas o producción no tiene habilitado el tipo de DTE o la operación solicitada.",
+                "Solicitar habilitación del tipo de documento ante el Ministerio de Hacienda.", "ERROR"),
+
+            Err(6,  "802",                    DteErrorTipo.Hacienda, "802 - Documento duplicado",
+                "CodigoGeneracion ya existe en Hacienda",
+                "Se intentó enviar un DTE con un UUID (codigoGeneracion) que ya fue procesado anteriormente.",
+                "Verificar si el documento ya fue procesado. Si es un reintento, usar el mismo codigoGeneracion y no generar uno nuevo.", "WARNING"),
+
+            Err(7,  "FIRMA_FAILED",           DteErrorTipo.Firma, "Error al firmar el documento",
+                "Fallo en la firma RS512 del DTE",
+                "El archivo PFX/P12 es incorrecto, la contraseña es inválida, o el certificado está vencido.",
+                "Verificar el certificado en Config DTE: cargarlo nuevamente con la contraseña correcta y asegurarse que no esté vencido.", "ERROR"),
+
+            Err(8,  "HACIENDA_AUTH_FAILED",   DteErrorTipo.Interno, "Error al obtener token de autenticación",
+                "No se pudo obtener token JWT de Hacienda",
+                "El NIT, usuario o contraseña configurados para Hacienda son incorrectos, o el servicio de autenticación no está disponible.",
+                "Verificar las credenciales en Config DTE (usuario/contraseña Hacienda). Revisar conectividad con apitest.dtes.mh.gob.sv.", "ERROR"),
+
+            Err(9,  "FIRMA_MOCK_NO_ENVIABLE", DteErrorTipo.Interno, "Documento firmado con mock no es enviable",
+                "El documento fue firmado en modo MOCK y no puede transmitirse a Hacienda real",
+                "El toggle de firma está en modo simulado (Mock). Los documentos generados en modo Mock no tienen firma real.",
+                "Cambiar el toggle de firma a REAL en Config DTE y regenerar el documento.", "WARNING"),
+
+            Err(10, "LOTE_ENVIO_FAILED",      DteErrorTipo.Interno, "Error al enviar lote de contingencia",
+                "El endpoint de recepción de lote respondió con error o no fue alcanzable",
+                "El servicio /fesv/recepcionlote de Hacienda no está disponible o devolvió un error de validación.",
+                "Revisar la respuesta raw del lote en el detalle. Verificar conectividad y reintentar desde la pantalla de Contingencia.", "ERROR"),
+
+            Err(11, "LOTE_CONSULTA_FAILED",   DteErrorTipo.Interno, "Error al consultar lote de contingencia",
+                "El endpoint de consulta de lote no fue alcanzable o devolvió error",
+                "El servicio /fesv/recepcion/consultadtelote de Hacienda no está disponible.",
+                "Reintentar la consulta del lote desde la pantalla de Detalle de Lote.", "WARNING")
+        );
+    }
+
+    private static DteErrorCatalogo Err(int id, string codigo, string tipo,
+        string mensajeTecnico, string descripcion, string causaProbable,
+        string accionSugerida, string severidad = "ERROR") => new()
+    {
+        Id = id,
+        Codigo = codigo,
+        Tipo = tipo,
+        MensajeTecnico = mensajeTecnico,
+        Descripcion = descripcion,
+        CausaProbable = causaProbable,
+        AccionSugerida = accionSugerida,
+        Severidad = severidad,
+        Activo = true,
+        CreatedAt = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc),
+        CreatedBy = "SYSTEM",
     };
 }

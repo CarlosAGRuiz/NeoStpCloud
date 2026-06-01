@@ -4,7 +4,9 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
+using NeoSTP.Application.Dte.Eventos.Dtos;
 using NeoSTP.Domain.Core.Dte;
+using NeoSTP.Domain.Core.Dte.Eventos;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -685,23 +687,24 @@ public class DteDocumentosService : IDteDocumentosService
     /// MOMENTO 2: transmite el Evento de Contingencia (contingencia-schema v4) informando los
     /// códigos de generación de los DTE generados en contingencia. Firma RS512 + POST /fesv/contingencia.
     /// </summary>
-    public async Task<Result<string>> TransmitirEventoContingenciaAsync(
+    public async Task<Result<CrearEventoResultadoDto>> TransmitirEventoContingenciaAsync(
         int empresaId, IReadOnlyList<int> documentoIds, int tipoContingencia, string? motivo,
         string nombreResponsable, string tipoDocResponsable, string numeroDocResponsable,
         string? actor, CancellationToken ct = default)
     {
         var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
-        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        if (empresa is null) return Result<CrearEventoResultadoDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
         var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
         if (config?.CertificadoBlob is null || config.CertificadoBlob.Length == 0)
-            return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+            return Result<CrearEventoResultadoDto>.Fail("Certificado no cargado.", "VALIDATION");
 
         var docs = await _db.DteDocumentos.AsNoTracking()
             .Where(d => d.EmpresaId == empresaId && documentoIds.Contains(d.Id))
             .ToListAsync(ct);
-        if (docs.Count == 0) return Result<string>.Fail("No hay documentos para el evento.", "VALIDATION");
+        if (docs.Count == 0) return Result<CrearEventoResultadoDto>.Fail("No hay documentos para el evento.", "VALIDATION");
 
         var ahora = DateTime.Now;
+        var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var fechaMin = docs.Min(d => d.FechaEmision);
         var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
@@ -713,7 +716,7 @@ public class DteDocumentosService : IDteDocumentosService
             {
                 version = 3,
                 ambiente,
-                codigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
+                codigoGeneracion = codGen,
                 fTransmision = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                 hTransmision = ahora.ToString(@"HH\:mm\:ss"),
             },
@@ -750,13 +753,24 @@ public class DteDocumentosService : IDteDocumentosService
         var json = System.Text.Json.JsonSerializer.Serialize(evento,
             new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
+        var relacionados = docs.Select(d => (d.Id, DteEventoRolCodigos.LoteContingencia, (string?)d.NumeroControl)).ToList();
+        var motivoLibre = tipoContingencia == 5 ? (motivo ?? "Falla de conexión") : motivo;
+
         var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
         if (!firma.Success)
-            return Result<string>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
+        {
+            var idErr = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 3, config.AmbienteCodigo,
+                json, null, firmaOk: false, resp: null, motivoLibre, numeroControlRef: null, relacionados, actor, ct);
+            return Result<CrearEventoResultadoDto>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
+        }
 
         var tokenResult = await ObtenerTokenAsync(config, ct);
         if (!tokenResult.Success)
-            return Result<string>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
+        {
+            await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 3, config.AmbienteCodigo,
+                json, firma.JsonFirmado, firmaOk: true, resp: null, motivoLibre, numeroControlRef: null, relacionados, actor, ct);
+            return Result<CrearEventoResultadoDto>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
+        }
 
         var resp = await _contingencia.EnviarAsync(new ContingenciaRequest
         {
@@ -770,21 +784,39 @@ public class DteDocumentosService : IDteDocumentosService
         await Audit(empresaId, actor, "EVENTO_CONTINGENCIA", resp.Success ? "OK" : "FAIL",
             $"estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg} obs={string.Join("; ", resp.Observaciones)}", 0);
 
+        var captura = new EventoRespuestaCaptura(resp.Success, resp.Estado, resp.CodigoMsg, resp.DescripcionMsg,
+            resp.SelloRecibido, resp.Raw ?? System.Text.Json.JsonSerializer.Serialize(new { resp.Estado, resp.CodigoMsg, resp.DescripcionMsg, resp.Observaciones }));
+        var eventoId = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 3, config.AmbienteCodigo,
+            json, firma.JsonFirmado, firmaOk: true, captura, motivoLibre, numeroControlRef: null, relacionados, actor, ct);
+
         return resp.Success
-            ? Result<string>.Ok(resp.SelloRecibido ?? resp.Estado ?? "OK")
-            : Result<string>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), "CONTINGENCIA_RECHAZADA");
+            ? Result<CrearEventoResultadoDto>.Ok(new CrearEventoResultadoDto { SelloOEstado = resp.SelloRecibido ?? resp.Estado ?? "OK", EventoId = eventoId })
+            : Result<CrearEventoResultadoDto>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), "CONTINGENCIA_RECHAZADA");
     }
 
     /// <summary>Firma RS512 un evento (JSON) y lo transmite al endpoint indicado vía el cliente genérico.</summary>
-    private async Task<Result<string>> FirmarYTransmitirEventoAsync(
+    private async Task<Result<CrearEventoResultadoDto>> FirmarYTransmitirEventoAsync(
         string json, string endpointPath, Func<string, object> bodyFactory,
-        Domain.Core.Dte.DteConfiguracion config, int empresaId, string accion, string? actor, CancellationToken ct)
+        Domain.Core.Dte.DteConfiguracion config, int empresaId, string accion, string? actor,
+        string tipoEvento, string codigoGeneracion, int version,
+        IReadOnlyList<(int docId, string rol, string? nc)> relacionados,
+        string? motivoLibre, string? numeroControlRef, CancellationToken ct)
     {
         var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
-        if (!firma.Success) return Result<string>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
+        if (!firma.Success)
+        {
+            await PersistirEventoAsync(empresaId, tipoEvento, codigoGeneracion, version, config.AmbienteCodigo,
+                json, null, firmaOk: false, resp: null, motivoLibre, numeroControlRef, relacionados, actor, ct);
+            return Result<CrearEventoResultadoDto>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
+        }
 
         var tok = await ObtenerTokenAsync(config, ct);
-        if (!tok.Success) return Result<string>.Fail(tok.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
+        if (!tok.Success)
+        {
+            await PersistirEventoAsync(empresaId, tipoEvento, codigoGeneracion, version, config.AmbienteCodigo,
+                json, firma.JsonFirmado, firmaOk: true, resp: null, motivoLibre, numeroControlRef, relacionados, actor, ct);
+            return Result<CrearEventoResultadoDto>.Fail(tok.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
+        }
 
         var body = System.Text.Json.JsonSerializer.Serialize(bodyFactory(firma.JsonFirmado!),
             new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
@@ -793,31 +825,131 @@ public class DteDocumentosService : IDteDocumentosService
         await Audit(empresaId, actor, accion, resp.Success ? "OK" : "FAIL",
             $"estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg} obs={string.Join("; ", resp.Observaciones)} RAW={Truncate(resp.Raw ?? "", 600)}", 0);
 
+        var captura = new EventoRespuestaCaptura(resp.Success, resp.Estado, resp.CodigoMsg, resp.DescripcionMsg,
+            resp.SelloRecibido, resp.Raw ?? System.Text.Json.JsonSerializer.Serialize(new { resp.Estado, resp.CodigoMsg, resp.DescripcionMsg, resp.Observaciones }));
+        var eventoId = await PersistirEventoAsync(empresaId, tipoEvento, codigoGeneracion, version, config.AmbienteCodigo,
+            json, firma.JsonFirmado, firmaOk: true, captura, motivoLibre, numeroControlRef, relacionados, actor, ct);
+
         return resp.Success
-            ? Result<string>.Ok(resp.SelloRecibido ?? resp.Estado ?? "OK")
-            : Result<string>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), $"{accion}_RECHAZADA");
+            ? Result<CrearEventoResultadoDto>.Ok(new CrearEventoResultadoDto { SelloOEstado = resp.SelloRecibido ?? resp.Estado ?? "OK", EventoId = eventoId })
+            : Result<CrearEventoResultadoDto>.Fail($"[{resp.CodigoMsg}] {resp.DescripcionMsg} {string.Join("; ", resp.Observaciones)}".Trim(), $"{accion}_RECHAZADA");
     }
 
     private static string Truncate(string s, int max) => string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max];
 
+    /// <summary>Captura uniforme de la respuesta MH para persistir (clientes distintos, mismos campos).</summary>
+    private sealed record EventoRespuestaCaptura(bool Success, string? Estado, string? CodigoMsg, string? DescripcionMsg, string? SelloRecibido, string? Raw);
+
+    /// <summary>
+    /// Sprint 15 — persiste un evento DTE en las tablas Dte_Eventos*. Best-effort:
+    /// nunca lanza, para no romper un flujo de transmisión certificado por un error
+    /// de persistencia. Devuelve el Id del evento creado o null si falló.
+    /// </summary>
+    private async Task<int?> PersistirEventoAsync(
+        int empresaId, string tipoEvento, string codigoGeneracion, int version, string ambienteCodigo,
+        string jsonSinFirmar, string? jws, bool firmaOk, EventoRespuestaCaptura? resp,
+        string? motivoLibre, string? numeroControlRef,
+        IReadOnlyList<(int docId, string rol, string? nc)> relacionados, string? actor, CancellationToken ct)
+    {
+        try
+        {
+            var estado = !firmaOk
+                ? DteEventoEstadoCodigos.Error
+                : resp is null
+                    ? DteEventoEstadoCodigos.Firmado
+                    : resp.Success ? DteEventoEstadoCodigos.Procesado : DteEventoEstadoCodigos.Rechazado;
+
+            var ahora = DateTime.UtcNow;
+            var finalizado = estado is DteEventoEstadoCodigos.Procesado or DteEventoEstadoCodigos.Rechazado;
+
+            var evento = new DteEvento
+            {
+                EmpresaId = empresaId,
+                TipoEventoCodigo = tipoEvento,
+                CodigoGeneracion = codigoGeneracion,
+                Version = version,
+                AmbienteCodigo = ambienteCodigo,
+                FechaTransmision = ahora,
+                EstadoCodigo = estado,
+                SelloRecibido = resp?.SelloRecibido,
+                NumeroControlReferencia = numeroControlRef,
+                MotivoLibre = motivoLibre,
+                FinalizadoAt = finalizado ? ahora : null,
+                CreatedAt = ahora,
+                CreatedBy = actor,
+                Json = new DteEventoJson
+                {
+                    JsonSinFirmar = jsonSinFirmar,
+                    JwsFirmado = jws,
+                    CreatedAt = ahora,
+                    CreatedBy = actor,
+                },
+            };
+            _db.DteEventos.Add(evento);
+            await _db.SaveChangesAsync(ct);
+
+            if (resp is not null)
+            {
+                _db.DteEventoRespuestas.Add(new DteEventoRespuestaHacienda
+                {
+                    EventoId = evento.Id,
+                    RespuestaCrudaJson = resp.Raw ?? "{}",
+                    Estado = resp.Estado,
+                    CodigoMsg = resp.CodigoMsg,
+                    DescripcionMsg = resp.DescripcionMsg,
+                    SelloRecibido = resp.SelloRecibido,
+                    RecibidoAt = ahora,
+                    CreatedAt = ahora,
+                    CreatedBy = actor,
+                });
+            }
+
+            foreach (var (docId, rol, nc) in relacionados)
+            {
+                _db.DteEventoDocumentosRelacionados.Add(new DteEventoDocumentoRelacionado
+                {
+                    EventoId = evento.Id,
+                    DocumentoId = docId,
+                    RolCodigo = rol,
+                    NumeroControlSnapshot = nc,
+                    CreatedAt = ahora,
+                    CreatedBy = actor,
+                });
+            }
+
+            if (resp is not null || relacionados.Count > 0)
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+
+            return evento.Id;
+        }
+        catch
+        {
+            // best-effort: la transmisión ya ocurrió; un fallo de persistencia no debe propagarse.
+            return null;
+        }
+    }
+
     /// <summary>Evento de Invalidación (anulación) de un DTE ya PROCESADO. POST /fesv/anulardte.</summary>
-    public async Task<Result<string>> TransmitirInvalidacionEventoAsync(
+    public async Task<Result<CrearEventoResultadoDto>> TransmitirInvalidacionEventoAsync(
         int empresaId, int documentoId, int tipoAnulacion, string? motivoAnulacion, string? codigoGeneracionReemplazo,
         string nombreResponsable, string tipoDocResponsable, string numDocResponsable, string? actor, CancellationToken ct = default)
     {
         var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
-        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        if (empresa is null) return Result<CrearEventoResultadoDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
         var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
-        if (config?.CertificadoBlob is null) return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+        if (config?.CertificadoBlob is null) return Result<CrearEventoResultadoDto>.Fail("Certificado no cargado.", "VALIDATION");
 
         var doc = await _db.DteDocumentos.AsNoTracking().FirstOrDefaultAsync(d => d.Id == documentoId && d.EmpresaId == empresaId, ct);
-        if (doc is null) return Result<string>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+        if (doc is null) return Result<CrearEventoResultadoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
         if (doc.EstadoCodigo != DteEstadoCodigos.Procesado || string.IsNullOrEmpty(doc.SelloRecibido))
-            return Result<string>.Fail("Solo se puede invalidar un DTE PROCESADO con sello de recepción.", "INVALID_STATE");
+            return Result<CrearEventoResultadoDto>.Fail("Solo se puede invalidar un DTE PROCESADO con sello de recepción.", "INVALID_STATE");
         if (tipoAnulacion is 1 or 3 && string.IsNullOrEmpty(codigoGeneracionReemplazo))
-            return Result<string>.Fail("Tipo de invalidación 1/3 requiere código de generación del documento de reemplazo.", "VALIDATION");
+            return Result<CrearEventoResultadoDto>.Fail("Tipo de invalidación 1/3 requiere código de generación del documento de reemplazo.", "VALIDATION");
 
         var ahora = DateTime.Now;
+        var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
@@ -828,7 +960,7 @@ public class DteDocumentosService : IDteDocumentosService
             {
                 version = 2,
                 ambiente,
-                codigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
+                codigoGeneracion = codGen,
                 fecAnula = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                 horAnula = ahora.ToString(@"HH\:mm\:ss"),
             },
@@ -882,17 +1014,20 @@ public class DteDocumentosService : IDteDocumentosService
 
         return await FirmarYTransmitirEventoAsync(json, "/fesv/anulardte",
             jws => new { ambiente, idEnvio = doc.Id, version = 2, documento = jws },
-            config, empresaId, "EVENTO_INVALIDACION", actor, ct);
+            config, empresaId, "EVENTO_INVALIDACION", actor,
+            TipoEventoCodigos.Invalidacion, codGen, 2,
+            new[] { (doc.Id, DteEventoRolCodigos.Anulado, (string?)doc.NumeroControl) },
+            motivoLibre: motivoAnulacion, numeroControlRef: doc.NumeroControl, ct);
     }
 
     /// <summary>Evento de Operaciones Especiales (EOE, tipoEvento 17). Esquema fe-eop (transmisión vía recepciondte).</summary>
-    public async Task<Result<string>> TransmitirEventoOperacionesEspecialesAsync(
+    public async Task<Result<CrearEventoResultadoDto>> TransmitirEventoOperacionesEspecialesAsync(
         int empresaId, string? codigoGeneracionRef, string descripcion, decimal monto, string? actor, CancellationToken ct = default)
     {
         var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
-        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        if (empresa is null) return Result<CrearEventoResultadoDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
         var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
-        if (config?.CertificadoBlob is null) return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+        if (config?.CertificadoBlob is null) return Result<CrearEventoResultadoDto>.Fail("Certificado no cargado.", "VALIDATION");
 
         var ahora = DateTime.Now;
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
@@ -955,23 +1090,26 @@ public class DteDocumentosService : IDteDocumentosService
 
         return await FirmarYTransmitirEventoAsync(json, "/fesv/recepciondte",
             jws => new { ambiente, idEnvio = ahora.Millisecond + 1, version = 1, tipoDte = "17", documento = jws, codigoGeneracion = codGen },
-            config, empresaId, "EVENTO_OPERACIONES_ESPECIALES", actor, ct);
+            config, empresaId, "EVENTO_OPERACIONES_ESPECIALES", actor,
+            TipoEventoCodigos.OperacionesEspeciales, codGen, 1,
+            Array.Empty<(int, string, string?)>(),
+            motivoLibre: descripcion, numeroControlRef: null, ct);
     }
 
     /// <summary>Evento de Retorno (ERET, tipoEvento 18). Esquema fe-eret v1, transmisión vía recepciondte. Aplica a FE/FEXE/FSEE.</summary>
-    public async Task<Result<string>> TransmitirEventoRetornoAsync(
+    public async Task<Result<CrearEventoResultadoDto>> TransmitirEventoRetornoAsync(
         int empresaId, int documentoOrigenId, string? actor, CancellationToken ct = default)
     {
         var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
-        if (empresa is null) return Result<string>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+        if (empresa is null) return Result<CrearEventoResultadoDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
         var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
-        if (config?.CertificadoBlob is null) return Result<string>.Fail("Certificado no cargado.", "VALIDATION");
+        if (config?.CertificadoBlob is null) return Result<CrearEventoResultadoDto>.Fail("Certificado no cargado.", "VALIDATION");
 
         var orig = await _db.DteDocumentos.Include(d => d.Detalles).AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == documentoOrigenId && d.EmpresaId == empresaId, ct);
-        if (orig is null) return Result<string>.Fail("Documento origen no encontrado.", "DTE_NOT_FOUND");
+        if (orig is null) return Result<CrearEventoResultadoDto>.Fail("Documento origen no encontrado.", "DTE_NOT_FOUND");
         if (orig.EstadoCodigo != DteEstadoCodigos.Procesado)
-            return Result<string>.Fail("El documento origen del retorno debe estar PROCESADO.", "INVALID_STATE");
+            return Result<CrearEventoResultadoDto>.Fail("El documento origen del retorno debe estar PROCESADO.", "INVALID_STATE");
 
         var ahora = DateTime.Now;
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
@@ -1075,7 +1213,10 @@ public class DteDocumentosService : IDteDocumentosService
 
         return await FirmarYTransmitirEventoAsync(json, "/fesv/recepciondte",
             jws => new { ambiente, idEnvio = ahora.Millisecond + 1, version = 1, tipoDte = "18", documento = jws, codigoGeneracion = codGen },
-            config, empresaId, "EVENTO_RETORNO", actor, ct);
+            config, empresaId, "EVENTO_RETORNO", actor,
+            TipoEventoCodigos.Retorno, codGen, 1,
+            new[] { (orig.Id, DteEventoRolCodigos.Origen, (string?)orig.NumeroControl) },
+            motivoLibre: null, numeroControlRef: orig.NumeroControl, ct);
     }
 
     // ---- validación de request ----
