@@ -1,0 +1,56 @@
+name: OWASP ZAP Baseline
+
+# Escaneo de seguridad baseline (pasivo) con OWASP ZAP contra una instancia
+# efímera de la Web. Se ejecuta manualmente y semanalmente; no bloquea PRs por
+# defecto (genera un reporte/issues como warnings).
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'URL objetivo a escanear'
+        required: false
+        default: 'http://localhost:8080'
+  schedule:
+    - cron: '0 6 * * 1' # lunes 06:00 UTC
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  zap-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish Web
+        run: dotnet publish src/NeoSTP.Web -c Release -o ./publish
+
+      - name: Run Web (background, mocks)
+        env:
+          ASPNETCORE_URLS: http://0.0.0.0:8080
+          ASPNETCORE_ENVIRONMENT: Development
+          # En CI se usan toggles Mock; la cadena de conexión apunta a una BD efímera.
+          Hacienda__Client: Mock
+          Dte__Signer: Mock
+          Email__Provider: Mock
+        run: |
+          nohup dotnet ./publish/NeoSTP.Web.dll > web.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/health > /dev/null; then echo "up"; break; fi
+            sleep 2
+          done
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ github.event.inputs.target || 'http://localhost:8080' }}
+          cmd_options: '-a -j'
+          fail_action: false

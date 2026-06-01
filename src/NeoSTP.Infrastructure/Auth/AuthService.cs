@@ -5,6 +5,7 @@ using NeoSTP.Application.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Auth.Dtos;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Ops;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
@@ -21,6 +22,7 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwt;
     private readonly IAuditoriaService _auditoria;
+    private readonly IMfaService _mfa;
     private readonly JwtOptions _jwtOptions;
     private readonly ILogger<AuthService> _logger;
 
@@ -29,6 +31,7 @@ public class AuthService : IAuthService
         IPasswordHasher passwordHasher,
         IJwtTokenService jwt,
         IAuditoriaService auditoria,
+        IMfaService mfa,
         IOptions<JwtOptions> jwtOptions,
         ILogger<AuthService> logger)
     {
@@ -36,6 +39,7 @@ public class AuthService : IAuthService
         _passwordHasher = passwordHasher;
         _jwt = jwt;
         _auditoria = auditoria;
+        _mfa = mfa;
         _jwtOptions = jwtOptions.Value;
         _logger = logger;
     }
@@ -84,9 +88,29 @@ public class AuthService : IAuthService
             return Result<LoginResponse>.Fail("Usuario o contraseña incorrectos.", "AUTH_INVALID_CREDENTIALS");
         }
 
+        // Segundo factor (TOTP). Si está habilitado, exige código válido.
+        if (usuario.MfaHabilitado)
+        {
+            if (string.IsNullOrWhiteSpace(request.MfaCode))
+            {
+                await AuditAsync(context, usuario, "LOGIN", "MFA_REQUIRED", "Falta código MFA");
+                return Result<LoginResponse>.Fail("Se requiere el código de segundo factor.", "AUTH_MFA_REQUIRED");
+            }
+
+            var mfaResult = await _mfa.VerificarCodigoLoginAsync(usuario.Id, request.MfaCode, ct);
+            if (mfaResult.IsFailure)
+            {
+                await AuditAsync(context, usuario, "LOGIN", "FAIL", "Código MFA inválido");
+                return Result<LoginResponse>.Fail("Código de segundo factor inválido.", "AUTH_MFA_INVALID");
+            }
+        }
+
         usuario.IntentosFallidos = 0;
         usuario.BloqueadoHasta = null;
         usuario.UltimoLogin = DateTime.UtcNow;
+
+        // SuperAdmin sin MFA: login permitido pero debe enrolar el segundo factor.
+        var mfaEnrollmentRequired = usuario.TipoUsuarioCodigo == "SUPERADMIN" && !usuario.MfaHabilitado;
 
         var userInfo = ToUserInfo(usuario);
         var (accessToken, accessExpires) = _jwt.CreateAccessToken(userInfo);
@@ -112,6 +136,7 @@ public class AuthService : IAuthService
             RefreshToken = refreshTokenValue,
             RefreshTokenExpiresAt = refreshExpires,
             User = userInfo,
+            MfaEnrollmentRequired = mfaEnrollmentRequired,
         });
     }
 

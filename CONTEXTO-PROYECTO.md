@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Sprint 19 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179
+> **Versión:** Sprint 20 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 222 unit + 2 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -123,7 +123,7 @@ CSV/JSON/XLSX + export + versionado + cascadas padre/hijo, vía API y UI MVC) ·
 Certificación DTE** (matriz 625 escenarios, progreso por tipo, asociación documentos a
 escenarios, reintentos, snapshots de errores MH, dashboard con barras de progreso) ·
 **Módulo de Eventos DTE persistentes** (4 tablas Dte_Eventos*, persistencia best-effort de los 4 flujos certificados, consulta + creación + PDF + UI MVC; integración con certificación vía marcar-completado-por-evento) ·
-**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 179 tests unit/integración.
+**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · **Módulo de Hardening pre-producción** (tablas `Ops_BackupJobs`/`Core_ApiUsageLog`/`Core_ApiQuotas`/`Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios`; rate limiting con `ApiQuotaMiddleware` → 429 por ventana deslizante; MFA TOTP RFC 6238 con `TotpService`/`MfaService` y códigos de recuperación; IP allowlist con `AdminIpAllowlistMiddleware` (CIDR, fail-open); backups con `BackupService`/`BackupWorker`/`IStorageService` (LOCAL/AZURE_BLOB/S3); API `/api/hardening` + UI `/Hardening`; k6 baseline, GitHub Action OWASP ZAP, runbook DR; permisos `Ops.Hardening.Ver/.Administrar`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 222 tests unit + 2 integración.
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
@@ -160,7 +160,7 @@ certificación se hace contra **v1/v3**.
 `Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
 `Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion` ·
 `Sprint15_DteEventos` · `Sprint15_PermisoEventos` · `Sprint15_CertificacionPruebaEvento` ·
-`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService`.
+`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService` · `Sprint20_HardeningSchema`.
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -224,7 +224,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | **Mobile** | `Mobile_Dispositivos`, `Mobile_Sesiones`, `Mobile_SyncLog` |
 | **Billing** | `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings` |
 | **Legal** | `Core_UserConsents` |
-| **Hardening** | `Ops_BackupJobs`, `Core_ApiUsageLog`, `Core_ApiQuotas`, `Core_AdminIpAllowlist` |
+| ~~**Hardening**~~ | ✅ Sprint 20 — `Ops_BackupJobs`, `Core_ApiUsageLog`, `Core_ApiQuotas`, `Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios`; rate limiting (429), MFA TOTP SuperAdmin, IP allowlist, backups + worker, panel `/Hardening`, k6/ZAP/DR |
 
 ---
 
@@ -606,7 +606,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 17 | **SuperAdmin** | ✅ parcial | Billing, salud sistema, incidentes, churn, soporte | Alta |
 | 18 | **Billing SaaS** | ✅ Sprint 19 | Trial, Stripe/MercadoPago, webhooks, licencias auto | Crítico (venta) |
 | 19 | **Legal / Compliance** | ✅ Sprint 18 | Términos, privacidad, consentimiento | Crítico (venta) |
-| 20 | **Hardening** | ❌ | Backups, k6, OWASP ZAP, quotas, MFA, DR | Alto (pre-prod) |
+| 20 | **Hardening** | ✅ Sprint 20 | Rate limiting (429), MFA TOTP, IP allowlist, backups + worker, k6, OWASP ZAP, DR | Alto (pre-prod) |
 
 ---
 
@@ -764,7 +764,7 @@ Clientes → Productos → Plan/Licencia → NeoProfit → NeoScanAI → NeoConn
   secretos cifrados → reingresar).
 
 ## 13.5 Testing
-- 179 tests verde (106 base + 31 catálogos Sprint 13 + 24 certificación Sprint 14 + 18 eventos Sprint 15). Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
+- 222 tests unit + 2 integración verde (106 base + 31 catálogos Sprint 13 + 24 certificación Sprint 14 + 18 eventos Sprint 15 + 43 hardening Sprint 20 + smoke). Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
   los **eventos** (estructura). Agregar tests de regresión que validen el JSON contra los esquemas
   `svfe-json-schemas` y contra lo que apitest realmente exige (v1/v3).
 

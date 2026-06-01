@@ -9,6 +9,7 @@ using NeoSTP.Application;
 using NeoSTP.Application.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Legal;
+using NeoSTP.Application.Ops;
 using NeoSTP.Infrastructure;
 using NeoSTP.Infrastructure.Persistence.Seed;
 using NeoSTP.Shared;
@@ -30,6 +31,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
+builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
 
 builder.Services.AddScoped<ICurrentUser, CurrentUserAccessor>();
 
@@ -85,7 +87,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<AdminIpAllowlistMiddleware>();
 app.UseMiddleware<CurrentTenantMiddleware>();
+app.UseMiddleware<ApiQuotaMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 

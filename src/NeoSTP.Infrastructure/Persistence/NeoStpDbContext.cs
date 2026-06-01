@@ -11,6 +11,7 @@ using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Billing;
 using NeoSTP.Domain.Core.Legal;
 using NeoSTP.Domain.Core.Licenciamiento;
+using NeoSTP.Domain.Core.Ops;
 using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence.Seed;
@@ -88,6 +89,12 @@ public class NeoStpDbContext : DbContext
     public DbSet<BillingInvoice> BillingInvoices => Set<BillingInvoice>();
     public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
     public DbSet<BillingPlanProviderMapping> BillingPlanProviderMappings => Set<BillingPlanProviderMapping>();
+
+    // Hardening / Operación (Sprint 20)
+    public DbSet<BackupJob> BackupJobs => Set<BackupJob>();
+    public DbSet<ApiUsageLog> ApiUsageLogs => Set<ApiUsageLog>();
+    public DbSet<ApiQuota> ApiQuotas => Set<ApiQuota>();
+    public DbSet<AdminIpAllowlistEntry> AdminIpAllowlist => Set<AdminIpAllowlistEntry>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

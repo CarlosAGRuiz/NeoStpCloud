@@ -2,14 +2,16 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 19 — Billing self-service** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179 pasando
+> **Versión actual: Sprint 20 — Hardening pre-producción** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 222 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 📦 **Sprint 20 (Hardening pre-producción):** Endurecimiento para operar con clientes reales. **Rate limiting / cuotas** (`ApiQuotaMiddleware` + `Core_ApiQuotas`/`Core_ApiUsageLog`): topes por ventana deslizante por empresa/usuario/plan/módulo, responde **429** con `Retry-After`/`X-RateLimit-*`. **MFA SuperAdmin (TOTP RFC 6238)**: enrolar/confirmar/verificar con códigos de recuperación, secreto cifrado con DataProtection (`POST /api/auth/mfa/{enroll|confirm|disable}`). **IP allowlist** del panel admin (`AdminIpAllowlistMiddleware` + `Core_AdminIpAllowlist`, soporta CIDR, fail-open). **Backups** (`BackupService` + `BackupWorker` + `IStorageService` toggle LOCAL/AZURE_BLOB/S3, `Ops_BackupJobs`, checksum SHA-256). Panel SuperAdmin `/Hardening` + API `/api/hardening`. k6 baseline (`ops/k6/`), GitHub Action OWASP ZAP, runbook Disaster Recovery (`docs/Sprint20-Disaster-Recovery.md`). Permisos `Ops.Hardening.Ver/.Administrar`. Migración `Sprint20_HardeningSchema`.
 >
 > 📦 **Sprint 19 (Billing self-service):** Módulo de facturación completo — trial 14 días, checkout (Stripe / MercadoPago / Mock), portal de facturación, upgrade/downgrade de plan, cancelación, webhooks idempotentes (`Billing_WebhookEvents`), activación automática de licencias (`Core_EmpresaPlan`), emails transaccionales en cada transición de estado. Tablas: `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`. Toggle `Billing:Provider = Mock | Stripe | MercadoPago`. Migración `Sprint19_BillingSelfService`.
 >
@@ -249,6 +251,7 @@ Migraciones aplicadas en orden:
 21. `Sprint17_SeedErrorCatalogo` — seed de 11 códigos de error MH e internos en `Dte_ErrorCatalogo`
 22. `Sprint18_LegalConsentimiento` — tabla `Core_UserConsents` para registro de consentimientos legales
 23. `Sprint19_BillingSelfService` — tablas `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`
+24. `Sprint20_HardeningSchema` — tablas `Ops_BackupJobs`, `Core_ApiUsageLog`, `Core_ApiQuotas`, `Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios` (`MfaHabilitado`, `MfaSecretoCifrado`, `MfaConfirmadoAt`, `MfaRecoveryCodesJson`) + permisos `Ops.Hardening.Ver/.Administrar`
 
 ```powershell
 # Crear una nueva migración
@@ -594,6 +597,40 @@ POST  /api/dte/evento/{invalidacion|contingencia|retorno|operaciones-especiales}
 - Estados del evento: `BORRADOR → FIRMADO → ENVIADO → PROCESADO | RECHAZADO | ERROR`.
 - Una `CertificacionPrueba` ahora puede asociarse a un `DteDocumento` **o** a un `DteEvento` (mutuamente excluyente). Endpoint `POST /api/certificacion/eventos/{id}/marcar-completado` permite contar eventos PROCESADO en las matrices CAT INVALIDACION/CONTINGENCIA/RETORNO/OPERACIONES_ESPECIALES.
 
+### Hardening / Operación (Sprint 20)
+
+Endurecimiento pre-producción. Permisos `Ops.Hardening.Ver` / `Ops.Hardening.Administrar` (SuperAdmin).
+
+```
+# MFA (TOTP) — segundo factor, cualquier usuario autenticado
+POST  /api/auth/mfa/enroll                 # genera secreto + otpauth URI (QR)
+POST  /api/auth/mfa/confirm    { code }    # activa MFA + devuelve 10 códigos de recuperación
+POST  /api/auth/mfa/disable    { code }    # deshabilita (TOTP o código de recuperación)
+# Login: si MfaHabilitado, LoginRequest exige { mfaCode }; SuperAdmin sin MFA → LoginResponse.mfaEnrollmentRequired=true
+
+# Panel Hardening (SuperAdmin)
+GET    /api/hardening/backups                      # últimos respaldos
+POST   /api/hardening/backups/ejecutar?empresaId=  # ejecuta respaldo lógico ahora
+GET    /api/hardening/cuotas                       # reglas de rate limit
+POST   /api/hardening/cuotas                       { ambito, ambitoRef?, empresaId?, limitePeticiones, ventanaSegundos }
+DELETE /api/hardening/cuotas/{id}
+GET    /api/hardening/ip-allowlist
+POST   /api/hardening/ip-allowlist                 { ipCidr, descripcion? }
+PATCH  /api/hardening/ip-allowlist/{id}            { activo }
+DELETE /api/hardening/ip-allowlist/{id}
+```
+
+**Rate limiting:** `ApiQuotaMiddleware` cuenta cada `/api/*` en `Core_ApiUsageLog` y evalúa las reglas
+de `Core_ApiQuotas` por ventana deslizante. Al exceder → **429** con `Retry-After` + `X-RateLimit-Limit/Remaining`.
+SuperAdmin exento. Toggle `Hardening:RateLimit:Enabled` (default true).
+
+**IP allowlist:** `AdminIpAllowlistMiddleware` restringe el acceso de SuperAdmin a las IP/CIDR de
+`Core_AdminIpAllowlist` (fail-open si la lista está vacía).
+
+**Backups:** `IStorageService` toggle `Hardening:Backup:StorageProvider` = `LOCAL | AZURE_BLOB | S3`;
+`BackupWorker` periódico (`Hardening:Backup:WorkerEnabled`, `IntervaloHoras`). UI `/Hardening`.
+Ops: `ops/k6/baseline.js`, `.github/workflows/zap-baseline.yml`, `docs/Sprint20-Disaster-Recovery.md`.
+
 ### Documentos DTE — descarga y correo (Sprint 7)
 
 ```
@@ -795,7 +832,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 17     | Diagnóstico de errores Hacienda               | ✅     |
 | 18     | Legal + consentimiento                        | ✅     |
 | 19     | Billing self-service (Stripe / MercadoPago)   | ✅     |
-| 20     | Hardening pre-producción                      | 🔜     |
+| 20     | Hardening pre-producción                      | ✅     |
 | 21     | UI/UX AppShell + design system                | 🔜     |
 | 22     | NeoProfit básico                              | 🔜     |
 | 23     | NeoScanAI integrado                           | 🔜     |
@@ -809,7 +846,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 179 tests unit + integration
+dotnet test NeoSTP.slnx                          # corre los 222 tests unit + 2 integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
@@ -834,3 +871,5 @@ Cobertura por área:
 | Catálogos — esquema/CRUD/Import   | 31    | `tests/NeoSTP.Tests.Unit/Catalogos/*Tests.cs` (Sprint 13)              |
 | Certificación DTE — schema/servicio/eventos | 24 | `tests/NeoSTP.Tests.Unit/Dte/Certificacion/*Tests.cs` (Sprints 14, 15.5) |
 | Eventos DTE — schema/servicio/PDF | 18    | `tests/NeoSTP.Tests.Unit/Dte/Eventos/*Tests.cs` (Sprint 15)            |
+| Hardening — schema/quotas/TOTP/MFA/IP allowlist/backups | 43 | `tests/NeoSTP.Tests.Unit/Ops/*Tests.cs` (Sprint 20)        |
+| Hardening — smoke cross-service   | 2     | `tests/NeoSTP.Tests.Integration/HardeningSmokeTests.cs` (Sprint 20)   |

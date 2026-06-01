@@ -188,6 +188,22 @@ public static class DependencyInjection
         // Sprint 18: Legal + consentimiento
         services.AddScoped<ILegalDocumentService, LegalDocumentService>();
 
+        // Sprint 20: Hardening — cuotas / rate limiting, MFA (TOTP), IP allowlist
+        services.AddScoped<NeoSTP.Application.Ops.IApiQuotaService, ApiQuotaService>();
+        services.AddSingleton<NeoSTP.Application.Ops.ITotpService, TotpService>();
+        services.AddScoped<NeoSTP.Application.Ops.IMfaService, MfaService>();
+        services.AddScoped<NeoSTP.Application.Ops.IAdminIpAllowlistService, AdminIpAllowlistService>();
+
+        // Sprint 20: Backups — toggle LOCAL (default) | AZURE_BLOB | S3
+        services.Configure<NeoSTP.Application.Ops.BackupOptions>(configuration.GetSection(NeoSTP.Application.Ops.BackupOptions.SectionName));
+        var storageProvider = configuration["Hardening:Backup:StorageProvider"];
+        if (string.Equals(storageProvider, "AZURE_BLOB", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(storageProvider, "S3", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<NeoSTP.Application.Ops.IStorageService, ExternalStorageService>();
+        else
+            services.AddScoped<NeoSTP.Application.Ops.IStorageService, LocalStorageService>();
+        services.AddScoped<NeoSTP.Application.Ops.IBackupService, BackupService>();
+
         // Sprint 19: Billing self-service — toggle "Mock" (default) | "Stripe" | "MercadoPago"
         services.Configure<BillingOptions>(configuration.GetSection("Billing"));
         var billingProvider = configuration["Billing:Provider"];

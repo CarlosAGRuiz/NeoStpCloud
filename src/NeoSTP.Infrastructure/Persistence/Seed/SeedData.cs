@@ -475,6 +475,10 @@ internal static partial class SeedData
             Perm(360, "SuperAdmin.Empresas.Administrar", "ADMIN", "Administrar empresas globalmente"),
             Perm(361, "SuperAdmin.Planes.Administrar",   "ADMIN", "Administrar planes y módulos"),
             Perm(362, "SuperAdmin.Soporte.Entrar",       "ADMIN", "Entrar en modo soporte a una empresa"),
+
+            // Hardening / Operación (Sprint 20)
+            Perm(363, "Ops.Hardening.Ver",         "ADMIN", "Ver backups, cuotas y lista blanca de IP"),
+            Perm(364, "Ops.Hardening.Administrar", "ADMIN", "Ejecutar backups, configurar cuotas e IP allowlist"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -503,7 +507,7 @@ internal static partial class SeedData
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
-            360, 361, 362,
+            360, 361, 362, 363, 364,
         };
 
         // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin

@@ -20,12 +20,15 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // ── Configuración del Worker ──────────────────────────────────────
 builder.Services.Configure<WorkerOptions>(
     builder.Configuration.GetSection(WorkerOptions.SectionName));
+builder.Services.Configure<NeoSTP.Application.Ops.BackupOptions>(
+    builder.Configuration.GetSection(NeoSTP.Application.Ops.BackupOptions.SectionName));
 
 // ── Hosted services ───────────────────────────────────────────────
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<RetransmisionContingenciaWorker>();
 builder.Services.AddHostedService<LimpiezaTokensWorker>();
 builder.Services.AddHostedService<ContingenciaLoteWorker>();
+builder.Services.AddHostedService<BackupWorker>();
 
 var host = builder.Build();
 

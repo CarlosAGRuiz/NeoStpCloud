@@ -10,6 +10,7 @@
     var puedeVerCatalogos = isSuperAdmin || User.HasClaim("permiso", "Core.Catalogos.Ver");
     var puedeVerCertificacion = isSuperAdmin || User.HasClaim("permiso", "Core.Certificacion.Ver");
     var puedeVerEventos = isSuperAdmin || User.HasClaim("permiso", "DTE.Eventos.Ver");
+    var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 }
@@ -76,6 +77,10 @@
                             }
                             <li class="nav-item"><a class="nav-link" asp-controller="Planes" asp-action="Index">Planes</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Billing" asp-action="Index">💳 Billing</a></li>
+                            @if (puedeVerHardening)
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="Hardening" asp-action="Index">🛡️ Hardening</a></li>
+                            }
                         }
                     </ul>
                     <ul class="navbar-nav">

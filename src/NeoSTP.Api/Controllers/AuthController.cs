@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Auth.Dtos;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Ops;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Application.Usuarios.Dtos;
 using NeoSTP.Shared;
@@ -16,12 +17,14 @@ public class AuthController : ControllerBase
     private readonly IAuthService _auth;
     private readonly IUsuariosService _usuarios;
     private readonly ICurrentUser _currentUser;
+    private readonly IMfaService _mfa;
 
-    public AuthController(IAuthService auth, IUsuariosService usuarios, ICurrentUser currentUser)
+    public AuthController(IAuthService auth, IUsuariosService usuarios, ICurrentUser currentUser, IMfaService mfa)
     {
         _auth = auth;
         _usuarios = usuarios;
         _currentUser = currentUser;
+        _mfa = mfa;
     }
 
     [HttpPost("login")]
@@ -70,6 +73,42 @@ public class AuthController : ControllerBase
             "PWD_WEAK" or "VALIDATION" => BadRequest(payload),
             _ => BadRequest(payload),
         };
+    }
+
+    [HttpPost("mfa/enroll")]
+    [Authorize]
+    public async Task<IActionResult> MfaEnroll(CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+            return Unauthorized(ApiResponse.Fail("No autenticado.", traceId: HttpContext.TraceIdentifier));
+
+        var result = await _mfa.IniciarEnrolamientoAsync(userId, ct);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("mfa/confirm")]
+    [Authorize]
+    public async Task<IActionResult> MfaConfirm([FromBody] MfaCodeRequest request, CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+            return Unauthorized(ApiResponse.Fail("No autenticado.", traceId: HttpContext.TraceIdentifier));
+
+        var result = await _mfa.ConfirmarEnrolamientoAsync(userId, request?.Code ?? string.Empty, BuildContext(), ct);
+        return ToActionResult(result);
+    }
+
+    [HttpPost("mfa/disable")]
+    [Authorize]
+    public async Task<IActionResult> MfaDisable([FromBody] MfaCodeRequest request, CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+            return Unauthorized(ApiResponse.Fail("No autenticado.", traceId: HttpContext.TraceIdentifier));
+
+        var result = await _mfa.DeshabilitarAsync(userId, request?.Code ?? string.Empty, BuildContext(), ct);
+        if (result.IsSuccess)
+            return Ok(ApiResponse.Ok("Segundo factor deshabilitado.", HttpContext.TraceIdentifier));
+
+        return BadRequest(ApiResponse.Fail(result.Error ?? "Error", result.ValidationErrors, HttpContext.TraceIdentifier));
     }
 
     [HttpGet("me")]

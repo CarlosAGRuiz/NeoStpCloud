@@ -56,7 +56,11 @@ public class AuthServiceTests
             ExpiryMinutes = 60, RefreshTokenExpiryDays = 14,
         });
 
-        var svc = new AuthService(db, hasher, jwt, audit, jwtOptions, NullLogger<AuthService>.Instance);
+        var mfa = Substitute.For<NeoSTP.Application.Ops.IMfaService>();
+        mfa.VerificarCodigoLoginAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(NeoSTP.Application.Common.Result.Ok());
+
+        var svc = new AuthService(db, hasher, jwt, audit, mfa, jwtOptions, NullLogger<AuthService>.Instance);
         return (svc, db, jwt, audit);
     }
 

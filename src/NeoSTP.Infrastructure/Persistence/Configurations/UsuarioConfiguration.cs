@@ -21,6 +21,10 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         builder.Property(u => u.CreatedBy).HasMaxLength(100);
         builder.Property(u => u.UpdatedBy).HasMaxLength(100);
 
+        // MFA (TOTP) — Sprint 20
+        builder.Property(u => u.MfaSecretoCifrado).HasMaxLength(500);
+        builder.Property(u => u.MfaRecoveryCodesJson).HasColumnType("nvarchar(max)");
+
         builder.HasIndex(u => new { u.EmpresaId, u.Username }).IsUnique();
         builder.HasIndex(u => new { u.EmpresaId, u.Email }).IsUnique();
         builder.HasIndex(u => u.EstadoCodigo);

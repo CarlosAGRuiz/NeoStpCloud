@@ -1,0 +1,157 @@
+@model NeoSTP.Web.Controllers.HardeningViewModel
+@{
+    ViewData["Title"] = "Hardening / Operación";
+    var admin = Model.PuedeAdministrar;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>🛡️ Hardening / Operación</h2>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<!-- ===== Backups ===== -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>💾 Respaldos</span>
+        @if (admin)
+        {
+            <form asp-action="EjecutarBackup" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-primary btn-sm" type="submit">Ejecutar respaldo ahora</button>
+            </form>
+        }
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover m-0">
+            <thead><tr><th>#</th><th>Tipo</th><th>Estado</th><th>Origen</th><th>Storage</th><th>Tamaño</th><th>Iniciado</th></tr></thead>
+            <tbody>
+            @foreach (var b in Model.Backups)
+            {
+                var badge = b.EstadoCodigo switch { "COMPLETADO" => "success", "FALLIDO" => "danger", "EN_PROGRESO" => "info", _ => "secondary" };
+                <tr>
+                    <td>@b.Id</td>
+                    <td>@b.TipoBackup</td>
+                    <td><span class="badge bg-@badge">@b.EstadoCodigo</span></td>
+                    <td>@b.Origen</td>
+                    <td>@b.StorageProvider</td>
+                    <td>@(b.TamanoBytes?.ToString("N0") ?? "—") </td>
+                    <td>@b.IniciadoAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</td>
+                </tr>
+            }
+            @if (Model.Backups.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center text-muted py-3">Sin respaldos registrados.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===== Cuotas ===== -->
+<div class="card mb-4">
+    <div class="card-header">⏱️ Cuotas de API (rate limiting)</div>
+    <div class="card-body">
+        @if (admin)
+        {
+            <form asp-action="CrearCuota" method="post" class="row g-2 align-items-end mb-3">
+                @Html.AntiForgeryToken()
+                <div class="col-md-2">
+                    <label class="form-label small">Ámbito</label>
+                    <select name="Ambito" class="form-select form-select-sm">
+                        <option>GLOBAL</option><option>EMPRESA</option><option>PLAN</option>
+                        <option>USUARIO</option><option>APIKEY</option><option>MODULO</option>
+                    </select>
+                </div>
+                <div class="col-md-2"><label class="form-label small">Ref (opcional)</label><input name="AmbitoRef" class="form-control form-control-sm" /></div>
+                <div class="col-md-2"><label class="form-label small">Empresa Id</label><input name="EmpresaId" type="number" class="form-control form-control-sm" /></div>
+                <div class="col-md-2"><label class="form-label small">Límite</label><input name="LimitePeticiones" type="number" class="form-control form-control-sm" value="100" /></div>
+                <div class="col-md-2"><label class="form-label small">Ventana (s)</label><input name="VentanaSegundos" type="number" class="form-control form-control-sm" value="60" /></div>
+                <div class="col-md-2"><button class="btn btn-success btn-sm w-100" type="submit">Agregar cuota</button></div>
+            </form>
+        }
+        <table class="table table-sm table-hover m-0">
+            <thead><tr><th>#</th><th>Ámbito</th><th>Ref</th><th>Empresa</th><th>Límite/Ventana</th><th>Activo</th>@if (admin){<th></th>}</tr></thead>
+            <tbody>
+            @foreach (var q in Model.Cuotas)
+            {
+                <tr>
+                    <td>@q.Id</td><td>@q.Ambito</td><td>@(q.AmbitoRef ?? "—")</td><td>@(q.EmpresaId?.ToString() ?? "—")</td>
+                    <td>@q.LimitePeticiones / @q.VentanaSegundos s</td>
+                    <td>@(q.Activo ? "Sí" : "No")</td>
+                    @if (admin)
+                    {
+                        <td class="text-end">
+                            <form asp-action="EliminarCuota" method="post" class="m-0" onsubmit="return confirm('¿Eliminar cuota?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@q.Id" />
+                                <button class="btn btn-outline-danger btn-sm" type="submit">Eliminar</button>
+                            </form>
+                        </td>
+                    }
+                </tr>
+            }
+            @if (Model.Cuotas.Count == 0)
+            {
+                <tr><td colspan="@(admin ? 7 : 6)" class="text-center text-muted py-3">Sin cuotas configuradas (sin límites).</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===== IP allowlist ===== -->
+<div class="card mb-4">
+    <div class="card-header">🌐 Lista blanca de IP (panel SuperAdmin)</div>
+    <div class="card-body">
+        <p class="text-muted small">Si la lista está vacía, no se restringe el acceso. Soporta IP exacta o rango CIDR (ej. <code>10.0.0.0/24</code>).</p>
+        @if (admin)
+        {
+            <form asp-action="AgregarIp" method="post" class="row g-2 align-items-end mb-3">
+                @Html.AntiForgeryToken()
+                <div class="col-md-3"><label class="form-label small">IP / CIDR</label><input name="ipCidr" class="form-control form-control-sm" required /></div>
+                <div class="col-md-6"><label class="form-label small">Descripción</label><input name="descripcion" class="form-control form-control-sm" /></div>
+                <div class="col-md-3"><button class="btn btn-success btn-sm w-100" type="submit">Agregar IP</button></div>
+            </form>
+        }
+        <table class="table table-sm table-hover m-0">
+            <thead><tr><th>#</th><th>IP / CIDR</th><th>Descripción</th><th>Activo</th>@if (admin){<th></th>}</tr></thead>
+            <tbody>
+            @foreach (var ip in Model.Ips)
+            {
+                <tr>
+                    <td>@ip.Id</td><td><code>@ip.IpCidr</code></td><td>@(ip.Descripcion ?? "—")</td>
+                    <td>@(ip.Activo ? "Sí" : "No")</td>
+                    @if (admin)
+                    {
+                        <td class="text-end d-flex gap-1 justify-content-end">
+                            <form asp-action="ToggleIp" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@ip.Id" />
+                                <input type="hidden" name="activo" value="@((!ip.Activo).ToString().ToLower())" />
+                                <button class="btn btn-outline-secondary btn-sm" type="submit">@(ip.Activo ? "Desactivar" : "Activar")</button>
+                            </form>
+                            <form asp-action="EliminarIp" method="post" class="m-0" onsubmit="return confirm('¿Eliminar IP?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@ip.Id" />
+                                <button class="btn btn-outline-danger btn-sm" type="submit">Eliminar</button>
+                            </form>
+                        </td>
+                    }
+                </tr>
+            }
+            @if (Model.Ips.Count == 0)
+            {
+                <tr><td colspan="@(admin ? 5 : 4)" class="text-center text-muted py-3">Lista vacía — sin restricción de IP.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
