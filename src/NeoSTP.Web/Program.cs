@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using NeoSTP.Application;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Legal;
 using NeoSTP.Infrastructure;
 using NeoSTP.Web.Auth;
 using Serilog;
@@ -19,6 +20,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
 
 builder.Services.AddScoped<ICurrentUser, CookieCurrentUser>();
 builder.Services.AddScoped<NeoSTP.Application.Empresas.IEmpresaContext, NeoSTP.Web.Auth.WebEmpresaContext>();

@@ -122,8 +122,14 @@
     </div>
 
     <footer class="border-top footer text-muted mt-5">
-        <div class="container py-3">
-            &copy; @DateTime.Now.Year NeoSTP — Plataforma SaaS DTE
+        <div class="container py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>&copy; @DateTime.Now.Year NeoSTP — Plataforma SaaS DTE</span>
+            <div class="d-flex gap-3 small">
+                <a href="/legal/terms" class="text-muted text-decoration-none">Términos</a>
+                <a href="/legal/privacy" class="text-muted text-decoration-none">Privacidad</a>
+                <a href="/legal/cookies" class="text-muted text-decoration-none">Cookies</a>
+                <a href="/legal/dpa" class="text-muted text-decoration-none">DPA</a>
+            </div>
         </div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

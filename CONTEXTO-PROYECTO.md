@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Sprint 17 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179
+> **Versión:** Sprint 18 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -123,7 +123,7 @@ CSV/JSON/XLSX + export + versionado + cascadas padre/hijo, vía API y UI MVC) ·
 Certificación DTE** (matriz 625 escenarios, progreso por tipo, asociación documentos a
 escenarios, reintentos, snapshots de errores MH, dashboard con barras de progreso) ·
 **Módulo de Eventos DTE persistentes** (4 tablas Dte_Eventos*, persistencia best-effort de los 4 flujos certificados, consulta + creación + PDF + UI MVC; integración con certificación vía marcar-completado-por-evento) ·
-**Módulo de Contingencia avanzada / Lotes** (tablas `Dte_ContingenciaLotes`/`Dte_ContingenciaLoteDetalles`, servicio `ContingenciaLoteService`, clientes HTTP `HttpHaciendaLoteClient`/`HttpHaciendaConsultaLoteClient`, worker periódico `ContingenciaLoteWorker`, API REST y UI `/DteContingencia`) · **Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 179 tests unit/integración.
+**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 179 tests unit/integración.
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
@@ -160,7 +160,7 @@ certificación se hace contra **v1/v3**.
 `Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
 `Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion` ·
 `Sprint15_DteEventos` · `Sprint15_PermisoEventos` · `Sprint15_CertificacionPruebaEvento` ·
-`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo`.
+`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento`.
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -212,6 +212,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | ~~**Eventos DTE**~~ | ✅ Sprint 15 — `Dte_Eventos`, `Dte_EventoJson`, `Dte_EventoRespuestasHacienda`, `Dte_EventoDocumentosRelacionados` + `CertificacionPrueba.EventoId` |
 | ~~**Contingencia avanzada**~~ | ✅ Sprint 16 — `Dte_ContingenciaLotes`, `Dte_ContingenciaLoteDetalles`, `ContingenciaLoteService`, workers y UI |
 | ~~**Diagnóstico errores Hacienda**~~ | ✅ Sprint 17 — `Dte_ErrorCatalogo`, `Dte_ErrorOcurrencias`, `DiagnosticoHaciendaService`, seed 11 errores, API + UI |
+| ~~**Legal / Consentimiento**~~ | ✅ Sprint 18 — `Core_UserConsents`, `LegalDocumentService`, páginas `/legal/*`, checkbox en registro |
 | ~~**Certificación**~~ | ✅ Sprint 14 — `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` con seed 625 escenarios |
 | ~~**Catálogos MH**~~ | ✅ Sprint 13 — `Core_Catalogos.Version`/`MetadataJson` y `Core_CatalogoItems.ParentCodigo` agregados |
 | **NeoProfit** | `Profit_Gastos`, `Profit_Compras`, `Profit_SnapshotsMensuales`, `Profit_Alertas` |

@@ -31,6 +31,10 @@ public class CreateUsuarioViewModel
 
     [Display(Name = "Roles")]
     public int[] RoleIds { get; set; } = Array.Empty<int>();
+
+    [Range(typeof(bool), "true", "true", ErrorMessage = "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.")]
+    [Display(Name = "Acepto los Términos y Condiciones y la Política de Privacidad")]
+    public bool AceptaTerminos { get; set; }
 }
 
 public class EditUsuarioViewModel

@@ -1,0 +1,42 @@
+@{
+    ViewData["Title"] = ViewBag.Titulo;
+    Layout = "_Layout";
+}
+
+<div class="container py-4" style="max-width:820px">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Inicio</a></li>
+            <li class="breadcrumb-item active">@ViewBag.Titulo</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5 legal-content">
+            @Html.Raw(ViewBag.Contenido)
+        </div>
+    </div>
+
+    <div class="text-center mt-3">
+        <div class="d-flex justify-content-center gap-3 flex-wrap small">
+            @foreach (var (s, label) in new[] { ("terms","Términos"), ("privacy","Privacidad"), ("cookies","Cookies"), ("dpa","DPA") })
+            {
+                if (ViewBag.Slug == s)
+                {
+                    <span class="text-muted fw-semibold">@label</span>
+                }
+                else
+                {
+                    <a href="/legal/@s">@label</a>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .legal-content h1 { font-size: 1.5rem; margin-bottom: .5rem; }
+    .legal-content h2 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: .4rem; }
+    .legal-content p, .legal-content li { font-size: .95rem; color: #444; line-height: 1.7; }
+    .legal-content table { font-size: .9rem; }
+</style>

@@ -2,7 +2,7 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 17 — Diagnóstico de errores Hacienda** ✅  
+> **Versión actual: Sprint 18 — Legal + consentimiento** ✅  
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 179/179 pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
@@ -11,7 +11,7 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
 >
-> 📦 **Sprint 17 (Diagnóstico de errores Hacienda):** Módulo de diagnóstico DTE completo — entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, `IDiagnosticoHaciendaService`/`DiagnosticoHaciendaService`, catálogo seed con 11 códigos de error MH+internos, API REST (`/api/dte/diagnostico`), UI web (`/DiagnosticoHacienda`), migraciones `Sprint17_DiagnosticoErrores` + `Sprint17_SeedErrorCatalogo`. Fix de modo soporte empresa (`EmpresasService.GetByIdAsync` corregido para buscar por Id directo).
+> 📦 **Sprint 18 (Legal + consentimiento):** Módulo legal completo — páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalDocumentService` con reemplazo de placeholders desde `LegalOptions`, tabla `Core_UserConsents` con registro de IP/UserAgent/versión, checkbox obligatorio de aceptación en creación de usuario, enlace al footer en el layout, migración `Sprint18_LegalConsentimiento`.
 
 ## Stack
 
@@ -194,7 +194,7 @@ el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
 servidor SMTP. En PowerShell, desde la raíz del repo:
 
 ```powershell
-# 1. Crear la BD y aplicar las 21 migraciones
+# 1. Crear la BD y aplicar las 22 migraciones
 dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 
 # 2. Levantar la Web (en otra ventana)
@@ -244,6 +244,7 @@ Migraciones aplicadas en orden:
 19. `Sprint16_ContingenciaLotes` — tablas `Dte_ContingenciaLotes`/`Dte_ContingenciaLoteDetalles` para recepción en lote
 20. `Sprint17_DiagnosticoErrores` — tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias` + permiso `DTE.Diagnostico`
 21. `Sprint17_SeedErrorCatalogo` — seed de 11 códigos de error MH e internos en `Dte_ErrorCatalogo`
+22. `Sprint18_LegalConsentimiento` — tabla `Core_UserConsents` para registro de consentimientos legales
 
 ```powershell
 # Crear una nueva migración

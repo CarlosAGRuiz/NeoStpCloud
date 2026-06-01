@@ -8,6 +8,7 @@ using NeoSTP.Api.Middlewares;
 using NeoSTP.Application;
 using NeoSTP.Application.Auth;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Legal;
 using NeoSTP.Infrastructure;
 using NeoSTP.Infrastructure.Persistence.Seed;
 using NeoSTP.Shared;
@@ -28,6 +29,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
 
 builder.Services.AddScoped<ICurrentUser, CurrentUserAccessor>();
 

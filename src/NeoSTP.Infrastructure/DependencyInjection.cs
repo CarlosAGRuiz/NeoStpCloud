@@ -18,6 +18,7 @@ using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
+using NeoSTP.Application.Legal;
 using NeoSTP.Application.Workers;
 using NeoSTP.Infrastructure.Auth;
 using NeoSTP.Infrastructure.Dte;
@@ -181,6 +182,9 @@ public static class DependencyInjection
 
         // Sprint 17: Diagnóstico de errores Hacienda
         services.AddScoped<IDiagnosticoHaciendaService, DiagnosticoHaciendaService>();
+
+        // Sprint 18: Legal + consentimiento
+        services.AddScoped<ILegalDocumentService, LegalDocumentService>();
 
         // Sprint 7: PDF + correo
         services.AddScoped<IDtePdfService, DtePdfService>();

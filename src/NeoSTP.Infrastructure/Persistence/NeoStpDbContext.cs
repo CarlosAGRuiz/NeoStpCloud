@@ -8,6 +8,7 @@ using NeoSTP.Domain.Core.Dte.Contingencia;
 using NeoSTP.Domain.Core.Dte.Diagnostico;
 using NeoSTP.Domain.Core.Dte.Eventos;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Legal;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Domain.Core.Seguridad;
@@ -75,6 +76,9 @@ public class NeoStpDbContext : DbContext
     // DTE - Diagnóstico de errores (Sprint 17)
     public DbSet<DteErrorCatalogo> DteErrorCatalogo => Set<DteErrorCatalogo>();
     public DbSet<DteErrorOcurrencia> DteErrorOcurrencias => Set<DteErrorOcurrencia>();
+
+    // Legal — consentimiento (Sprint 18)
+    public DbSet<UserConsent> UserConsents => Set<UserConsent>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

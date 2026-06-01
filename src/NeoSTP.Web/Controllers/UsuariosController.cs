@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Legal;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Application.Usuarios.Dtos;
@@ -16,17 +17,20 @@ public class UsuariosController : Controller
     private readonly IRolesService _roles;
     private readonly ICurrentUser _currentUser;
     private readonly NeoSTP.Application.Empresas.IEmpresaContext _empresaContext;
+    private readonly ILegalDocumentService _legal;
 
     public UsuariosController(
         IUsuariosService usuarios,
         IRolesService roles,
         ICurrentUser currentUser,
-        NeoSTP.Application.Empresas.IEmpresaContext empresaContext)
+        NeoSTP.Application.Empresas.IEmpresaContext empresaContext,
+        ILegalDocumentService legal)
     {
         _usuarios = usuarios;
         _roles = roles;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
+        _legal = legal;
     }
 
     /// <summary>EmpresaId efectivo: si SuperAdmin en modo soporte, lo de cookie; si no, el del usuario.</summary>
@@ -82,6 +86,18 @@ public class UsuariosController : Controller
         }
 
         TempData["Success"] = $"Usuario {result.Value!.Username} creado.";
+
+        // Registrar consentimiento legal si el usuario aceptó los términos
+        if (model.AceptaTerminos)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var ua = Request.Headers.UserAgent.ToString();
+            await _legal.RegistrarConsentimientosAsync(
+                result.Value.Id, Empresa,
+                [ConsentType.Terms, ConsentType.Privacy],
+                ip, ua, ct);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
