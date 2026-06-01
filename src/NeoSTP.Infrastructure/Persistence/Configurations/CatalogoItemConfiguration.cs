@@ -14,11 +14,13 @@ public class CatalogoItemConfiguration : IEntityTypeConfiguration<CatalogoItem>
         builder.Property(c => c.Codigo).HasMaxLength(50).IsRequired();
         builder.Property(c => c.Valor).HasMaxLength(250).IsRequired();
         builder.Property(c => c.Descripcion).HasMaxLength(500);
+        builder.Property(c => c.ParentCodigo).HasMaxLength(50);
         builder.Property(c => c.MetadataJson).HasColumnType("nvarchar(max)");
         builder.Property(c => c.CreatedBy).HasMaxLength(100);
         builder.Property(c => c.UpdatedBy).HasMaxLength(100);
 
         builder.HasIndex(c => new { c.CatalogoId, c.Codigo }).IsUnique();
         builder.HasIndex(c => new { c.CatalogoId, c.Activo, c.Orden });
+        builder.HasIndex(c => new { c.CatalogoId, c.ParentCodigo });
     }
 }

@@ -1,0 +1,90 @@
+@model IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoDto>
+@{
+    ViewData["Title"] = "Catálogos";
+    var puedeAdministrar = ViewBag.PuedeAdministrar is bool a && a;
+    var empresaId = ViewBag.EmpresaId as int?;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Catálogos</h2>
+    <div class="d-flex gap-2">
+        @if (puedeAdministrar)
+        {
+            <a asp-action="Create" class="btn btn-primary btn-sm disabled" title="Creación inline disponible en Sprint 13.4 vía API">+ Nuevo catálogo</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<p class="text-muted small">
+    @if (empresaId is null)
+    {
+        <span>Mostrando catálogos del <strong>sistema</strong> (sin empresa seleccionada).</span>
+    }
+    else
+    {
+        <span>Mostrando catálogos del sistema + los de la empresa <strong>#@empresaId</strong>.</span>
+    }
+</p>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th class="text-center">Ítems</th>
+                <th class="text-center">Versión</th>
+                <th class="text-center">Origen</th>
+                <th class="text-center">Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr class="@(!c.Activo ? "table-secondary text-muted" : "")">
+                    <td><code>@c.Codigo</code></td>
+                    <td>
+                        @c.Nombre
+                        @if (!string.IsNullOrEmpty(c.Descripcion))
+                        {
+                            <div class="text-muted small">@c.Descripcion</div>
+                        }
+                    </td>
+                    <td class="text-center"><span class="badge bg-secondary">@c.TotalItems</span></td>
+                    <td class="text-center"><small>v@(c.Version)</small></td>
+                    <td class="text-center">
+                        @if (c.EsSistema)
+                        {
+                            <span class="badge bg-info text-dark" title="Catálogo del sistema (lectura para empresas)">Sistema</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary">Empresa</span>
+                        }
+                    </td>
+                    <td class="text-center">
+                        <span class="badge @(c.Activo ? "bg-success" : "bg-secondary")">@(c.Activo ? "ACTIVO" : "INACTIVO")</span>
+                    </td>
+                    <td class="text-end">
+                        <a asp-action="Details" asp-route-codigo="@c.Codigo" class="btn btn-outline-primary btn-sm">Ver ítems</a>
+                        <a asp-action="Export" asp-route-codigo="@c.Codigo" asp-route-format="Csv" class="btn btn-outline-secondary btn-sm" title="Exportar CSV">⬇ CSV</a>
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center text-muted py-4">Sin catálogos disponibles.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

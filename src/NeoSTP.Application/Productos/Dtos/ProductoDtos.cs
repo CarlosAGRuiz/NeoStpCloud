@@ -10,7 +10,7 @@ public class ProductoDto
     public string? Descripcion { get; set; }
     public string TipoItem { get; set; } = "BIEN";
     public bool EsServicio { get; set; }
-    public string UnidadMedidaCodigo { get; set; } = "UNIDAD";
+    public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }
     public bool AplicaIva { get; set; }
@@ -26,7 +26,7 @@ public class CreateProductoRequest
     public string Nombre { get; set; } = null!;
     public string? Descripcion { get; set; }
     public string TipoItem { get; set; } = "BIEN";
-    public string UnidadMedidaCodigo { get; set; } = "UNIDAD";
+    public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }
     public bool AplicaIva { get; set; } = true;

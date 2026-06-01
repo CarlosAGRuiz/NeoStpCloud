@@ -184,7 +184,7 @@ public class ProductosController : Controller
     {
         var empresaId = _currentUser.EmpresaId;
         async Task<IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>> Items(string code)
-            => (await _catalogos.GetItemsAsync(code, empresaId, ct)).Value
+            => (await _catalogos.GetItemsAsync(code, empresaId, ct: ct)).Value
                ?? new List<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
         ViewBag.UnidadesMedida = await Items("UNIDAD_MEDIDA");

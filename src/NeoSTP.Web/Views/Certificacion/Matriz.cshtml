@@ -1,0 +1,74 @@
+@model IReadOnlyList<NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionMatrizProgresoDto>
+@{
+    ViewData["Title"] = "Matriz de certificación";
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Certificación</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Matriz</li>
+    </ol>
+</nav>
+
+<h2>Matriz oficial Hacienda</h2>
+<p class="text-muted">Cantidades exigidas para optar a autorización de emisión DTE.</p>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Tipo / Evento</th>
+                <th>Nombre</th>
+                <th class="text-center">Req.</th>
+                <th class="text-center text-success">✓</th>
+                <th class="text-center text-info">↻</th>
+                <th class="text-center text-danger">✗</th>
+                <th class="text-center">Pend.</th>
+                <th style="width:25%">Progreso</th>
+                <th class="text-end">%</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var m in Model)
+        {
+            var pctOk = m.Requeridos == 0 ? 0 : m.Completados * 100 / m.Requeridos;
+            var pctProg = m.Requeridos == 0 ? 0 : m.EnProgreso * 100 / m.Requeridos;
+            var pctErr = m.Requeridos == 0 ? 0 : m.ConError * 100 / m.Requeridos;
+            <tr class="@(m.Completo ? "table-success" : "")">
+                <td><small>@m.Orden</small></td>
+                <td><code>@m.TipoDteCodigo</code></td>
+                <td>@m.Nombre</td>
+                <td class="text-center">@m.Requeridos</td>
+                <td class="text-center"><strong class="text-success">@m.Completados</strong></td>
+                <td class="text-center"><span class="text-info">@m.EnProgreso</span></td>
+                <td class="text-center"><span class="text-danger">@m.ConError</span></td>
+                <td class="text-center">@m.Pendientes</td>
+                <td>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-success" style="width:@(pctOk)%"></div>
+                        <div class="progress-bar bg-info" style="width:@(pctProg)%"></div>
+                        <div class="progress-bar bg-danger" style="width:@(pctErr)%"></div>
+                    </div>
+                </td>
+                <td class="text-end"><strong>@m.PorcentajeProgreso%</strong></td>
+                <td class="text-end">
+                    <a asp-action="Tipo" asp-route-codigo="@m.TipoDteCodigo" class="btn btn-outline-primary btn-sm">Detalle</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+        <tfoot class="table-light">
+            <tr>
+                <td colspan="3"><strong>Totales</strong></td>
+                <td class="text-center"><strong>@Model.Sum(m => m.Requeridos)</strong></td>
+                <td class="text-center text-success"><strong>@Model.Sum(m => m.Completados)</strong></td>
+                <td class="text-center text-info">@Model.Sum(m => m.EnProgreso)</td>
+                <td class="text-center text-danger">@Model.Sum(m => m.ConError)</td>
+                <td class="text-center">@Model.Sum(m => m.Pendientes)</td>
+                <td colspan="3"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>

@@ -175,7 +175,7 @@ public class DteConfiguracionController : Controller
     {
         var empresaId = _currentUser.EmpresaId;
         async Task<IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>> Items(string code)
-            => (await _catalogos.GetItemsAsync(code, empresaId, ct)).Value
+            => (await _catalogos.GetItemsAsync(code, empresaId, ct: ct)).Value
                ?? new List<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
         ViewBag.Ambientes = await Items("AMBIENTE_DTE");

@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Sprint 12 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 106/106
+> **Versión:** Sprint 14 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 155/155
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -74,7 +74,8 @@ contratados, permisos del usuario, auditoría, multiempresa, seguridad y **aisla
 - **Serilog** (logs estructurados) · **QuestPDF 2025.1** · **MailKit 4.17**
 - **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** (resiliencia HTTP)
 - **JWT** (Api) + **Cookies** (Web) · **DataProtection** (cifrado de secretos) · **BCrypt** (passwords)
-- **xUnit + FluentAssertions** (106 tests)
+- **xUnit + FluentAssertions** (155 tests)
+- **ClosedXML 0.104** (export/import Excel del módulo de catálogos)
 
 ## Arquitectura — modular monolith por capas
 
@@ -117,7 +118,11 @@ Empresas · Usuarios · Roles · Permisos · Planes · Módulos · Licenciamient
 Puntos de venta · Clientes · Productos · Configuración DTE (cifrada) · Generación DTE ·
 Firma JWS (RS512) · Transmisión a Hacienda · PDF con QR · Correo · Dashboard empresa/SuperAdmin ·
 Worker de retransmisión de contingencia · Worker de limpieza de tokens · Empresa de pruebas
-automática · Toggles Mock/Real · 106 tests unit/integración.
+automática · Toggles Mock/Real · **Módulo de mantenimiento de Catálogos** (CRUD + import
+CSV/JSON/XLSX + export + versionado + cascadas padre/hijo, vía API y UI MVC) · **Módulo de
+Certificación DTE** (matriz 625 escenarios, progreso por tipo, asociación documentos a
+escenarios, reintentos, snapshots de errores MH, dashboard con barras de progreso) ·
+155 tests unit/integración.
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
@@ -150,7 +155,9 @@ certificación se hace contra **v1/v3**.
 ## Migraciones aplicadas
 `InitialCreate` · `Sprint1_CoreCatalogosYSeguridad` · `Sprint3_ClientesYProductos` ·
 `Sprint35_MunicipiosES` · `Sprint4_DteConfiguracion` · `Sprint5_DteDocumentos` ·
-`Sprint9_RetransmisionTracking` · `Sprint10_DteCorrelativos` · `Sprint12_DistritoCAT008`.
+`Sprint9_RetransmisionTracking` · `Sprint10_DteCorrelativos` · `Sprint12_DistritoCAT008` ·
+`Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
+`Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion`.
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -194,8 +201,8 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | Módulo | Tablas |
 |---|---|
 | **Eventos DTE** | `Dte_Eventos`, `Dte_EventoJson`, `Dte_EventoRespuestasHacienda`, `Dte_EventoDocumentosRelacionados` |
-| **Certificación** | `Dte_CertificacionMatriz`, `Dte_CertificacionEscenarios`, `Dte_CertificacionPruebas`, `Dte_CertificacionErrores` |
-| **Catálogos MH** | (extender `Core_Catalogos` con `Version`, `ParentCodigo`, `MetadataJson`) |
+| ~~**Certificación**~~ | ✅ Sprint 14 — `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` con seed 625 escenarios |
+| ~~**Catálogos MH**~~ | ✅ Sprint 13 — `Core_Catalogos.Version`/`MetadataJson` y `Core_CatalogoItems.ParentCodigo` agregados |
 | **NeoProfit** | `Profit_Gastos`, `Profit_Compras`, `Profit_SnapshotsMensuales`, `Profit_Alertas` |
 | **NeoScanAI** | `Scan_Documentos`, `Scan_DocumentoResultados`, `Scan_DocumentoCampos`, `Scan_DocumentoArchivos`, `Scan_DocumentoEventos`, `Dte_DocumentosRecibidos` |
 | **NeoConnect** | `Connect_ApiKeys`, `Connect_Webhooks`, `Connect_WebhookDeliveries`, `Connect_ApiLogs`, `Connect_SandboxSettings` |
@@ -415,26 +422,33 @@ DTE en el portal MH (`codigoGeneracion` + fecha). Se entrega al receptor junto a
 | CAT-002 | Tipo Documento / Evento | ⚠️ parcial |
 | CAT-003 | Modelo Facturación | ⚠️ |
 | CAT-004 | Tipo Transmisión | ⚠️ |
-| CAT-005 | Tipo Contingencia | ⚠️ |
-| CAT-006 | Retención IVA | ❌ |
+| CAT-005 | Tipo Contingencia | ✅ Sprint 13 (5/5 oficial) |
+| CAT-006 | Retención IVA | ✅ Sprint 13.7 (3/3 oficial) |
 | CAT-007 | Tipo Generación Documento | ⚠️ |
-| CAT-008 | **Distrito** (división 2024) | ⚠️ infra lista, datos parciales |
+| CAT-008 | **Distrito** (división 2024) | ⚠️ catálogo registrado Sprint 13; cargar vía import |
 | CAT-009 | Tipo Establecimiento | ✅ |
 | CAT-010 | Código Servicio Médico | ❌ |
 | CAT-011 | Tipo Ítem | ⚠️ |
 | CAT-012 | Departamento | ✅ (14, falta `00` extranjero) |
 | CAT-013 | **Municipio** (división 2024) | ⚠️ 42 sembrados, faltan códigos MH reales (44) |
-| CAT-014 | Unidad Medida | ⚠️ |
-| CAT-015 | Tributos | ⚠️ (IVA `20`, export `C3`) |
+| CAT-014 | Unidad Medida | ✅ Sprint 13.7 (56 oficial completo, Codigo=codigoMH) |
+| CAT-015 | Tributos | ⚠️ Sprint 13 (12 subset operativo; resto vía import) |
 | CAT-016 | Condición Operación | ✅ |
 | CAT-017 | Forma Pago | ✅ |
-| CAT-018 | Plazo | ❌ |
-| CAT-019 | Actividad Económica | ❌ (lista grande) |
-| CAT-020 | País | ⚠️ (EUA `9539`, SV `9300`) |
-| CAT-021 | Otros Documentos Asociados | ❌ |
-| CAT-022 | Tipo Documento Identificación | ✅ (mapeo interno→MH hecho) |
-| CAT-023 | Tipo Especial | ❌ |
-| CAT-024 | Motivo Evento (invalidación) | ⚠️ |
+| CAT-018 | Plazo | ✅ Sprint 13.7 (3/3 oficial) |
+| CAT-019 | Actividad Económica | ⚠️ Sprint 13 (17 top-level CIIU; resto vía import) |
+| CAT-020 | País | ✅ Sprint 13.7 (275 oficial legacy v1.4) |
+| CAT-021 | Otros Documentos Asociados | ✅ Sprint 13.7 (4/4 oficial) |
+| CAT-022 | Tipo Documento Identificación | ✅ Sprint 13.7 (5/5 oficial, Codigo=codigoMH) |
+| CAT-023 | Tipo Doc. en Contingencia | ✅ Sprint 13.7 (7/7 oficial) |
+| CAT-024 | Motivo Evento (invalidación) | ✅ Sprint 13.7 (3/3 oficial con textos exactos) |
+| CAT-025 | Título Remisión Bienes | ✅ Sprint 13.7 (5/5 oficial) |
+| CAT-026 | Tipo Donación | ✅ Sprint 13.7 (3/3 oficial) |
+| CAT-027 | Recinto Fiscal | ✅ Sprint 13.7 (45 oficial, Z.F. EMCO y Gigante incluidas) |
+| CAT-029 | Tipo Persona | ✅ Sprint 13.7 (2/2 oficial) |
+| CAT-030 | Transporte | ✅ Sprint 13.7 (7/7 oficial) |
+| CAT-031 | INCOTERMS | ✅ Sprint 13.7 (16/16 oficial) |
+| CAT-032 | Domicilio Fiscal | ✅ Sprint 13.7 (2/2 oficial) |
 | CAT-025 | Título que remiten los bienes | ⚠️ |
 | CAT-026 | Tipo Donación | ⚠️ |
 | CAT-027 | Recinto Fiscal | ❌ |
@@ -449,40 +463,48 @@ DTE en el portal MH (`codigoGeneracion` + fecha). Se entrega al receptor junto a
 > (ej. municipio `23`/distrito `03` para la empresa de prueba). Falta sembrar los catálogos
 > completos con códigos MH oficiales y **derivar** los valores en vez de hardcodear.
 
-## 6.2 Módulo de Mantenimiento de Catálogos (PROPUESTO) ⭐
+## 6.2 Módulo de Mantenimiento de Catálogos — ✅ IMPLEMENTADO (Sprint 13) ⭐
 
 Pantalla/API de administración para **gestionar todos los catálogos** del sistema sin recompilar.
 
-**Funciones:**
-- **Listar** catálogos y sus ítems (con búsqueda y filtros).
-- **Crear / Editar / Borrar** ítems de catálogo (soft-delete con `Activo`).
-- **Importar** desde CSV/Excel/JSON (carga masiva de catálogos MH oficiales).
-- **Exportar** a CSV/Excel/JSON (respaldo y revisión).
-- **Versionar** catálogos (campo `Version`) para rastrear cambios normativos MH.
-- **Cascadas territoriales** (Departamento → Municipio → Distrito) con `ParentCodigo`.
-- **Metadata** por ítem (`MetadataJson`: ej. `codigoMH`, `zona`, `parent`).
-- **Mapeo interno ↔ MH** editable (ej. unidad medida interna → CAT-014).
-- **Auditoría** de cambios (quién, cuándo, qué cambió).
+**Funciones entregadas:**
+- ✅ **Listar** catálogos y sus ítems con cascada por `ParentCodigo` (UI + API).
+- ✅ **Crear / Editar** catálogos e ítems con auditoría (`IAuditoriaService`).
+- ✅ **Borrar** ítems con reglas: `EsSistema` no se elimina (soft); con hijos no se elimina (regla de integridad referencial por código).
+- ✅ **Importar** CSV/JSON/XLSX con modos `Upsert` / `InsertOnly` y `dryRun`. Reporte de filas con errores.
+- ✅ **Exportar** CSV (UTF-8 con BOM para Excel) / JSON / XLSX. Filename con versión.
+- ✅ **Versionar** catálogos (`Catalogo.Version`, default 1, índice único filtrado `(Codigo, EmpresaId, Version)`).
+- ✅ **Cascadas territoriales** (Departamento → Municipio → Distrito) con `CatalogoItem.ParentCodigo`.
+- ✅ **Metadata** por ítem (`MetadataJson`: `codigoMH`, `zona`, etc.).
+- ✅ **Auditoría** (CREATE/UPDATE/DELETE_ITEM/IMPORT vía `IAuditoriaService`).
+- ✅ **Multi-tenant**: catálogos del sistema (EmpresaId null, solo SuperAdmin) + de empresa.
 
-**Endpoints propuestos:**
+**Endpoints entregados:**
 ```
-GET    /api/catalogos                          # ya existe (listado)
-GET    /api/catalogos/{codigo}/items           # ya existe
-POST   /api/catalogos                          # crear catálogo
-PUT    /api/catalogos/{codigo}                 # editar metadata del catálogo
+GET    /api/catalogos                          # listado (Core.Catalogos.Ver)
+GET    /api/catalogos/{codigo}                 # detalle del catálogo
+GET    /api/catalogos/{codigo}/items?parent=   # cascada (hijos / __ROOT__ / todos)
+POST   /api/catalogos                          # crear (Core.Catalogos.Administrar)
+PUT    /api/catalogos/{codigo}                 # editar
 POST   /api/catalogos/{codigo}/items           # crear ítem
 PUT    /api/catalogos/{codigo}/items/{id}      # editar ítem
-DELETE /api/catalogos/{codigo}/items/{id}      # borrar/inactivar ítem
-POST   /api/catalogos/{codigo}/import          # importar CSV/Excel/JSON
-GET    /api/catalogos/{codigo}/export?format=  # exportar
-POST   /api/catalogos/seed-mh                  # sembrar/actualizar catálogos MH oficiales
-GET    /api/catalogos/{codigo}/items?parent=   # cascada (hijos de un padre)
+DELETE /api/catalogos/{codigo}/items/{id}      # eliminar ítem
+POST   /api/catalogos/{codigo}/import          # importar (Core.Catalogos.Importar)
+GET    /api/catalogos/{codigo}/export?format=  # exportar csv|json|xlsx
 ```
 
-**Tabla:** extender `Core_Catalogos` / `Core_CatalogoItems` con: `Version`, `ParentCodigo`,
-`MetadataJson`, `Activo`, `EsSistema` (los del sistema no se borran), `CreatedBy`/`UpdatedBy`.
+**UI Web (MVC):** `/Catalogos` (lista), `/Catalogos/Details/{codigo}` (ítems + filtro de padre +
+dropdown exportar), `/Catalogos/Import/{codigo}` (upload con simulación), `/Catalogos/Export/{codigo}`.
 
-**Permisos:** `Core.Catalogos.Ver`, `Core.Catalogos.Administrar`, `Core.Catalogos.Importar`.
+**Tabla actualizada:** `Core_Catalogos` ahora tiene `Version` (int, default 1), `MetadataJson`.
+`Core_CatalogoItems` ahora tiene `ParentCodigo` (nvarchar(50) nullable). Índices nuevos:
+`IX_Core_Catalogos_Codigo_EmpresaId_Version` (único filtrado), `IX_Core_Catalogos_Codigo_EmpresaId_Activo`,
+`IX_Core_CatalogoItems_CatalogoId_ParentCodigo`.
+
+**Permisos:** `Core.Catalogos.Ver` (311), `Core.Catalogos.Administrar` (310), `Core.Catalogos.Importar` (312).
+SUPERADMIN/ADMIN tienen los 3; OPERADOR/CONTADOR/READONLY tienen solo `Ver`.
+
+**Tests:** 31 nuevos (5 esquema, 14 admin, 12 import/export).
 
 ---
 
@@ -521,7 +543,8 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 **Empresas:** `GET/POST/PUT /api/empresas` · `GET .../licencia` · `POST .../plan` · `POST .../modulos/{id}/activar|desactivar`
 **Sucursales/PV:** `GET/POST/PUT /api/sucursales` · `/api/puntos-venta` · `PATCH .../inactivar`
 **Planes/Módulos:** `GET /api/planes` · `GET /api/modulos`
-**Catálogos:** `GET /api/catalogos` · `GET /api/catalogos/{codigo}/items`
+**Catálogos:** `GET/POST /api/catalogos` · `GET/PUT /api/catalogos/{codigo}` · `GET/POST/PUT/DELETE /api/catalogos/{codigo}/items` (`?parent=` cascada) · `POST /api/catalogos/{codigo}/import` · `GET /api/catalogos/{codigo}/export?format=csv|json|xlsx`
+**Certificación DTE:** `GET /api/certificacion/{resumen|matriz|errores}` · `GET /api/certificacion/tipos/{codigo}/escenarios` · `POST /api/certificacion/tipos/{codigo}/generar-prueba` · `POST /api/certificacion/documentos/{id}/{marcar-completado|reintentar}`
 **Clientes/Productos:** `GET/POST/PUT /api/clientes` · `/api/productos` · `PATCH .../inactivar`
 **Config DTE:** `GET/PUT /api/dte/configuracion` · `POST .../certificado` · `DELETE .../certificado` · `POST .../probar-conexion`
 **Documentos DTE:** `GET /api/dte/documentos` · `POST /api/dte/{factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido|documentos}` · `POST .../{id}/{generar|validar|firmar|enviar|invalidar|reenviar}` · `GET .../{id}/{pdf|json}`
@@ -552,12 +575,12 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 |---|---|---|---|---|
 | 1 | **Core / Administración** | ✅ avanzado | Mejor UI admin, consumo por plan, upselling, MFA SuperAdmin, IP allowlist | Crítico |
 | 2 | **NeoDTE** | ✅ avanzado | Catálogos MH completos, mejorar diagnóstico de errores | Crítico |
-| 3 | **Certificación DTE** | ⏳ pruebas reales hechas, falta módulo UI | Matriz visual, progreso, reintentos, solicitar autorización | Muy alta |
+| 3 | **Certificación DTE** | ✅ Sprint 14 — módulo completo (matriz, progreso, escenarios, reintentos, errores) | Completar matriz oficial cuando MH publique descripción detallada por escenario | Media |
 | 4 | **Eventos DTE** | 🟡 4 implementados (2 PROCESADO, 2 estructura-OK) | Persistir eventos (tablas), UI, PDF de evento | Alta |
 | 5 | **Contingencia/Worker** | ✅ parcial | UI cola, reintento manual, MOMENTO 3 (lote), consulta de lotes, alertas | Alta |
 | 6 | **Clientes** | ✅ | Cascada Depto→Muni→Distrito, normalizar numDocumento, mapeo CAT-022 (hecho) | Alta |
 | 7 | **Productos** | ✅ | Mapear unidad→CAT-014, tributos por tipo, carga masiva | Media |
-| 8 | **Catálogos MH** | ⚠️ parcial | **Módulo de mantenimiento** (§6.2), sembrar completos, versionar | Crítico |
+| 8 | **Catálogos MH** | ✅ Sprint 13 — módulo completo (CRUD/import/export/versión/cascada) | Sembrar resto vía import oficial (CAT-008 Distrito, CAT-019/020 completos) | Media |
 | 9 | **Dashboard** | ✅ base | Integrar NeoProfit, certificación, alertas Hacienda | Alta |
 | 10 | **NeoProfit / NeoBI** | ❌ | Análisis financiero, gastos/compras, márgenes | Alta |
 | 11 | **NeoScanAI** | ❌ (proyecto aparte) | Bandeja, OCR/IA, registro compra/gasto/DTE recibido | Alta |
@@ -576,13 +599,13 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 # 10. Plan de trabajo para completar la Suite
 
 ## Fase 1 — Certificación y cumplimiento DTE (CRÍTICO)
-1. **Módulo de mantenimiento de Catálogos** (§6.2) — CRUD/Import/Export/versionado.
-2. **Sembrar catálogos MH completos** (CAT-013/008 territorial real, CAT-014/015/019/020/024…).
+1. ✅ **Módulo de mantenimiento de Catálogos** (§6.2) — CRUD/Import/Export/versionado. **Sprint 13.**
+2. ✅ **Catálogos MH oficiales** — Sprint 13.7 cargó el paquete completo Manual v1.4 (CAT-006/014/018/020/021/022/023/024/025/026/027/029/030/031/032 con `Codigo = codigoMH`). Solo CAT-008 Distrito queda como placeholder vacío (cargar via `/Catalogos/Import/DISTRITO_ES` cuando MH publique la lista oficial).
 3. **Eliminar hardcodeos** (municipio/distrito en builders) → derivar de catálogo.
-4. **Persistir eventos DTE** (tablas `Dte_Eventos*`) + UI + PDF de evento.
-5. **Módulo de Certificación DTE** — matriz de progreso (625 pruebas), generar prueba, reintentar, errores.
+4. **Persistir eventos DTE** (tablas `Dte_Eventos*`) + UI + PDF de evento. *(Sprint 15)*
+5. ✅ **Módulo de Certificación DTE** — matriz de progreso (15 tipos × 625 escenarios), generar prueba, reintentar, errores. **Sprint 14.**
 6. **Completar matriz** (con datos de cuenta: NRC, codEstableMH real, autorizaciones).
-7. **Diagnóstico de errores Hacienda** — pantalla que mapea códigos MH a explicaciones y acciones.
+7. **Diagnóstico de errores Hacienda** — pantalla que mapea códigos MH a explicaciones y acciones. *(Sprint 17)*
 
 ## Fase 2 — SaaS vendible (CRÍTICO comercial)
 8. **Legal + consentimiento** (términos, privacidad, cookies, DPA, `Core_UserConsents`).
@@ -726,7 +749,7 @@ Clientes → Productos → Plan/Licencia → NeoProfit → NeoScanAI → NeoConn
   secretos cifrados → reingresar).
 
 ## 13.5 Testing
-- 106 tests verde. Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
+- 155 tests verde (106 base + 31 catálogos Sprint 13 + 18 certificación Sprint 14). Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
   los **eventos** (estructura). Agregar tests de regresión que validen el JSON contra los esquemas
   `svfe-json-schemas` y contra lo que apitest realmente exige (v1/v3).
 

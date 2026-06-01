@@ -2,8 +2,8 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 12 — 5 tipos DTE certificados contra Hacienda (apitest)** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 106/106 pasando  
+> **Versión actual: Sprint 14 — Módulo de Certificación DTE + 36 catálogos MH oficiales** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 155/155 pasando  
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
@@ -19,7 +19,8 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 - **SQL Server 2022** + **Entity Framework Core 10**
 - **Serilog** (logs estructurados a consola y archivo)
 - **.NET Worker Service** (procesos en segundo plano)
-- **xUnit + FluentAssertions** (101 pruebas, todas pasando)
+- **xUnit + FluentAssertions** (155 pruebas, todas pasando)
+- **ClosedXML 0.104** (import/export Excel de catálogos)
 - **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** para resiliencia HTTP
 - **JWT** (Api) + **Cookies** (Web) para autenticación
 - **DataProtection** para cifrado de secretos DTE
@@ -191,7 +192,7 @@ el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
 servidor SMTP. En PowerShell, desde la raíz del repo:
 
 ```powershell
-# 1. Crear la BD y aplicar las 8 migraciones
+# 1. Crear la BD y aplicar las 15 migraciones
 dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 
 # 2. Levantar la Web (en otra ventana)
@@ -228,6 +229,13 @@ Migraciones aplicadas en orden:
 6. `Sprint5_DteDocumentos` — documentos DTE, detalles y JSON
 7. `Sprint9_RetransmisionTracking` — columnas `IntentoRetransmision` y `UltimoIntentoRetransmisionAt` en `Dte_Documentos`
 8. `Sprint10_DteCorrelativos` — tabla `Dte_Correlativos` para contador atómico de `NumeroControl`
+9. `Sprint12_DistritoCAT008` — columnas `Distrito*Codigo` para la división territorial 2024
+10. `Sprint13_CatalogosExtendido` — `Catalogo.Version/MetadataJson`, `CatalogoItem.ParentCodigo` para cascadas
+11. `Sprint13_PermisosCatalogos` — permisos `Core.Catalogos.Ver/.Administrar/.Importar`
+12. `Sprint13_SeedCatalogosMH` — seed inicial de catálogos MH prioritarios (CAT-005/015/019/020/024 + CAT-008 placeholder)
+13. `Sprint13_CatalogosMhOficial` — paquete oficial Manual v1.4: 11 catálogos nuevos (CAT-006/018/021/023/025/026/027/029/030/031/032) + reemplazo de UNIDAD_MEDIDA/PAIS/TIPO_DOC_IDENTIDAD/MOTIVO_INVALIDACION con `Codigo=codigoMH` (275 países, 56 unidades, 45 recintos fiscales…)
+14. `Sprint14_CertificacionDte` — tablas `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` + matriz oficial seedeada (15 tipos × 625 escenarios numerados)
+15. `Sprint14_PermisosCertificacion` — permisos `Core.Certificacion.Ver/.Operar`
 
 ```powershell
 # Crear una nueva migración
@@ -278,12 +286,32 @@ PUT   /api/roles/{id}
 GET   /api/roles/permisos
 ```
 
-### Catálogos (cualquier autenticado)
+### Catálogos (Sprint 13)
+
+Módulo de mantenimiento completo: CRUD admin, import/export CSV/JSON/XLSX, versionado de catálogos, cascadas padre/hijo (`ParentCodigo`), `metadata.codigoMH` por ítem. 36 catálogos del sistema instalados (paquete oficial Manual de Estructuras CAT v1.4).
+
+Permisos:
+- `Core.Catalogos.Ver` — lectura
+- `Core.Catalogos.Administrar` — CRUD
+- `Core.Catalogos.Importar` — bulk import/export
 
 ```
-GET  /api/catalogos
-GET  /api/catalogos/{codigo}/items     # ej: MONEDA, TIPO_FACTURA, ESTADO_USUARIO
+GET    /api/catalogos
+GET    /api/catalogos/{codigo}
+GET    /api/catalogos/{codigo}/items?parent=                  # ?parent=SS para cascada Departamento→Municipio
+GET    /api/catalogos/{codigo}/items?parent=__ROOT__          # solo nivel raíz
+POST   /api/catalogos
+PUT    /api/catalogos/{codigo}
+POST   /api/catalogos/{codigo}/items
+PUT    /api/catalogos/{codigo}/items/{id}
+DELETE /api/catalogos/{codigo}/items/{id}
+POST   /api/catalogos/{codigo}/import?format=csv|json|xlsx&dryRun=true&mode=Upsert|InsertOnly
+GET    /api/catalogos/{codigo}/export?format=csv|json|xlsx
 ```
+
+**Reglas**: catálogos `EsSistema` no se inactivan; ítems `EsSistema` no se borran físicamente (solo se inactivan); padre debe existir o estar en el mismo lote de import; un ítem con hijos no se puede eliminar.
+
+**Catálogos oficiales MH** (con `Codigo = codigoMH`): CAT-001 Ambiente, CAT-002 Tipo Documento, CAT-005 Tipo Contingencia, CAT-006 Retención IVA, CAT-009 Tipo Establecimiento, CAT-012 Departamento (14), CAT-013 Municipio (44), CAT-014 Unidad Medida (56), CAT-016 Condición Operación, CAT-017 Forma Pago, CAT-018 Plazo, CAT-019 Actividad Económica, CAT-020 País (275), CAT-021 Otros Doc Asociados, CAT-022 Tipo Doc Identidad, CAT-023 Tipo Doc Contingencia, CAT-024 Motivo Invalidación, CAT-025 Título Remisión, CAT-026 Tipo Donación, CAT-027 Recinto Fiscal (45), CAT-029 Tipo Persona, CAT-030 Transporte, CAT-031 INCOTERMS (16), CAT-032 Domicilio Fiscal. Solo CAT-008 Distrito queda como placeholder vacío para import oficial.
 
 ### Empresas y licenciamiento (Sprint 2)
 
@@ -499,6 +527,31 @@ Clientes: `IHaciendaContingenciaClient` (dedicado) + `IHaciendaEventoClient` (ge
 > para Factura Simplificada/Control Interno; Retorno necesita el `codEstableMH` real registrado.
 > Ambas estructuras ya pasan la validación de esquema de Hacienda.
 
+### Certificación DTE (Sprint 14)
+
+Módulo para controlar la matriz oficial Hacienda de 625 escenarios (15 tipos: 90 Factura, 75 CCF, 50 NR, 50 NC, 25 ND, 50 Retención, 75 Liquidación, 50 DCL, 90 Exportación, 25 SE, 25 Donación, 5 cada uno de Invalidación/Contingencia/Retorno/OpEspeciales). Permite visualizar progreso por tipo, asociar DTE emitidos a escenarios, reintentar, y saber cuándo solicitar autorización.
+
+Permisos:
+- `Core.Certificacion.Ver` — consulta resumen / matriz / escenarios / errores
+- `Core.Certificacion.Operar` — generar prueba / marcar completado / reintentar
+
+```
+GET   /api/certificacion/resumen                                # totales + % progreso + lista para autorización
+GET   /api/certificacion/matriz                                 # 15 tipos con conteos
+GET   /api/certificacion/tipos/{codigo}/escenarios              # estado actual de cada escenario para la empresa
+GET   /api/certificacion/errores?codigoMh=                      # últimos 500 errores Hacienda filtrables
+
+POST  /api/certificacion/tipos/{codigo}/generar-prueba          # abre prueba EN_PROGRESO para el siguiente escenario PENDIENTE
+POST  /api/certificacion/documentos/{id}/marcar-completado      { escenarioId, notas? }
+POST  /api/certificacion/documentos/{id}/reintentar             # marca prueba ERROR y abre nuevo intento PENDIENTE
+```
+
+**Reglas**:
+- `MarcarCompletado` promueve a `COMPLETADO` solo si el DTE tiene `SelloRecibido` y estado `PROCESADO`.
+- Valida cruzado tipo DTE ↔ matriz (no permite asociar un CCF a la matriz de Factura).
+- El cálculo de progreso considera solo el **último intento** por escenario, no la suma.
+- `Reintentar` abre intento `N+1` sin DTE asociado; el usuario emite uno nuevo y lo asocia con `marcar-completado`.
+
 ### Documentos DTE — descarga y correo (Sprint 7)
 
 ```
@@ -585,6 +638,13 @@ Bajo el dominio `/` con auth por cookie:
 | `/Home` (SuperAdmin)          | 8      | Panel global: KPIs, alertas de planes, top empresas, resumen MRR |
 | `/Sucursales`                 | 10     | CRUD sucursales + botón directo a puntos de venta de cada sucursal |
 | `/Sucursales/PuntosVenta`     | 10     | CRUD puntos de venta con filtro por sucursal |
+| `/Catalogos`                  | 13     | Lista de catálogos con conteo de ítems, versión y badge Sistema/Empresa |
+| `/Catalogos/Details/{codigo}` | 13     | Ítems con filtro por padre y dropdown exportar CSV/JSON/XLSX |
+| `/Catalogos/Import/{codigo}`  | 13     | Upload con simulación, modos Upsert/InsertOnly, reporte de errores por fila |
+| `/Certificacion`              | 14     | Dashboard: 6 cards de resumen + barras por tipo + indicador "listo para autorización" |
+| `/Certificacion/Matriz`       | 14     | Matriz completa con totales y % por tipo |
+| `/Certificacion/Tipo/{codigo}`| 14     | Detalle por tipo con badges de estado, botón generar prueba y reintentar |
+| `/Certificacion/Errores`      | 14     | Listado de errores MH con respuesta cruda colapsable |
 
 ## SuperAdmin inicial
 
@@ -679,19 +739,29 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 9      | Worker jobs y resiliencia              | ✅     |
 | 10     | Backlog: Sucursales UI, QR PDF, AtomicCounter | ✅     |
 | 11     | Empresa de pruebas real + Ambiente Hacienda   | ✅     |
-| 12     | Legal + Términos + Consentimiento             | 🔜     |
-| 13     | Billing self-service (Stripe / MercadoPago)   | 🔜     |
-| 14     | Hardening pre-producción                      | 🔜     |
-| 15     | NeoProfit básico                              | 🔜     |
-| 16     | NeoScanAI integrado                           | 🔜     |
-| 17     | NeoConnect API comercial                      | 🔜     |
-| 18     | NeoPOS básico                                 | 🔜     |
-| 19     | NeoSTP Mobile MVP                             | 🔜     |
+| 12     | Certificación apitest 5 DTE + 2 eventos       | ✅     |
+| 13     | Catálogos MH (CRUD + import/export + 36 catálogos oficiales v1.4) | ✅     |
+| 14     | Certificación DTE (matriz, progreso, escenarios) | ✅     |
+| 15     | Eventos DTE persistentes + UI + PDF de evento | 🔜     |
+| 16     | Contingencia avanzada y recepción por lotes   | 🔜     |
+| 17     | Diagnóstico de errores Hacienda               | 🔜     |
+| 18     | Legal + consentimiento                        | 🔜     |
+| 19     | Billing self-service (Stripe / MercadoPago)   | 🔜     |
+| 20     | Hardening pre-producción                      | 🔜     |
+| 21     | UI/UX AppShell + design system                | 🔜     |
+| 22     | NeoProfit básico                              | 🔜     |
+| 23     | NeoScanAI integrado                           | 🔜     |
+| 24     | NeoConnect API comercial                      | 🔜     |
+| 25     | NeoPOS básico                                 | 🔜     |
+| 26     | NeoPortal Clientes                            | 🔜     |
+| 27–28  | NeoSTP Mobile API + MVP                       | 🔜     |
+| 29     | SuperAdmin operativo avanzado                 | 🔜     |
+| 30     | Preparación comercial y documentación         | 🔜     |
 
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 101 tests unit + integration
+dotnet test NeoSTP.slnx                          # corre los 155 tests unit + integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
@@ -713,3 +783,5 @@ Cobertura por área:
 | Worker — Retransmisión (EF + NSub)| 8     | `tests/NeoSTP.Tests.Unit/Workers/DteRetransmisionServiceTests.cs`      |
 | Worker — Limpieza tokens (EF)     | 6     | `tests/NeoSTP.Tests.Unit/Workers/LimpiezaTokensServiceTests.cs`        |
 | Provisioning empresa prueba (EF)  | 4     | `tests/NeoSTP.Tests.Unit/Provisioning/EmpresaPruebaSeederTests.cs`     |
+| Catálogos — esquema/CRUD/Import   | 31    | `tests/NeoSTP.Tests.Unit/Catalogos/*Tests.cs` (Sprint 13)              |
+| Certificación DTE — schema/servicio | 18  | `tests/NeoSTP.Tests.Unit/Dte/Certificacion/*Tests.cs` (Sprint 14)      |

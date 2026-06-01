@@ -20,6 +20,7 @@
     <PackageReference Include="QRCoder" Version="1.8.0" />
     <PackageReference Include="QuestPDF" Version="2025.1.0" />
     <PackageReference Include="MailKit" Version="4.17.0" />
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
   </ItemGroup>
 
   <PropertyGroup>

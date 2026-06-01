@@ -1,0 +1,146 @@
+@model IReadOnlyList<NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionEscenarioDto>
+@{
+    var tipo = ViewBag.TipoCodigo as string ?? "";
+    var progreso = ViewBag.Progreso as NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionMatrizProgresoDto;
+    var puedeOperar = ViewBag.PuedeOperar is bool po && po;
+    ViewData["Title"] = $"Escenarios · {progreso?.Nombre ?? tipo}";
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Certificación</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@(progreso?.Nombre ?? tipo)</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="mb-1">@(progreso?.Nombre ?? tipo) <small class="text-muted"><code>@tipo</code></small></h2>
+        @if (!string.IsNullOrEmpty(progreso?.Descripcion))
+        {
+            <p class="text-muted mb-0">@progreso.Descripcion</p>
+        }
+    </div>
+    @if (puedeOperar)
+    {
+        <form asp-action="GenerarPrueba" method="post" class="d-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="codigo" value="@tipo" />
+            <button type="submit" class="btn btn-primary btn-sm">➕ Generar siguiente prueba</button>
+        </form>
+    }
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (progreso is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card text-center"><div class="card-body p-2">
+                <div class="text-muted small">Requeridos</div><div class="h4 m-0">@progreso.Requeridos</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success-subtle text-center"><div class="card-body p-2">
+                <div class="text-muted small">Completados</div><div class="h4 m-0 text-success">@progreso.Completados</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info-subtle text-center"><div class="card-body p-2">
+                <div class="text-muted small">En progreso</div><div class="h4 m-0 text-info">@progreso.EnProgreso</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger-subtle text-center"><div class="card-body p-2">
+                <div class="text-muted small">Con error</div><div class="h4 m-0 text-danger">@progreso.ConError</div>
+            </div></div>
+        </div>
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th style="width:5%">#</th>
+                <th style="width:15%">Código</th>
+                <th>Nombre</th>
+                <th class="text-center" style="width:8%">Intento</th>
+                <th class="text-center" style="width:12%">Estado</th>
+                <th style="width:18%">DTE</th>
+                <th style="width:14%">Sello</th>
+                <th style="width:8%"></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var e in Model)
+        {
+            string badgeClass = e.EstadoActual switch
+            {
+                "COMPLETADO" => "bg-success",
+                "EN_PROGRESO" => "bg-info text-dark",
+                "ERROR" => "bg-danger",
+                _ => "bg-secondary"
+            };
+            <tr>
+                <td><small>@e.Orden</small></td>
+                <td><code>@e.Codigo</code></td>
+                <td>
+                    @e.Nombre
+                    @if (!string.IsNullOrEmpty(e.Descripcion))
+                    {
+                        <div class="text-muted small">@e.Descripcion</div>
+                    }
+                </td>
+                <td class="text-center"><small>@(e.IntentoNumero == 0 ? "—" : e.IntentoNumero.ToString())</small></td>
+                <td class="text-center">
+                    <span class="badge @badgeClass">@e.EstadoActual</span>
+                </td>
+                <td>
+                    @if (e.DteDocumentoId.HasValue)
+                    {
+                        <code class="small">@e.NumeroControl</code>
+                    }
+                    else
+                    {
+                        <small class="text-muted">—</small>
+                    }
+                </td>
+                <td>
+                    @if (!string.IsNullOrEmpty(e.SelloRecibido))
+                    {
+                        <small class="text-success">@e.SelloRecibido.Substring(0, Math.Min(12, e.SelloRecibido.Length))…</small>
+                    }
+                    else
+                    {
+                        <small class="text-muted">—</small>
+                    }
+                </td>
+                <td class="text-end">
+                    @if (puedeOperar && e.DteDocumentoId.HasValue && e.EstadoActual != "COMPLETADO")
+                    {
+                        <form asp-action="Reintentar" method="post" class="d-inline" onsubmit="return confirm('¿Reintentar este escenario?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="codigo" value="@tipo" />
+                            <input type="hidden" name="documentoId" value="@e.DteDocumentoId" />
+                            <button type="submit" class="btn btn-outline-warning btn-sm" title="Reintentar">↻</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="8" class="text-center text-muted py-4">Sin escenarios para este tipo.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

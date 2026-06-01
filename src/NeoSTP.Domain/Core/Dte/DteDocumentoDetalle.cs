@@ -21,7 +21,7 @@ public class DteDocumentoDetalle : AuditableEntity
 
     public string Codigo { get; set; } = null!;
     public string Descripcion { get; set; } = null!;
-    public string UnidadMedidaCodigo { get; set; } = "UNIDAD";
+    public string UnidadMedidaCodigo { get; set; } = "59";
 
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }

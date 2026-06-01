@@ -257,7 +257,7 @@ public class DteDocumentosService : IDteDocumentosService
                 ProductoId = linea.ProductoId,
                 Codigo = string.IsNullOrEmpty(codigo) ? $"ITEM-{numLinea:000}" : codigo,
                 Descripcion = string.IsNullOrEmpty(descripcion) ? "Producto" : descripcion,
-                UnidadMedidaCodigo = string.IsNullOrEmpty(unidad) ? "UNIDAD" : unidad,
+                UnidadMedidaCodigo = string.IsNullOrEmpty(unidad) ? "59" : unidad,
                 TipoItem = tipoItem,
                 Cantidad = linea.Cantidad,
                 PrecioUnitario = linea.PrecioUnitario,

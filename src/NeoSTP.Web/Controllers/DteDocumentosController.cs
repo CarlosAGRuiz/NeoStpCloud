@@ -125,7 +125,7 @@ public class DteDocumentosController : Controller
                 ProductoId = l.ProductoId,
                 Codigo = l.Codigo ?? string.Empty,
                 Descripcion = l.Descripcion ?? string.Empty,
-                UnidadMedidaCodigo = l.UnidadMedidaCodigo ?? "UNIDAD",
+                UnidadMedidaCodigo = l.UnidadMedidaCodigo ?? "59",
                 TipoItem = l.TipoItem == 0 ? 1 : l.TipoItem,
                 Cantidad = l.Cantidad,
                 PrecioUnitario = l.PrecioUnitario,
@@ -281,7 +281,7 @@ public class DteDocumentosController : Controller
         ViewBag.Productos = productos.Value?.Items ?? new List<NeoSTP.Application.Productos.Dtos.ProductoDto>();
 
         async Task<IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>> Items(string c)
-            => (await _catalogos.GetItemsAsync(c, empresaId, ct)).Value
+            => (await _catalogos.GetItemsAsync(c, empresaId, ct: ct)).Value
                ?? new List<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
         ViewBag.UnidadesMedida = await Items("UNIDAD_MEDIDA");

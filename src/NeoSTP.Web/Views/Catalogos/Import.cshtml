@@ -1,0 +1,113 @@
+@{
+    var catalogo = (NeoSTP.Application.Catalogos.Dtos.CatalogoDto)ViewBag.Catalogo;
+    var result = ViewBag.ImportResult as NeoSTP.Application.Catalogos.Dtos.CatalogoImportResult;
+    var fileName = ViewBag.FileName as string;
+    ViewData["Title"] = $"Importar · {catalogo.Codigo}";
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Catálogos</a></li>
+        <li class="breadcrumb-item"><a asp-action="Details" asp-route-codigo="@catalogo.Codigo"><code>@catalogo.Codigo</code></a></li>
+        <li class="breadcrumb-item active" aria-current="page">Importar</li>
+    </ol>
+</nav>
+
+<h2>Importar a <code>@catalogo.Codigo</code></h2>
+<p class="text-muted">
+    Formato detectado por extensión del archivo: <strong>.csv</strong>, <strong>.json</strong> o <strong>.xlsx</strong>.
+    El archivo debe tener encabezado con al menos las columnas <code>Codigo</code> y <code>Valor</code>.
+    Otras columnas opcionales: <code>Descripcion, Orden, ParentCodigo, MetadataJson, Activo</code>.
+</p>
+
+<form method="post" enctype="multipart/form-data" class="card card-body bg-light mb-4">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+    <div class="mb-3">
+        <label class="form-label">Archivo</label>
+        <input type="file" name="file" class="form-control" accept=".csv,.json,.xlsx,.xlsm" required />
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Modo</label>
+            <select name="mode" class="form-select">
+                <option value="Upsert" selected>Upsert (insertar + actualizar)</option>
+                <option value="InsertOnly">Solo insertar (omitir existentes)</option>
+            </select>
+        </div>
+        <div class="col-md-4 align-self-end">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="dryRun" value="true" id="dryRun" />
+                <label class="form-check-label" for="dryRun">Simular (no aplicar cambios)</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Importar</button>
+        <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+@if (result is not null)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            Resultado @(result.DryRun ? "(simulación)" : "(aplicado)")
+            @if (!string.IsNullOrEmpty(fileName))
+            {
+                <small class="text-muted">· @fileName</small>
+            }
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <div class="border rounded p-2 text-center"><div class="text-muted small">Total</div><div class="h4 m-0">@result.Total</div></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2 text-center bg-success-subtle"><div class="text-muted small">Insertados</div><div class="h4 m-0 text-success">@result.Inserted</div></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2 text-center bg-primary-subtle"><div class="text-muted small">Actualizados</div><div class="h4 m-0 text-primary">@result.Updated</div></div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2 text-center @(result.ErrorCount > 0 ? "bg-danger-subtle" : "bg-warning-subtle")">
+                        <div class="text-muted small">Errores / Omitidos</div>
+                        <div class="h4 m-0">@result.ErrorCount / @result.Skipped</div>
+                    </div>
+                </div>
+            </div>
+
+            @if (result.Errors.Count > 0)
+            {
+                <h6>Filas con error</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-light">
+                            <tr><th style="width:6em">Fila</th><th style="width:10em">Código</th><th>Mensaje</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in result.Errors.Take(50))
+                            {
+                                <tr>
+                                    <td><small>@e.Row</small></td>
+                                    <td><code>@(e.Codigo ?? "—")</code></td>
+                                    <td><small>@e.Message</small></td>
+                                </tr>
+                            }
+                            @if (result.Errors.Count > 50)
+                            {
+                                <tr><td colspan="3" class="text-muted small">…y @(result.Errors.Count - 50) más.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-primary btn-sm mt-2">Volver al catálogo</a>
+        </div>
+    </div>
+}

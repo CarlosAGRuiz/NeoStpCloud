@@ -20,7 +20,7 @@ public class CreateProductoViewModel
     public string TipoItem { get; set; } = "BIEN";
 
     [Required, Display(Name = "Unidad de medida")]
-    public string UnidadMedidaCodigo { get; set; } = "UNIDAD";
+    public string UnidadMedidaCodigo { get; set; } = "59";
 
     [Required, Range(0, double.MaxValue), Display(Name = "Precio unitario")]
     public decimal PrecioUnitario { get; set; }

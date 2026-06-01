@@ -14,6 +14,13 @@ public class CatalogoItem : AuditableEntity
     public bool EsSistema { get; set; }
     public bool Activo { get; set; } = true;
 
+    /// <summary>
+    /// Código del ítem padre dentro del mismo catálogo (cascadas). Por ejemplo,
+    /// un municipio referencia el código del departamento, y un distrito el del
+    /// municipio. Null para ítems de primer nivel.
+    /// </summary>
+    public string? ParentCodigo { get; set; }
+
     /// <summary>JSON libre con atributos extra (símbolo, color, tasa, etc.).</summary>
     public string? MetadataJson { get; set; }
 }

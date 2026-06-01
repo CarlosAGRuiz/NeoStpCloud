@@ -31,17 +31,22 @@ public abstract class ApiControllerBase : ControllerBase
 
     private IActionResult MapError(string? errorCode, object payload) => errorCode switch
     {
-        "USER_NOT_FOUND" or "ROLE_NOT_FOUND" or "CAT_NOT_FOUND"
+        "USER_NOT_FOUND" or "ROLE_NOT_FOUND" or "CAT_NOT_FOUND" or "CAT_ITEM_NOT_FOUND"
             or "EMPRESA_NOT_FOUND" or "PLAN_NOT_FOUND" or "MODULO_NOT_FOUND"
             or "SUCURSAL_NOT_FOUND" or "PV_NOT_FOUND"
             or "CLIENTE_NOT_FOUND" or "PRODUCTO_NOT_FOUND"
-            or "CONFIG_NOT_FOUND" or "DTE_NOT_FOUND" => NotFound(payload),
+            or "CONFIG_NOT_FOUND" or "DTE_NOT_FOUND"
+            or "CERT_MATRIZ_NOT_FOUND" or "CERT_ESCENARIO_NOT_FOUND" or "CERT_PRUEBA_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" => Conflict(payload),
         "FIRMA_FAILED" or "HACIENDA_AUTH_FAILED" or "EMAIL_FAILED" => StatusCode(StatusCodes.Status502BadGateway, payload),
         "DECRYPT_FAILED" => StatusCode(StatusCodes.Status500InternalServerError, payload),
         "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" or "EMPRESA_DUPLICATE"
             or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED"
-            or "CLIENTE_DUPLICATE" or "PRODUCTO_DUPLICATE" => Conflict(payload),
+            or "CLIENTE_DUPLICATE" or "PRODUCTO_DUPLICATE"
+            or "CAT_DUPLICATE" or "CAT_ITEM_DUPLICATE"
+            or "CAT_SYSTEM_NOT_EDITABLE" or "CAT_ITEM_SYSTEM" or "CAT_ITEM_HAS_CHILDREN" => Conflict(payload),
+        "CAT_PARENT_NOT_FOUND" or "CAT_PARENT_SELF" => BadRequest(payload),
+        "CERT_TIPO_MISMATCH" or "CERT_NADA_PENDIENTE" or "CERT_NO_ESCENARIOS" => Conflict(payload),
         "EMPRESA_FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, payload),
         "LICENSE_INVALID" => StatusCode(StatusCodes.Status402PaymentRequired, payload),
         "VALIDATION" or "PWD_WEAK" => BadRequest(payload),

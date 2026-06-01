@@ -1,0 +1,131 @@
+@model IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
+@{
+    var catalogo = (NeoSTP.Application.Catalogos.Dtos.CatalogoDto)ViewBag.Catalogo;
+    var parent = ViewBag.ParentFilter as string;
+    var puedeImportar = ViewBag.PuedeImportar is bool pi && pi;
+    ViewData["Title"] = $"Catálogo: {catalogo.Codigo}";
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Catálogos</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><code>@catalogo.Codigo</code></li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="mb-1">@catalogo.Nombre <small class="text-muted">v@(catalogo.Version)</small></h2>
+        @if (!string.IsNullOrEmpty(catalogo.Descripcion))
+        {
+            <p class="text-muted mb-0">@catalogo.Descripcion</p>
+        }
+        <div class="mt-2">
+            @if (catalogo.EsSistema)
+            {
+                <span class="badge bg-info text-dark">Sistema</span>
+            }
+            else
+            {
+                <span class="badge bg-primary">Empresa</span>
+            }
+            <span class="badge @(catalogo.Activo ? "bg-success" : "bg-secondary") ms-1">@(catalogo.Activo ? "ACTIVO" : "INACTIVO")</span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        @if (puedeImportar)
+        {
+            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-primary btn-sm">⬆ Importar</a>
+        }
+        <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">⬇ Exportar</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-action="Export" asp-route-codigo="@catalogo.Codigo" asp-route-format="Csv">CSV</a></li>
+                <li><a class="dropdown-item" asp-action="Export" asp-route-codigo="@catalogo.Codigo" asp-route-format="Json">JSON</a></li>
+                <li><a class="dropdown-item" asp-action="Export" asp-route-codigo="@catalogo.Codigo" asp-route-format="Xlsx">Excel</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" name="parent" value="@parent" class="form-control form-control-sm"
+               placeholder="Filtrar por código de padre (cascada)" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+        @if (!string.IsNullOrEmpty(parent))
+        {
+            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+        }
+        else
+        {
+            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="__ROOT__" class="btn btn-outline-secondary btn-sm ms-1" title="Sólo ítems de primer nivel">Solo raíz</a>
+        }
+    </div>
+    <div class="col-auto ms-auto small text-muted align-self-center">
+        @Model.Count ítems
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover">
+        <thead class="table-light">
+            <tr>
+                <th style="width:10%">Código</th>
+                <th>Valor</th>
+                <th>Descripción</th>
+                <th class="text-center" style="width:7%">Orden</th>
+                <th style="width:10%">Padre</th>
+                <th class="text-center" style="width:8%">Origen</th>
+                <th class="text-center" style="width:8%">Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var i in Model)
+            {
+                <tr class="@(!i.Activo ? "table-secondary text-muted" : "")">
+                    <td><code>@i.Codigo</code></td>
+                    <td>@i.Valor</td>
+                    <td><small>@(i.Descripcion ?? "")</small></td>
+                    <td class="text-center"><small>@i.Orden</small></td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(i.ParentCodigo))
+                        {
+                            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="@i.ParentCodigo" class="text-decoration-none">
+                                <code>@i.ParentCodigo</code>
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="text-muted small">—</span>
+                        }
+                    </td>
+                    <td class="text-center">
+                        @if (i.EsSistema)
+                        {
+                            <span class="badge bg-info text-dark" title="Ítem del sistema; no se elimina físicamente">Sistema</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-light text-dark border">Empresa</span>
+                        }
+                    </td>
+                    <td class="text-center">
+                        <span class="badge @(i.Activo ? "bg-success" : "bg-secondary")">@(i.Activo ? "OK" : "INACT")</span>
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center text-muted py-4">Sin ítems para los criterios indicados.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

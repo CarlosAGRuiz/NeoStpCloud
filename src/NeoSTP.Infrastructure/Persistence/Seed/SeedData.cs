@@ -18,7 +18,7 @@ namespace NeoSTP.Infrastructure.Persistence.Seed;
 ///   Permisos:          300 - 499
 ///   Roles del sistema: 500 - 599
 /// </summary>
-internal static class SeedData
+internal static partial class SeedData
 {
     private static readonly DateTime SeededAt = new(2026, 5, 26, 0, 0, 0, DateTimeKind.Utc);
     private const string SeededBy = "SYSTEM";
@@ -32,6 +32,8 @@ internal static class SeedData
         SeedPermisos(modelBuilder);
         SeedRoles(modelBuilder);
         SeedRolPermisos(modelBuilder);
+        // Sprint 14 — Matriz oficial de certificación Hacienda.
+        ApplyCertificacion(modelBuilder);
     }
 
     private static void SeedCatalogos(ModelBuilder modelBuilder)
@@ -57,6 +59,25 @@ internal static class SeedData
             Cat(17, CatalogCodes.AmbienteDte,           "Ambiente DTE",                 "Ambientes Hacienda: pruebas y producción"),
             Cat(18, CatalogCodes.DepartamentoEs,        "Departamento (El Salvador)",   "14 departamentos de El Salvador con codigos MH CAT-012"),
             Cat(19, CatalogCodes.MunicipioEs,           "Municipio / Zona (El Salvador)","42 municipios post-reforma territorial 2024 (Decreto 290). Cada item lleva departamento padre + zona en metadata. Distribución base; ajustar contra CAT-013 final de Hacienda"),
+            // ---- Sprint 13.5 — catálogos MH prioritarios ----
+            Cat(20, CatalogCodes.TipoContingencia,      "Tipo de Contingencia",         "CAT-005 Hacienda. 5 motivos oficiales."),
+            Cat(21, CatalogCodes.Tributo,               "Tributos",                     "CAT-015 Hacienda. Subset operativo IVA + tributos específicos. Listado completo importable."),
+            Cat(22, CatalogCodes.Pais,                  "País",                         "CAT-020 Hacienda. Subset LATAM + países frecuentes. Listado completo importable."),
+            Cat(23, CatalogCodes.MotivoInvalidacion,    "Motivo de Invalidación",       "CAT-024 Hacienda. 3 motivos oficiales."),
+            Cat(24, CatalogCodes.ActividadEconomica,    "Actividad Económica",          "CAT-019 Hacienda. Subset frecuente. Listado completo importable."),
+            Cat(25, CatalogCodes.DistritoEs,            "Distrito (El Salvador)",       "CAT-008 Hacienda. Cascada Municipio → Distrito. Populado vía importación."),
+            // ---- Sprint 13.7 — catálogos MH oficiales (Manual v1.4) ----
+            Cat(26, CatalogCodes.RetencionIvaMh,        "Retención IVA MH",             "CAT-006 Hacienda. 3 ítems oficiales."),
+            Cat(27, CatalogCodes.Plazo,                 "Plazo",                        "CAT-018 Hacienda. Días / Meses / Años."),
+            Cat(28, CatalogCodes.OtroDocAsociado,       "Otros Documentos Asociados",   "CAT-021 Hacienda. 4 ítems oficiales."),
+            Cat(29, CatalogCodes.TipoDocContingencia,   "Tipo Documento en Contingencia","CAT-023 Hacienda. 7 tipos."),
+            Cat(30, CatalogCodes.TituloRemision,        "Título Remisión de Bienes",    "CAT-025 Hacienda. 5 títulos."),
+            Cat(31, CatalogCodes.TipoDonacion,          "Tipo de Donación",             "CAT-026 Hacienda. Efectivo / Bien / Servicio."),
+            Cat(32, CatalogCodes.RecintoFiscal,         "Recinto Fiscal",               "CAT-027 Hacienda. 45 recintos (incluye Z.F. EMCO y Z.F. Gigante)."),
+            Cat(33, CatalogCodes.TipoPersona,           "Tipo de Persona",              "CAT-029 Hacienda. Natural / Jurídica."),
+            Cat(34, CatalogCodes.Transporte,            "Transporte",                   "CAT-030 Hacienda. 7 modalidades."),
+            Cat(35, CatalogCodes.Incoterms,             "INCOTERMS",                    "CAT-031 Hacienda. 16 términos comerciales internacionales."),
+            Cat(36, CatalogCodes.DomicilioFiscal,       "Domicilio Fiscal",             "CAT-032 Hacienda. Domiciliado / No Domiciliado."),
         };
 
         modelBuilder.Entity<Catalogo>().HasData(catalogos);
@@ -113,12 +134,9 @@ internal static class SeedData
         items.Add(Item(id++, 6, "SUJETO_EXCLUIDO",               "Factura Sujeto Excluido",                    10, metadata: "{\"codigoMH\":\"14\"}"));
         items.Add(Item(id++, 6, "COMPROBANTE_DONACION",          "Comprobante de Donación",                    11, metadata: "{\"codigoMH\":\"15\"}"));
 
-        // TIPO_DOC_IDENTIDAD (7)
-        items.Add(Item(id++, 7, "DUI",              "DUI",                       1));
-        items.Add(Item(id++, 7, "NIT",              "NIT",                       2));
-        items.Add(Item(id++, 7, "PASAPORTE",        "Pasaporte",                 3));
-        items.Add(Item(id++, 7, "CARNET_RESIDENTE", "Carnet de Residente",       4));
-        items.Add(Item(id++, 7, "OTRO",             "Otro documento",            5));
+        // TIPO_DOC_IDENTIDAD (7) — REEMPLAZADO en Sprint 13.7 por CAT-022 oficial con Codigo=codigoMH.
+        // Se conserva el hueco de 5 IDs para no desplazar los IDs siguientes (evita UpdateData espúreos en EF).
+        id += 5;
 
         // TIPO_CONTRIBUYENTE (8)
         items.Add(Item(id++, 8, "CONSUMIDOR_FINAL",   "Consumidor Final",     1));
@@ -176,19 +194,9 @@ internal static class SeedData
         items.Add(Item(id++, 14, "CREDITO", "Crédito", 2, metadata: "{\"codigoMH\":\"2\"}"));
         items.Add(Item(id++, 14, "OTRO",    "Otro",    3, metadata: "{\"codigoMH\":\"3\"}"));
 
-        // UNIDAD_MEDIDA (15) — subset CAT-014 Hacienda
-        items.Add(Item(id++, 15, "UNIDAD",    "Unidad",          1, metadata: "{\"codigoMH\":\"59\"}"));
-        items.Add(Item(id++, 15, "CAJA",      "Caja",            2, metadata: "{\"codigoMH\":\"43\"}"));
-        items.Add(Item(id++, 15, "DOCENA",    "Docena",          3, metadata: "{\"codigoMH\":\"44\"}"));
-        items.Add(Item(id++, 15, "LITRO",     "Litro",           4, metadata: "{\"codigoMH\":\"22\"}"));
-        items.Add(Item(id++, 15, "GALON",     "Galón",           5, metadata: "{\"codigoMH\":\"23\"}"));
-        items.Add(Item(id++, 15, "KILOGRAMO", "Kilogramo",       6, metadata: "{\"codigoMH\":\"10\"}"));
-        items.Add(Item(id++, 15, "LIBRA",     "Libra",           7, metadata: "{\"codigoMH\":\"15\"}"));
-        items.Add(Item(id++, 15, "METRO",     "Metro",           8, metadata: "{\"codigoMH\":\"32\"}"));
-        items.Add(Item(id++, 15, "SERVICIO",  "Servicio",        9, metadata: "{\"codigoMH\":\"58\"}"));
-        items.Add(Item(id++, 15, "HORA",      "Hora",            10, metadata: "{\"codigoMH\":\"56\"}"));
-        items.Add(Item(id++, 15, "DIA",       "Día",             11, metadata: "{\"codigoMH\":\"55\"}"));
-        items.Add(Item(id++, 15, "PAQUETE",   "Paquete",         12, metadata: "{\"codigoMH\":\"49\"}"));
+        // UNIDAD_MEDIDA (15) — REEMPLAZADO en Sprint 13.7 por CAT-014 oficial completo (56 unidades).
+        // Hueco de 12 IDs para preservar la secuencia.
+        id += 12;
 
         // CANAL_VENTA (16)
         items.Add(Item(id++, 16, "POS",    "Punto de Venta", 1));
@@ -235,6 +243,68 @@ internal static class SeedData
         AddMun(items, ref id, "SAN_MIGUEL",   new[] { "NORTE", "CENTRO", "OESTE" });
         AddMun(items, ref id, "MORAZAN",      new[] { "NORTE", "SUR" });
         AddMun(items, ref id, "LA_UNION",     new[] { "NORTE", "SUR" });
+
+        // ---- Sprint 13.5 — Catálogos MH prioritarios ----
+
+        // TIPO_CONTINGENCIA (20) — CAT-005 Hacienda
+        items.Add(Item(id++, 20, "NO_DISPONIBILIDAD_MH", "No disponibilidad del sistema de Hacienda",       1, metadata: "{\"codigoMH\":\"1\"}"));
+        items.Add(Item(id++, 20, "CONEXION_MH",          "Falla en la conexión del emisor con Hacienda",    2, metadata: "{\"codigoMH\":\"2\"}"));
+        items.Add(Item(id++, 20, "SERVICIOS_SVT",        "Falla en los servicios de SVT del emisor",        3, metadata: "{\"codigoMH\":\"3\"}"));
+        items.Add(Item(id++, 20, "CONEXION_RECEPTOR",    "Falla de conexión con el receptor",               4, metadata: "{\"codigoMH\":\"4\"}"));
+        items.Add(Item(id++, 20, "OTRO",                 "Otros (justificar en detalle)",                   5, metadata: "{\"codigoMH\":\"5\"}"));
+
+        // TRIBUTO (21) — subset CAT-015 Hacienda
+        items.Add(Item(id++, 21, "IVA_13",          "IVA - Impuesto al Valor Agregado 13%",              1, metadata: "{\"codigoMH\":\"20\",\"tasa\":0.13}"));
+        items.Add(Item(id++, 21, "IVA_EXPORT_0",    "IVA exportaciones 0%",                              2, metadata: "{\"codigoMH\":\"C8\",\"tasa\":0}"));
+        items.Add(Item(id++, 21, "IVA_RETENIDO_1",  "IVA Retención 1%",                                  3, metadata: "{\"codigoMH\":\"22\",\"tasa\":0.01}"));
+        items.Add(Item(id++, 21, "IVA_RETENIDO_13", "IVA Retención 13%",                                 4, metadata: "{\"codigoMH\":\"C4\",\"tasa\":0.13}"));
+        items.Add(Item(id++, 21, "RENTA_10",        "Renta Retención 10%",                               5, metadata: "{\"codigoMH\":\"C9\",\"tasa\":0.10}"));
+        items.Add(Item(id++, 21, "FOVIAL",          "FOVIAL — Fondo de Conservación Vial",               6, metadata: "{\"codigoMH\":\"D1\"}"));
+        items.Add(Item(id++, 21, "COTRANS",         "COTRANS — Contribución especial al transporte",     7, metadata: "{\"codigoMH\":\"C5\"}"));
+        items.Add(Item(id++, 21, "TURISMO_5",       "Turismo: alojamiento 5%",                           8, metadata: "{\"codigoMH\":\"59\",\"tasa\":0.05}"));
+        items.Add(Item(id++, 21, "TURISMO_SALIDA",  "Turismo: salida del país",                          9, metadata: "{\"codigoMH\":\"71\"}"));
+        items.Add(Item(id++, 21, "ESPECIAL_SEGURIDAD", "Contribución especial seguridad pública",       10, metadata: "{\"codigoMH\":\"D5\"}"));
+        items.Add(Item(id++, 21, "ALCABALA",        "Impuesto Especial al primer matriculación",        11, metadata: "{\"codigoMH\":\"D4\"}"));
+        items.Add(Item(id++, 21, "FONAES",          "FONAES — Fondo Energético",                        12, metadata: "{\"codigoMH\":\"32\"}"));
+
+        // PAIS (22) — REEMPLAZADO en Sprint 13.7 por CAT-020 oficial completo (275 países).
+        // Hueco de 25 IDs para preservar la secuencia.
+        id += 25;
+
+        // MOTIVO_INVALIDACION (23) — REEMPLAZADO en Sprint 13.7 por CAT-024 oficial (textos exactos de MH).
+        // Hueco de 3 IDs.
+        id += 3;
+
+        // ACTIVIDAD_ECONOMICA (24) — subset CAT-019 Hacienda (top-level frecuentes)
+        items.Add(Item(id++, 24, "AGRICULTURA",     "Agricultura, ganadería y pesca",         1,  metadata: "{\"codigoMH\":\"01111\"}"));
+        items.Add(Item(id++, 24, "MINERIA",         "Explotación de minas y canteras",        2,  metadata: "{\"codigoMH\":\"05101\"}"));
+        items.Add(Item(id++, 24, "INDUSTRIA_ALIM",  "Industrias manufactureras — alimentos",  3,  metadata: "{\"codigoMH\":\"10110\"}"));
+        items.Add(Item(id++, 24, "CONSTRUCCION",    "Construcción",                           4,  metadata: "{\"codigoMH\":\"41001\"}"));
+        items.Add(Item(id++, 24, "COMERCIO_MAYOR",  "Comercio al por mayor",                  5,  metadata: "{\"codigoMH\":\"46900\"}"));
+        items.Add(Item(id++, 24, "COMERCIO_MENOR",  "Comercio al por menor",                  6,  metadata: "{\"codigoMH\":\"47190\"}"));
+        items.Add(Item(id++, 24, "TRANSPORTE",      "Transporte y almacenamiento",            7,  metadata: "{\"codigoMH\":\"49230\"}"));
+        items.Add(Item(id++, 24, "ALOJAMIENTO",     "Alojamiento y servicios de comida",      8,  metadata: "{\"codigoMH\":\"55101\"}"));
+        items.Add(Item(id++, 24, "INFORMATICA",     "Servicios de información y comunicación",9,  metadata: "{\"codigoMH\":\"62010\"}"));
+        items.Add(Item(id++, 24, "FINANCIEROS",     "Servicios financieros y seguros",        10, metadata: "{\"codigoMH\":\"64190\"}"));
+        items.Add(Item(id++, 24, "INMOBILIARIO",    "Actividades inmobiliarias",              11, metadata: "{\"codigoMH\":\"68101\"}"));
+        items.Add(Item(id++, 24, "PROFESIONALES",   "Servicios profesionales y técnicos",     12, metadata: "{\"codigoMH\":\"69100\"}"));
+        items.Add(Item(id++, 24, "ADMIN_PUBLICA",   "Administración pública",                 13, metadata: "{\"codigoMH\":\"84110\"}"));
+        items.Add(Item(id++, 24, "EDUCACION",       "Enseñanza",                              14, metadata: "{\"codigoMH\":\"85100\"}"));
+        items.Add(Item(id++, 24, "SALUD",           "Servicios de salud y asistencia social", 15, metadata: "{\"codigoMH\":\"86101\"}"));
+        items.Add(Item(id++, 24, "ARTES",           "Artes, entretenimiento y recreación",    16, metadata: "{\"codigoMH\":\"90001\"}"));
+        items.Add(Item(id++, 24, "OTROS_SERV",      "Otras actividades de servicios",         17, metadata: "{\"codigoMH\":\"94110\"}"));
+
+        // DISTRITO_ES (25) — sin ítems seed. Cargar vía importación CSV/XLSX.
+
+        // ---- Sprint 13.7 — Catálogos MH oficiales (Manual de Estructuras CAT v1.4) ----
+        // Convención: Codigo = codigoMH. Reemplazan los seeds parciales semánticos de
+        // UNIDAD_MEDIDA (15), TIPO_DOC_IDENTIDAD (7), PAIS (22) y MOTIVO_INVALIDACION (23).
+        //
+        // Los IDs arrancan en 1000 para dejar un hueco con respecto a los seeds anteriores
+        // (1-221). Esto preserva espacio para ediciones manuales/dev entre Sprint 13.5 y 13.7
+        // sin colisionar con futuras inserciones HasData.
+        id = 1000;
+        AppendCatalogosMhOficiales(items, ref id);
 
         modelBuilder.Entity<CatalogoItem>().HasData(items);
     }
@@ -370,6 +440,10 @@ internal static class SeedData
             Perm(308, "Core.PuntosVenta.Administrar","CORE",    "Crear y editar puntos de venta"),
             Perm(309, "Core.Auditoria.Ver",        "CORE",      "Consultar auditoría"),
             Perm(310, "Core.Catalogos.Administrar","CORE",      "Administrar catálogos de empresa"),
+            Perm(311, "Core.Catalogos.Ver",        "CORE",      "Consultar catálogos"),
+            Perm(312, "Core.Catalogos.Importar",   "CORE",      "Importar / exportar catálogos"),
+            Perm(313, "Core.Certificacion.Ver",    "NEODTE",    "Ver matriz y progreso de certificación DTE"),
+            Perm(314, "Core.Certificacion.Operar", "NEODTE",    "Generar pruebas, asociar documentos, reintentar"),
 
             // DTE
             Perm(320, "DTE.Configurar",   "NEODTE", "Configurar emisor, ambiente y credenciales DTE"),
@@ -421,7 +495,7 @@ internal static class SeedData
         // SUPERADMIN (500) → todos los permisos
         var superAdmin = new[]
         {
-            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310,
+            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
@@ -431,25 +505,25 @@ internal static class SeedData
         // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin
         var admin = new[]
         {
-            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310,
+            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
         };
 
-        // OPERADOR (502) → operación de venta
+        // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación
         var operador = new[]
         {
-            300, 302, 307, 308,
+            300, 302, 307, 308, 311, 313,
             321, 322, 323, 325,
             330, 331, 332, 335, 336, 337,
             345, 346,
         };
 
-        // CONTADOR (503) → consulta y reportes
+        // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación
         var contador = new[]
         {
-            300, 302, 307, 308, 309,
+            300, 302, 307, 308, 309, 311, 313,
             322, 324,
             330, 335,
             340,
@@ -458,7 +532,7 @@ internal static class SeedData
         // READONLY (504) → solo ver
         var readOnly = new[]
         {
-            300, 302, 309,
+            300, 302, 309, 311,
             322,
             330, 335,
             340,

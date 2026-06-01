@@ -3,6 +3,7 @@ using NeoSTP.Domain.Core.Auditoria;
 using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Dte;
+using NeoSTP.Domain.Core.Dte.Certificacion;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Productos;
@@ -51,6 +52,12 @@ public class NeoStpDbContext : DbContext
     public DbSet<DteDocumento> DteDocumentos => Set<DteDocumento>();
     public DbSet<DteDocumentoDetalle> DteDocumentoDetalles => Set<DteDocumentoDetalle>();
     public DbSet<DteDocumentoJson> DteDocumentoJson => Set<DteDocumentoJson>();
+
+    // DTE - Certificación (Sprint 14)
+    public DbSet<CertificacionMatriz> CertificacionMatriz => Set<CertificacionMatriz>();
+    public DbSet<CertificacionEscenario> CertificacionEscenarios => Set<CertificacionEscenario>();
+    public DbSet<CertificacionPrueba> CertificacionPruebas => Set<CertificacionPrueba>();
+    public DbSet<CertificacionError> CertificacionErrores => Set<CertificacionError>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

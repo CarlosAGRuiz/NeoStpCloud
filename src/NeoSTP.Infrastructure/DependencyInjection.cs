@@ -9,6 +9,7 @@ using NeoSTP.Application.Clientes;
 using NeoSTP.Application.Dashboard;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Abstractions;
+using NeoSTP.Application.Dte.Certificacion;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Productos;
@@ -43,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IUsuariosService, UsuariosService>();
         services.AddScoped<IRolesService, RolesService>();
         services.AddScoped<ICatalogosService, CatalogosService>();
+        services.AddScoped<ICertificacionDteService, CertificacionDteService>();
         services.AddScoped<EmpresasService>();
         services.AddScoped<IEmpresasService>(sp => sp.GetRequiredService<EmpresasService>());
         services.AddScoped<ILicenciaResolver>(sp => sp.GetRequiredService<EmpresasService>());

@@ -19,8 +19,8 @@ public class Producto : AuditableEntity
     /// <summary>BIEN o SERVICIO.</summary>
     public string TipoItem { get; set; } = "BIEN";
 
-    /// <summary>Código del catálogo UNIDAD_MEDIDA (UNIDAD, CAJA, LITRO, SERVICIO…).</summary>
-    public string UnidadMedidaCodigo { get; set; } = "UNIDAD";
+    /// <summary>Código MH del catálogo CAT-014 UNIDAD_MEDIDA (59=Unidad, 58=Docena, 22=Galón…).</summary>
+    public string UnidadMedidaCodigo { get; set; } = "59";
 
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }

@@ -1,0 +1,79 @@
+@model IReadOnlyList<NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionErrorDto>
+@{
+    var filtro = ViewBag.Filtro as string;
+    ViewData["Title"] = "Errores de certificación";
+}
+
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb small">
+        <li class="breadcrumb-item"><a asp-action="Index">Certificación</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Errores</li>
+    </ol>
+</nav>
+
+<h2>Errores de certificación</h2>
+<p class="text-muted">Snapshots de respuestas RECHAZADO/ERROR de Hacienda durante pruebas (últimos 500).</p>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+        <input type="text" name="codigoMh" value="@filtro" class="form-control form-control-sm" placeholder="Filtrar por código MH (095, 096, 802…)" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+        @if (!string.IsNullOrEmpty(filtro))
+        {
+            <a asp-action="Errores" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+        }
+    </div>
+    <div class="col-auto ms-auto small text-muted align-self-center">
+        @Model.Count error(es)
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-sm">
+        <thead class="table-light">
+            <tr>
+                <th style="width:14%">Fecha</th>
+                <th style="width:10%">Código MH</th>
+                <th>Descripción</th>
+                <th style="width:15%">Escenario</th>
+                <th style="width:18%">DTE</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var e in Model)
+        {
+            <tr>
+                <td><small>@e.OcurrioAt.ToString("dd/MM/yyyy HH:mm")</small></td>
+                <td><span class="badge bg-danger">@e.CodigoMh</span></td>
+                <td>
+                    @e.Descripcion
+                    @if (!string.IsNullOrEmpty(e.RespuestaMhJson))
+                    {
+                        <details class="mt-1">
+                            <summary class="small text-muted">Respuesta MH cruda</summary>
+                            <pre class="small bg-light p-2 mt-1 mb-0" style="max-height: 12em; overflow:auto;">@e.RespuestaMhJson</pre>
+                        </details>
+                    }
+                </td>
+                <td><code class="small">@(e.EscenarioCodigo ?? "—")</code></td>
+                <td>
+                    @if (!string.IsNullOrEmpty(e.NumeroControl))
+                    {
+                        <code class="small">@e.NumeroControl</code>
+                    }
+                    else
+                    {
+                        <small class="text-muted">—</small>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="5" class="text-center text-muted py-4">Sin errores registrados.</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

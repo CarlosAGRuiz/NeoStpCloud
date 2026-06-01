@@ -43,7 +43,7 @@ public class DteLineaViewModel
     public int? ProductoId { get; set; }
     public string Codigo { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
-    public string UnidadMedidaCodigo { get; set; } = "UNIDAD";
+    public string UnidadMedidaCodigo { get; set; } = "59";
     public int TipoItem { get; set; } = 1;
     public decimal Cantidad { get; set; } = 1;
     public decimal PrecioUnitario { get; set; }
