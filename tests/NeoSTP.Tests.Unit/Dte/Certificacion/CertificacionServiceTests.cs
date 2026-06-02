@@ -232,6 +232,32 @@ public class CertificacionServiceTests
         result.ErrorCode.Should().Be("DTE_NOT_FOUND");
     }
 
+    [Fact]
+    public async Task SincronizarDocumento_WhenAssociatedDteIsProcessed_CompletesScenario()
+    {
+        var (svc, db) = Build();
+        var escId = EscenarioIdFactura1(db);
+        var doc = DteFactura(EmpresaA, "DTE-01-M001P001-000000000000005",
+            DteEstadoCodigos.Borrador);
+        db.DteDocumentos.Add(doc);
+        await db.SaveChangesAsync();
+
+        var asociado = await svc.MarcarCompletadoAsync(doc.Id, new MarcarCompletadoRequest { EscenarioId = escId }, EmpresaA, "tester");
+        asociado.Value!.EstadoCodigo.Should().Be(CertificacionEstadoCodigos.EnProgreso);
+
+        doc.EstadoCodigo = DteEstadoCodigos.Procesado;
+        doc.SelloRecibido = "SELLO-SYNC";
+        doc.ProcesadoAt = DateTime.UtcNow;
+        db.DteDocumentos.Update(doc);
+        await db.SaveChangesAsync();
+
+        var result = await svc.SincronizarDocumentoAsync(doc.Id, EmpresaA, "tester");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.EstadoCodigo.Should().Be(CertificacionEstadoCodigos.Completado);
+        result.Value.SelloRecibido.Should().Be("SELLO-SYNC");
+    }
+
     // ---------------------------------------------------- Reintentar
 
     [Fact]

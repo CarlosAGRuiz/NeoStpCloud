@@ -381,6 +381,48 @@ public class CertificacionDteService : ICertificacionDteService
         return Result<CertificacionPruebaDto>.Ok(MapPrueba(nuevo, prueba.Escenario.Codigo, prueba.Escenario.Nombre, null));
     }
 
+    public async Task<Result<CertificacionPruebaDto>> SincronizarDocumentoAsync(int documentoId, int empresaId, string? actor, CancellationToken ct = default)
+    {
+        var doc = await _db.DteDocumentos.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == documentoId && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result<CertificacionPruebaDto>.Fail("Documento DTE no encontrado.", "DTE_NOT_FOUND");
+
+        var prueba = await _db.CertificacionPruebas
+            .Include(p => p.Escenario)
+            .Where(p => p.EmpresaId == empresaId && p.DteDocumentoId == documentoId)
+            .OrderByDescending(p => p.IntentoNumero)
+            .FirstOrDefaultAsync(ct);
+        if (prueba is null)
+        {
+            return Result<CertificacionPruebaDto>.Fail("El DTE no esta asociado a ninguna prueba.", "CERT_PRUEBA_NOT_FOUND");
+        }
+
+        if (!string.IsNullOrWhiteSpace(doc.SelloRecibido) && doc.EstadoCodigo == DteEstadoCodigos.Procesado)
+        {
+            prueba.EstadoCodigo = CertificacionEstadoCodigos.Completado;
+            prueba.SelloRecibido = doc.SelloRecibido;
+            prueba.ProcesadoAt = doc.ProcesadoAt ?? DateTime.UtcNow;
+        }
+        else if (doc.EstadoCodigo is DteEstadoCodigos.Rechazado or DteEstadoCodigos.Error)
+        {
+            prueba.EstadoCodigo = CertificacionEstadoCodigos.Error;
+        }
+        else
+        {
+            prueba.EstadoCodigo = CertificacionEstadoCodigos.EnProgreso;
+        }
+
+        prueba.UpdatedAt = DateTime.UtcNow;
+        prueba.UpdatedBy = actor;
+
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "SINCRONIZAR_DTE",
+            $"DTE #{doc.Id} ({doc.NumeroControl}) sincronizado con escenario {prueba.Escenario.Codigo}; estado {prueba.EstadoCodigo}",
+            "CertificacionPrueba", prueba.Id);
+
+        return Result<CertificacionPruebaDto>.Ok(MapPrueba(prueba, prueba.Escenario.Codigo, prueba.Escenario.Nombre, doc.NumeroControl));
+    }
+
     // -------------------------------------------------------- Helpers
 
     private async Task<IReadOnlyList<CertificacionMatrizProgresoDto>> BuildMatrizProgresoAsync(int empresaId, CancellationToken ct)

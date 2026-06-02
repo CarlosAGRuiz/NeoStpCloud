@@ -5,6 +5,8 @@ using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Clientes;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
+using NeoSTP.Application.Dte.Certificacion;
+using NeoSTP.Application.Dte.Certificacion.Dtos;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Productos;
 using NeoSTP.Web.Models;
@@ -18,6 +20,7 @@ public class DteDocumentosController : Controller
     private readonly IClientesService _clientes;
     private readonly IProductosService _productos;
     private readonly ICatalogosService _catalogos;
+    private readonly ICertificacionDteService _certificacion;
     private readonly ICurrentUser _currentUser;
     private readonly NeoSTP.Application.Empresas.IEmpresaContext _empresaContext;
 
@@ -26,6 +29,7 @@ public class DteDocumentosController : Controller
         IClientesService clientes,
         IProductosService productos,
         ICatalogosService catalogos,
+        ICertificacionDteService certificacion,
         ICurrentUser currentUser,
         NeoSTP.Application.Empresas.IEmpresaContext empresaContext)
     {
@@ -33,6 +37,7 @@ public class DteDocumentosController : Controller
         _clientes = clientes;
         _productos = productos;
         _catalogos = catalogos;
+        _certificacion = certificacion;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
     }
@@ -60,16 +65,12 @@ public class DteDocumentosController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Create([FromQuery] string tipo = "01", CancellationToken ct = default)
+    public async Task<IActionResult> Create([FromQuery] string tipo = "01", [FromQuery] int? certificacionEscenarioId = null, CancellationToken ct = default)
     {
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         await LoadFormDataAsync(eid, ct);
-        var vm = new CreateDteDocumentoViewModel
-        {
-            TipoDteCodigo = tipo,
-            Lineas = new List<DteLineaViewModel> { new() { Cantidad = 1 } },
-        };
+        var vm = await BuildCreateModelAsync(eid, tipo, certificacionEscenarioId, ct);
         return View(vm);
     }
 
@@ -144,6 +145,21 @@ public class DteDocumentosController : Controller
             return View(model);
         }
 
+        if (model.CertificacionEscenarioId.HasValue)
+        {
+            var sync = await _certificacion.MarcarCompletadoAsync(result.Value!.Id, new MarcarCompletadoRequest
+            {
+                EscenarioId = model.CertificacionEscenarioId.Value,
+                Notas = $"DTE creado desde certificacion: {model.CertificacionEscenarioCodigo}",
+            }, eid, _currentUser.Username, ct);
+
+            if (sync.IsFailure)
+            {
+                TempData["Error"] = $"DTE creado, pero no se pudo asociar a certificacion: {sync.Error}";
+                return RedirectToAction(nameof(Details), new { id = result.Value!.Id });
+            }
+        }
+
         if (model.GenerarInmediato)
         {
             var gen = await _service.GenerarAsync(eid, result.Value!.Id, _currentUser.Username, ct);
@@ -152,10 +168,14 @@ public class DteDocumentosController : Controller
                 TempData["Error"] = $"Documento creado pero no se pudo generar JSON: {gen.Error}";
                 return RedirectToAction(nameof(Details), new { id = result.Value!.Id });
             }
+
+            await SincronizarCertificacionAsync(eid, result.Value!.Id, ct);
         }
 
         TempData["Success"] = $"DTE {result.Value!.NumeroControl} creado.";
-        return RedirectToAction(nameof(Details), new { id = result.Value!.Id });
+        return model.CertificacionEscenarioId.HasValue && !string.IsNullOrWhiteSpace(model.CertificacionTipoCodigo)
+            ? RedirectToAction("Tipo", "Certificacion", new { codigo = model.CertificacionTipoCodigo })
+            : RedirectToAction(nameof(Details), new { id = result.Value!.Id });
     }
 
     [HttpPost]
@@ -165,6 +185,7 @@ public class DteDocumentosController : Controller
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
         var result = await _service.GenerarAsync(eid, id, _currentUser.Username, ct);
+        await SincronizarCertificacionAsync(eid, id, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "JSON DTE generado." : result.Error;
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -176,6 +197,7 @@ public class DteDocumentosController : Controller
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
         var result = await _service.ValidarAsync(eid, id, _currentUser.Username, ct);
+        await SincronizarCertificacionAsync(eid, id, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "DTE validado." : result.Error;
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -187,6 +209,7 @@ public class DteDocumentosController : Controller
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
         var result = await _service.FirmarAsync(eid, id, _currentUser.Username, ct);
+        await SincronizarCertificacionAsync(eid, id, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "DTE firmado." : result.Error;
         return RedirectToAction(nameof(Details), new { id });
     }
@@ -209,6 +232,7 @@ public class DteDocumentosController : Controller
         {
             TempData["Error"] = result.Error;
         }
+        await SincronizarCertificacionAsync(eid, id, ct);
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -290,5 +314,88 @@ public class DteDocumentosController : Controller
         ViewBag.Departamentos = await Items("DEPARTAMENTO_ES");
         ViewBag.TiposDoc = await Items("TIPO_DOC_IDENTIDAD");
         ViewBag.TiposContrib = await Items("TIPO_CONTRIBUYENTE");
+    }
+
+    private async Task<CreateDteDocumentoViewModel> BuildCreateModelAsync(int empresaId, string tipo, int? certificacionEscenarioId, CancellationToken ct)
+    {
+        var vm = new CreateDteDocumentoViewModel
+        {
+            TipoDteCodigo = tipo,
+            Lineas = new List<DteLineaViewModel> { new() { Cantidad = 1 } },
+        };
+
+        if (!certificacionEscenarioId.HasValue)
+        {
+            return vm;
+        }
+
+        var escenarios = await _certificacion.GetEscenariosAsync(tipo, empresaId, ct);
+        var escenario = escenarios.Value?.FirstOrDefault(e => e.Id == certificacionEscenarioId.Value);
+        if (escenario is null)
+        {
+            return vm;
+        }
+
+        vm.CertificacionEscenarioId = escenario.Id;
+        vm.CertificacionTipoCodigo = tipo;
+        vm.CertificacionEscenarioCodigo = escenario.Codigo;
+        vm.CertificacionEscenarioNombre = escenario.Nombre;
+        vm.Observaciones = $"Prueba de certificacion {escenario.Codigo}: {escenario.Nombre}";
+        vm.Lineas = new List<DteLineaViewModel> { BuildCertificacionLinea(tipo, escenario.Codigo) };
+        ApplyReceptorCertificacion(vm);
+        return vm;
+    }
+
+    private static DteLineaViewModel BuildCertificacionLinea(string tipo, string? escenarioCodigo)
+        => new()
+        {
+            Codigo = "CERT-001",
+            Descripcion = $"Servicio de prueba certificacion {(!string.IsNullOrWhiteSpace(escenarioCodigo) ? escenarioCodigo : tipo)}",
+            UnidadMedidaCodigo = "59",
+            TipoItem = 1,
+            Cantidad = 1,
+            PrecioUnitario = 10,
+            Clasificacion = "GRAVADA",
+        };
+
+    private static void ApplyReceptorCertificacion(CreateDteDocumentoViewModel vm)
+    {
+        if (vm.TipoDteCodigo == "01")
+        {
+            vm.ReceptorNombre = "Consumidor final pruebas";
+            vm.ReceptorTipoDocumento = "13";
+            vm.ReceptorNumeroDocumento = "00000000-0";
+            vm.ReceptorCorreo = "certificacion@neostp.local";
+            return;
+        }
+
+        vm.ReceptorNombre = "Cliente certificacion DTE";
+        vm.ReceptorTipoDocumento = "36";
+        vm.ReceptorNumeroDocumento = "06142803901121";
+        vm.ReceptorNrc = vm.TipoDteCodigo is "03" or "05" or "06" ? "123456-7" : null;
+        vm.ReceptorTipoContribuyente = "GRANDE";
+        vm.ReceptorCodigoActividad = "62010";
+        vm.ReceptorActividadEconomica = "Programacion informatica";
+        vm.ReceptorDepartamentoCodigo = "06";
+        vm.ReceptorMunicipioCodigo = "14";
+        vm.ReceptorDireccion = "Direccion de prueba para certificacion";
+        vm.ReceptorCorreo = "certificacion@neostp.local";
+        vm.ReceptorTelefono = "22222222";
+
+        if (vm.TipoDteCodigo is "05" or "06")
+        {
+            vm.TipoDteRelacionado = "03";
+            vm.NumeroDocumentoRelacionado = "DTE-03-REFERENCIA-CERTIFICACION";
+            vm.TipoGeneracionRelacionado = "2";
+        }
+    }
+
+    private async Task SincronizarCertificacionAsync(int empresaId, int documentoId, CancellationToken ct)
+    {
+        var result = await _certificacion.SincronizarDocumentoAsync(documentoId, empresaId, _currentUser.Username, ct);
+        if (result.IsFailure && result.ErrorCode != "CERT_PRUEBA_NOT_FOUND")
+        {
+            TempData["Error"] = result.Error;
+        }
     }
 }

@@ -2,11 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dte;
+using NeoSTP.Application.Dte.Certificacion;
+using NeoSTP.Application.Dte.Certificacion.Dtos;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Dte.Eventos;
 using NeoSTP.Application.Dte.Eventos.Dtos;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Domain.Core.Dte;
+using NeoSTP.Domain.Core.Dte.Eventos;
 
 namespace NeoSTP.Web.Controllers;
 
@@ -16,15 +19,18 @@ public class DteEventosController : Controller
     private readonly IDteEventoService _service;
     private readonly IDteEventoPdfService _pdf;
     private readonly IDteDocumentosService _documentos;
+    private readonly ICertificacionDteService _certificacion;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
 
     public DteEventosController(IDteEventoService service, IDteEventoPdfService pdf,
-        IDteDocumentosService documentos, ICurrentUser currentUser, IEmpresaContext empresaContext)
+        IDteDocumentosService documentos, ICertificacionDteService certificacion,
+        ICurrentUser currentUser, IEmpresaContext empresaContext)
     {
         _service = service;
         _pdf = pdf;
         _documentos = documentos;
+        _certificacion = certificacion;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
     }
@@ -80,13 +86,22 @@ public class DteEventosController : Controller
     // ----- Forms de creación -----
 
     [HttpGet]
-    public async Task<IActionResult> CreateInvalidacion(CancellationToken ct)
+    public async Task<IActionResult> CreateInvalidacion([FromQuery] int? certificacionEscenarioId, CancellationToken ct)
     {
         if (!Has("DTE.Invalidar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         await CargarDtesAsync(eid, soloEstado: DteEstadoCodigos.Procesado, ct);
-        return View(new CrearEventoInvalidacionRequest { TipoAnulacion = 2 });
+        var model = new CrearEventoInvalidacionRequest
+        {
+            TipoAnulacion = 2,
+            MotivoAnulacion = certificacionEscenarioId.HasValue ? "Prueba de certificacion DTE" : null,
+            NombreResponsable = certificacionEscenarioId.HasValue ? "Responsable certificacion DTE" : null!,
+            TipoDocResponsable = certificacionEscenarioId.HasValue ? "13" : null!,
+            NumDocResponsable = certificacionEscenarioId.HasValue ? "00000000-0" : null!,
+        };
+        await AplicarCertificacionInvalidacionAsync(model, eid, certificacionEscenarioId, ct);
+        return View(model);
     }
 
     [HttpPost]
@@ -111,19 +126,31 @@ public class DteEventosController : Controller
         }
 
         TempData["Success"] = $"Evento de invalidación transmitido. Sello: {result.Value!.SelloOEstado}";
+        var certificacionRedirect = await AsociarCertificacionEventoAsync(result.Value!.EventoId, model, eid, ct);
+        if (certificacionRedirect is not null) return certificacionRedirect;
+
         return result.Value.EventoId.HasValue
             ? RedirectToAction(nameof(Details), new { id = result.Value.EventoId.Value })
             : RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
-    public async Task<IActionResult> CreateContingencia(CancellationToken ct)
+    public async Task<IActionResult> CreateContingencia([FromQuery] int? certificacionEscenarioId, CancellationToken ct)
     {
         if (!Has("DTE.Contingencia")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         await CargarDtesAsync(eid, soloEstado: DteEstadoCodigos.Contingencia, ct);
-        return View(new CrearEventoContingenciaRequest { TipoContingencia = 1 });
+        var model = new CrearEventoContingenciaRequest
+        {
+            TipoContingencia = 1,
+            Motivo = certificacionEscenarioId.HasValue ? "Prueba de certificacion DTE" : null,
+            NombreResponsable = certificacionEscenarioId.HasValue ? "Responsable certificacion DTE" : null!,
+            TipoDocResponsable = certificacionEscenarioId.HasValue ? "13" : null!,
+            NumeroDocResponsable = certificacionEscenarioId.HasValue ? "00000000-0" : null!,
+        };
+        await AplicarCertificacionContingenciaAsync(model, eid, certificacionEscenarioId, ct);
+        return View(model);
     }
 
     [HttpPost]
@@ -150,19 +177,24 @@ public class DteEventosController : Controller
         }
 
         TempData["Success"] = $"Evento de contingencia transmitido. Sello: {result.Value!.SelloOEstado}";
+        var certificacionRedirect = await AsociarCertificacionEventoAsync(result.Value!.EventoId, model, eid, ct);
+        if (certificacionRedirect is not null) return certificacionRedirect;
+
         return result.Value.EventoId.HasValue
             ? RedirectToAction(nameof(Details), new { id = result.Value.EventoId.Value })
             : RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
-    public async Task<IActionResult> CreateRetorno(CancellationToken ct)
+    public async Task<IActionResult> CreateRetorno([FromQuery] int? certificacionEscenarioId, CancellationToken ct)
     {
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         await CargarDtesAsync(eid, soloEstado: DteEstadoCodigos.Procesado, ct);
-        return View(new CrearEventoRetornoRequest());
+        var model = new CrearEventoRetornoRequest();
+        await AplicarCertificacionRetornoAsync(model, eid, certificacionEscenarioId, ct);
+        return View(model);
     }
 
     [HttpPost]
@@ -189,17 +221,26 @@ public class DteEventosController : Controller
         }
 
         TempData["Success"] = $"Evento de retorno transmitido. Sello: {result.Value!.SelloOEstado}";
+        var certificacionRedirect = await AsociarCertificacionEventoAsync(result.Value!.EventoId, model, eid, ct);
+        if (certificacionRedirect is not null) return certificacionRedirect;
+
         return result.Value.EventoId.HasValue
             ? RedirectToAction(nameof(Details), new { id = result.Value.EventoId.Value })
             : RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
-    public IActionResult CreateOperacionesEspeciales()
+    public async Task<IActionResult> CreateOperacionesEspeciales([FromQuery] int? certificacionEscenarioId, CancellationToken ct)
     {
         if (!Has("DTE.Emitir")) return Forbid();
-        if (RequireEmpresa() is null) return RedirectToSoporte();
-        return View(new CrearEventoOperacionesEspecialesRequest());
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var model = new CrearEventoOperacionesEspecialesRequest
+        {
+            Monto = certificacionEscenarioId.HasValue ? 10m : 0m,
+        };
+        await AplicarCertificacionOperacionesAsync(model, eid, certificacionEscenarioId, ct);
+        return View(model);
     }
 
     [HttpPost]
@@ -226,6 +267,9 @@ public class DteEventosController : Controller
         }
 
         TempData["Success"] = $"Operaciones especiales transmitidas. Sello: {result.Value!.SelloOEstado}";
+        var certificacionRedirect = await AsociarCertificacionEventoAsync(result.Value!.EventoId, model, eid, ct);
+        if (certificacionRedirect is not null) return certificacionRedirect;
+
         return result.Value.EventoId.HasValue
             ? RedirectToAction(nameof(Details), new { id = result.Value.EventoId.Value })
             : RedirectToAction(nameof(Index));
@@ -238,6 +282,167 @@ public class DteEventosController : Controller
         var result = await _documentos.GetListAsync(empresaId,
             new DteListQuery { Page = 1, PageSize = 100, EstadoCodigo = soloEstado }, ct);
         ViewBag.Dtes = result.Value?.Items ?? new List<DteDocumentoListItemDto>();
+    }
+
+    private async Task AplicarCertificacionInvalidacionAsync(
+        CrearEventoInvalidacionRequest model,
+        int empresaId,
+        int? escenarioId,
+        CancellationToken ct)
+    {
+        var escenario = await GetEscenarioCertificacionAsync(TipoEventoCodigos.Invalidacion, empresaId, escenarioId, ct);
+        if (escenario is null) return;
+
+        model.CertificacionEscenarioId = escenario.Id;
+        model.CertificacionTipoCodigo = TipoEventoCodigos.Invalidacion;
+        model.CertificacionEscenarioCodigo = escenario.Codigo;
+        model.CertificacionEscenarioNombre = escenario.Nombre;
+        model.MotivoAnulacion = $"Prueba certificacion {escenario.Codigo}: {escenario.Nombre}";
+    }
+
+    private async Task AplicarCertificacionContingenciaAsync(
+        CrearEventoContingenciaRequest model,
+        int empresaId,
+        int? escenarioId,
+        CancellationToken ct)
+    {
+        var escenario = await GetEscenarioCertificacionAsync(TipoEventoCodigos.Contingencia, empresaId, escenarioId, ct);
+        if (escenario is null) return;
+
+        model.CertificacionEscenarioId = escenario.Id;
+        model.CertificacionTipoCodigo = TipoEventoCodigos.Contingencia;
+        model.CertificacionEscenarioCodigo = escenario.Codigo;
+        model.CertificacionEscenarioNombre = escenario.Nombre;
+        model.Motivo = $"Prueba certificacion {escenario.Codigo}: {escenario.Nombre}";
+    }
+
+    private async Task AplicarCertificacionRetornoAsync(
+        CrearEventoRetornoRequest model,
+        int empresaId,
+        int? escenarioId,
+        CancellationToken ct)
+    {
+        var escenario = await GetEscenarioCertificacionAsync(TipoEventoCodigos.Retorno, empresaId, escenarioId, ct);
+        if (escenario is null) return;
+
+        model.CertificacionEscenarioId = escenario.Id;
+        model.CertificacionTipoCodigo = TipoEventoCodigos.Retorno;
+        model.CertificacionEscenarioCodigo = escenario.Codigo;
+        model.CertificacionEscenarioNombre = escenario.Nombre;
+    }
+
+    private async Task AplicarCertificacionOperacionesAsync(
+        CrearEventoOperacionesEspecialesRequest model,
+        int empresaId,
+        int? escenarioId,
+        CancellationToken ct)
+    {
+        var escenario = await GetEscenarioCertificacionAsync(TipoEventoCodigos.OperacionesEspeciales, empresaId, escenarioId, ct);
+        if (escenario is null) return;
+
+        model.CertificacionEscenarioId = escenario.Id;
+        model.CertificacionTipoCodigo = TipoEventoCodigos.OperacionesEspeciales;
+        model.CertificacionEscenarioCodigo = escenario.Codigo;
+        model.CertificacionEscenarioNombre = escenario.Nombre;
+        model.Descripcion = $"Prueba certificacion {escenario.Codigo}: {escenario.Nombre}";
+        model.Monto = model.Monto <= 0 ? 10m : model.Monto;
+    }
+
+    private async Task<CertificacionEscenarioDto?> GetEscenarioCertificacionAsync(
+        string tipoCodigo,
+        int empresaId,
+        int? escenarioId,
+        CancellationToken ct)
+    {
+        if (!escenarioId.HasValue) return null;
+
+        var escenarios = await _certificacion.GetEscenariosAsync(tipoCodigo, empresaId, ct);
+        return escenarios.Value?.FirstOrDefault(e => e.Id == escenarioId.Value);
+    }
+
+    private async Task<IActionResult?> AsociarCertificacionEventoAsync(
+        int? eventoId,
+        CrearEventoInvalidacionRequest model,
+        int empresaId,
+        CancellationToken ct)
+        => await AsociarCertificacionEventoAsync(
+            eventoId,
+            model.CertificacionEscenarioId,
+            model.CertificacionTipoCodigo,
+            model.CertificacionEscenarioCodigo,
+            empresaId,
+            ct);
+
+    private async Task<IActionResult?> AsociarCertificacionEventoAsync(
+        int? eventoId,
+        CrearEventoContingenciaRequest model,
+        int empresaId,
+        CancellationToken ct)
+        => await AsociarCertificacionEventoAsync(
+            eventoId,
+            model.CertificacionEscenarioId,
+            model.CertificacionTipoCodigo,
+            model.CertificacionEscenarioCodigo,
+            empresaId,
+            ct);
+
+    private async Task<IActionResult?> AsociarCertificacionEventoAsync(
+        int? eventoId,
+        CrearEventoRetornoRequest model,
+        int empresaId,
+        CancellationToken ct)
+        => await AsociarCertificacionEventoAsync(
+            eventoId,
+            model.CertificacionEscenarioId,
+            model.CertificacionTipoCodigo,
+            model.CertificacionEscenarioCodigo,
+            empresaId,
+            ct);
+
+    private async Task<IActionResult?> AsociarCertificacionEventoAsync(
+        int? eventoId,
+        CrearEventoOperacionesEspecialesRequest model,
+        int empresaId,
+        CancellationToken ct)
+        => await AsociarCertificacionEventoAsync(
+            eventoId,
+            model.CertificacionEscenarioId,
+            model.CertificacionTipoCodigo,
+            model.CertificacionEscenarioCodigo,
+            empresaId,
+            ct);
+
+    private async Task<IActionResult?> AsociarCertificacionEventoAsync(
+        int? eventoId,
+        int? escenarioId,
+        string? tipoCodigo,
+        string? escenarioCodigo,
+        int empresaId,
+        CancellationToken ct)
+    {
+        if (!eventoId.HasValue || !escenarioId.HasValue) return null;
+
+        var result = await _certificacion.MarcarCompletadoPorEventoAsync(
+            eventoId.Value,
+            new MarcarCompletadoRequest
+            {
+                EscenarioId = escenarioId.Value,
+                Notas = $"Evento creado desde certificacion: {escenarioCodigo ?? escenarioId.Value.ToString()}",
+            },
+            empresaId,
+            _currentUser.Username,
+            ct);
+
+        if (result.IsFailure)
+        {
+            TempData["Error"] = result.Error ?? "El evento fue transmitido, pero no se pudo asociar a certificacion.";
+            return RedirectToAction(nameof(Details), new { id = eventoId.Value });
+        }
+
+        TempData["Success"] = $"Evento asociado al escenario {result.Value!.EscenarioCodigo} (estado {result.Value.EstadoCodigo}).";
+        return !string.IsNullOrWhiteSpace(tipoCodigo)
+            ? RedirectToAction("Tipo", "Certificacion", new { codigo = tipoCodigo })
+            : RedirectToAction(nameof(Details), new { id = eventoId.Value });
     }
 
     private bool Has(string codigo)

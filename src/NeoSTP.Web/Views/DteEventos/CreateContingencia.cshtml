@@ -16,7 +16,19 @@
 
 <form method="post" class="card card-body bg-light">
     @Html.AntiForgeryToken()
+    <input asp-for="CertificacionEscenarioId" type="hidden" />
+    <input asp-for="CertificacionTipoCodigo" type="hidden" />
+    <input asp-for="CertificacionEscenarioCodigo" type="hidden" />
+    <input asp-for="CertificacionEscenarioNombre" type="hidden" />
     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+    @if (Model.CertificacionEscenarioId.HasValue)
+    {
+        <div class="alert alert-info small">
+            Prueba de certificacion <strong>@Model.CertificacionEscenarioCodigo</strong>:
+            @Model.CertificacionEscenarioNombre. Al transmitir, el evento se asociara a la matriz.
+        </div>
+    }
 
     <div class="mb-3">
         <label class="form-label">Tipo de contingencia (CAT-005)</label>
@@ -57,7 +69,7 @@
                 @foreach (var d in dtes)
                 {
                     <tr>
-                        <td class="text-center"><input type="checkbox" name="DocumentoIds" value="@d.Id" class="form-check-input" /></td>
+                        <td class="text-center"><input type="checkbox" name="DocumentoIds" value="@d.Id" class="form-check-input" checked="@(Model.DocumentoIds.Contains(d.Id))" /></td>
                         <td><span class="badge bg-light text-dark border">@d.TipoDteCodigo</span></td>
                         <td><code class="small">@d.NumeroControl</code></td>
                         <td><small>@d.FechaEmision.ToString("dd/MM/yyyy")</small></td>

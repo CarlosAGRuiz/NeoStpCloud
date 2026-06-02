@@ -33,6 +33,11 @@ public class CreateDteDocumentoViewModel
 
     public string? Observaciones { get; set; }
 
+    public int? CertificacionEscenarioId { get; set; }
+    public string? CertificacionTipoCodigo { get; set; }
+    public string? CertificacionEscenarioCodigo { get; set; }
+    public string? CertificacionEscenarioNombre { get; set; }
+
     public List<DteLineaViewModel> Lineas { get; set; } = new();
 
     public bool GenerarInmediato { get; set; } = true;

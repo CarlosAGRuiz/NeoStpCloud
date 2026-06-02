@@ -2,6 +2,8 @@
 
 ## Actualizacion Sprint 25
 
+- **Sprint 25.5 - Pruebas asistidas de eventos DTE:** las filas de certificacion para invalidacion, contingencia, retorno y operaciones especiales pueden abrir una prueba desde la matriz, precargar datos base, transmitir el evento y asociarlo automaticamente al escenario. La matriz conserva la asociacion manual para eventos previos y queda sincronizada con el estado/sello real de Hacienda.
+- **Sprint 25.4 - Pruebas asistidas de documentos DTE:** los escenarios de certificacion de documentos abren un DTE de prueba con metadatos ocultos del escenario, lo asocian al crear el borrador y sincronizan el resultado despues de generar, validar, firmar o enviar.
 - **Sprint 25.3 - Seguridad:** hardening HTTP en Web/API con cabeceras `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y CSP base. Las cookies Web y de modo soporte quedan forzadas a `Secure`/`HttpOnly`/`SameSite=Lax`. CORS de API queda abierto solo en desarrollo cuando no hay `Cors:AllowedOrigins`; en produccion queda cerrado por defecto sin origenes configurados.
 - **Sprint 25.2 - Certificacion DTE:** la matriz explica el flujo operativo, compara escenarios contra DTE/eventos reales y permite asociar documentos o eventos ya transmitidos. El estado del escenario se sincroniza con la respuesta real de Hacienda y el sello recibido.
 - **Sprint 25.1 - Billing:** checkout basado en planes reales de base via `IPlanesService`; ya no usa nombres, precios ni IDs quemados del mockup.

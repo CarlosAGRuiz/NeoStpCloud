@@ -219,6 +219,15 @@
                         {
                             @if (esEvento)
                             {
+                                @if (crearEventoAction is not null)
+                                {
+                                    <a asp-controller="DteEventos"
+                                       asp-action="@crearEventoAction"
+                                       asp-route-certificacionEscenarioId="@e.Id"
+                                       class="btn btn-primary btn-sm w-100 mb-1">
+                                        Crear prueba
+                                    </a>
+                                }
                                 <form asp-action="AsociarEvento" method="post" class="d-grid gap-1">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="codigo" value="@tipo" />
@@ -237,6 +246,13 @@
                             }
                             else
                             {
+                                <a asp-controller="DteDocumentos"
+                                   asp-action="Create"
+                                   asp-route-tipo="@tipo"
+                                   asp-route-certificacionEscenarioId="@e.Id"
+                                   class="btn btn-primary btn-sm w-100 mb-1">
+                                    Crear prueba
+                                </a>
                                 <form asp-action="AsociarDte" method="post" class="d-grid gap-1">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="codigo" value="@tipo" />

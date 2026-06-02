@@ -22,7 +22,7 @@ public interface ICertificacionDteService
     Task<Result<CertificacionPruebaDto>> MarcarCompletadoAsync(int documentoId, MarcarCompletadoRequest request, int empresaId, string? actor, CancellationToken ct = default);
 
     /// <summary>
-    /// Sprint 15.5 — Asocia un evento DTE (invalidación / contingencia / retorno /
+    /// Sprint 25.5 — Asocia un evento DTE (invalidación / contingencia / retorno /
     /// operaciones especiales) a un escenario de las matrices respectivas. Promueve
     /// a COMPLETADO si el evento está PROCESADO y tiene sello.
     /// </summary>
@@ -30,6 +30,8 @@ public interface ICertificacionDteService
 
     /// <summary>Marca la prueba actual del documento como ERROR y abre un nuevo intento.</summary>
     Task<Result<CertificacionPruebaDto>> ReintentarAsync(int documentoId, int empresaId, string? actor, CancellationToken ct = default);
+
+    Task<Result<CertificacionPruebaDto>> SincronizarDocumentoAsync(int documentoId, int empresaId, string? actor, CancellationToken ct = default);
 
     /// <summary>Lista de errores Hacienda registrados; filtrable por código MH.</summary>
     Task<Result<IReadOnlyList<CertificacionErrorDto>>> GetErroresAsync(int empresaId, string? codigoMh = null, CancellationToken ct = default);

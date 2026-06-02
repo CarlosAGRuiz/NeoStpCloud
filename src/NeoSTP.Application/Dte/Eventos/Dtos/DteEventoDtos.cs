@@ -69,6 +69,10 @@ public class CrearEventoInvalidacionRequest
     public string NombreResponsable { get; set; } = null!;
     public string TipoDocResponsable { get; set; } = null!;
     public string NumDocResponsable { get; set; } = null!;
+    public int? CertificacionEscenarioId { get; set; }
+    public string? CertificacionTipoCodigo { get; set; }
+    public string? CertificacionEscenarioCodigo { get; set; }
+    public string? CertificacionEscenarioNombre { get; set; }
 }
 
 public class CrearEventoContingenciaRequest
@@ -79,11 +83,19 @@ public class CrearEventoContingenciaRequest
     public string NombreResponsable { get; set; } = null!;
     public string TipoDocResponsable { get; set; } = null!;
     public string NumeroDocResponsable { get; set; } = null!;
+    public int? CertificacionEscenarioId { get; set; }
+    public string? CertificacionTipoCodigo { get; set; }
+    public string? CertificacionEscenarioCodigo { get; set; }
+    public string? CertificacionEscenarioNombre { get; set; }
 }
 
 public class CrearEventoRetornoRequest
 {
     public int DocumentoOrigenId { get; set; }
+    public int? CertificacionEscenarioId { get; set; }
+    public string? CertificacionTipoCodigo { get; set; }
+    public string? CertificacionEscenarioCodigo { get; set; }
+    public string? CertificacionEscenarioNombre { get; set; }
 }
 
 public class CrearEventoOperacionesEspecialesRequest
@@ -91,6 +103,10 @@ public class CrearEventoOperacionesEspecialesRequest
     public string? CodigoGeneracionRef { get; set; }
     public string Descripcion { get; set; } = null!;
     public decimal Monto { get; set; }
+    public int? CertificacionEscenarioId { get; set; }
+    public string? CertificacionTipoCodigo { get; set; }
+    public string? CertificacionEscenarioCodigo { get; set; }
+    public string? CertificacionEscenarioNombre { get; set; }
 }
 
 /// <summary>Resultado de crear un evento: sello/estado + id del evento persistido (si se persistió).</summary>

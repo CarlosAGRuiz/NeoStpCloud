@@ -12,10 +12,13 @@
     var tiposDocStr = new (string Code, string Label)[]
     {
         ("01", "01 Factura"),
+        ("04", "04 Nota de Remision"),
         ("03", "03 Crédito Fiscal"),
         ("05", "05 Nota de Crédito"),
         ("06", "06 Nota de Débito"),
         ("14", "14 Sujeto Excluido"),
+        ("11", "11 Factura Exportacion"),
+        ("15", "15 Donacion"),
     };
     var esNotaCreditoDebito = Model.TipoDteCodigo is "05" or "06";
 }
@@ -27,7 +30,24 @@
 
 <form asp-action="Create" method="post" id="dte-form">
     @Html.AntiForgeryToken()
+    <input asp-for="CertificacionEscenarioId" type="hidden" />
+    <input asp-for="CertificacionTipoCodigo" type="hidden" />
+    <input asp-for="CertificacionEscenarioCodigo" type="hidden" />
+    <input asp-for="CertificacionEscenarioNombre" type="hidden" />
     <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+    @if (Model.CertificacionEscenarioId.HasValue)
+    {
+        <div class="alert alert-info d-flex align-items-start gap-2">
+            <span class="material-symbols-outlined" style="font-size:22px">fact_check</span>
+            <div>
+                <strong>Prueba de certificacion @Model.CertificacionEscenarioCodigo</strong>
+                <div class="small">
+                    Este borrador quedara asociado automaticamente a la matriz al guardar. Luego usa Generar, Validar, Firmar y Enviar para reflejar la respuesta real de Hacienda.
+                </div>
+            </div>
+        </div>
+    }
 
     <div class="card mb-3">
         <div class="card-header">Encabezado</div>
