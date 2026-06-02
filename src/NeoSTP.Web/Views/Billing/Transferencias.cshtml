@@ -1,0 +1,62 @@
+@model IReadOnlyList<NeoSTP.Application.Billing.Dtos.TransferenciaPendienteDto>
+@{
+    ViewData["Title"] = "Transferencias por verificar";
+}
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <p class="text-muted small m-0">Transferencias bancarias pendientes de verificación manual.</p>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>#</th><th>Empresa</th><th>Plan</th><th class="text-end">Monto</th>
+                    <th>Comprobante</th><th>Solicitada</th><th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var t in Model)
+            {
+                <tr>
+                    <td class="ns-mono">PAGO-@t.PaymentId</td>
+                    <td>@t.EmpresaNombre</td>
+                    <td>@t.PlanNombre</td>
+                    <td class="text-end ns-mono fw-bold">@t.Moneda @t.Monto.ToString("N2")</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(t.ComprobanteUrl))
+                        {
+                            <span class="ns-mono small">@t.ComprobanteUrl</span>
+                        }
+                        else
+                        {
+                            <span class="ns-pill ns-pill--off">sin comprobante</span>
+                        }
+                    </td>
+                    <td class="small text-muted">@t.CreadaAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    <td class="text-end d-flex gap-1 justify-content-end">
+                        <form asp-action="ConfirmarTransferencia" asp-route-paymentId="@t.PaymentId" method="post" class="m-0"
+                              onsubmit="return confirm('¿Confirmar el pago de @t.EmpresaNombre y activar su suscripción?');">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-success btn-sm">Confirmar</button>
+                        </form>
+                        <form asp-action="RechazarTransferencia" asp-route-paymentId="@t.PaymentId" method="post" class="m-0 d-flex gap-1">
+                            @Html.AntiForgeryToken()
+                            <input name="motivo" class="form-control form-control-sm" style="width:140px" placeholder="Motivo" />
+                            <button class="btn btn-outline-danger btn-sm">Rechazar</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">price_check</span><p>No hay transferencias pendientes de verificación.</p></div></td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

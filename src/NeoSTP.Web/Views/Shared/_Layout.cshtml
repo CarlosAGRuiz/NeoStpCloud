@@ -95,10 +95,17 @@ else
                 <a class="ns-nav-link @active("DteConfiguracion")" asp-controller="DteConfiguracion" asp-action="Index"><span class="material-symbols-outlined">settings</span> Config DTE</a>
                 <a class="ns-nav-link @active("Billing")" asp-controller="Billing" asp-action="Index"><span class="material-symbols-outlined">credit_card</span> Billing</a>
 
-                @if (puedeVerHardening)
+                @if (puedeVerHardening || isSuperAdmin)
                 {
                     <div class="ns-nav-group">Sistema</div>
-                    <a class="ns-nav-link @active("Hardening")" asp-controller="Hardening" asp-action="Index"><span class="material-symbols-outlined">shield</span> Hardening</a>
+                    @if (isSuperAdmin)
+                    {
+                        <a class="ns-nav-link" asp-controller="Billing" asp-action="Transferencias"><span class="material-symbols-outlined">price_check</span> Verificar pagos</a>
+                    }
+                    @if (puedeVerHardening)
+                    {
+                        <a class="ns-nav-link @active("Hardening")" asp-controller="Hardening" asp-action="Index"><span class="material-symbols-outlined">shield</span> Hardening</a>
+                    }
                 }
             </nav>
 

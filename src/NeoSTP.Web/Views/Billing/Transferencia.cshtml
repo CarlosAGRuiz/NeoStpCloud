@@ -1,0 +1,49 @@
+@model NeoSTP.Application.Billing.Dtos.TransferenciaInstruccionesDto
+@{
+    ViewData["Title"] = "Pago por transferencia";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex align-items-center gap-2">
+                <span class="material-symbols-outlined" style="color:var(--ns-secondary)">account_balance</span>
+                <strong>Pago por transferencia bancaria</strong>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">@Model.Instrucciones</p>
+
+                <div class="d-flex justify-content-between align-items-center p-3 mb-3 rounded"
+                     style="background:var(--ns-surface-container-low)">
+                    <span class="text-muted">Monto a transferir</span>
+                    <span class="ns-mono h4 m-0" style="color:var(--ns-primary)">@Model.Moneda @Model.Monto.ToString("N2")</span>
+                </div>
+
+                <dl class="ns-kv mb-4">
+                    <dt>Banco</dt><dd>@Model.Banco</dd>
+                    <dt>Tipo de cuenta</dt><dd>@Model.TipoCuenta</dd>
+                    <dt>Número de cuenta</dt><dd class="ns-mono">@Model.NumeroCuenta</dd>
+                    <dt>Titular</dt><dd>@Model.Titular</dd>
+                    <dt>Referencia</dt><dd class="ns-mono">PAGO-@Model.PaymentId</dd>
+                </dl>
+
+                <form asp-action="SubirComprobante" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="paymentId" value="@Model.PaymentId" />
+                    <label class="form-label fw-medium">Referencia o enlace del comprobante</label>
+                    <input name="comprobante" class="form-control mb-2" placeholder="N.º de referencia de la transferencia o enlace al comprobante" required />
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="material-symbols-outlined align-middle" style="font-size:18px">upload</span> Registrar comprobante
+                        </button>
+                        <a asp-action="Checkout" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <p class="text-muted small mt-3">
+            <span class="material-symbols-outlined align-middle" style="font-size:16px">info</span>
+            Tu suscripción se activará en cuanto un administrador verifique la transferencia.
+        </p>
+    </div>
+</div>

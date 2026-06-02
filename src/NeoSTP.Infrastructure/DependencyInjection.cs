@@ -204,15 +204,35 @@ public static class DependencyInjection
             services.AddScoped<NeoSTP.Application.Ops.IStorageService, LocalStorageService>();
         services.AddScoped<NeoSTP.Application.Ops.IBackupService, BackupService>();
 
-        // Sprint 19: Billing self-service — toggle "Mock" (default) | "Stripe" | "MercadoPago"
+        // Sprint 19 + Pagos LATAM: Billing self-service multi-proveedor.
+        // Todos los proveedores se registran; el cliente elige método en el checkout
+        // y IPaymentProviderResolver resuelve por nombre. Billing:Provider = default.
         services.Configure<BillingOptions>(configuration.GetSection("Billing"));
-        var billingProvider = configuration["Billing:Provider"];
-        if (string.Equals(billingProvider, "Stripe", StringComparison.OrdinalIgnoreCase))
-            services.AddScoped<IPaymentProvider, StripeBillingProvider>();
-        else if (string.Equals(billingProvider, "MercadoPago", StringComparison.OrdinalIgnoreCase))
-            services.AddScoped<IPaymentProvider, MercadoPagoBillingProvider>();
-        else
-            services.AddScoped<IPaymentProvider, MockPaymentProvider>();
+        services.AddScoped<IPaymentProvider, MockPaymentProvider>();
+        services.AddScoped<IPaymentProvider, StripeBillingProvider>();
+        services.AddScoped<IPaymentProvider, MercadoPagoBillingProvider>();
+        // Pagos LATAM — Wompi (HttpClient resiliente)
+        services.AddHttpClient(WompiBillingProvider.HttpClientName)
+            .AddStandardResilienceHandler(opts =>
+            {
+                opts.Retry.MaxRetryAttempts = 2;
+                opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(40);
+                opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
+                opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(40);
+            });
+        services.AddScoped<IPaymentProvider, WompiBillingProvider>();
+        // Pagos LATAM — PayPal (HttpClient resiliente)
+        services.AddHttpClient(PayPalBillingProvider.HttpClientName)
+            .AddStandardResilienceHandler(opts =>
+            {
+                opts.Retry.MaxRetryAttempts = 2;
+                opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(40);
+                opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
+                opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(40);
+            });
+        services.AddScoped<IPaymentProvider, PayPalBillingProvider>();
+        services.AddScoped<IPaymentProvider, TransferenciaPaymentProvider>();
+        services.AddScoped<IPaymentProviderResolver, PaymentProviderResolver>();
         services.AddScoped<IBillingService, BillingService>();
         services.AddScoped<IBillingWebhookHandler, BillingWebhookHandler>();
 

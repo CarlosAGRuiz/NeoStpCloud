@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Sprint 21 · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 222 unit + 2 integración
+> **Versión:** Pagos LATAM (post-Sprint 21) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 242 unit + 2 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---

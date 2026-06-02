@@ -1,5 +1,15 @@
 @{
     ViewData["Title"] = "Elegir Plan";
+    var metodos = ViewBag.Metodos as IReadOnlyList<string> ?? new List<string>();
+    string MetodoLabel(string m) => m switch
+    {
+        "Transferencia" => "🏦 Transferencia bancaria",
+        "Wompi" => "💳 Tarjeta (Wompi)",
+        "PayPal" => "🅿️ PayPal",
+        "Stripe" => "💳 Tarjeta (Stripe)",
+        "MercadoPago" => "💳 MercadoPago",
+        _ => m,
+    };
 }
 
 <div class="container py-5">
@@ -37,9 +47,12 @@
                         <input type="hidden" name="planId" value="1" />
                         <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-play-circle me-1"></i>Iniciar trial gratis</button>
                     </form>
-                    <form asp-action="CreateCheckout" method="post">
+                    <form asp-action="CreateCheckout" method="post" class="d-flex flex-column gap-2">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="planId" value="1" />
+                        <select name="metodo" class="form-select form-select-sm">
+                            @foreach (var m in metodos) { <option value="@m">@MetodoLabel(m)</option> }
+                        </select>
                         <button type="submit" class="btn btn-primary w-100"><i class="bi bi-credit-card me-1"></i>Contratar ahora</button>
                     </form>
                 </div>
@@ -68,9 +81,12 @@
                         <input type="hidden" name="planId" value="2" />
                         <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-play-circle me-1"></i>Iniciar trial gratis</button>
                     </form>
-                    <form asp-action="CreateCheckout" method="post">
+                    <form asp-action="CreateCheckout" method="post" class="d-flex flex-column gap-2">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="planId" value="2" />
+                        <select name="metodo" class="form-select form-select-sm">
+                            @foreach (var m in metodos) { <option value="@m">@MetodoLabel(m)</option> }
+                        </select>
                         <button type="submit" class="btn btn-primary w-100"><i class="bi bi-credit-card me-1"></i>Contratar ahora</button>
                     </form>
                 </div>
@@ -101,7 +117,7 @@
 
     <div class="row mt-4">
         <div class="col text-center text-muted small">
-            <i class="bi bi-shield-check me-1"></i>Pagos seguros procesados por Stripe y MercadoPago.
+            <i class="bi bi-shield-check me-1"></i>Pagos seguros: tarjeta (Wompi / Stripe), PayPal, MercadoPago o transferencia bancaria. Los datos de tarjeta los procesa la pasarela, nunca nuestros servidores.
             Al contratar aceptas nuestros <a asp-controller="Legal" asp-action="Index" asp-route-slug="terms">Términos de Servicio</a>.
         </div>
     </div>

@@ -2,14 +2,16 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 21 — UI/UX AppShell + design system** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 222 unit + 2 integración pasando
+> **Versión actual: Pagos LATAM — Wompi · PayPal · Transferencia** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 242 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 💳 **Pagos LATAM (Wompi · PayPal · Transferencia):** Billing pasa a **multi-proveedor** — el cliente elige método en el checkout (`IPaymentProviderResolver` resuelve por nombre). Nuevos `IPaymentProvider`: **Wompi** (wompi.sv, checkout hospedado vía REST + OAuth2), **PayPal** (Orders v2 hospedado), **Transferencia** bancaria offline (instrucciones + comprobante + verificación manual del admin que activa la licencia). Webhooks Wompi/PayPal en `BillingWebhookHandler`. `BillingPayment` gana `Metodo`/`ComprobanteUrl`/`VerificadoPor`/`VerificadoAt`. UI: selección de método en `/billing/checkout`, página de transferencia, bandeja SuperAdmin `/billing/transferencias`. HttpClients resilientes (Polly). PCI: los datos de tarjeta los procesa la pasarela hospedada, nunca nuestros servidores. Migración `PagosLatam_MetodosPago`. Toggle `Billing:Provider` = default; cada proveedor con su sección de opciones.
 >
 > 🎨 **Sprint 21 (UI/UX AppShell + design system):** Modernización de la interfaz con el design system de `/design` (Deep Tech Blue `#131b2e` + Modern Violet `#6b38d4`, Hanken Grotesk/Inter/JetBrains Mono, Material Symbols). Nuevo **AppShell** (`neostp.css`): sidebar oscura fija agrupada por permisos, navbar sticky con **indicador de ambiente** (Mock/Pruebas) + empresa actual + modo soporte, responsive con drawer móvil. Re-tematización global de Bootstrap (cards, botones, tablas, badges, forms) → todas las pantallas adoptan el look sin reescribirse. Pantallas clave restyling fiel a mockups: **Login**, **Dashboard** (metric cards), **StepperDTE** (`_StepperDte` Borrador→Validado→Firmado→Enviado→Procesado) en el detalle DTE, **Certificación** (progreso global violeta). Sin migración (solo UI).
 >
@@ -254,6 +256,7 @@ Migraciones aplicadas en orden:
 22. `Sprint18_LegalConsentimiento` — tabla `Core_UserConsents` para registro de consentimientos legales
 23. `Sprint19_BillingSelfService` — tablas `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`
 24. `Sprint20_HardeningSchema` — tablas `Ops_BackupJobs`, `Core_ApiUsageLog`, `Core_ApiQuotas`, `Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios` (`MfaHabilitado`, `MfaSecretoCifrado`, `MfaConfirmadoAt`, `MfaRecoveryCodesJson`) + permisos `Ops.Hardening.Ver/.Administrar`
+25. `PagosLatam_MetodosPago` — columnas `Metodo`/`ComprobanteUrl`/`VerificadoPor`/`VerificadoAt` en `Billing_Payments` (multi-proveedor + transferencia)
 
 ```powershell
 # Crear una nueva migración

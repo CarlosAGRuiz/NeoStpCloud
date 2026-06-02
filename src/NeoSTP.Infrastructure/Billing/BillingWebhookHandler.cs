@@ -75,8 +75,97 @@ public sealed class BillingWebhookHandler : IBillingWebhookHandler
         {
             "Stripe"      => HandleStripeEventAsync(eventType, rawPayload, ct),
             "MercadoPago" => HandleMercadoPagoEventAsync(eventType, rawPayload, ct),
+            "Wompi"       => HandleWompiEventAsync(eventType, rawPayload, ct),
+            "PayPal"      => HandlePayPalEventAsync(eventType, rawPayload, ct),
             _             => Task.CompletedTask,
         };
+
+    // ─── PayPal ───────────────────────────────────────────────────────────
+    // Webhook PAYMENT.CAPTURE.COMPLETED: el custom_id de la captura referencia el
+    // idEnlace/orden (ExternalSubscriptionId). Registra el pago y activa.
+    private async Task HandlePayPalEventAsync(string eventType, string rawPayload, CancellationToken ct)
+    {
+        using var doc = JsonDocument.Parse(rawPayload);
+        var resource = doc.RootElement.TryGetProperty("resource", out var r) ? r : doc.RootElement;
+        var customId = Str(resource, "custom_id") ?? Str(resource, "invoice_id");
+        if (customId is null) return;
+
+        var sub = await _db.BillingSubscriptions
+            .Include(s => s.Customer)
+            .FirstOrDefaultAsync(s => s.ExternalSubscriptionId == customId, ct);
+        if (sub is null) return;
+
+        if (eventType is "PAYMENT.CAPTURE.COMPLETED" or "CHECKOUT.ORDER.APPROVED")
+        {
+            decimal monto = 0m; var currency = "USD";
+            if (resource.TryGetProperty("amount", out var amt))
+            {
+                if (amt.TryGetProperty("value", out var val) && decimal.TryParse(val.GetString(), System.Globalization.CultureInfo.InvariantCulture, out var m)) monto = m;
+                currency = Str(amt, "currency_code") ?? "USD";
+            }
+            _db.BillingPayments.Add(new BillingPayment
+            {
+                BillingSubscriptionId = sub.Id,
+                ExternalPaymentId = Str(resource, "id"),
+                Amount = monto,
+                Currency = currency,
+                Status = "SUCCEEDED",
+                Metodo = "PAYPAL",
+                PaidAt = DateTime.UtcNow,
+            });
+            if (sub.Status is SubscriptionStatus.PastDue or SubscriptionStatus.Trialing or SubscriptionStatus.Incomplete)
+                sub.Status = SubscriptionStatus.Active;
+        }
+        else if (eventType is "PAYMENT.CAPTURE.DENIED" or "PAYMENT.CAPTURE.DECLINED")
+        {
+            await UpdateSubscriptionStatusAsync(customId, SubscriptionStatus.PastDue, ct);
+        }
+    }
+
+    // ─── Wompi ────────────────────────────────────────────────────────────
+    // Wompi notifica el resultado de una transacción de un EnlacePago. Cuando la
+    // transacción es aprobada, registramos el pago y activamos la suscripción.
+    private async Task HandleWompiEventAsync(string eventType, string rawPayload, CancellationToken ct)
+    {
+        using var doc = JsonDocument.Parse(rawPayload);
+        var root = doc.RootElement;
+        var tx = root.TryGetProperty("transaccion", out var t) ? t
+               : root.TryGetProperty("data", out var d) ? d : root;
+
+        var estado = (Str(tx, "estadoTransaccion") ?? Str(tx, "estado") ?? eventType).ToUpperInvariant();
+        var idEnlace = Str(tx, "idEnlace") ?? Str(tx, "identificadorEnlaceComercio");
+        if (idEnlace is null) return;
+
+        var sub = await _db.BillingSubscriptions
+            .Include(s => s.Customer)
+            .FirstOrDefaultAsync(s => s.ExternalSubscriptionId == idEnlace, ct);
+        if (sub is null) return;
+
+        if (estado is "APROBADA" or "APPROVED" or "EXITOSA")
+        {
+            var monto = tx.TryGetProperty("monto", out var m) && m.TryGetDecimal(out var dm) ? dm : 0m;
+            _db.BillingPayments.Add(new BillingPayment
+            {
+                BillingSubscriptionId = sub.Id,
+                ExternalPaymentId = Str(tx, "idTransaccion"),
+                Amount = monto,
+                Currency = "USD",
+                Status = "SUCCEEDED",
+                Metodo = "WOMPI",
+                PaidAt = DateTime.UtcNow,
+            });
+            if (sub.Status is SubscriptionStatus.PastDue or SubscriptionStatus.Trialing or SubscriptionStatus.Incomplete)
+                sub.Status = SubscriptionStatus.Active;
+        }
+        else if (estado is "RECHAZADA" or "DECLINED" or "FALLIDA")
+        {
+            await UpdateSubscriptionStatusAsync(idEnlace, SubscriptionStatus.PastDue, ct);
+        }
+    }
+
+    private static string? Str(JsonElement el, string prop)
+        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() : null;
 
     // ─── Stripe ───────────────────────────────────────────────────────────
 

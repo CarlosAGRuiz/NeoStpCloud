@@ -48,9 +48,12 @@ public class BillingPaymentConfiguration : IEntityTypeConfiguration<BillingPayme
         b.Property(x => x.Amount).HasPrecision(18, 2);
         b.Property(x => x.Currency).HasMaxLength(10);
         b.Property(x => x.Status).HasMaxLength(30);
+        b.Property(x => x.Metodo).HasMaxLength(30);
         b.Property(x => x.ExternalPaymentId).HasMaxLength(200);
         b.Property(x => x.FailureReason).HasMaxLength(500);
         b.Property(x => x.ReceiptUrl).HasMaxLength(500);
+        b.Property(x => x.ComprobanteUrl).HasMaxLength(500);
+        b.Property(x => x.VerificadoPor).HasMaxLength(100);
 
         b.HasIndex(x => x.BillingSubscriptionId);
         b.HasOne(x => x.Subscription).WithMany(s => s.Payments).HasForeignKey(x => x.BillingSubscriptionId).OnDelete(DeleteBehavior.Cascade);

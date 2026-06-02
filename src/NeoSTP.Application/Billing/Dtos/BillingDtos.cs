@@ -39,9 +39,32 @@ public record BillingInvoiceDto(
 );
 
 public record StartTrialRequest(int EmpresaId, int PlanId, string Email);
-public record CreateCheckoutRequest(int EmpresaId, int PlanId, string ReturnUrl);
+public record CreateCheckoutRequest(int EmpresaId, int PlanId, string ReturnUrl, string? Metodo = null);
 public record ChangePlanRequest(int EmpresaId, int NewPlanId);
 public record CancelSubscriptionRequest(int EmpresaId, bool AtPeriodEnd = true);
 
 public record CheckoutSessionResult(string SessionId, string RedirectUrl);
 public record BillingPortalResult(string PortalUrl);
+
+// ── Transferencia bancaria (offline) ──────────────────────────────────────
+public record IniciarTransferenciaRequest(int EmpresaId, int PlanId);
+
+public record TransferenciaInstruccionesDto(
+    int PaymentId,
+    decimal Monto,
+    string Moneda,
+    string Banco,
+    string TipoCuenta,
+    string NumeroCuenta,
+    string Titular,
+    string Instrucciones);
+
+public record TransferenciaPendienteDto(
+    int PaymentId,
+    int EmpresaId,
+    string EmpresaNombre,
+    string PlanNombre,
+    decimal Monto,
+    string Moneda,
+    string? ComprobanteUrl,
+    DateTime CreadaAt);
