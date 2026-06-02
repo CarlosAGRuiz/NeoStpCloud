@@ -123,7 +123,7 @@ CSV/JSON/XLSX + export + versionado + cascadas padre/hijo, vía API y UI MVC) ·
 Certificación DTE** (matriz 625 escenarios, progreso por tipo, asociación documentos a
 escenarios, reintentos, snapshots de errores MH, dashboard con barras de progreso) ·
 **Módulo de Eventos DTE persistentes** (4 tablas Dte_Eventos*, persistencia best-effort de los 4 flujos certificados, consulta + creación + PDF + UI MVC; integración con certificación vía marcar-completado-por-evento) ·
-**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · **Módulo de Hardening pre-producción** (tablas `Ops_BackupJobs`/`Core_ApiUsageLog`/`Core_ApiQuotas`/`Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios`; rate limiting con `ApiQuotaMiddleware` → 429 por ventana deslizante; MFA TOTP RFC 6238 con `TotpService`/`MfaService` y códigos de recuperación; IP allowlist con `AdminIpAllowlistMiddleware` (CIDR, fail-open); backups con `BackupService`/`BackupWorker`/`IStorageService` (LOCAL/AZURE_BLOB/S3); API `/api/hardening` + UI `/Hardening`; k6 baseline, GitHub Action OWASP ZAP, runbook DR; permisos `Ops.Hardening.Ver/.Administrar`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 222 tests unit + 2 integración.
+**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · **Módulo de Hardening pre-producción** (tablas `Ops_BackupJobs`/`Core_ApiUsageLog`/`Core_ApiQuotas`/`Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios`; rate limiting con `ApiQuotaMiddleware` → 429 por ventana deslizante; MFA TOTP RFC 6238 con `TotpService`/`MfaService` y códigos de recuperación; IP allowlist con `AdminIpAllowlistMiddleware` (CIDR, fail-open); backups con `BackupService`/`BackupWorker`/`IStorageService` (LOCAL/AZURE_BLOB/S3); API `/api/hardening` + UI `/Hardening`; k6 baseline, GitHub Action OWASP ZAP, runbook DR; permisos `Ops.Hardening.Ver/.Administrar`) · **UI/UX moderna** (AppShell `neostp.css` con tokens del design system, sidebar/navbar nuevas, indicador de ambiente, responsive; re-tema global de Bootstrap; pulido de todos los listados; StepperDTE) · **Pagos LATAM** (Billing multi-proveedor: `IPaymentProviderResolver` + `WompiBillingProvider`/`PayPalBillingProvider`/`TransferenciaPaymentProvider`; transferencia con verificación manual `/billing/transferencias`) · **Lookups** (`ILookupService` + `/api/lookups`: catálogos, cascada territorial, datos maestros) y eliminación de hardcodeos territoriales (`TerritorialOptions`) · **Carga masiva** de clientes y productos (Excel/CSV, upsert + dry-run + reporte por fila, `/Clientes/Importar` y `/Productos/Importar`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 259 tests unit + 2 integración.
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
@@ -160,7 +160,7 @@ certificación se hace contra **v1/v3**.
 `Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
 `Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion` ·
 `Sprint15_DteEventos` · `Sprint15_PermisoEventos` · `Sprint15_CertificacionPruebaEvento` ·
-`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService` · `Sprint20_HardeningSchema`.
+`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService` · `Sprint20_HardeningSchema` · `PagosLatam_MetodosPago`. (UI/UX, Lookups y Carga masiva no requirieron migración.)
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -587,26 +587,28 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 
 | # | Módulo | Estado | Pendientes clave | Prioridad |
 |---|---|---|---|---|
-| 1 | **Core / Administración** | ✅ avanzado | Mejor UI admin, consumo por plan, upselling, MFA SuperAdmin, IP allowlist | Crítico |
-| 2 | **NeoDTE** | ✅ avanzado | Catálogos MH completos, mejorar diagnóstico de errores | Crítico |
+| 1 | **Core / Administración** | ✅ avanzado | MFA SuperAdmin/IP allowlist ✅; falta consumo por plan/upselling, onboarding self-service | Crítico |
+| 2 | **NeoDTE** | ✅ avanzado | Hardcodeos territoriales eliminados (`TerritorialOptions`) ✅; falta sembrar CAT-008 Distrito para derivación 100% por catálogo | Crítico |
 | 3 | **Certificación DTE** | ✅ Sprint 14 — módulo completo (matriz, progreso, escenarios, reintentos, errores) | Completar matriz oficial cuando MH publique descripción detallada por escenario | Media |
 | 4 | **Eventos DTE** | ✅ Sprint 15 — persistencia + UI + PDF + integración certificación | Op-Especiales / Retorno aún bloqueados por autorización de cuenta MH | Media |
 | 5 | **Contingencia/Worker** | ✅ Sprint 16 — MOMENTO 3 completo: lotes, consulta, worker, UI, API | — | Alta |
-| 6 | **Clientes** | ✅ | Cascada Depto→Muni→Distrito, normalizar numDocumento, mapeo CAT-022 (hecho) | Alta |
-| 7 | **Productos** | ✅ | Mapear unidad→CAT-014, tributos por tipo, carga masiva | Media |
+| 6 | **Clientes** | ✅ | Cascada Depto→Muni→Distrito + carga masiva Excel/CSV ✅; lookups vía `/api/lookups` | Alta |
+| 7 | **Productos** | ✅ | Carga masiva Excel/CSV ✅; falta mapear unidad→CAT-014 y tributos por tipo | Media |
 | 8 | **Catálogos MH** | ✅ Sprint 13 — módulo completo (CRUD/import/export/versión/cascada) | Sembrar resto vía import oficial (CAT-008 Distrito, CAT-019/020 completos) | Media |
 | 9 | **Dashboard** | ✅ base | Integrar NeoProfit, certificación, alertas Hacienda | Alta |
 | 10 | **NeoProfit / NeoBI** | ❌ | Análisis financiero, gastos/compras, márgenes | Alta |
 | 11 | **NeoScanAI** | ❌ (proyecto aparte) | Bandeja, OCR/IA, registro compra/gasto/DTE recibido | Alta |
-| 12 | **NeoConnect API** | ⚠️ API existe | API keys, webhooks, rate limits, sandbox, docs | Media-alta |
+| 12 | **NeoConnect API** | ❌ (no construido) | API keys, webhooks, rate limits (infra de cuotas Sprint 20 ya lista), sandbox, docs — base para NeoBusiness/NeoScan | Media-alta |
 | 13 | **NeoPOS** | ❌ | Caja, venta rápida, conversión a DTE | Media-alta |
 | 14 | **NeoPortal Clientes** | ❌ | Consulta pública, estado de cuenta | Media |
 | 15 | **NeoSTP Mobile** | ❌ | App MVP (login, DTE básico, escaneo) | Media |
 | 16 | **Mobile Management** | ❌ | Gestión de dispositivos | Media-baja |
 | 17 | **SuperAdmin** | ✅ parcial | Billing, salud sistema, incidentes, churn, soporte | Alta |
-| 18 | **Billing SaaS** | ✅ Sprint 19 | Trial, Stripe/MercadoPago, webhooks, licencias auto | Crítico (venta) |
+| 18 | **Billing SaaS** | ✅ Sprint 19 + **Pagos LATAM** | Multi-proveedor (Wompi/PayPal/Transferencia/Stripe/MercadoPago), transferencia con verificación manual; falta cargar credenciales reales + monto por plan | Crítico (venta) |
 | 19 | **Legal / Compliance** | ✅ Sprint 18 | Términos, privacidad, consentimiento | Crítico (venta) |
 | 20 | **Hardening** | ✅ Sprint 20 | Rate limiting (429), MFA TOTP, IP allowlist, backups + worker, k6, OWASP ZAP, DR | Alto (pre-prod) |
+| 21 | **UI/UX** | ✅ Sprint 21 | AppShell (`neostp.css`) + re-tema global + pantallas clave + pulido de todos los listados | Crítico (venta) |
+| 22 | **Lookups / Datos** | ✅ | `ILookupService` + `/api/lookups`; carga masiva Excel/CSV de clientes y productos | Media |
 
 ---
 
@@ -615,7 +617,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 ## Fase 1 — Certificación y cumplimiento DTE (CRÍTICO)
 1. ✅ **Módulo de mantenimiento de Catálogos** (§6.2) — CRUD/Import/Export/versionado. **Sprint 13.**
 2. ✅ **Catálogos MH oficiales** — Sprint 13.7 cargó el paquete completo Manual v1.4 (CAT-006/014/018/020/021/022/023/024/025/026/027/029/030/031/032 con `Codigo = codigoMH`). Solo CAT-008 Distrito queda como placeholder vacío (cargar via `/Catalogos/Import/DISTRITO_ES` cuando MH publique la lista oficial).
-3. **Eliminar hardcodeos** (municipio/distrito en builders) → derivar de catálogo.
+3. ✅ **Eliminar hardcodeos** (municipio/distrito en builders) → ahora salen de `TerritorialOptions` (`Dte:Territorial`) + distrito del emisor/documento; `LookupService.ResolverMunicipio2024Async` listo para derivación 100% por catálogo al sembrar CAT-008.
 4. ✅ **Eventos DTE persistentes** (tablas `Dte_Eventos*`) + UI + PDF + integración con certificación. **Sprint 15.**
 5. ✅ **Contingencia avanzada / Lotes** — MOMENTO 3: `DteContingenciaLote`/`DteContingenciaLoteDetalle`, `ContingenciaLoteService`, worker periódico, clientes HTTP reales + mocks, UI `/DteContingencia`. **Sprint 16.**
 6. ✅ **Módulo de Certificación DTE** — matriz de progreso (15 tipos × 625 escenarios), generar prueba, reintentar, errores. **Sprint 14.**
@@ -643,6 +645,33 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 19. NeoPOS · 20. NeoPortal Clientes · 21. NeoSTP Mobile · 22. Mobile Management.
 23. Enterprise: SSO/SAML, SOC2/ISO, marca blanca, marketplace.
 
+## Estado actual y plan comercial vigente (post-Sprint 21)
+
+Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para priorizar la venta** en El Salvador. Estado:
+
+| # | Iniciativa | Estado | Por qué |
+|---|---|---|---|
+| 1 | **Pagos LATAM** (Wompi · PayPal · Transferencia) | ✅ | Desbloquea cobro local (tarjeta Wompi + transferencia con verificación manual) |
+| 2 | **Lookups + limpieza de hardcodeos** | ✅ | `ILookupService`/`/api/lookups`; sin literales territoriales mágicos |
+| 3 | **Carga masiva** clientes/productos (Excel/CSV) | ✅ | Onboarding de datos de prospectos en minutos (upsert + dry-run + reporte) |
+| 4 | **Onboarding self-service pulido** | 🔜 **siguiente** | Wizard alta empresa → config DTE → primer DTE en <10 min; checklist de activación → sube conversión |
+| 5 | **NeoConnect API comercial** | 🔜 | Producto vendible + **base para conectar NeoBusiness y NeoScan**; reusa cuotas/`ApiUsageLog` del Sprint 20 |
+| 6 | **NeoProfit** / **NeoScanAI** | 🔜 | Diferenciadores: análisis financiero sobre DTE PROCESADOS / OCR-IA documental |
+
+**Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva → **pendiente principal: onboarding self-service**.
+
+### Detalle del siguiente paso — Onboarding self-service
+1. **Wizard de bienvenida** post-registro (barra "X de N pasos"): datos de empresa → configuración DTE (ambiente, credenciales MH, certificado) → primer cliente/producto (o carga masiva) → **emitir primer DTE de prueba**.
+2. **Checklist de activación** en el dashboard ("Completa tu cuenta: 3/5") con enlaces directos a lo que falta.
+3. **Estados de preparación** (config DTE OK, certificado cargado, primer DTE emitido) visibles para el cliente y para SuperAdmin.
+4. Meta: del registro al primer DTE en **< 10 minutos** sin soporte.
+
+### Detalle de NeoConnect API (habilitador NeoBusiness/NeoScan)
+- Tablas `Connect_ApiKeys` (hash + scopes + estado), `Connect_Webhooks`/`Connect_WebhookDeliveries`, logs reusando `Core_ApiUsageLog`.
+- Auth por **API Key** (`X-Api-Key`) → middleware resuelve empresa + scopes + cuota (engancha con `ApiQuotaMiddleware`).
+- Endpoints v1: emitir DTE, consultar estado, descargar PDF/JSON, alta clientes/productos, webhooks de cambio de estado.
+- **NeoBusiness** consume la API para emitir DTE desde sus ventas; **NeoScan** registra compras/gastos/DTE recibidos.
+
 ## Reglas de negocio transversales (NeoProfit)
 - Solo contar DTE **PROCESADO**; excluir RECHAZADO e INVALIDADO.
 - Nota de Crédito **resta**, Nota de Débito **suma**.
@@ -663,11 +692,12 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 - **Tipografía:** Hanken Grotesk (headlines) · Inter (UI/body) · JetBrains Mono (datos: UUID, montos).
 - **Layout:** sidebar 260px + contenido fluido, grid 12 col, baseline 4px, radios 8/12px.
 
-## Estrategia (decisiones acordadas)
-1. **Secuencia:** primero certificación DTE backend (bloqueante), luego el design system.
-2. **CSS:** Tailwind para lo nuevo + AppShell, en **coexistencia gradual** con Bootstrap (retiro
-   página por página). Build con Tailwind CLI → `wwwroot/css/app.css` (no CDN en prod).
-3. **Componentes** como ViewComponents/TagHelpers de Razor.
+## Estrategia (implementado en Sprint 21)
+1. **Secuencia:** primero certificación DTE backend (bloqueante), luego el design system. ✅
+2. **CSS:** se implementó como **`wwwroot/css/neostp.css`** — CSS nativo con los tokens del
+   design system (sin Node/Tailwind, production-ready), en **coexistencia con Bootstrap**
+   (re-tema global + componentes `ns-*`). Fuentes Google + Material Symbols por CDN.
+3. **Componentes:** AppShell + `_StepperDte` partial; helpers `ns-card/badge/pill/toolbar/empty/metric`.
 
 ## Componentes a construir
 `AppShell` · `Sidebar` (oscura, indicador violeta activo) · `Navbar` (con **Environment Indicator**
