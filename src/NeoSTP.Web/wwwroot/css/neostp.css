@@ -1,0 +1,333 @@
+/* ==========================================================================
+   NeoSTP Cloud — Design System (Sprint 21)
+   Implementa los tokens de /design/design-system/DESIGN.md como CSS nativo.
+   Provee el AppShell (sidebar + navbar) y re-temiza Bootstrap para que las
+   pantallas existentes adopten el nuevo look sin reescribirse.
+   ========================================================================== */
+
+:root {
+  /* Surfaces */
+  --ns-surface: #f7f9fb;
+  --ns-surface-container-lowest: #ffffff;
+  --ns-surface-container-low: #f2f4f6;
+  --ns-surface-container: #eceef0;
+  --ns-surface-container-high: #e6e8ea;
+
+  /* Texto */
+  --ns-on-surface: #191c1e;
+  --ns-on-surface-variant: #45464d;
+  --ns-outline: #76777d;
+
+  /* Marca */
+  --ns-primary: #131b2e;            /* Deep Tech Blue — navegación / acción primaria */
+  --ns-primary-hover: #1d2740;
+  --ns-on-primary: #ffffff;
+  --ns-on-primary-container: #7c839b;
+  --ns-secondary: #6b38d4;          /* Modern Violet — acento / IA */
+  --ns-secondary-container: #8455ef;
+  --ns-secondary-hover: #5a2cbb;
+
+  /* Semántica DTE */
+  --ns-processed: #10B981;
+  --ns-rejected: #EF4444;
+  --ns-draft: #64748B;
+  --ns-contingency: #F59E0B;
+  --ns-error: #ba1a1a;
+
+  --ns-border-subtle: #E2E8F0;
+
+  /* Radios */
+  --ns-radius-sm: .375rem;
+  --ns-radius: .5rem;     /* botones/inputs */
+  --ns-radius-lg: .75rem; /* cards */
+  --ns-radius-pill: 9999px;
+
+  /* Layout */
+  --ns-sidebar-width: 260px;
+  --ns-header-height: 64px;
+
+  /* Sombras */
+  --ns-shadow-1: 0 2px 4px rgba(15, 23, 42, .04);
+  --ns-shadow-2: 0 8px 16px rgba(15, 23, 42, .08);
+
+  /* Tipografía */
+  --ns-font-head: 'Hanken Grotesk', system-ui, sans-serif;
+  --ns-font-body: 'Inter', system-ui, sans-serif;
+  --ns-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ---------- Base ---------- */
+body.ns-app {
+  margin: 0;
+  background: var(--ns-surface);
+  color: var(--ns-on-surface);
+  font-family: var(--ns-font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
+  font-family: var(--ns-font-head);
+  font-weight: 700;
+  color: var(--ns-primary);
+  letter-spacing: -.01em;
+}
+.ns-mono, .font-data-mono { font-family: var(--ns-font-mono); }
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  user-select: none;
+}
+.material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
+
+/* ==========================================================================
+   AppShell
+   ========================================================================== */
+.ns-shell { display: flex; min-height: 100vh; }
+
+/* ---------- Sidebar ---------- */
+.ns-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--ns-sidebar-width);
+  background: var(--ns-primary);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  z-index: 1050;
+  box-shadow: var(--ns-shadow-1);
+  transition: transform .25s ease;
+}
+.ns-brand { display: flex; align-items: center; gap: 12px; padding: 0 24px 24px; }
+.ns-brand-logo {
+  width: 40px; height: 40px; border-radius: var(--ns-radius);
+  background: var(--ns-secondary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.ns-brand-title { font-family: var(--ns-font-head); font-size: 20px; font-weight: 800; color: #fff; line-height: 1; margin: 0; }
+.ns-brand-sub { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ns-on-primary-container); margin: 4px 0 0; }
+
+.ns-nav { flex: 1; overflow-y: auto; padding: 0 12px; }
+.ns-nav::-webkit-scrollbar { width: 4px; }
+.ns-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 10px; }
+.ns-nav-group { padding: 14px 16px 6px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.35); }
+.ns-nav-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin-bottom: 2px;
+  border-radius: var(--ns-radius);
+  color: var(--ns-on-primary-container);
+  text-decoration: none; font-size: 13px; font-weight: 500;
+  border-left: 4px solid transparent;
+  transition: background .15s, color .15s;
+}
+.ns-nav-link .material-symbols-outlined { font-size: 20px; }
+.ns-nav-link:hover { background: rgba(255,255,255,.07); color: #fff; }
+.ns-nav-link.active {
+  background: rgba(132, 85, 239, .18);
+  color: #fff;
+  border-left-color: var(--ns-secondary);
+}
+.ns-nav-link.active .material-symbols-outlined { font-variation-settings: 'FILL' 1; color: #cbb8ff; }
+
+.ns-sidebar-foot { padding: 12px 16px 0; margin-top: auto; }
+.ns-user-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px; border-radius: var(--ns-radius-lg);
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+}
+.ns-user-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--ns-secondary-container); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 600; flex: 0 0 auto;
+}
+.ns-user-name { color: #fff; font-size: 13px; font-weight: 600; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ns-user-role { color: var(--ns-on-primary-container); font-size: 10px; margin: 0; }
+
+/* ---------- Main ---------- */
+.ns-main { flex: 1; margin-left: var(--ns-sidebar-width); min-width: 0; display: flex; flex-direction: column; }
+
+.ns-topbar {
+  height: var(--ns-header-height);
+  position: sticky; top: 0; z-index: 1040;
+  background: rgba(247, 249, 251, .85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--ns-border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; gap: 16px;
+}
+.ns-topbar-title { font-family: var(--ns-font-head); font-size: 20px; font-weight: 700; color: var(--ns-primary); margin: 0; }
+.ns-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.ns-topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.ns-hamburger { display: none; background: none; border: 0; color: var(--ns-on-surface); cursor: pointer; padding: 4px; }
+
+/* Environment indicator */
+.ns-env {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 12px; border-radius: var(--ns-radius-pill);
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  border: 1px solid;
+}
+.ns-env-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ns-env--prod { background: rgba(16,185,129,.1); color: var(--ns-processed); border-color: rgba(16,185,129,.25); }
+.ns-env--prod .ns-env-dot { background: var(--ns-processed); animation: ns-pulse 2s infinite; }
+.ns-env--test { background: rgba(245,158,11,.1); color: var(--ns-contingency); border-color: rgba(245,158,11,.25); }
+.ns-env--test .ns-env-dot { background: var(--ns-contingency); }
+@keyframes ns-pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+.ns-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--ns-radius);
+  font-size: 12px; font-weight: 600; text-decoration: none;
+  border: 1px solid var(--ns-border-subtle); background: #fff; color: var(--ns-on-surface);
+}
+.ns-chip:hover { border-color: var(--ns-secondary); color: var(--ns-secondary); }
+.ns-chip--active { background: var(--ns-contingency); color: #fff; border-color: var(--ns-contingency); }
+.ns-icon-btn {
+  width: 38px; height: 38px; border-radius: 50%; border: 0; background: transparent;
+  color: var(--ns-on-surface-variant); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.ns-icon-btn:hover { background: var(--ns-surface-container-low); }
+
+/* Support banner */
+.ns-support-banner {
+  background: var(--ns-contingency); color: #20140a;
+  font-size: 12.5px; padding: 6px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.ns-support-banner .btn-link { color: #20140a; font-weight: 600; }
+
+/* Content */
+.ns-content { padding: 24px; flex: 1; }
+.ns-footer {
+  border-top: 1px solid var(--ns-border-subtle);
+  padding: 16px 24px; color: var(--ns-on-surface-variant); font-size: 12.5px;
+  display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;
+}
+.ns-footer a { color: var(--ns-on-surface-variant); text-decoration: none; }
+.ns-footer a:hover { color: var(--ns-secondary); }
+
+/* Mobile drawer */
+.ns-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1045; }
+@media (max-width: 991.98px) {
+  .ns-sidebar { transform: translateX(-100%); }
+  .ns-main { margin-left: 0; }
+  .ns-hamburger { display: inline-flex; }
+  body.ns-drawer-open .ns-sidebar { transform: translateX(0); }
+  body.ns-drawer-open .ns-backdrop { display: block; }
+}
+
+/* ==========================================================================
+   Status badges (reutilizable)
+   ========================================================================== */
+.ns-badge {
+  display: inline-block; padding: 3px 10px; border-radius: var(--ns-radius-pill);
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+}
+.ns-badge--processed { background: rgba(16,185,129,.12); color: var(--ns-processed); }
+.ns-badge--rejected { background: rgba(239,68,68,.12); color: var(--ns-rejected); }
+.ns-badge--draft { background: rgba(100,116,139,.14); color: var(--ns-draft); }
+.ns-badge--contingency { background: rgba(245,158,11,.14); color: #b45309; }
+
+/* Metric card (Dashboard) */
+.ns-metric { position: relative; overflow: hidden; }
+.ns-metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ns-on-surface-variant); margin: 0; }
+.ns-metric-value { font-family: var(--ns-font-head); font-size: 40px; font-weight: 800; line-height: 1.1; margin: 4px 0 0; }
+.ns-metric-icon { width: 48px; height: 48px; border-radius: var(--ns-radius); display: flex; align-items: center; justify-content: center; }
+
+/* ==========================================================================
+   Re-tematización de Bootstrap (para pantallas aún no migradas)
+   ========================================================================== */
+.ns-content .card {
+  border: 1px solid var(--ns-border-subtle);
+  border-radius: var(--ns-radius-lg);
+  box-shadow: var(--ns-shadow-1);
+}
+.ns-content .card-header {
+  background: var(--ns-surface-container-low);
+  border-bottom: 1px solid var(--ns-border-subtle);
+  font-weight: 600; font-family: var(--ns-font-head);
+}
+.ns-content .btn { border-radius: var(--ns-radius); font-weight: 600; }
+.ns-content .btn-primary { background: var(--ns-primary); border-color: var(--ns-primary); }
+.ns-content .btn-primary:hover { background: var(--ns-primary-hover); border-color: var(--ns-primary-hover); }
+.ns-content .btn-outline-primary { color: var(--ns-primary); border-color: var(--ns-primary); }
+.ns-content .btn-outline-primary:hover { background: var(--ns-primary); border-color: var(--ns-primary); }
+.ns-content .btn-success { background: var(--ns-processed); border-color: var(--ns-processed); }
+.ns-content .btn-danger { background: var(--ns-rejected); border-color: var(--ns-rejected); }
+.ns-content .btn-secondary { background: var(--ns-secondary); border-color: var(--ns-secondary); }
+.ns-content .btn-secondary:hover { background: var(--ns-secondary-hover); border-color: var(--ns-secondary-hover); }
+.ns-content a { color: var(--ns-secondary); }
+.ns-content a.btn { color: inherit; }
+.ns-content a.btn-primary, .ns-content a.btn-secondary, .ns-content a.btn-success, .ns-content a.btn-danger { color: #fff; }
+
+.ns-content .table { --bs-table-bg: transparent; }
+.ns-content .table > thead {
+  background: var(--ns-surface-container-low);
+}
+.ns-content .table > thead th {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ns-on-surface-variant); font-weight: 600;
+  border-bottom: 1px solid var(--ns-border-subtle); white-space: nowrap;
+}
+.ns-content .table > tbody td { vertical-align: middle; }
+.ns-content .table-hover > tbody > tr:hover > * { background: var(--ns-surface-container-low); }
+
+.ns-content .form-control, .ns-content .form-select {
+  border-radius: var(--ns-radius); border: 1px solid var(--ns-border-subtle);
+}
+.ns-content .form-control:focus, .ns-content .form-select:focus {
+  border-color: var(--ns-secondary);
+  box-shadow: 0 0 0 .2rem rgba(107,56,212,.18);
+}
+.ns-content .alert { border-radius: var(--ns-radius-lg); border: 1px solid var(--ns-border-subtle); }
+.ns-content .badge.bg-success { background: var(--ns-processed) !important; }
+.ns-content .badge.bg-danger  { background: var(--ns-rejected) !important; }
+.ns-content .badge.bg-warning { background: var(--ns-contingency) !important; color: #20140a !important; }
+.ns-content .badge.bg-secondary { background: var(--ns-draft) !important; }
+.ns-content .badge.bg-info { background: var(--ns-secondary) !important; }
+.ns-content .nav-tabs .nav-link.active { color: var(--ns-secondary); border-bottom-color: var(--ns-secondary); }
+
+/* ==========================================================================
+   StepperDTE (Borrador → Validado → Firmado → Enviado → Procesado)
+   ========================================================================== */
+.ns-stepper { display: flex; align-items: flex-start; gap: 0; }
+.ns-step { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; text-align: center; }
+.ns-step::before {
+  content: ""; position: absolute; top: 17px; left: -50%; width: 100%; height: 2px;
+  background: var(--ns-border-subtle); z-index: 0;
+}
+.ns-step:first-child::before { display: none; }
+.ns-step-dot {
+  width: 36px; height: 36px; border-radius: 50%; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: 2px solid var(--ns-border-subtle); color: var(--ns-outline);
+  font-size: 18px;
+}
+.ns-step-label { font-size: 11px; font-weight: 600; margin-top: 6px; color: var(--ns-on-surface-variant); text-transform: uppercase; letter-spacing: .04em; }
+.ns-step--done .ns-step-dot { background: var(--ns-secondary); border-color: var(--ns-secondary); color: #fff; }
+.ns-step--done::before { background: var(--ns-secondary); }
+.ns-step--done .ns-step-label { color: var(--ns-secondary); }
+.ns-step--current .ns-step-dot { background: #fff; border-color: var(--ns-primary); color: var(--ns-primary); box-shadow: 0 0 0 4px rgba(19,27,46,.08); }
+.ns-step--current .ns-step-label { color: var(--ns-primary); }
+.ns-step--error .ns-step-dot { background: var(--ns-rejected); border-color: var(--ns-rejected); color: #fff; }
+.ns-step--error .ns-step-label { color: var(--ns-rejected); }
+
+/* Totals panel (dark) — Nuevo DTE */
+.ns-totals { background: var(--ns-primary); color: #fff; border-radius: var(--ns-radius-lg); padding: 20px; }
+.ns-totals-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--ns-on-primary-container); }
+.ns-totals-total { display: flex; justify-content: space-between; font-family: var(--ns-font-head); font-weight: 800; font-size: 20px; color: #fff; border-top: 1px solid rgba(255,255,255,.15); margin-top: 8px; padding-top: 12px; }
+
+/* ---------- Login (pantalla sin shell) ---------- */
+.ns-auth {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #131b2e 0%, #2a1b4d 100%); padding: 24px;
+}
+.ns-auth-card {
+  width: 100%; max-width: 400px; background: #fff;
+  border-radius: var(--ns-radius-lg); box-shadow: var(--ns-shadow-2); padding: 32px;
+}
+.ns-auth-logo {
+  width: 56px; height: 56px; border-radius: var(--ns-radius-lg); margin: 0 auto 16px;
+  background: var(--ns-secondary); color: #fff; display: flex; align-items: center; justify-content: center;
+}

@@ -1,0 +1,51 @@
+@*
+   StepperDTE — recibe el código de estado del DTE como Model (string).
+   Estados de avance: BORRADOR → VALIDADO → FIRMADO → ENVIADO → PROCESADO.
+   GENERADO se muestra dentro de BORRADOR; RECHAZADO/ERROR/CONTINGENCIA marcan error en el paso de envío.
+*@
+@model string
+@{
+    var estado = Model ?? "BORRADOR";
+    // índice de avance alcanzado
+    int Reached(string s) => s switch
+    {
+        "BORRADOR" => 0,
+        "GENERADO" => 0,
+        "VALIDADO" => 1,
+        "FIRMADO" => 2,
+        "ENVIADO" => 3,
+        "CONTINGENCIA" => 3,
+        "RECHAZADO" => 3,
+        "ERROR" => 3,
+        "PROCESADO" => 4,
+        "INVALIDADO" => 4,
+        _ => 0
+    };
+    var current = Reached(estado);
+    var isError = estado is "RECHAZADO" or "ERROR" or "CONTINGENCIA";
+    var pasos = new[]
+    {
+        ("Borrador", "edit_document"),
+        ("Validado", "fact_check"),
+        ("Firmado", "draw"),
+        ("Enviado", "send"),
+        ("Procesado", "verified"),
+    };
+}
+<div class="ns-stepper">
+    @for (var i = 0; i < pasos.Length; i++)
+    {
+        var cls = "ns-step";
+        var icon = pasos[i].Item2;
+        if (i < current) { cls += " ns-step--done"; icon = "check"; }
+        else if (i == current)
+        {
+            if (isError && i == 3) { cls += " ns-step--error"; icon = "error"; }
+            else { cls += " ns-step--current"; }
+        }
+        <div class="@cls">
+            <span class="ns-step-dot"><span class="material-symbols-outlined" style="font-size:18px">@icon</span></span>
+            <span class="ns-step-label">@pasos[i].Item1</span>
+        </div>
+    }
+</div>

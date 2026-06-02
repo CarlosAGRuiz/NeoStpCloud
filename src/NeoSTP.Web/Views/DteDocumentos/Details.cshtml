@@ -18,6 +18,12 @@
 @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
 
+<div class="card mb-3">
+    <div class="card-body py-4 px-5">
+        @await Html.PartialAsync("_StepperDte", (string)Model.EstadoCodigo)
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
         <h1 class="h4 m-0">DTE @Model.TipoDteCodigo · <small class="text-muted font-monospace">@Model.NumeroControl</small></h1>

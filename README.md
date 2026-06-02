@@ -2,7 +2,7 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 20 — Hardening pre-producción** ✅  
+> **Versión actual: Sprint 21 — UI/UX AppShell + design system** ✅  
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 222 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
@@ -10,6 +10,8 @@ Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónic
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 🎨 **Sprint 21 (UI/UX AppShell + design system):** Modernización de la interfaz con el design system de `/design` (Deep Tech Blue `#131b2e` + Modern Violet `#6b38d4`, Hanken Grotesk/Inter/JetBrains Mono, Material Symbols). Nuevo **AppShell** (`neostp.css`): sidebar oscura fija agrupada por permisos, navbar sticky con **indicador de ambiente** (Mock/Pruebas) + empresa actual + modo soporte, responsive con drawer móvil. Re-tematización global de Bootstrap (cards, botones, tablas, badges, forms) → todas las pantallas adoptan el look sin reescribirse. Pantallas clave restyling fiel a mockups: **Login**, **Dashboard** (metric cards), **StepperDTE** (`_StepperDte` Borrador→Validado→Firmado→Enviado→Procesado) en el detalle DTE, **Certificación** (progreso global violeta). Sin migración (solo UI).
 >
 > 📦 **Sprint 20 (Hardening pre-producción):** Endurecimiento para operar con clientes reales. **Rate limiting / cuotas** (`ApiQuotaMiddleware` + `Core_ApiQuotas`/`Core_ApiUsageLog`): topes por ventana deslizante por empresa/usuario/plan/módulo, responde **429** con `Retry-After`/`X-RateLimit-*`. **MFA SuperAdmin (TOTP RFC 6238)**: enrolar/confirmar/verificar con códigos de recuperación, secreto cifrado con DataProtection (`POST /api/auth/mfa/{enroll|confirm|disable}`). **IP allowlist** del panel admin (`AdminIpAllowlistMiddleware` + `Core_AdminIpAllowlist`, soporta CIDR, fail-open). **Backups** (`BackupService` + `BackupWorker` + `IStorageService` toggle LOCAL/AZURE_BLOB/S3, `Ops_BackupJobs`, checksum SHA-256). Panel SuperAdmin `/Hardening` + API `/api/hardening`. k6 baseline (`ops/k6/`), GitHub Action OWASP ZAP, runbook Disaster Recovery (`docs/Sprint20-Disaster-Recovery.md`). Permisos `Ops.Hardening.Ver/.Administrar`. Migración `Sprint20_HardeningSchema`.
 >
@@ -833,7 +835,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 18     | Legal + consentimiento                        | ✅     |
 | 19     | Billing self-service (Stripe / MercadoPago)   | ✅     |
 | 20     | Hardening pre-producción                      | ✅     |
-| 21     | UI/UX AppShell + design system                | 🔜     |
+| 21     | UI/UX AppShell + design system                | ✅     |
 | 22     | NeoProfit básico                              | 🔜     |
 | 23     | NeoScanAI integrado                           | 🔜     |
 | 24     | NeoConnect API comercial                      | 🔜     |

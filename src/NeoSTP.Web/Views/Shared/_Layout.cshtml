@@ -1,10 +1,10 @@
 @inject NeoSTP.Application.Empresas.IEmpresaContext EmpresaContext
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
 @{
     var username = User.Identity?.Name;
     var isAuth = User.Identity?.IsAuthenticated ?? false;
     var tipoUsuario = User.FindFirst(NeoSTP.Web.Auth.CookieCurrentUser.ClaimTipoUsuario)?.Value;
     var isSuperAdmin = tipoUsuario == "SUPERADMIN";
-    var soporteEmpresaId = EmpresaContext.CurrentEmpresaId;
     var soporteEmpresaNombre = EmpresaContext.SupportEmpresaNombre;
     var enModoSoporte = EmpresaContext.IsSupportMode;
     var puedeVerCatalogos = isSuperAdmin || User.HasClaim("permiso", "Core.Catalogos.Ver");
@@ -13,6 +13,14 @@
     var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
+
+    var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    Func<string, string> active = name => string.Equals(ctrl, name, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+
+    // Indicador de ambiente: refleja si la transmisión usa Hacienda real (apitest) o mocks.
+    var haciendaHttp = string.Equals(Config["Hacienda:Client"], "Http", StringComparison.OrdinalIgnoreCase);
+    var envLabel = haciendaHttp ? "PRUEBAS · HACIENDA" : "MOCK";
+    var inicial = string.IsNullOrEmpty(username) ? "?" : username!.Substring(0, 1).ToUpperInvariant();
 }
 <!DOCTYPE html>
 <html lang="es">
@@ -20,124 +28,157 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] · NeoSTP Cloud</title>
-    <script type="importmap"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Hanken+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/neostp.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/NeoSTP.Web.styles.css" asp-append-version="true" />
 </head>
-<body>
-    @if (enModoSoporte)
-    {
-        <div class="bg-warning text-dark py-1 px-3 small d-flex justify-content-between align-items-center">
-            <span>⚠️ <strong>Modo soporte activo</strong> · operando como: <strong>@soporteEmpresaNombre</strong></span>
-            <form asp-controller="Soporte" asp-action="Salir" method="post" class="d-inline m-0">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-sm btn-link text-dark p-0">Salir del modo soporte</button>
-            </form>
-        </div>
-    }
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-dark bg-primary mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand fw-bold" asp-controller="Home" asp-action="Index">NeoSTP Cloud</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        @if (isAuth)
-                        {
-                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Empresas" asp-action="Index">Empresas</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Sucursales" asp-action="Index">Sucursales</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Clientes" asp-action="Index">Clientes</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Productos" asp-action="Index">Productos</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="DteDocumentos" asp-action="Index">DTE</a></li>
-                            @if (puedeVerEventos)
-                            {
-                                <li class="nav-item"><a class="nav-link" asp-controller="DteEventos" asp-action="Index">Eventos</a></li>
-                            }
-                            @if (puedeVerContingencia)
-                            {
-                                <li class="nav-item"><a class="nav-link" asp-controller="DteContingencia" asp-action="Index">⚡ Contingencia</a></li>
-                            }
-                            @if (puedeVerDiagnostico)
-                            {
-                                <li class="nav-item"><a class="nav-link" asp-controller="DiagnosticoHacienda" asp-action="Index">🔍 Diagnóstico</a></li>
-                            }
-                            @if (puedeVerCertificacion)
-                            {
-                                <li class="nav-item"><a class="nav-link" asp-controller="Certificacion" asp-action="Index">Certificación</a></li>
-                            }
-                            <li class="nav-item"><a class="nav-link" asp-controller="DteConfiguracion" asp-action="Index">Config DTE</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Usuarios" asp-action="Index">Usuarios</a></li>
-                            @if (puedeVerCatalogos)
-                            {
-                                <li class="nav-item"><a class="nav-link" asp-controller="Catalogos" asp-action="Index">Catálogos</a></li>
-                            }
-                            <li class="nav-item"><a class="nav-link" asp-controller="Planes" asp-action="Index">Planes</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Billing" asp-action="Index">💳 Billing</a></li>
-                            @if (puedeVerHardening)
-                            {
-                                <li class="nav-item"><a class="nav-link" asp-controller="Hardening" asp-action="Index">🛡️ Hardening</a></li>
-                            }
-                        }
-                    </ul>
-                    <ul class="navbar-nav">
-                        @if (isAuth && isSuperAdmin)
-                        {
-                            <li class="nav-item">
-                                <a class="btn btn-sm @(enModoSoporte ? "btn-warning" : "btn-outline-light") me-2" asp-controller="Soporte" asp-action="Index">
-                                    @(enModoSoporte ? $"📍 {soporteEmpresaNombre}" : "🔧 Modo soporte")
-                                </a>
-                            </li>
-                        }
-                        @if (isAuth)
-                        {
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white" data-bs-toggle="dropdown" role="button">
-                                    👤 @username
-                                </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Cambiar contraseña</a></li>
-                                    <li><hr class="dropdown-divider" /></li>
-                                    <li>
-                                        <form asp-controller="Account" asp-action="Logout" method="post" class="px-3 py-1">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Cerrar sesión</button>
-                                        </form>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="btn btn-outline-light btn-sm" asp-controller="Account" asp-action="Login">Iniciar sesión</a>
-                            </li>
-                        }
-                    </ul>
+<body class="ns-app">
+@if (!isAuth)
+{
+    @RenderBody()
+}
+else
+{
+    <div class="ns-shell">
+        <div class="ns-backdrop" onclick="document.body.classList.remove('ns-drawer-open')"></div>
+
+        <!-- Sidebar -->
+        <aside class="ns-sidebar">
+            <a class="ns-brand text-decoration-none" asp-controller="Home" asp-action="Index">
+                <span class="ns-brand-logo"><span class="material-symbols-outlined fill">cloud_done</span></span>
+                <span>
+                    <span class="ns-brand-title d-block">NeoSTP</span>
+                    <span class="ns-brand-sub d-block">Enterprise SaaS</span>
+                </span>
+            </a>
+
+            <nav class="ns-nav">
+                <div class="ns-nav-group">Operación</div>
+                <a class="ns-nav-link @active("Home")" asp-controller="Home" asp-action="Index"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
+                <a class="ns-nav-link @active("DteDocumentos")" asp-controller="DteDocumentos" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Documentos DTE</a>
+                @if (puedeVerEventos)
+                {
+                    <a class="ns-nav-link @active("DteEventos")" asp-controller="DteEventos" asp-action="Index"><span class="material-symbols-outlined">event_note</span> Eventos</a>
+                }
+                @if (puedeVerContingencia)
+                {
+                    <a class="ns-nav-link @active("DteContingencia")" asp-controller="DteContingencia" asp-action="Index"><span class="material-symbols-outlined">bolt</span> Contingencia</a>
+                }
+                @if (puedeVerDiagnostico)
+                {
+                    <a class="ns-nav-link @active("DiagnosticoHacienda")" asp-controller="DiagnosticoHacienda" asp-action="Index"><span class="material-symbols-outlined">troubleshoot</span> Diagnóstico</a>
+                }
+                @if (puedeVerCertificacion)
+                {
+                    <a class="ns-nav-link @active("Certificacion")" asp-controller="Certificacion" asp-action="Index"><span class="material-symbols-outlined">verified</span> Certificación</a>
+                }
+
+                <div class="ns-nav-group">Datos maestros</div>
+                <a class="ns-nav-link @active("Clientes")" asp-controller="Clientes" asp-action="Index"><span class="material-symbols-outlined">groups</span> Clientes</a>
+                <a class="ns-nav-link @active("Productos")" asp-controller="Productos" asp-action="Index"><span class="material-symbols-outlined">inventory_2</span> Productos</a>
+                @if (puedeVerCatalogos)
+                {
+                    <a class="ns-nav-link @active("Catalogos")" asp-controller="Catalogos" asp-action="Index"><span class="material-symbols-outlined">menu_book</span> Catálogos</a>
+                }
+
+                <div class="ns-nav-group">Administración</div>
+                <a class="ns-nav-link @active("Empresas")" asp-controller="Empresas" asp-action="Index"><span class="material-symbols-outlined">domain</span> Empresas</a>
+                <a class="ns-nav-link @active("Sucursales")" asp-controller="Sucursales" asp-action="Index"><span class="material-symbols-outlined">store</span> Sucursales</a>
+                <a class="ns-nav-link @active("Usuarios")" asp-controller="Usuarios" asp-action="Index"><span class="material-symbols-outlined">group</span> Usuarios</a>
+                <a class="ns-nav-link @active("Planes")" asp-controller="Planes" asp-action="Index"><span class="material-symbols-outlined">workspace_premium</span> Planes</a>
+                <a class="ns-nav-link @active("DteConfiguracion")" asp-controller="DteConfiguracion" asp-action="Index"><span class="material-symbols-outlined">settings</span> Config DTE</a>
+                <a class="ns-nav-link @active("Billing")" asp-controller="Billing" asp-action="Index"><span class="material-symbols-outlined">credit_card</span> Billing</a>
+
+                @if (puedeVerHardening)
+                {
+                    <div class="ns-nav-group">Sistema</div>
+                    <a class="ns-nav-link @active("Hardening")" asp-controller="Hardening" asp-action="Index"><span class="material-symbols-outlined">shield</span> Hardening</a>
+                }
+            </nav>
+
+            <div class="ns-sidebar-foot">
+                <div class="ns-user-card">
+                    <span class="ns-user-avatar">@inicial</span>
+                    <span class="overflow-hidden">
+                        <span class="ns-user-name d-block">@username</span>
+                        <span class="ns-user-role d-block">@(isSuperAdmin ? "SuperAdmin" : tipoUsuario)</span>
+                    </span>
                 </div>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
+        </aside>
 
-    <footer class="border-top footer text-muted mt-5">
-        <div class="container py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-            <span>&copy; @DateTime.Now.Year NeoSTP — Plataforma SaaS DTE</span>
-            <div class="d-flex gap-3 small">
-                <a href="/legal/terms" class="text-muted text-decoration-none">Términos</a>
-                <a href="/legal/privacy" class="text-muted text-decoration-none">Privacidad</a>
-                <a href="/legal/cookies" class="text-muted text-decoration-none">Cookies</a>
-                <a href="/legal/dpa" class="text-muted text-decoration-none">DPA</a>
-            </div>
+        <!-- Main -->
+        <div class="ns-main">
+            @if (enModoSoporte)
+            {
+                <div class="ns-support-banner">
+                    <span>⚠️ <strong>Modo soporte activo</strong> · operando como: <strong>@soporteEmpresaNombre</strong></span>
+                    <form asp-controller="Soporte" asp-action="Salir" method="post" class="d-inline m-0">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-link p-0">Salir del modo soporte</button>
+                    </form>
+                </div>
+            }
+
+            <header class="ns-topbar">
+                <div class="ns-topbar-left">
+                    <button class="ns-hamburger" onclick="document.body.classList.toggle('ns-drawer-open')" aria-label="Menú">
+                        <span class="material-symbols-outlined">menu</span>
+                    </button>
+                    <h1 class="ns-topbar-title">@(ViewData["Title"] ?? "NeoSTP Cloud")</h1>
+                    <span class="ns-env @(haciendaHttp ? "ns-env--prod" : "ns-env--test")">
+                        <span class="ns-env-dot"></span>@envLabel
+                    </span>
+                </div>
+                <div class="ns-topbar-right">
+                    @if (isSuperAdmin)
+                    {
+                        <a class="ns-chip @(enModoSoporte ? "ns-chip--active" : "")" asp-controller="Soporte" asp-action="Index">
+                            <span class="material-symbols-outlined" style="font-size:16px">@(enModoSoporte ? "location_on" : "build")</span>
+                            @(enModoSoporte ? soporteEmpresaNombre : "Modo soporte")
+                        </a>
+                    }
+                    <div class="dropdown">
+                        <button class="ns-icon-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="material-symbols-outlined">account_circle</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text small text-muted">@username</span></li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Cambiar contraseña</a></li>
+                            <li>
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="px-3 py-1">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Cerrar sesión</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <main role="main" class="ns-content">
+                @RenderBody()
+            </main>
+
+            <footer class="ns-footer">
+                <span>&copy; @DateTime.Now.Year NeoSTP — Plataforma SaaS DTE</span>
+                <div class="d-flex gap-3">
+                    <a href="/legal/terms">Términos</a>
+                    <a href="/legal/privacy">Privacidad</a>
+                    <a href="/legal/cookies">Cookies</a>
+                    <a href="/legal/dpa">DPA</a>
+                </div>
+            </footer>
         </div>
-    </footer>
+    </div>
+}
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
