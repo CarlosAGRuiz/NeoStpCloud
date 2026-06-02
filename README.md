@@ -2,14 +2,16 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Pagos LATAM — Wompi · PayPal · Transferencia** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 242 unit + 2 integración pasando
+> **Versión actual: Lookups + limpieza de hardcodeos territoriales** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 250 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 🔎 **Lookups + limpieza de hardcodeos:** `ILookupService` unifica el acceso a catálogos y datos maestros para selects/cascadas/autocompletes (con caché por instancia): catálogos por código/padre, cascada territorial (departamentos→municipios→distritos), `ResolverMunicipio2024Async` (distrito→municipio división 2024 vía `ParentCodigo`), y búsqueda de clientes/productos/sucursales. API `GET /api/lookups/{catalogo|departamentos|municipios|distritos|clientes|productos|sucursales}`. Se eliminaron los literales `"23"`/`"03"` del `DteGeneratorService`: ahora salen de `TerritorialOptions` (sección `Dte:Territorial`) + distrito del emisor/documento, dejando lista la derivación por catálogo. Sin migración.
 >
 > 💳 **Pagos LATAM (Wompi · PayPal · Transferencia):** Billing pasa a **multi-proveedor** — el cliente elige método en el checkout (`IPaymentProviderResolver` resuelve por nombre). Nuevos `IPaymentProvider`: **Wompi** (wompi.sv, checkout hospedado vía REST + OAuth2), **PayPal** (Orders v2 hospedado), **Transferencia** bancaria offline (instrucciones + comprobante + verificación manual del admin que activa la licencia). Webhooks Wompi/PayPal en `BillingWebhookHandler`. `BillingPayment` gana `Metodo`/`ComprobanteUrl`/`VerificadoPor`/`VerificadoAt`. UI: selección de método en `/billing/checkout`, página de transferencia, bandeja SuperAdmin `/billing/transferencias`. HttpClients resilientes (Polly). PCI: los datos de tarjeta los procesa la pasarela hospedada, nunca nuestros servidores. Migración `PagosLatam_MetodosPago`. Toggle `Billing:Provider` = default; cada proveedor con su sección de opciones.
 >

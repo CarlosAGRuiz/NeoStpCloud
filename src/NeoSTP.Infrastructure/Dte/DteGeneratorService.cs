@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
 using NeoSTP.Domain.Core.Dte;
@@ -20,6 +21,14 @@ public class DteGeneratorService : IDteGeneratorService
         WriteIndented = false,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
     };
+
+    // Defaults territoriales (división 2024) configurables — reemplazan los literales "23"/"03".
+    private readonly TerritorialOptions _territorial;
+
+    public DteGeneratorService(IOptions<TerritorialOptions> territorial)
+    {
+        _territorial = territorial.Value;
+    }
 
     public Result<string> Generar(DteDocumento d, DteConfiguracion? config = null)
     {
@@ -42,8 +51,8 @@ public class DteGeneratorService : IDteGeneratorService
             TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: false),
             TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor, config),
             TipoDteCodigos.NotaRemision => BuildNotaRemision(d, emisor, config),
-            TipoDteCodigos.FacturaExportacion => BuildFacturaExportacion(d, emisor, config),
-            TipoDteCodigos.ComprobanteDonacion => BuildComprobanteDonacion(d, emisor, config),
+            TipoDteCodigos.FacturaExportacion => BuildFacturaExportacion(d, emisor, config, _territorial),
+            TipoDteCodigos.ComprobanteDonacion => BuildComprobanteDonacion(d, emisor, config, _territorial),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
@@ -320,11 +329,11 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 11 Factura de Exportación ---------------------------
 
-    private static object BuildFacturaExportacion(DteDocumento d, Empresa e, DteConfiguracion? config) => new
+    private static object BuildFacturaExportacion(DteDocumento d, Empresa e, DteConfiguracion? config, TerritorialOptions terr) => new
     {
         identificacion = BuildIdentificacion(d, 3),
         documentoRelacionado = (object?)null,
-        emisor = BuildEmisorExportacion(e, config),
+        emisor = BuildEmisorExportacion(e, config, terr),
         receptor = BuildReceptorExportacion(d),
         otrosDocumentos = (object?)null,
         ventaTercero = (object?)null,
@@ -376,7 +385,7 @@ public class DteGeneratorService : IDteGeneratorService
         apendice = (object?)null,
     };
 
-    private static object BuildEmisorExportacion(Empresa e, DteConfiguracion? config)
+    private static object BuildEmisorExportacion(Empresa e, DteConfiguracion? config, TerritorialOptions terr)
     {
         var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
@@ -388,8 +397,9 @@ public class DteGeneratorService : IDteGeneratorService
             codActividad = e.CodigoActividad,
             descActividad = e.ActividadEconomica,
             nombreComercial = e.NombreComercial,
-            // FEX v3 usa división territorial 2024 (municipio nuevo + distrito). Hardcode empresa prueba.
-            direccion = new { departamento = e.Departamento ?? "06", municipio = "23", distrito = e.Distrito ?? "03", complemento = e.Direccion },
+            // FEX v3 usa división territorial 2024 (municipio nuevo + distrito). El municipio
+            // por defecto sale de Dte:Territorial; el distrito del emisor si lo tiene registrado.
+            direccion = new { departamento = e.Departamento ?? "06", municipio = terr.MunicipioDivision2024Default, distrito = e.Distrito ?? terr.DistritoDefault, complemento = e.Direccion },
             telefono = e.Telefono,
             correo = e.Correo,
             codEstable = codEst,
@@ -418,7 +428,7 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 15 Comprobante de Donación --------------------------
 
-    private static object BuildComprobanteDonacion(DteDocumento d, Empresa e, DteConfiguracion? config)
+    private static object BuildComprobanteDonacion(DteDocumento d, Empresa e, DteConfiguracion? config, TerritorialOptions terr)
     {
         var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
@@ -447,8 +457,8 @@ public class DteGeneratorService : IDteGeneratorService
                 descActividad = e.ActividadEconomica,
                 nombreComercial = e.NombreComercial,
                 // CD v2 usa división territorial 2024 (municipio nuevo + distrito).
-                // TODO: derivar municipio nuevo desde catálogo; hardcode para empresa de prueba (Ayutuxtepeque = SS Centro 23 / distrito 03).
-                direccion = new { departamento = e.Departamento ?? "06", municipio = "23", distrito = e.Distrito ?? "03", complemento = e.Direccion },
+                // Municipio por defecto desde Dte:Territorial; distrito del emisor si está registrado.
+                direccion = new { departamento = e.Departamento ?? "06", municipio = terr.MunicipioDivision2024Default, distrito = e.Distrito ?? terr.DistritoDefault, complemento = e.Direccion },
                 telefono = e.Telefono,
                 correo = e.Correo,
                 codEstable = codEst,
@@ -465,8 +475,8 @@ public class DteGeneratorService : IDteGeneratorService
                 direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
                 {
                     departamento = d.ReceptorDepartamentoCodigo,
-                    municipio = "23",   // división 2024 (ver TODO emisor)
-                    distrito = d.ReceptorDistritoCodigo ?? "03",
+                    municipio = terr.MunicipioDivision2024Default,   // división 2024 (default config)
+                    distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
                     complemento = d.ReceptorDireccion,
                 },
                 telefono = d.ReceptorTelefono,

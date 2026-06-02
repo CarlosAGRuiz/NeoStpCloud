@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
@@ -10,7 +11,7 @@ namespace NeoSTP.Tests.Unit.Dte;
 
 public class DteGeneratorTests
 {
-    private readonly DteGeneratorService _gen = new();
+    private readonly DteGeneratorService _gen = new(Options.Create(new TerritorialOptions()));
     private readonly DteCalculator _calc = new();
 
     private static DteDocumento NewDoc(string tipo)
@@ -51,6 +52,39 @@ public class DteGeneratorTests
             PrecioUnitario = tipo == TipoDteCodigos.FacturaConsumidorFinal ? 11.30m : 10m,
         });
         return d;
+    }
+
+    // ── LK.2: territorial configurable (sin literales "23"/"03") ──
+
+    [Fact]
+    public void Generar_Donacion_UsaMunicipioYDistritoDeConfig()
+    {
+        var gen = new DteGeneratorService(Options.Create(new TerritorialOptions
+        {
+            MunicipioDivision2024Default = "07",
+            DistritoDefault = "09",
+        }));
+        var d = NewDoc(TipoDteCodigos.ComprobanteDonacion);
+        d.Empresa!.Distrito = null; // sin distrito registrado → usa el default de config
+        _calc.Recalcular(d);
+
+        var json = JsonDocument.Parse(gen.Generar(d).Value!);
+        var dir = json.RootElement.GetProperty("emisor").GetProperty("direccion");
+        dir.GetProperty("municipio").GetString().Should().Be("07");
+        dir.GetProperty("distrito").GetString().Should().Be("09");
+        dir.GetProperty("municipio").GetString().Should().NotBe("23"); // ya no hay literal
+    }
+
+    [Fact]
+    public void Generar_Donacion_RespetaDistritoDelEmisor()
+    {
+        var gen = new DteGeneratorService(Options.Create(new TerritorialOptions()));
+        var d = NewDoc(TipoDteCodigos.ComprobanteDonacion);
+        d.Empresa!.Distrito = "05";
+        _calc.Recalcular(d);
+
+        var json = JsonDocument.Parse(gen.Generar(d).Value!);
+        json.RootElement.GetProperty("emisor").GetProperty("direccion").GetProperty("distrito").GetString().Should().Be("05");
     }
 
     [Fact]

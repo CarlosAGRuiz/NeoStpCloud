@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IUsuariosService, UsuariosService>();
         services.AddScoped<IRolesService, RolesService>();
         services.AddScoped<ICatalogosService, CatalogosService>();
+        services.AddScoped<NeoSTP.Application.Lookups.ILookupService, LookupService>();
         services.AddScoped<ICertificacionDteService, CertificacionDteService>();
         services.AddScoped<IDteEventoService, DteEventoService>();
         services.AddScoped<IDteEventoPdfService, NeoSTP.Infrastructure.Dte.DteEventoPdfService>();
@@ -158,6 +159,7 @@ public static class DependencyInjection
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
 
         // Sprint 5: generación de documentos DTE
+        services.Configure<NeoSTP.Application.Dte.TerritorialOptions>(configuration.GetSection(NeoSTP.Application.Dte.TerritorialOptions.SectionName));
         services.AddScoped<IDteCalculator, DteCalculator>();
         services.AddScoped<IDteGeneratorService, DteGeneratorService>();
         services.AddScoped<IDteDocumentosService, DteDocumentosService>();
