@@ -7,24 +7,22 @@
 @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 m-0">Clientes</h1>
-    <a asp-action="Create" class="btn btn-primary btn-sm">+ Nuevo cliente</a>
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar nombre, documento o NRC…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
+        </button>
+    </form>
+    <a asp-action="Create" class="btn btn-primary btn-sm">
+        <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo cliente
+    </a>
 </div>
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto">
-        <input name="search" value="@search" class="form-control form-control-sm" placeholder="Buscar nombre, documento o NRC…" />
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-outline-secondary btn-sm">Buscar</button>
-    </div>
-</form>
-
-<div class="card border-0 shadow-sm">
+<div class="card">
     <div class="table-responsive">
         <table class="table table-hover m-0 align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>Documento</th>
                     <th>Nombre</th>
@@ -38,11 +36,11 @@
             <tbody>
                 @if (Model is null || !Model.Items.Any())
                 {
-                    <tr><td colspan="7" class="text-center text-muted py-4">Sin clientes.</td></tr>
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">groups</span><p>Sin clientes registrados.</p></div></td></tr>
                 }
                 @foreach (var c in Model?.Items ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>())
                 {
-                    var badge = c.EstadoCodigo == "ACTIVO" ? "bg-success" : "bg-secondary";
+                    var badge = c.EstadoCodigo == "ACTIVO" ? "ns-pill ns-pill--on" : "ns-pill ns-pill--off";
                     var tipoBadge = c.EsContribuyente ? "bg-info" : "bg-light text-dark border";
                     <tr>
                         <td><strong>@c.TipoDocumentoCodigo</strong> @c.NumeroDocumento</td>
@@ -50,7 +48,7 @@
                         <td>@(c.Nrc ?? "—")</td>
                         <td><span class="badge @tipoBadge">@c.TipoContribuyenteCodigo</span></td>
                         <td><small class="text-muted">@c.Correo</small></td>
-                        <td><span class="badge @badge">@c.EstadoCodigo</span></td>
+                        <td><span class="@badge">@c.EstadoCodigo</span></td>
                         <td class="text-end">
                             <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Editar</a>
                             @if (c.EstadoCodigo == "ACTIVO")

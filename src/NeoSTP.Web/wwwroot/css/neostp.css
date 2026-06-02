@@ -318,6 +318,40 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
 .ns-totals-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--ns-on-primary-container); }
 .ns-totals-total { display: flex; justify-content: space-between; font-family: var(--ns-font-head); font-weight: 800; font-size: 20px; color: #fff; border-top: 1px solid rgba(255,255,255,.15); margin-top: 8px; padding-top: 12px; }
 
+/* ==========================================================================
+   Helpers de página (listas, toolbar, paginación, estados)
+   ========================================================================== */
+.ns-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.ns-toolbar form { margin: 0; }
+.ns-toolbar-search { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Paginación con marca */
+.ns-content .pagination { --bs-pagination-color: var(--ns-secondary); }
+.ns-content .pagination .page-link { color: var(--ns-secondary); border-color: var(--ns-border-subtle); border-radius: var(--ns-radius); margin: 0 2px; }
+.ns-content .pagination .page-item.active .page-link { background: var(--ns-primary); border-color: var(--ns-primary); color: #fff; }
+.ns-content .pagination .page-link:focus { box-shadow: 0 0 0 .2rem rgba(107,56,212,.18); }
+
+/* Estado vacío */
+.ns-empty { text-align: center; padding: 48px 24px; color: var(--ns-on-surface-variant); }
+.ns-empty .material-symbols-outlined { font-size: 48px; color: var(--ns-outline); opacity: .6; }
+.ns-empty p { margin: 12px 0 0; font-size: 14px; }
+
+/* Encabezado de sección dentro del contenido */
+.ns-section-title { font-family: var(--ns-font-head); font-weight: 700; color: var(--ns-primary); font-size: 18px; margin: 0 0 12px; }
+
+/* Tarjeta de detalle: lista clave/valor */
+.ns-kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 16px; font-size: 13.5px; }
+.ns-kv dt { color: var(--ns-on-surface-variant); font-weight: 500; }
+.ns-kv dd { margin: 0; font-weight: 500; }
+
+/* Pill genérico de estado activo/inactivo */
+.ns-pill { display: inline-block; padding: 3px 10px; border-radius: var(--ns-radius-pill); font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.ns-pill--on { background: rgba(16,185,129,.12); color: var(--ns-processed); }
+.ns-pill--off { background: rgba(100,116,139,.14); color: var(--ns-draft); }
+
 /* ---------- Login (pantalla sin shell) ---------- */
 .ns-auth {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;

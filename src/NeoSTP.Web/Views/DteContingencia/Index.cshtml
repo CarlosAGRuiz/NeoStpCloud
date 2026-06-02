@@ -5,9 +5,11 @@
     var resumen = ViewBag.Resumen as ContingenciaResumenDto;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>⚡ Cola de Contingencia</h2>
-    <a asp-action="Lotes" class="btn btn-outline-primary btn-sm">📦 Ver Lotes</a>
+<div class="ns-toolbar">
+    <p class="text-muted small m-0">Documentos en contingencia y su reenvío por lotes (MOMENTO 3).</p>
+    <a asp-action="Lotes" class="btn btn-outline-primary btn-sm">
+        <span class="material-symbols-outlined align-middle" style="font-size:18px">inventory_2</span> Ver Lotes
+    </a>
 </div>
 
 @if (TempData["Success"] is string ok)

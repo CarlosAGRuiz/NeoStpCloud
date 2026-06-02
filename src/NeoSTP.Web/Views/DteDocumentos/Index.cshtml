@@ -8,10 +8,43 @@
 @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 m-0">Documentos electrónicos</h1>
+@{
+    string EstadoNsBadge(string e) => e switch
+    {
+        "PROCESADO" => "ns-badge ns-badge--processed",
+        "RECHAZADO" or "ERROR" => "ns-badge ns-badge--rejected",
+        "CONTINGENCIA" => "ns-badge ns-badge--contingency",
+        _ => "ns-badge ns-badge--draft",
+    };
+}
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="Search" value="@q.Search" class="form-control form-control-sm" style="min-width:220px" placeholder="Nº control, código, receptor…" />
+        <select name="TipoDteCodigo" class="form-select form-select-sm" style="width:auto">
+            <option value="">Todos los tipos</option>
+            <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
+            <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
+            <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
+            <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
+            <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
+        </select>
+        <select name="EstadoCodigo" class="form-select form-select-sm" style="width:auto">
+            <option value="">Todos los estados</option>
+            @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "INVALIDADO", "ERROR" })
+            {
+                <option value="@s" selected="@(q.EstadoCodigo == s)">@s</option>
+            }
+        </select>
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span> Filtrar
+        </button>
+        <a asp-action="Index" class="btn btn-link btn-sm">Limpiar</a>
+    </form>
     <div class="dropdown">
-        <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">+ Nuevo DTE</button>
+        <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo DTE
+        </button>
         <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="01">Factura (01)</a></li>
             <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="03">Comprobante Crédito Fiscal (03)</a></li>
@@ -22,39 +55,10 @@
     </div>
 </div>
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto">
-        <input name="Search" value="@q.Search" class="form-control form-control-sm" placeholder="Nº control, código, receptor…" />
-    </div>
-    <div class="col-auto">
-        <select name="TipoDteCodigo" class="form-select form-select-sm">
-            <option value="">— Todos los tipos —</option>
-            <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
-            <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
-            <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
-            <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
-            <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
-        </select>
-    </div>
-    <div class="col-auto">
-        <select name="EstadoCodigo" class="form-select form-select-sm">
-            <option value="">— Todos los estados —</option>
-            @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "INVALIDADO", "ERROR" })
-            {
-                <option value="@s" selected="@(q.EstadoCodigo == s)">@s</option>
-            }
-        </select>
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrar</button>
-        <a asp-action="Index" class="btn btn-link btn-sm">Limpiar</a>
-    </div>
-</form>
-
-<div class="card border-0 shadow-sm">
+<div class="card">
     <div class="table-responsive">
         <table class="table table-hover m-0 align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>Tipo</th>
                     <th>Nº Control</th>
@@ -69,29 +73,17 @@
             <tbody>
                 @if (Model is null || !Model.Items.Any())
                 {
-                    <tr><td colspan="8" class="text-center text-muted py-4">Sin documentos.</td></tr>
+                    <tr><td colspan="8"><div class="ns-empty"><span class="material-symbols-outlined">receipt_long</span><p>Sin documentos electrónicos.</p></div></td></tr>
                 }
                 @foreach (var d in Model?.Items ?? Array.Empty<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>())
                 {
-                    var estadoBadge = d.EstadoCodigo switch
-                    {
-                        "BORRADOR" => "bg-secondary",
-                        "GENERADO" => "bg-info",
-                        "VALIDADO" => "bg-primary",
-                        "FIRMADO" => "bg-warning text-dark",
-                        "ENVIADO" => "bg-warning text-dark",
-                        "PROCESADO" => "bg-success",
-                        "RECHAZADO" or "ERROR" => "bg-danger",
-                        "INVALIDADO" => "bg-dark",
-                        _ => "bg-light text-dark border"
-                    };
                     <tr>
-                        <td><span class="badge bg-light text-dark border">@d.TipoDteCodigo</span></td>
-                        <td><small class="font-monospace">@d.NumeroControl</small></td>
+                        <td><span class="ns-badge ns-badge--draft">@d.TipoDteCodigo</span></td>
+                        <td><small class="ns-mono fw-bold">@d.NumeroControl</small></td>
                         <td>@d.FechaEmision.ToString("yyyy-MM-dd")</td>
-                        <td>@(d.ReceptorNombre ?? "—")<br /><small class="text-muted">@d.ReceptorNumeroDocumento</small></td>
-                        <td class="text-end"><strong>$ @d.TotalPagar.ToString("N2")</strong></td>
-                        <td><span class="badge @estadoBadge">@d.EstadoCodigo</span></td>
+                        <td>@(d.ReceptorNombre ?? "—")<br /><small class="text-muted ns-mono">@d.ReceptorNumeroDocumento</small></td>
+                        <td class="text-end"><strong class="ns-mono">$ @d.TotalPagar.ToString("N2")</strong></td>
+                        <td><span class="@EstadoNsBadge(d.EstadoCodigo)">@d.EstadoCodigo</span></td>
                         <td><small>@d.AmbienteCodigo</small></td>
                         <td class="text-end">
                             <a asp-action="Details" asp-route-id="@d.Id" class="btn btn-sm btn-outline-primary">Ver</a>

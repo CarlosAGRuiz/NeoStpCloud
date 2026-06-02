@@ -7,24 +7,22 @@
 @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 m-0">Usuarios</h1>
-    <a asp-action="Create" class="btn btn-primary btn-sm">+ Nuevo usuario</a>
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar usuario, email o nombre…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
+        </button>
+    </form>
+    <a asp-action="Create" class="btn btn-primary btn-sm">
+        <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo usuario
+    </a>
 </div>
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto">
-        <input name="search" value="@search" class="form-control form-control-sm" placeholder="Buscar usuario, email o nombre…" />
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-outline-secondary btn-sm">Buscar</button>
-    </div>
-</form>
-
-<div class="card border-0 shadow-sm">
+<div class="card">
     <div class="table-responsive">
         <table class="table table-hover m-0 align-middle">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>Usuario</th>
                     <th>Nombre</th>
@@ -39,7 +37,7 @@
             <tbody>
                 @if (Model is null || !Model.Items.Any())
                 {
-                    <tr><td colspan="8" class="text-center text-muted py-4">Sin usuarios.</td></tr>
+                    <tr><td colspan="8"><div class="ns-empty"><span class="material-symbols-outlined">group</span><p>Sin usuarios registrados.</p></div></td></tr>
                 }
                 @foreach (var u in Model?.Items ?? Array.Empty<NeoSTP.Application.Usuarios.Dtos.UsuarioDto>())
                 {

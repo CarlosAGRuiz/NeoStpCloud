@@ -1,7 +1,7 @@
 @model IReadOnlyList<NeoSTP.Application.Licenciamiento.Dtos.PlanDto>
 @{ ViewData["Title"] = "Planes"; }
 
-<h1 class="h4 mb-3">Planes disponibles</h1>
+<p class="text-muted mb-3">Catálogo de planes comerciales y los módulos que incluye cada uno.</p>
 
 <div class="row g-3">
     @foreach (var p in Model ?? Array.Empty<NeoSTP.Application.Licenciamiento.Dtos.PlanDto>())
