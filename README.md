@@ -843,6 +843,10 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | 19     | Billing self-service (Stripe / MercadoPago)   | ✅     |
 | 20     | Hardening pre-producción                      | ✅     |
 | 21     | UI/UX AppShell + design system                | ✅     |
+| 21.5   | Pulido UI de todas las pantallas              | ✅     |
+| —      | Pagos LATAM (Wompi · PayPal · Transferencia)  | ✅     |
+| —      | Lookups + limpieza de hardcodeos territoriales| ✅     |
+| —      | Carga masiva (clientes y productos Excel/CSV) | ✅     |
 | 22     | NeoProfit básico                              | 🔜     |
 | 23     | NeoScanAI integrado                           | 🔜     |
 | 24     | NeoConnect API comercial                      | 🔜     |
@@ -855,7 +859,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 222 tests unit + 2 integration
+dotnet test NeoSTP.slnx                          # corre los 259 tests unit + 2 integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
