@@ -143,6 +143,113 @@ public class ClientesService : IClientesService
         return Result.Ok();
     }
 
+    public async Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default)
+    {
+        IReadOnlyList<TabularRow> rows;
+        try
+        {
+            rows = TabularParser.Parse(request.Content, request.Format);
+        }
+        catch (Exception ex)
+        {
+            return Result<BulkImportResult>.Fail($"No se pudo leer el archivo: {ex.Message}", "IMPORT_PARSE_ERROR");
+        }
+
+        var result = new BulkImportResult { DryRun = request.DryRun, Total = rows.Count };
+        var existentes = await _db.Clientes
+            .Where(c => c.EmpresaId == empresaId)
+            .ToDictionaryAsync(c => $"{c.TipoDocumentoCodigo}|{c.NumeroDocumento}", c => c, ct);
+
+        foreach (var row in rows)
+        {
+            var req = new CreateClienteRequest
+            {
+                TipoDocumentoCodigo = row.Get("tipodocumento") ?? row.Get("tipodocumentocodigo") ?? "DUI",
+                NumeroDocumento = row.Get("numerodocumento") ?? string.Empty,
+                Nrc = row.Get("nrc"),
+                Nombre = row.Get("nombre") ?? string.Empty,
+                NombreComercial = row.Get("nombrecomercial"),
+                TipoContribuyenteCodigo = row.Get("tipocontribuyente") ?? row.Get("tipocontribuyentecodigo") ?? "CONSUMIDOR_FINAL",
+                CodigoActividad = row.Get("codigoactividad"),
+                ActividadEconomica = row.Get("actividadeconomica"),
+                DepartamentoCodigo = row.Get("departamento") ?? row.Get("departamentocodigo"),
+                MunicipioCodigo = row.Get("municipio") ?? row.Get("municipiocodigo"),
+                Direccion = row.Get("direccion"),
+                Correo = row.Get("correo"),
+                Telefono = row.Get("telefono"),
+            };
+
+            var errors = ClienteValidator.Validate(req);
+            if (errors.Count > 0)
+            {
+                result.Errors.Add(new BulkImportError { Row = row.RowNumber, Key = req.NumeroDocumento, Message = string.Join("; ", errors) });
+                continue;
+            }
+
+            var tipoDoc = req.TipoDocumentoCodigo.Trim().ToUpperInvariant();
+            var numero = tipoDoc == "NIT" ? ClienteValidator.NormalizeNit(req.NumeroDocumento) : req.NumeroDocumento.Trim();
+            var key = $"{tipoDoc}|{numero}";
+
+            if (existentes.TryGetValue(key, out var existing))
+            {
+                if (!request.DryRun) ApplyUpdate(existing, req, actor);
+                result.Updated++;
+            }
+            else
+            {
+                var nuevo = BuildCliente(empresaId, req, tipoDoc, numero, actor);
+                if (!request.DryRun) _db.Clientes.Add(nuevo);
+                existentes[key] = nuevo; // evita duplicados dentro del mismo archivo
+                result.Inserted++;
+            }
+        }
+
+        if (!request.DryRun && result.ErrorCount < result.Total)
+        {
+            await _db.SaveChangesAsync(ct);
+            await Audit(empresaId, actor, "IMPORT", "OK", $"Carga masiva clientes: {result.Inserted} nuevos, {result.Updated} actualizados, {result.ErrorCount} errores", 0);
+        }
+
+        return Result<BulkImportResult>.Ok(result);
+    }
+
+    private static Cliente BuildCliente(int empresaId, CreateClienteRequest req, string tipoDoc, string numero, string? actor) => new()
+    {
+        EmpresaId = empresaId,
+        TipoDocumentoCodigo = tipoDoc,
+        NumeroDocumento = numero,
+        Nrc = string.IsNullOrWhiteSpace(req.Nrc) ? null : req.Nrc.Trim(),
+        Nombre = req.Nombre.Trim(),
+        NombreComercial = req.NombreComercial?.Trim(),
+        TipoContribuyenteCodigo = req.TipoContribuyenteCodigo.Trim().ToUpperInvariant(),
+        CodigoActividad = req.CodigoActividad?.Trim(),
+        ActividadEconomica = req.ActividadEconomica?.Trim(),
+        DepartamentoCodigo = req.DepartamentoCodigo,
+        MunicipioCodigo = req.MunicipioCodigo,
+        Direccion = req.Direccion,
+        Correo = req.Correo?.Trim(),
+        Telefono = req.Telefono,
+        EstadoCodigo = EstadoCodes.Activo,
+        CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+    };
+
+    private static void ApplyUpdate(Cliente c, CreateClienteRequest req, string? actor)
+    {
+        c.Nombre = req.Nombre.Trim();
+        c.NombreComercial = req.NombreComercial?.Trim();
+        c.TipoContribuyenteCodigo = req.TipoContribuyenteCodigo.Trim().ToUpperInvariant();
+        c.Nrc = string.IsNullOrWhiteSpace(req.Nrc) ? null : req.Nrc.Trim();
+        c.CodigoActividad = req.CodigoActividad?.Trim();
+        c.ActividadEconomica = req.ActividadEconomica?.Trim();
+        c.DepartamentoCodigo = req.DepartamentoCodigo;
+        c.MunicipioCodigo = req.MunicipioCodigo;
+        c.Direccion = req.Direccion;
+        c.Correo = req.Correo?.Trim();
+        c.Telefono = req.Telefono;
+        c.UpdatedAt = DateTime.UtcNow;
+        c.UpdatedBy = actor;
+    }
+
     private static ClienteDto MapToDto(Cliente c) => new()
     {
         Id = c.Id, EmpresaId = c.EmpresaId,

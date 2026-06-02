@@ -2,14 +2,16 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Lookups + limpieza de hardcodeos territoriales** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 250 unit + 2 integración pasando
+> **Versión actual: Carga masiva (clientes y productos)** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 259 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
 > DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
 >
 > 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
+>
+> 📥 **Carga masiva (clientes y productos):** `TabularParser` genérico (CSV/XLSX) + `BulkImportRequest/Result` + `IClientesService.ImportAsync` (upsert por tipo+número de documento) e `IProductosService.ImportAsync` (upsert por código interno). Validación por fila (reusa los validadores), reporte de errores con número de fila, **dry-run** (previsualización sin guardar) y dedup intra-archivo. UI `/Clientes/Importar` y `/Productos/Importar` con subida, simulación y reporte; botón "Carga masiva" en cada listado. Sin migración.
 >
 > 🔎 **Lookups + limpieza de hardcodeos:** `ILookupService` unifica el acceso a catálogos y datos maestros para selects/cascadas/autocompletes (con caché por instancia): catálogos por código/padre, cascada territorial (departamentos→municipios→distritos), `ResolverMunicipio2024Async` (distrito→municipio división 2024 vía `ParentCodigo`), y búsqueda de clientes/productos/sucursales. API `GET /api/lookups/{catalogo|departamentos|municipios|distritos|clientes|productos|sucursales}`. Se eliminaron los literales `"23"`/`"03"` del `DteGeneratorService`: ahora salen de `TerritorialOptions` (sección `Dte:Territorial`) + distrito del emisor/documento, dejando lista la derivación por catálogo. Sin migración.
 >

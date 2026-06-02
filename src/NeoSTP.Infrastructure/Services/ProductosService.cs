@@ -131,6 +131,111 @@ public class ProductosService : IProductosService
         return Result.Ok();
     }
 
+    public async Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default)
+    {
+        IReadOnlyList<TabularRow> rows;
+        try { rows = TabularParser.Parse(request.Content, request.Format); }
+        catch (Exception ex) { return Result<BulkImportResult>.Fail($"No se pudo leer el archivo: {ex.Message}", "IMPORT_PARSE_ERROR"); }
+
+        var result = new BulkImportResult { DryRun = request.DryRun, Total = rows.Count };
+        var existentes = await _db.Productos
+            .Where(p => p.EmpresaId == empresaId)
+            .ToDictionaryAsync(p => p.CodigoInterno, p => p, ct);
+
+        foreach (var row in rows)
+        {
+            decimal precio = ParseDecimal(row.Get("precio") ?? row.Get("preciounitario"));
+            var costoRaw = row.Get("costo") ?? row.Get("costounitario");
+            decimal? costo = costoRaw is null ? null : ParseDecimal(costoRaw);
+
+            var req = new CreateProductoRequest
+            {
+                CodigoInterno = row.Get("codigo") ?? row.Get("codigointerno") ?? string.Empty,
+                CodigoBarra = row.Get("codigobarra"),
+                Nombre = row.Get("nombre") ?? string.Empty,
+                Descripcion = row.Get("descripcion"),
+                TipoItem = row.Get("tipo") ?? row.Get("tipoitem") ?? "BIEN",
+                UnidadMedidaCodigo = row.Get("unidadmedida") ?? row.Get("unidadmedidacodigo") ?? "59",
+                PrecioUnitario = precio,
+                CostoUnitario = costo,
+                AplicaIva = ParseBool(row.Get("aplicaiva")) ?? true,
+                TributoCodigo = row.Get("tributo") ?? row.Get("tributocodigo"),
+            };
+
+            var errors = Validate(req);
+            if (errors.Count > 0)
+            {
+                result.Errors.Add(new BulkImportError { Row = row.RowNumber, Key = req.CodigoInterno, Message = string.Join("; ", errors) });
+                continue;
+            }
+
+            var codigo = req.CodigoInterno.Trim().ToUpperInvariant();
+            if (existentes.TryGetValue(codigo, out var existing))
+            {
+                if (!request.DryRun) ApplyUpdate(existing, req, actor);
+                result.Updated++;
+            }
+            else
+            {
+                var nuevo = BuildProducto(empresaId, req, codigo, actor);
+                if (!request.DryRun) _db.Productos.Add(nuevo);
+                existentes[codigo] = nuevo;
+                result.Inserted++;
+            }
+        }
+
+        if (!request.DryRun && result.ErrorCount < result.Total)
+        {
+            await _db.SaveChangesAsync(ct);
+            await Audit(empresaId, actor, "IMPORT", "OK", $"Carga masiva productos: {result.Inserted} nuevos, {result.Updated} actualizados, {result.ErrorCount} errores", 0);
+        }
+
+        return Result<BulkImportResult>.Ok(result);
+    }
+
+    private static Producto BuildProducto(int empresaId, CreateProductoRequest req, string codigo, string? actor) => new()
+    {
+        EmpresaId = empresaId,
+        CodigoInterno = codigo,
+        CodigoBarra = string.IsNullOrWhiteSpace(req.CodigoBarra) ? null : req.CodigoBarra.Trim(),
+        Nombre = req.Nombre.Trim(),
+        Descripcion = req.Descripcion,
+        TipoItem = req.TipoItem.Trim().ToUpperInvariant(),
+        UnidadMedidaCodigo = req.UnidadMedidaCodigo.Trim().ToUpperInvariant(),
+        PrecioUnitario = req.PrecioUnitario,
+        CostoUnitario = req.CostoUnitario,
+        AplicaIva = req.AplicaIva,
+        TributoCodigo = req.TributoCodigo,
+        EstadoCodigo = EstadoCodes.Activo,
+        CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+    };
+
+    private static void ApplyUpdate(Producto p, CreateProductoRequest req, string? actor)
+    {
+        p.CodigoBarra = string.IsNullOrWhiteSpace(req.CodigoBarra) ? null : req.CodigoBarra.Trim();
+        p.Nombre = req.Nombre.Trim();
+        p.Descripcion = req.Descripcion;
+        p.TipoItem = req.TipoItem.Trim().ToUpperInvariant();
+        p.UnidadMedidaCodigo = req.UnidadMedidaCodigo.Trim().ToUpperInvariant();
+        p.PrecioUnitario = req.PrecioUnitario;
+        p.CostoUnitario = req.CostoUnitario;
+        p.AplicaIva = req.AplicaIva;
+        p.TributoCodigo = req.TributoCodigo;
+        p.UpdatedAt = DateTime.UtcNow;
+        p.UpdatedBy = actor;
+    }
+
+    private static decimal ParseDecimal(string? s)
+        => decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 0m;
+
+    private static bool? ParseBool(string? s)
+        => string.IsNullOrWhiteSpace(s) ? null : s.Trim().ToLowerInvariant() switch
+        {
+            "true" or "1" or "si" or "sí" or "yes" or "y" => true,
+            "false" or "0" or "no" or "n" => false,
+            _ => null,
+        };
+
     private static List<string> Validate(CreateProductoRequest r)
     {
         var errors = new List<string>();

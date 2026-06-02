@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Lookups + hardcodeos (post-Pagos LATAM) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 250 unit + 2 integración
+> **Versión:** Carga masiva (post-Lookups) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 259 unit + 2 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---

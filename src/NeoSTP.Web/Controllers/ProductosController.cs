@@ -30,6 +30,42 @@ public class ProductosController : Controller
     }
 
     [HttpGet]
+    public IActionResult Importar()
+    {
+        if (!Has("Productos.Crear")) return Forbid();
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> Importar(IFormFile? archivo, bool dryRun, CancellationToken ct)
+    {
+        if (!Has("Productos.Crear")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        if (archivo is null || archivo.Length == 0)
+        {
+            TempData["Error"] = "Selecciona un archivo CSV o Excel.";
+            return RedirectToAction(nameof(Importar));
+        }
+
+        var fmt = archivo.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+            ? BulkFileFormat.Csv : BulkFileFormat.Xlsx;
+        using var ms = new MemoryStream();
+        await archivo.CopyToAsync(ms, ct);
+        ms.Position = 0;
+
+        var result = await _productos.ImportAsync(eid, new BulkImportRequest { Format = fmt, Content = ms, DryRun = dryRun }, _currentUser.Username, ct);
+        if (!result.IsSuccess)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Importar));
+        }
+        ViewBag.Resultado = result.Value;
+        return View();
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] int page = 1, CancellationToken ct = default)
     {
         if (!Has("Productos.Ver")) return Forbid();

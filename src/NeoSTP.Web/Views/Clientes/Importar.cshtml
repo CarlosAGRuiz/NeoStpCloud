@@ -1,0 +1,83 @@
+@{
+    ViewData["Title"] = "Carga masiva de clientes";
+    var r = ViewBag.Resultado as NeoSTP.Application.Common.BulkImportResult;
+}
+
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <p class="text-muted small m-0">Sube un archivo <strong>CSV</strong> o <strong>Excel</strong>. Se actualizan por tipo + número de documento.</p>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver a clientes</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">Subir archivo</div>
+            <div class="card-body">
+                <form asp-action="Importar" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Archivo (.csv / .xlsx)</label>
+                        <input type="file" name="archivo" class="form-control" accept=".csv,.xlsx" required />
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="dryRun" value="true" class="form-check-input" id="dryRun" checked />
+                        <label class="form-check-label" for="dryRun">Simular primero (no guarda, solo previsualiza)</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px">upload</span> Procesar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">Columnas esperadas (encabezado en la primera fila)</div>
+            <div class="card-body">
+                <p class="ns-mono small mb-2">TipoDocumento, NumeroDocumento, Nrc, Nombre, NombreComercial, TipoContribuyente, CodigoActividad, ActividadEconomica, Departamento, Municipio, Direccion, Correo, Telefono</p>
+                <ul class="small text-muted mb-0">
+                    <li><strong>Obligatorias:</strong> TipoDocumento (DUI/NIT/…), NumeroDocumento, Nombre.</li>
+                    <li>Para contribuyentes: incluir <strong>Nrc</strong> y <strong>CodigoActividad</strong>.</li>
+                    <li>Las filas con el mismo documento <strong>actualizan</strong> el cliente existente.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (r is not null)
+{
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Resultado @(r.DryRun ? "(simulación)" : "(aplicado)")</span>
+            @if (r.DryRun) { <span class="ns-pill ns-pill--off">Simulación — no se guardó</span> }
+            else { <span class="ns-pill ns-pill--on">Guardado</span> }
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col"><div class="ns-metric-label">Total</div><div class="ns-metric-value" style="font-size:28px">@r.Total</div></div>
+                <div class="col"><div class="ns-metric-label">Nuevos</div><div class="ns-metric-value" style="font-size:28px;color:var(--ns-processed)">@r.Inserted</div></div>
+                <div class="col"><div class="ns-metric-label">Actualizados</div><div class="ns-metric-value" style="font-size:28px;color:var(--ns-secondary)">@r.Updated</div></div>
+                <div class="col"><div class="ns-metric-label">Errores</div><div class="ns-metric-value" style="font-size:28px;color:@(r.ErrorCount>0?"var(--ns-rejected)":"var(--ns-draft)")">@r.ErrorCount</div></div>
+            </div>
+            @if (r.Errors.Count > 0)
+            {
+                <table class="table table-sm">
+                    <thead><tr><th>Fila</th><th>Documento</th><th>Error</th></tr></thead>
+                    <tbody>
+                    @foreach (var e in r.Errors)
+                    {
+                        <tr><td class="ns-mono">@e.Row</td><td class="ns-mono">@e.Key</td><td class="text-danger small">@e.Message</td></tr>
+                    }
+                    </tbody>
+                </table>
+            }
+            @if (r.DryRun && r.ErrorCount == 0)
+            {
+                <p class="text-muted">Todo correcto. Desmarca "Simular" y vuelve a subir el archivo para guardar.</p>
+            }
+        </div>
+    </div>
+}

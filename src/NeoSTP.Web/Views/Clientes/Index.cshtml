@@ -14,9 +14,14 @@
             <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
         </button>
     </form>
-    <a asp-action="Create" class="btn btn-primary btn-sm">
-        <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo cliente
-    </a>
+    <div class="d-flex gap-2">
+        <a asp-action="Importar" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Carga masiva
+        </a>
+        <a asp-action="Create" class="btn btn-primary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo cliente
+        </a>
+    </div>
 </div>
 
 <div class="card">
