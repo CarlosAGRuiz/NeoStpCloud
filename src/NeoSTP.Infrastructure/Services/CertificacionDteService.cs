@@ -78,7 +78,9 @@ public class CertificacionDteService : ICertificacionDteService
                 EstadoActual = p?.EstadoCodigo ?? CertificacionEstadoCodigos.Pendiente,
                 PruebaId = p?.Id,
                 DteDocumentoId = p?.DteDocumentoId,
+                EventoId = p?.EventoId,
                 NumeroControl = p?.DteDocumento?.NumeroControl,
+                EventoCodigoGeneracion = p?.Evento?.CodigoGeneracion,
                 SelloRecibido = p?.SelloRecibido,
                 IntentoNumero = p?.IntentoNumero ?? 0,
                 UltimoIntentoAt = p?.CreatedAt,
@@ -333,7 +335,7 @@ public class CertificacionDteService : ICertificacionDteService
             $"Evento #{evento.Id} ({evento.TipoEventoCodigo}) → escenario {escenario.Codigo}; estado {prueba.EstadoCodigo}",
             "CertificacionPrueba", prueba.Id);
 
-        return Result<CertificacionPruebaDto>.Ok(MapPrueba(prueba, escenario.Codigo, escenario.Nombre, evento.CodigoGeneracion));
+        return Result<CertificacionPruebaDto>.Ok(MapPrueba(prueba, escenario.Codigo, escenario.Nombre, null, evento.CodigoGeneracion));
     }
 
     public async Task<Result<CertificacionPruebaDto>> ReintentarAsync(int documentoId, int empresaId, string? actor, CancellationToken ct = default)
@@ -451,6 +453,7 @@ public class CertificacionDteService : ICertificacionDteService
 
         var pruebas = await _db.CertificacionPruebas
             .Include(p => p.DteDocumento)
+            .Include(p => p.Evento)
             .Where(p => p.EmpresaId == empresaId && escenarioIds.Contains(p.EscenarioId))
             .AsNoTracking()
             .ToListAsync(ct);
@@ -467,7 +470,7 @@ public class CertificacionDteService : ICertificacionDteService
     private static bool IsDteTipo(string codigo)
         => codigo is "01" or "03" or "04" or "05" or "06" or "07" or "08" or "09" or "11" or "14" or "15";
 
-    private static CertificacionPruebaDto MapPrueba(CertificacionPrueba p, string escenarioCodigo, string escenarioNombre, string? numeroControl) => new()
+    private static CertificacionPruebaDto MapPrueba(CertificacionPrueba p, string escenarioCodigo, string escenarioNombre, string? numeroControl, string? eventoCodigoGeneracion = null) => new()
     {
         Id = p.Id,
         EmpresaId = p.EmpresaId,
@@ -475,7 +478,9 @@ public class CertificacionDteService : ICertificacionDteService
         EscenarioCodigo = escenarioCodigo,
         EscenarioNombre = escenarioNombre,
         DteDocumentoId = p.DteDocumentoId,
-        NumeroControl = numeroControl,
+        EventoId = p.EventoId,
+        NumeroControl = numeroControl ?? eventoCodigoGeneracion,
+        EventoCodigoGeneracion = eventoCodigoGeneracion,
         EstadoCodigo = p.EstadoCodigo,
         SelloRecibido = p.SelloRecibido,
         IntentoNumero = p.IntentoNumero,

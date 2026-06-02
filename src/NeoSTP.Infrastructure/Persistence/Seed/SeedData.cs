@@ -469,7 +469,13 @@ internal static partial class SeedData
             Perm(340, "Reportes.Ver",     "NEOBI",     "Ver reportes"),
             Perm(345, "ScanAI.Ver",       "NEOSCANAI", "Ver capturas de ScanAI"),
             Perm(346, "ScanAI.Confirmar", "NEOSCANAI", "Confirmar capturas de ScanAI"),
-            Perm(350, "API.Configurar",   "NEOCONNECT","Configurar credenciales y endpoints de integración"),
+            // NeoConnect API (Sprint 24)
+            Perm(350, "API.Configurar",              "NEOCONNECT", "Configurar credenciales y endpoints de integración"),
+            Perm(351, "Connect.ApiKeys.Ver",         "NEOCONNECT", "Consultar API Keys de integración"),
+            Perm(352, "Connect.ApiKeys.Administrar", "NEOCONNECT", "Crear, revocar y gestionar API Keys"),
+            Perm(353, "Connect.Webhooks.Ver",        "NEOCONNECT", "Consultar webhooks configurados"),
+            Perm(354, "Connect.Webhooks.Administrar","NEOCONNECT", "Crear, editar y eliminar webhooks"),
+            Perm(355, "Connect.Logs.Ver",            "NEOCONNECT", "Ver logs de uso y entregas de webhooks"),
 
             // SuperAdmin
             Perm(360, "SuperAdmin.Empresas.Administrar", "ADMIN", "Administrar empresas globalmente"),

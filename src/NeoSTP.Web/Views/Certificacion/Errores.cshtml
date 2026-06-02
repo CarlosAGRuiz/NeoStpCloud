@@ -1,79 +1,116 @@
 @model IReadOnlyList<NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionErrorDto>
 @{
     var filtro = ViewBag.Filtro as string;
-    ViewData["Title"] = "Errores de certificación";
+    ViewData["Title"] = "Errores de certificacion";
 }
 
 <nav aria-label="breadcrumb" class="mb-2">
     <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Certificación</a></li>
+        <li class="breadcrumb-item"><a asp-action="Index">Certificacion</a></li>
         <li class="breadcrumb-item active" aria-current="page">Errores</li>
     </ol>
 </nav>
 
-<h2>Errores de certificación</h2>
-<p class="text-muted">Snapshots de respuestas RECHAZADO/ERROR de Hacienda durante pruebas (últimos 500).</p>
+<section class="mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h1 class="mb-1">Errores de certificacion</h1>
+            <p class="text-muted mb-0">Respuestas rechazadas o fallidas de Hacienda vinculadas a pruebas reales.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-primary btn-sm">Volver al resumen</a>
+    </div>
+</section>
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-md-3">
-        <input type="text" name="codigoMh" value="@filtro" class="form-control form-control-sm" placeholder="Filtrar por código MH (095, 096, 802…)" />
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
-        @if (!string.IsNullOrEmpty(filtro))
-        {
-            <a asp-action="Errores" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
-        }
-    </div>
-    <div class="col-auto ms-auto small text-muted align-self-center">
-        @Model.Count error(es)
+<form method="get" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small text-muted">Codigo MH</label>
+                <input type="text" name="codigoMh" value="@filtro" class="form-control form-control-sm" placeholder="095, 096, 802..." />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+                @if (!string.IsNullOrEmpty(filtro))
+                {
+                    <a asp-action="Errores" class="btn btn-outline-secondary btn-sm ms-1">Limpiar</a>
+                }
+            </div>
+            <div class="col-md text-md-end small text-muted">
+                @Model.Count error(es) encontrados
+            </div>
+        </div>
     </div>
 </form>
 
-<div class="table-responsive">
-    <table class="table table-sm">
-        <thead class="table-light">
-            <tr>
-                <th style="width:14%">Fecha</th>
-                <th style="width:10%">Código MH</th>
-                <th>Descripción</th>
-                <th style="width:15%">Escenario</th>
-                <th style="width:18%">DTE</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var e in Model)
-        {
-            <tr>
-                <td><small>@e.OcurrioAt.ToString("dd/MM/yyyy HH:mm")</small></td>
-                <td><span class="badge bg-danger">@e.CodigoMh</span></td>
-                <td>
-                    @e.Descripcion
-                    @if (!string.IsNullOrEmpty(e.RespuestaMhJson))
-                    {
-                        <details class="mt-1">
-                            <summary class="small text-muted">Respuesta MH cruda</summary>
-                            <pre class="small bg-light p-2 mt-1 mb-0" style="max-height: 12em; overflow:auto;">@e.RespuestaMhJson</pre>
-                        </details>
-                    }
-                </td>
-                <td><code class="small">@(e.EscenarioCodigo ?? "—")</code></td>
-                <td>
-                    @if (!string.IsNullOrEmpty(e.NumeroControl))
-                    {
-                        <code class="small">@e.NumeroControl</code>
-                    }
-                    else
-                    {
-                        <small class="text-muted">—</small>
-                    }
-                </td>
-            </tr>
-        }
-        @if (Model.Count == 0)
-        {
-            <tr><td colspan="5" class="text-center text-muted py-4">Sin errores registrados.</td></tr>
-        }
-        </tbody>
-    </table>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width:150px">Fecha</th>
+                    <th style="width:110px">Codigo MH</th>
+                    <th>Diagnostico</th>
+                    <th style="width:160px">Escenario</th>
+                    <th style="width:260px">DTE</th>
+                    <th style="width:120px"></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var e in Model)
+            {
+                <tr>
+                    <td><small>@e.OcurrioAt.ToString("dd/MM/yyyy HH:mm")</small></td>
+                    <td><span class="ns-badge ns-badge--rejected">@e.CodigoMh</span></td>
+                    <td>
+                        <div>@e.Descripcion</div>
+                        <div class="text-muted small mt-1">
+                            Revisa receptor, NRC, establecimiento, version de esquema o autorizacion de cuenta segun el codigo devuelto por Hacienda.
+                        </div>
+                        @if (!string.IsNullOrEmpty(e.RespuestaMhJson))
+                        {
+                            <details class="mt-2">
+                                <summary class="small text-muted">Respuesta MH cruda</summary>
+                                <pre class="small bg-light p-2 mt-1 mb-0" style="max-height:14em; overflow:auto;">@e.RespuestaMhJson</pre>
+                            </details>
+                        }
+                    </td>
+                    <td><code class="small">@(!string.IsNullOrWhiteSpace(e.EscenarioCodigo) ? e.EscenarioCodigo : "-")</code></td>
+                    <td>
+                        @if (e.DteDocumentoId.HasValue)
+                        {
+                            <a asp-controller="DteDocumentos" asp-action="Details" asp-route-id="@e.DteDocumentoId" class="ns-mono small fw-semibold">
+                                @e.NumeroControl
+                            </a>
+                        }
+                        else if (!string.IsNullOrEmpty(e.NumeroControl))
+                        {
+                            <code class="small">@e.NumeroControl</code>
+                        }
+                        else
+                        {
+                            <small class="text-muted">Sin DTE asociado</small>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (e.DteDocumentoId.HasValue)
+                        {
+                            <a asp-controller="DteDocumentos" asp-action="Json" asp-route-id="@e.DteDocumentoId" class="btn btn-outline-secondary btn-sm">JSON</a>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr>
+                    <td colspan="6">
+                        <div class="ns-empty">
+                            <span class="material-symbols-outlined">check_circle</span>
+                            <p>Sin errores registrados.</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
 </div>

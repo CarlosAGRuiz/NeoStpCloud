@@ -38,7 +38,8 @@ public abstract class ApiControllerBase : ControllerBase
             or "CONFIG_NOT_FOUND" or "DTE_NOT_FOUND"
             or "CERT_MATRIZ_NOT_FOUND" or "CERT_ESCENARIO_NOT_FOUND" or "CERT_PRUEBA_NOT_FOUND"
             or "EVENTO_NOT_FOUND" or "LOTE_NOT_FOUND"
-            or "QUOTA_NOT_FOUND" or "IP_NOT_FOUND" => NotFound(payload),
+            or "QUOTA_NOT_FOUND" or "IP_NOT_FOUND"
+            or "APIKEY_NOT_FOUND" or "WEBHOOK_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" => Conflict(payload),
         "IP_DUPLICATE" => Conflict(payload),
         "IP_INVALID" => BadRequest(payload),
@@ -54,6 +55,7 @@ public abstract class ApiControllerBase : ControllerBase
         "CERT_TIPO_MISMATCH" or "CERT_NADA_PENDIENTE" or "CERT_NO_ESCENARIOS"
             or "EVENTO_SIN_SELLO" or "SIN_DTE_RELACIONADOS" or "SIN_JWS_DISPONIBLE"
             or "ESTADO_INVALIDO" or "SIN_CODIGO_LOTE" => Conflict(payload),
+        "ALREADY_REVOKED" or "WEBHOOK_TEST_FAILED" => Conflict(payload),
         "EMPRESA_FORBIDDEN" => StatusCode(StatusCodes.Status403Forbidden, payload),
         "LICENSE_INVALID" => StatusCode(StatusCodes.Status402PaymentRequired, payload),
         "VALIDATION" or "PWD_WEAK" => BadRequest(payload),

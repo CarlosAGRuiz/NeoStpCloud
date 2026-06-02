@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Ops;
 using NeoSTP.Shared;
 
@@ -43,11 +44,15 @@ public class ApiQuotaMiddleware
         }
 
         var modulo = MapModulo(path);
+
+        // Resolver ApiKeyId desde contexto NeoConnect si la petición llegó por API Key.
+        var apiKeyCtx = context.Items[ApiKeyAuthMiddleware.ContextItemKey] as ConnectApiKeyContext;
+
         var ctx = new QuotaContext
         {
-            EmpresaId = currentUser.EmpresaId,
-            UsuarioId = currentUser.UserId,
-            ApiKeyId = null, // NeoConnect (futuro)
+            EmpresaId = apiKeyCtx?.EmpresaId ?? currentUser.EmpresaId,
+            UsuarioId = apiKeyCtx is null ? currentUser.UserId : null,
+            ApiKeyId = apiKeyCtx?.ApiKeyId,
             Modulo = modulo,
             IsSuperAdmin = currentUser.TipoUsuarioCodigo == "SUPERADMIN",
         };

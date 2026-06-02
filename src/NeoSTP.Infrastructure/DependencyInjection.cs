@@ -19,6 +19,7 @@ using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Application.Billing;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Legal;
 using NeoSTP.Application.Workers;
 using NeoSTP.Infrastructure.Auth;
@@ -189,6 +190,11 @@ public static class DependencyInjection
 
         // Sprint 18: Legal + consentimiento
         services.AddScoped<ILegalDocumentService, LegalDocumentService>();
+
+        // Sprint 24: NeoConnect API
+        services.AddScoped<IConnectApiKeyService, ConnectApiKeyService>();
+        services.AddScoped<IConnectWebhookService, ConnectWebhookService>();
+        services.AddScoped<IConnectWebhookDispatcher, ConnectWebhookDispatcher>();
 
         // Sprint 20: Hardening — cuotas / rate limiting, MFA (TOTP), IP allowlist
         services.AddScoped<NeoSTP.Application.Ops.IApiQuotaService, ApiQuotaService>();

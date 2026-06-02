@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Carga masiva (post-Lookups) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 259 unit + 2 integración
+> **Versión:** NeoConnect API (Sprint 24, en curso) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 259 unit + 2 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -123,7 +123,7 @@ CSV/JSON/XLSX + export + versionado + cascadas padre/hijo, vía API y UI MVC) ·
 Certificación DTE** (matriz 625 escenarios, progreso por tipo, asociación documentos a
 escenarios, reintentos, snapshots de errores MH, dashboard con barras de progreso) ·
 **Módulo de Eventos DTE persistentes** (4 tablas Dte_Eventos*, persistencia best-effort de los 4 flujos certificados, consulta + creación + PDF + UI MVC; integración con certificación vía marcar-completado-por-evento) ·
-**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · **Módulo de Hardening pre-producción** (tablas `Ops_BackupJobs`/`Core_ApiUsageLog`/`Core_ApiQuotas`/`Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios`; rate limiting con `ApiQuotaMiddleware` → 429 por ventana deslizante; MFA TOTP RFC 6238 con `TotpService`/`MfaService` y códigos de recuperación; IP allowlist con `AdminIpAllowlistMiddleware` (CIDR, fail-open); backups con `BackupService`/`BackupWorker`/`IStorageService` (LOCAL/AZURE_BLOB/S3); API `/api/hardening` + UI `/Hardening`; k6 baseline, GitHub Action OWASP ZAP, runbook DR; permisos `Ops.Hardening.Ver/.Administrar`) · **UI/UX moderna** (AppShell `neostp.css` con tokens del design system, sidebar/navbar nuevas, indicador de ambiente, responsive; re-tema global de Bootstrap; pulido de todos los listados; StepperDTE) · **Pagos LATAM** (Billing multi-proveedor: `IPaymentProviderResolver` + `WompiBillingProvider`/`PayPalBillingProvider`/`TransferenciaPaymentProvider`; transferencia con verificación manual `/billing/transferencias`) · **Lookups** (`ILookupService` + `/api/lookups`: catálogos, cascada territorial, datos maestros) y eliminación de hardcodeos territoriales (`TerritorialOptions`) · **Carga masiva** de clientes y productos (Excel/CSV, upsert + dry-run + reporte por fila, `/Clientes/Importar` y `/Productos/Importar`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · 259 tests unit + 2 integración.
+**Módulo de Diagnóstico de errores Hacienda** (tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias`, entidades `DteErrorCatalogo`/`DteErrorOcurrencia`, servicio `DiagnosticoHaciendaService`, seed 11 códigos MH+internos, API REST `/api/dte/diagnostico`, UI MVC `/DiagnosticoHacienda` con resumen, filtros, detalle documento/evento, marcar resuelta, sincronización histórica; permiso `DTE.Diagnostico`) · **Módulo Legal + consentimiento** (tabla `Core_UserConsents`, entidad `UserConsent`, `LegalDocumentService`, páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalOptions` con placeholders, checkbox obligatorio en creación de usuario, footer con enlaces legales) · **Módulo de Hardening pre-producción** (tablas `Ops_BackupJobs`/`Core_ApiUsageLog`/`Core_ApiQuotas`/`Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios`; rate limiting con `ApiQuotaMiddleware` → 429 por ventana deslizante; MFA TOTP RFC 6238 con `TotpService`/`MfaService` y códigos de recuperación; IP allowlist con `AdminIpAllowlistMiddleware` (CIDR, fail-open); backups con `BackupService`/`BackupWorker`/`IStorageService` (LOCAL/AZURE_BLOB/S3); API `/api/hardening` + UI `/Hardening`; k6 baseline, GitHub Action OWASP ZAP, runbook DR; permisos `Ops.Hardening.Ver/.Administrar`) · **UI/UX moderna** (AppShell `neostp.css` con tokens del design system, sidebar/navbar nuevas, indicador de ambiente, responsive; re-tema global de Bootstrap; pulido de todos los listados; StepperDTE) · **Pagos LATAM** (Billing multi-proveedor: `IPaymentProviderResolver` + `WompiBillingProvider`/`PayPalBillingProvider`/`TransferenciaPaymentProvider`; transferencia con verificación manual `/billing/transferencias`) · **Lookups** (`ILookupService` + `/api/lookups`: catálogos, cascada territorial, datos maestros) y eliminación de hardcodeos territoriales (`TerritorialOptions`) · **Carga masiva** de clientes y productos (Excel/CSV, upsert + dry-run + reporte por fila, `/Clientes/Importar` y `/Productos/Importar`) · Fix modo soporte multiempresa (`EmpresasService.GetByIdAsync` corregido) · **NeoConnect API** (Sprint 24, en curso — sub-entregas 1-5 cerradas, falta sub-entrega 6 de tests): entidades `ConnectApiKey`/`ConnectWebhook`/`ConnectWebhookDelivery` (tablas `Connect_ApiKeys`/`Connect_Webhooks`/`Connect_WebhookDeliveries`), permisos `Connect.ApiKeys.Ver/.Administrar`/`Connect.Webhooks.Ver/.Administrar`/`Connect.Logs.Ver` (351-355); `ConnectApiKeyService` (API Key con hash SHA-256, prefijo visible, scopes, raw key mostrada una sola vez) + `ApiKeyAuthMiddleware` (header `X-Api-Key` → resuelve empresa/scopes en `HttpContext.Items`, engancha `ApiKeyId` al `ApiQuotaMiddleware`; JWT tiene precedencia); `ConnectController` (`/api/connect/{api-keys|webhooks|logs|usage}`); webhooks con dispatcher (`IConnectWebhookDispatcher` disparado desde `DteDocumentosService` al cambiar estado DTE a PROCESADO/RECHAZADO/CONTINGENCIA/INVALIDADO, best-effort) + `ConnectWebhookDeliveryWorker` (entrega firmada HMAC-SHA256 con reintentos y backoff exponencial 2/4/8/16 min, máx. 5 intentos); UI Web `/Integraciones` (AppShell + `ns-*`) · 259 tests unit + 2 integración.
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
@@ -160,7 +160,7 @@ certificación se hace contra **v1/v3**.
 `Sprint13_CatalogosExtendido` · `Sprint13_PermisosCatalogos` · `Sprint13_SeedCatalogosMH` ·
 `Sprint13_CatalogosMhOficial` · `Sprint14_CertificacionDte` · `Sprint14_PermisosCertificacion` ·
 `Sprint15_DteEventos` · `Sprint15_PermisoEventos` · `Sprint15_CertificacionPruebaEvento` ·
-`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService` · `Sprint20_HardeningSchema` · `PagosLatam_MetodosPago`. (UI/UX, Lookups y Carga masiva no requirieron migración.)
+`Sprint16_ContingenciaLotes` · `Sprint17_DiagnosticoErrores` · `Sprint17_SeedErrorCatalogo` · `Sprint18_LegalConsentimiento` · `Sprint19_BillingSelfService` · `Sprint20_HardeningSchema` · `PagosLatam_MetodosPago` · `Sprint24_NeoConnectSchema`. (UI/UX, Lookups y Carga masiva no requirieron migración.)
 
 ## SuperAdmin inicial
 `superadmin` / `ChangeMe!2026` (cambiar en el primer login). El SuperAdmin no pertenece a
@@ -171,7 +171,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 
 # 4. Base de datos
 
-## Tablas actuales (24)
+## Tablas actuales (27)
 
 ### Core / Administración
 | Tabla | Contenido |
@@ -205,6 +205,13 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | `Dte_ErrorCatalogo` | Catálogo de errores MH e internos con descripción amigable, causa probable y acción sugerida |
 | `Dte_ErrorOcurrencias` | Ocurrencias concretas de error por empresa, con link a documento/evento, JSON enviado/respuesta y flag `Resuelta` |
 
+### NeoConnect API (Sprint 24)
+| Tabla | Contenido |
+|---|---|
+| `Connect_ApiKeys` | API Keys por empresa: `KeyHash` (SHA-256, único), `Prefix` visible, `Scopes`, `Activo`, `ExpiresAt`, `UltimoUsoAt`, `RevokedAt/By` |
+| `Connect_Webhooks` | Endpoints suscritos a eventos DTE: `Url`, `SecretoHmac` (firma), `Eventos` (CSV), `ApiKeyId` opcional, `UltimaEntregaAt` |
+| `Connect_WebhookDeliveries` | Entregas de webhook: `Evento`, `Payload`, `Estado` (PENDIENTE/ENTREGADO/FALLIDO), `HttpStatus`, `Intentos`, `ProximoIntento` (backoff) |
+
 ## Tablas propuestas (por módulo pendiente)
 
 | Módulo | Tablas |
@@ -218,7 +225,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 | ~~**Catálogos MH**~~ | ✅ Sprint 13 — `Core_Catalogos.Version`/`MetadataJson` y `Core_CatalogoItems.ParentCodigo` agregados |
 | **NeoProfit** | `Profit_Gastos`, `Profit_Compras`, `Profit_SnapshotsMensuales`, `Profit_Alertas` |
 | **NeoScanAI** | `Scan_Documentos`, `Scan_DocumentoResultados`, `Scan_DocumentoCampos`, `Scan_DocumentoArchivos`, `Scan_DocumentoEventos`, `Dte_DocumentosRecibidos` |
-| **NeoConnect** | `Connect_ApiKeys`, `Connect_Webhooks`, `Connect_WebhookDeliveries`, `Connect_ApiLogs`, `Connect_SandboxSettings` |
+| ~~**NeoConnect**~~ | ✅ Sprint 24 (en curso) — `Connect_ApiKeys`, `Connect_Webhooks`, `Connect_WebhookDeliveries` (logs de uso reusan `Core_ApiUsageLog` vía `ApiKeyId`). Pendiente sandbox dedicado. |
 | **NeoPOS** | `Pos_Cajas`, `Pos_Aperturas`, `Pos_Ventas`, `Pos_VentaDetalles`, `Pos_Pagos`, `Pos_Cierres` |
 | **NeoPortal** | `Portal_Accesos`, `Portal_Solicitudes`, `Portal_TokensPublicos` |
 | **Mobile** | `Mobile_Dispositivos`, `Mobile_Sesiones`, `Mobile_SyncLog` |
@@ -564,6 +571,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 **Documentos DTE:** `GET /api/dte/documentos` · `POST /api/dte/{factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido|documentos}` · `POST .../{id}/{generar|validar|firmar|enviar|invalidar|reenviar}` · `GET .../{id}/{pdf|json}`
 **Eventos DTE:** `POST /api/dte/evento/{contingencia|invalidacion|operaciones-especiales|retorno}`
 **Dashboard:** `GET /api/dashboard/empresa` · `GET /api/dashboard/superadmin`
+**NeoConnect (Sprint 24):** `GET/POST /api/connect/api-keys` · `GET /api/connect/api-keys/{id}` · `PATCH /api/connect/api-keys/{id}/revoke` · `GET/POST /api/connect/webhooks` · `GET /api/connect/webhooks/{id}` · `DELETE /api/connect/webhooks/{id}` · `POST /api/connect/webhooks/{id}/test` · `GET /api/connect/logs` · `GET /api/connect/usage` (todos JWT + permisos `Connect.*`). Auth de integradores externos por header **`X-Api-Key`** vía `ApiKeyAuthMiddleware`.
 **Diagnóstico:** `GET /health` · `GET /openapi/v1.json` (Development)
 
 ## Propuestos (módulos pendientes)
@@ -572,7 +580,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 **Contingencia:** `GET /api/dte/contingencia/{documentos|resumen|lotes}` · `POST .../documentos/{id}/reintentar` · `POST .../evento` · `GET/POST .../lotes/{id}/consultar`
 **NeoProfit:** `GET /api/profit/{dashboard|productos|clientes|sucursales|tendencia|gastos|compras}` · `POST /api/profit/{gastos|compras}`
 **NeoScanAI:** `GET/POST /api/scanai/documentos` · `POST .../{id}/{resultado|confirmar|rechazar|registrar-gasto|registrar-compra|registrar-dte-recibido}`
-**NeoConnect:** `GET/POST /api/connect/api-keys` · `PATCH .../revoke` · `GET/POST /api/connect/webhooks` · `POST .../test` · `GET /api/connect/{logs|usage|docs}`
+**NeoConnect (pendiente):** endpoints de negocio para integradores (`POST /api/connect/dte/...` emitir/consultar DTE, alta clientes/productos) + sandbox + docs públicas OpenAPI. *(La gestión api-keys/webhooks/logs/usage ya está implementada — ver "Actuales".)*
 **NeoPOS:** `GET /api/pos/cajas` · `POST .../{apertura|cierre}` · `GET/POST /api/pos/ventas` · `POST .../{id}/emitir-dte`
 **NeoPortal:** `GET /portal/documentos/{codigoGeneracion}/{pdf|json}` · `POST .../solicitud` · `GET /api/portal/clientes/{id}/{documentos|estado-cuenta}`
 **Mobile:** `GET /api/mobile/devices` · `POST .../register` · `PATCH .../{authorize|revoke}`
@@ -598,7 +606,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 9 | **Dashboard** | ✅ base | Integrar NeoProfit, certificación, alertas Hacienda | Alta |
 | 10 | **NeoProfit / NeoBI** | ❌ | Análisis financiero, gastos/compras, márgenes | Alta |
 | 11 | **NeoScanAI** | ❌ (proyecto aparte) | Bandeja, OCR/IA, registro compra/gasto/DTE recibido | Alta |
-| 12 | **NeoConnect API** | ❌ (no construido) | API keys, webhooks, rate limits (infra de cuotas Sprint 20 ya lista), sandbox, docs — base para NeoBusiness/NeoScan | Media-alta |
+| 12 | **NeoConnect API** | ✅ Sprint 24 (en curso) — API keys (hash SHA-256 + scopes), `X-Api-Key` middleware, webhooks firmados HMAC + worker de entrega, rate limit por ApiKey (reusa cuotas Sprint 20), UI `/Integraciones` | Falta sub-entrega 6 (tests); luego endpoints de negocio (emitir/consultar DTE), sandbox y docs públicas — base para NeoBusiness/NeoScan | Media-alta |
 | 13 | **NeoPOS** | ❌ | Caja, venta rápida, conversión a DTE | Media-alta |
 | 14 | **NeoPortal Clientes** | ❌ | Consulta pública, estado de cuenta | Media |
 | 15 | **NeoSTP Mobile** | ❌ | App MVP (login, DTE básico, escaneo) | Media |
@@ -654,8 +662,8 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 | 1 | **Pagos LATAM** (Wompi · PayPal · Transferencia) | ✅ | Desbloquea cobro local (tarjeta Wompi + transferencia con verificación manual) |
 | 2 | **Lookups + limpieza de hardcodeos** | ✅ | `ILookupService`/`/api/lookups`; sin literales territoriales mágicos |
 | 3 | **Carga masiva** clientes/productos (Excel/CSV) | ✅ | Onboarding de datos de prospectos en minutos (upsert + dry-run + reporte) |
-| 4 | **Onboarding self-service pulido** | 🔜 **siguiente** | Wizard alta empresa → config DTE → primer DTE en <10 min; checklist de activación → sube conversión |
-| 5 | **NeoConnect API comercial** | 🔜 | Producto vendible + **base para conectar NeoBusiness y NeoScan**; reusa cuotas/`ApiUsageLog` del Sprint 20 |
+| 4 | **Onboarding self-service pulido** | 🔜 | Wizard alta empresa → config DTE → primer DTE en <10 min; checklist de activación → sube conversión |
+| 5 | **NeoConnect API comercial** | ✅ en curso (Sprint 24) | Gestión de API keys + webhooks firmados + worker de entrega + UI `/Integraciones` listos (reusa cuotas/`ApiUsageLog` del Sprint 20); faltan tests (sub-entrega 6) y endpoints de negocio/sandbox/docs — **base para NeoBusiness y NeoScan** |
 | 6 | **NeoProfit** / **NeoScanAI** | 🔜 | Diferenciadores: análisis financiero sobre DTE PROCESADOS / OCR-IA documental |
 
 **Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva → **pendiente principal: onboarding self-service**.
@@ -666,11 +674,20 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 3. **Estados de preparación** (config DTE OK, certificado cargado, primer DTE emitido) visibles para el cliente y para SuperAdmin.
 4. Meta: del registro al primer DTE en **< 10 minutos** sin soporte.
 
-### Detalle de NeoConnect API (habilitador NeoBusiness/NeoScan)
-- Tablas `Connect_ApiKeys` (hash + scopes + estado), `Connect_Webhooks`/`Connect_WebhookDeliveries`, logs reusando `Core_ApiUsageLog`.
-- Auth por **API Key** (`X-Api-Key`) → middleware resuelve empresa + scopes + cuota (engancha con `ApiQuotaMiddleware`).
-- Endpoints v1: emitir DTE, consultar estado, descargar PDF/JSON, alta clientes/productos, webhooks de cambio de estado.
-- **NeoBusiness** consume la API para emitir DTE desde sus ventas; **NeoScan** registra compras/gastos/DTE recibidos.
+### Detalle de NeoConnect API (habilitador NeoBusiness/NeoScan) — Sprint 24
+
+**Hecho (sub-entregas 1-5):**
+- ✅ Tablas `Connect_ApiKeys` (hash SHA-256 + prefijo + scopes + estado + expiración), `Connect_Webhooks` (URL + secreto HMAC + eventos), `Connect_WebhookDeliveries` (estado + intentos + backoff); logs de uso reusan `Core_ApiUsageLog` vía `ApiKeyId`. Permisos 351-355.
+- ✅ Auth por **API Key** (`X-Api-Key`) → `ApiKeyAuthMiddleware` valida hash, resuelve empresa + scopes en `HttpContext.Items` y engancha `ApiKeyId` al `ApiQuotaMiddleware` (rate limit por key). JWT tiene precedencia si ambos vienen.
+- ✅ Gestión: `ConnectController` (`/api/connect/api-keys|webhooks|logs|usage`) con `ConnectApiKeyService` (raw key mostrada una sola vez) y `ConnectWebhookService` (crear/probar/eliminar + usage agregado por key).
+- ✅ Webhooks de cambio de estado DTE: `IConnectWebhookDispatcher` disparado (best-effort) desde `DteDocumentosService` al pasar a PROCESADO/RECHAZADO/CONTINGENCIA/INVALIDADO; `ConnectWebhookDeliveryWorker` entrega firmado HMAC-SHA256 (`X-NeoConnect-Signature`) con reintentos y backoff exponencial (2/4/8/16 min, máx. 5).
+- ✅ UI Web `/Integraciones` (AppShell + `ns-*`): métricas de consumo, alta/revocación de keys, alta/test/borrado de webhooks, log de entregas.
+
+**Pendiente:**
+- 🔜 Sub-entrega 6: tests unitarios (`ConnectApiKeyService`, `ApiKeyAuthMiddleware`, dispatcher).
+- 🔜 Endpoints v1 de **negocio**: emitir DTE, consultar estado, descargar PDF/JSON, alta clientes/productos (consumibles por API Key con scopes).
+- 🔜 Sandbox (ambiente PRUEBAS) + documentación pública OpenAPI.
+- **NeoBusiness** consumirá la API para emitir DTE desde sus ventas; **NeoScan** registrará compras/gastos/DTE recibidos.
 
 ## Reglas de negocio transversales (NeoProfit)
 - Solo contar DTE **PROCESADO**; excluir RECHAZADO e INVALIDADO.
@@ -794,7 +811,7 @@ Clientes → Productos → Plan/Licencia → NeoProfit → NeoScanAI → NeoConn
   secretos cifrados → reingresar).
 
 ## 13.5 Testing
-- 222 tests unit + 2 integración verde (106 base + 31 catálogos Sprint 13 + 24 certificación Sprint 14 + 18 eventos Sprint 15 + 43 hardening Sprint 20 + smoke). Faltan tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
+- 259 tests unit + 2 integración verde (106 base + 31 catálogos Sprint 13 + 24 certificación Sprint 14 + 18 eventos Sprint 15 + 43 hardening Sprint 20 + billing/pagos/lookups/carga masiva + smoke). **NeoConnect (Sprint 24) aún sin tests** — sub-entrega 6 pendiente: `ConnectApiKeyService` (hash/validación/revocación/expiración), `ApiKeyAuthMiddleware` (precedencia JWT, key inválida → 401) y dispatcher (creación de deliveries + backoff). Faltan además tests del **generador v1/v3 por tipo** (snapshot del JSON esperado) y de
   los **eventos** (estructura). Agregar tests de regresión que validen el JSON contra los esquemas
   `svfe-json-schemas` y contra lo que apitest realmente exige (v1/v3).
 

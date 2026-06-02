@@ -11,6 +11,7 @@
     var puedeVerCertificacion = isSuperAdmin || User.HasClaim("permiso", "Core.Certificacion.Ver");
     var puedeVerEventos = isSuperAdmin || User.HasClaim("permiso", "DTE.Eventos.Ver");
     var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
+    var puedeVerIntegraciones = isSuperAdmin || User.HasClaim("permiso", "Connect.ApiKeys.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 
@@ -94,6 +95,10 @@ else
                 <a class="ns-nav-link @active("Planes")" asp-controller="Planes" asp-action="Index"><span class="material-symbols-outlined">workspace_premium</span> Planes</a>
                 <a class="ns-nav-link @active("DteConfiguracion")" asp-controller="DteConfiguracion" asp-action="Index"><span class="material-symbols-outlined">settings</span> Config DTE</a>
                 <a class="ns-nav-link @active("Billing")" asp-controller="Billing" asp-action="Index"><span class="material-symbols-outlined">credit_card</span> Billing</a>
+                @if (puedeVerIntegraciones)
+                {
+                    <a class="ns-nav-link @active("Integraciones")" asp-controller="Integraciones" asp-action="Index"><span class="material-symbols-outlined">hub</span> Integraciones</a>
+                }
 
                 @if (puedeVerHardening || isSuperAdmin)
                 {

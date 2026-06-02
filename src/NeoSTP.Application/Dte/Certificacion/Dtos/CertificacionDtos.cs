@@ -43,7 +43,9 @@ public class CertificacionEscenarioDto
     public string EstadoActual { get; set; } = "PENDIENTE";
     public int? PruebaId { get; set; }
     public int? DteDocumentoId { get; set; }
+    public int? EventoId { get; set; }
     public string? NumeroControl { get; set; }
+    public string? EventoCodigoGeneracion { get; set; }
     public string? SelloRecibido { get; set; }
     public int IntentoNumero { get; set; }
     public DateTime? UltimoIntentoAt { get; set; }
@@ -57,7 +59,9 @@ public class CertificacionPruebaDto
     public string EscenarioCodigo { get; set; } = null!;
     public string EscenarioNombre { get; set; } = null!;
     public int? DteDocumentoId { get; set; }
+    public int? EventoId { get; set; }
     public string? NumeroControl { get; set; }
+    public string? EventoCodigoGeneracion { get; set; }
     public string EstadoCodigo { get; set; } = null!;
     public string? SelloRecibido { get; set; }
     public int IntentoNumero { get; set; }

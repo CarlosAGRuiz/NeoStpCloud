@@ -21,6 +21,12 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.Lax;
+    options.Secure = CookieSecurePolicy.Always;
+    options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
+});
 
 builder.Services.AddScoped<ICurrentUser, CookieCurrentUser>();
 builder.Services.AddScoped<NeoSTP.Application.Empresas.IEmpresaContext, NeoSTP.Web.Auth.WebEmpresaContext>();
@@ -35,7 +41,7 @@ builder.Services
         options.Cookie.Name = "NeoStp.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
     });
@@ -53,6 +59,8 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSecurityHeaders();
+app.UseCookiePolicy();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -76,4 +84,37 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+static class SecurityHeadersExtensions
+{
+    private const string WebCsp = "default-src 'self'; " +
+        "base-uri 'self'; " +
+        "frame-ancestors 'none'; " +
+        "form-action 'self'; " +
+        "img-src 'self' data:; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com data:; " +
+        "connect-src 'self'; " +
+        "object-src 'none'; " +
+        "upgrade-insecure-requests";
+
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
+        => app.Use(async (context, next) =>
+        {
+            context.Response.OnStarting(() =>
+            {
+                var headers = context.Response.Headers;
+                headers.TryAdd("X-Content-Type-Options", "nosniff");
+                headers.TryAdd("X-Frame-Options", "DENY");
+                headers.TryAdd("X-XSS-Protection", "0");
+                headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+                headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+                headers.TryAdd("Content-Security-Policy", WebCsp);
+                return Task.CompletedTask;
+            });
+
+            await next();
+        });
 }

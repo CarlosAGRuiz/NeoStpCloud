@@ -47,7 +47,7 @@ public class WebEmpresaContext : IEmpresaContext
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
-            Secure = ctx.Request.IsHttps,
+            Secure = true,
             Expires = DateTimeOffset.UtcNow.AddDays(7),
         };
         ctx.Response.Cookies.Append(CookieId, empresaId.ToString(), opts);

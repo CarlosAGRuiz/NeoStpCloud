@@ -62,12 +62,28 @@ builder.Services.AddSingleton<IAuthorizationHandler, PermisoAuthorizationHandler
 builder.Services.AddScoped<IAuthorizationHandler, ModuloAuthorizationHandler>();
 builder.Services.AddAuthorization();
 
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy => policy
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowAnyOrigin());
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyHeader().AllowAnyMethod();
+
+        if (allowedCorsOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedCorsOrigins);
+        }
+        else if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin();
+        }
+        else
+        {
+            policy.SetIsOriginAllowed(_ => false);
+        }
+    });
 });
 
 var app = builder.Build();
@@ -85,8 +101,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSecurityHeaders();
 app.UseCors();
 app.UseAuthentication();
+app.UseMiddleware<ApiKeyAuthMiddleware>();
 app.UseMiddleware<AdminIpAllowlistMiddleware>();
 app.UseMiddleware<CurrentTenantMiddleware>();
 app.UseMiddleware<ApiQuotaMiddleware>();
@@ -112,4 +130,27 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+static class SecurityHeadersExtensions
+{
+    private const string ApiCsp = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
+        => app.Use(async (context, next) =>
+        {
+            context.Response.OnStarting(() =>
+            {
+                var headers = context.Response.Headers;
+                headers.TryAdd("X-Content-Type-Options", "nosniff");
+                headers.TryAdd("X-Frame-Options", "DENY");
+                headers.TryAdd("X-XSS-Protection", "0");
+                headers.TryAdd("Referrer-Policy", "no-referrer");
+                headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+                headers.TryAdd("Content-Security-Policy", ApiCsp);
+                return Task.CompletedTask;
+            });
+
+            await next();
+        });
 }

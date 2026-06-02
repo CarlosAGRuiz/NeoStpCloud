@@ -29,6 +29,7 @@ builder.Services.AddHostedService<RetransmisionContingenciaWorker>();
 builder.Services.AddHostedService<LimpiezaTokensWorker>();
 builder.Services.AddHostedService<ContingenciaLoteWorker>();
 builder.Services.AddHostedService<BackupWorker>();
+builder.Services.AddHostedService<ConnectWebhookDeliveryWorker>();
 
 var host = builder.Build();
 

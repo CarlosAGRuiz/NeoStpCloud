@@ -11,6 +11,7 @@ public class WorkerOptions
     public RetransmisionContingenciaOptions RetransmisionContingencia { get; set; } = new();
     public LimpiezaTokensOptions LimpiezaTokens { get; set; } = new();
     public ContingenciaLoteOptions ContingenciaLote { get; set; } = new();
+    public WebhookDeliveryOptions WebhookDelivery { get; set; } = new();
 }
 
 public class RetransmisionContingenciaOptions
@@ -44,4 +45,10 @@ public class ContingenciaLoteOptions
 {
     /// <summary>Intervalo entre ejecuciones del job (minutos). Default: 10.</summary>
     public int IntervaloMinutos { get; set; } = 10;
+}
+
+public class WebhookDeliveryOptions
+{
+    /// <summary>Intervalo entre ejecuciones del job (segundos). Default: 30.</summary>
+    public int IntervaloSegundos { get; set; } = 30;
 }

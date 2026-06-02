@@ -180,3 +180,11 @@ A standard radius of **8px (0.5rem)** is applied to small components like input 
 ### Workflow & Status
 - **Steppers:** Horizontal connectors between steps. Completed steps use Modern Violet icons; current steps use a Deep Tech Blue border.
 - **Status Badges:** Text in all-caps, 10px size, semi-bold. Backgrounds are low-opacity versions of the semantic colors with high-contrast text.
+
+### Integrations (NeoConnect)
+The NeoConnect surface (`/Integraciones`) governs API Keys and webhooks for external integrators. It reuses the standard card/table/badge primitives plus three integration-specific patterns:
+
+- **Secret Reveal Card (one-time):** When an API Key is generated, its raw value is shown **exactly once** in a highlighted card with a left-edge Modern Violet accent border (4px) and a key icon. The value sits in a read-only JetBrains Mono input paired with a "Copy" button that confirms inline ("Copiado ✓"). A muted helper line states the secret is hashed and will not be shown again. After creation, only the **prefix** (first 8 chars + ellipsis) is ever displayed.
+- **Masked Secret Display:** Stored secrets (HMAC signing keys, key prefixes) render in muted JetBrains Mono, truncated to a short prefix + ellipsis — never the full value.
+- **Usage Metric Cards:** Per-API-Key consumption shown as a compact card row (Today / 7 days / Total) using JetBrains Mono numerals, with webhook delivery counts as semantic badges (processed = delivered, rejected = failed).
+- **Delivery Log Status:** Webhook delivery rows reuse the DTE semantic badge palette — `processed` (ENTREGADO), `rejected` (FALLIDO), `contingency` (PENDIENTE/retrying) — keeping integration health legible at a glance. Scopes and subscribed events are shown as outlined monospace tags.

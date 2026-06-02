@@ -1,35 +1,88 @@
+@using NeoSTP.Application.Dte.Dtos
+@using NeoSTP.Application.Dte.Eventos.Dtos
 @model IReadOnlyList<NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionEscenarioDto>
 @{
     var tipo = ViewBag.TipoCodigo as string ?? "";
     var progreso = ViewBag.Progreso as NeoSTP.Application.Dte.Certificacion.Dtos.CertificacionMatrizProgresoDto;
     var puedeOperar = ViewBag.PuedeOperar is bool po && po;
-    ViewData["Title"] = $"Escenarios · {progreso?.Nombre ?? tipo}";
+    var esEvento = ViewBag.EsEvento is bool ev && ev;
+    var documentos = ViewBag.DocumentosRecientes as IReadOnlyList<DteDocumentoListItemDto> ?? Array.Empty<DteDocumentoListItemDto>();
+    var eventos = ViewBag.EventosRecientes as IReadOnlyList<DteEventoListDto> ?? Array.Empty<DteEventoListDto>();
+    ViewData["Title"] = $"Escenarios - {progreso?.Nombre ?? tipo}";
+
+    string EstadoBadge(string estado) => estado switch
+    {
+        "COMPLETADO" => "ns-badge ns-badge--processed",
+        "ERROR" => "ns-badge ns-badge--rejected",
+        "EN_PROGRESO" => "ns-badge ns-badge--draft",
+        _ => "ns-badge ns-badge--draft",
+    };
+
+    string DteEstadoBadge(string estado) => estado switch
+    {
+        "PROCESADO" => "ns-badge ns-badge--processed",
+        "RECHAZADO" or "ERROR" => "ns-badge ns-badge--rejected",
+        "CONTINGENCIA" => "ns-badge ns-badge--contingency",
+        _ => "ns-badge ns-badge--draft",
+    };
+
+    string? crearEventoAction = tipo switch
+    {
+        "INVALIDACION" => "CreateInvalidacion",
+        "CONTINGENCIA" => "CreateContingencia",
+        "RETORNO" => "CreateRetorno",
+        "OPERACIONES_ESPECIALES" => "CreateOperacionesEspeciales",
+        _ => null,
+    };
 }
 
 <nav aria-label="breadcrumb" class="mb-2">
     <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Certificación</a></li>
+        <li class="breadcrumb-item"><a asp-action="Index">Certificacion</a></li>
         <li class="breadcrumb-item active" aria-current="page">@(progreso?.Nombre ?? tipo)</li>
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <div>
-        <h2 class="mb-1">@(progreso?.Nombre ?? tipo) <small class="text-muted"><code>@tipo</code></small></h2>
-        @if (!string.IsNullOrEmpty(progreso?.Descripcion))
-        {
-            <p class="text-muted mb-0">@progreso.Descripcion</p>
-        }
+<section class="mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="ns-chip">@tipo</span>
+                <span class="ns-badge ns-badge--draft">@(esEvento ? "Evento DTE" : "Documento DTE")</span>
+            </div>
+            <h1 class="mb-1">@(progreso?.Nombre ?? tipo)</h1>
+            @if (!string.IsNullOrWhiteSpace(progreso?.Descripcion))
+            {
+                <p class="text-muted mb-0">@progreso.Descripcion</p>
+            }
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            @if (puedeOperar)
+            {
+                <form asp-action="GenerarPrueba" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="codigo" value="@tipo" />
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px">play_circle</span>
+                        Abrir siguiente intento
+                    </button>
+                </form>
+            }
+            @if (esEvento && crearEventoAction is not null)
+            {
+                <a asp-controller="DteEventos" asp-action="@crearEventoAction" class="btn btn-outline-primary btn-sm">
+                    Crear evento
+                </a>
+            }
+            else if (!esEvento)
+            {
+                <a asp-controller="DteDocumentos" asp-action="Create" asp-route-tipo="@tipo" class="btn btn-outline-primary btn-sm">
+                    Crear DTE de prueba
+                </a>
+            }
+        </div>
     </div>
-    @if (puedeOperar)
-    {
-        <form asp-action="GenerarPrueba" method="post" class="d-inline">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="codigo" value="@tipo" />
-            <button type="submit" class="btn btn-primary btn-sm">➕ Generar siguiente prueba</button>
-        </form>
-    }
-</div>
+</section>
 
 @if (TempData["Success"] is string ok)
 {
@@ -44,103 +97,259 @@
 {
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card text-center"><div class="card-body p-2">
-                <div class="text-muted small">Requeridos</div><div class="h4 m-0">@progreso.Requeridos</div>
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted small">Requeridos</div>
+                <div class="h3 m-0 ns-mono">@progreso.Requeridos</div>
             </div></div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success-subtle text-center"><div class="card-body p-2">
-                <div class="text-muted small">Completados</div><div class="h4 m-0 text-success">@progreso.Completados</div>
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted small">Completados</div>
+                <div class="h3 m-0 ns-mono text-success">@progreso.Completados</div>
             </div></div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info-subtle text-center"><div class="card-body p-2">
-                <div class="text-muted small">En progreso</div><div class="h4 m-0 text-info">@progreso.EnProgreso</div>
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted small">En progreso</div>
+                <div class="h3 m-0 ns-mono text-primary">@progreso.EnProgreso</div>
             </div></div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-danger-subtle text-center"><div class="card-body p-2">
-                <div class="text-muted small">Con error</div><div class="h4 m-0 text-danger">@progreso.ConError</div>
+            <div class="card h-100"><div class="card-body">
+                <div class="text-muted small">Con error</div>
+                <div class="h3 m-0 ns-mono text-danger">@progreso.ConError</div>
             </div></div>
         </div>
     </div>
 }
 
-<div class="table-responsive">
-    <table class="table table-sm table-hover">
-        <thead class="table-light">
-            <tr>
-                <th style="width:5%">#</th>
-                <th style="width:15%">Código</th>
-                <th>Nombre</th>
-                <th class="text-center" style="width:8%">Intento</th>
-                <th class="text-center" style="width:12%">Estado</th>
-                <th style="width:18%">DTE</th>
-                <th style="width:14%">Sello</th>
-                <th style="width:8%"></th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var e in Model)
-        {
-            string badgeClass = e.EstadoActual switch
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-lg-7">
+                <h2 class="h6 mb-2">Como se actualiza esta matriz</h2>
+                <p class="text-muted mb-0">
+                    Cada escenario queda pendiente hasta asociarlo con un @(esEvento ? "evento DTE" : "DTE") real.
+                    Si Hacienda lo procesa con sello, el escenario queda completado. Si lo rechaza o falla, queda con error y se puede reintentar.
+                </p>
+            </div>
+            <div class="col-lg-5">
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                    <a asp-controller="DteDocumentos" asp-action="Index" asp-route-TipoDteCodigo="@(!esEvento ? tipo : null)" class="btn btn-outline-secondary btn-sm">
+                        Ver documentos DTE
+                    </a>
+                    <a asp-controller="DteEventos" asp-action="Index" asp-route-tipo="@(esEvento ? tipo : null)" class="btn btn-outline-secondary btn-sm">
+                        Ver eventos
+                    </a>
+                    <a asp-action="Errores" class="btn btn-outline-danger btn-sm">Ver errores</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width:56px">#</th>
+                    <th style="width:150px">Escenario</th>
+                    <th>Descripcion</th>
+                    <th class="text-center" style="width:110px">Intento</th>
+                    <th class="text-center" style="width:130px">Estado</th>
+                    <th style="width:280px">Referencia real</th>
+                    <th style="width:220px">Accion</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var e in Model)
             {
-                "COMPLETADO" => "bg-success",
-                "EN_PROGRESO" => "bg-info text-dark",
-                "ERROR" => "bg-danger",
-                _ => "bg-secondary"
-            };
-            <tr>
-                <td><small>@e.Orden</small></td>
-                <td><code>@e.Codigo</code></td>
-                <td>
-                    @e.Nombre
-                    @if (!string.IsNullOrEmpty(e.Descripcion))
-                    {
+                <tr>
+                    <td class="text-muted small">@e.Orden</td>
+                    <td>
+                        <div class="ns-mono fw-semibold">@e.Codigo</div>
+                        <small class="text-muted">@e.Nombre</small>
+                    </td>
+                    <td>
                         <div class="text-muted small">@e.Descripcion</div>
-                    }
-                </td>
-                <td class="text-center"><small>@(e.IntentoNumero == 0 ? "—" : e.IntentoNumero.ToString())</small></td>
-                <td class="text-center">
-                    <span class="badge @badgeClass">@e.EstadoActual</span>
-                </td>
-                <td>
-                    @if (e.DteDocumentoId.HasValue)
-                    {
-                        <code class="small">@e.NumeroControl</code>
-                    }
-                    else
-                    {
-                        <small class="text-muted">—</small>
-                    }
-                </td>
-                <td>
-                    @if (!string.IsNullOrEmpty(e.SelloRecibido))
-                    {
-                        <small class="text-success">@e.SelloRecibido.Substring(0, Math.Min(12, e.SelloRecibido.Length))…</small>
-                    }
-                    else
-                    {
-                        <small class="text-muted">—</small>
-                    }
-                </td>
-                <td class="text-end">
-                    @if (puedeOperar && e.DteDocumentoId.HasValue && e.EstadoActual != "COMPLETADO")
-                    {
-                        <form asp-action="Reintentar" method="post" class="d-inline" onsubmit="return confirm('¿Reintentar este escenario?');">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="codigo" value="@tipo" />
-                            <input type="hidden" name="documentoId" value="@e.DteDocumentoId" />
-                            <button type="submit" class="btn btn-outline-warning btn-sm" title="Reintentar">↻</button>
-                        </form>
-                    }
-                </td>
-            </tr>
-        }
-        @if (Model.Count == 0)
-        {
-            <tr><td colspan="8" class="text-center text-muted py-4">Sin escenarios para este tipo.</td></tr>
-        }
-        </tbody>
-    </table>
+                        @if (e.UltimoIntentoAt.HasValue)
+                        {
+                            <div class="small text-muted mt-1">Ultimo intento: @e.UltimoIntentoAt.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                        }
+                    </td>
+                    <td class="text-center">
+                        <span class="ns-mono">@(e.IntentoNumero == 0 ? "-" : e.IntentoNumero.ToString())</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="@EstadoBadge(e.EstadoActual)">@e.EstadoActual</span>
+                    </td>
+                    <td>
+                        @if (e.DteDocumentoId.HasValue)
+                        {
+                            <div class="d-flex flex-column gap-1">
+                                <a asp-controller="DteDocumentos" asp-action="Details" asp-route-id="@e.DteDocumentoId" class="ns-mono small fw-semibold">
+                                    @e.NumeroControl
+                                </a>
+                                @if (!string.IsNullOrWhiteSpace(e.SelloRecibido))
+                                {
+                                    <small class="text-success ns-mono">@e.SelloRecibido.Substring(0, Math.Min(18, e.SelloRecibido.Length))...</small>
+                                }
+                            </div>
+                        }
+                        else if (e.EventoId.HasValue)
+                        {
+                            <div class="d-flex flex-column gap-1">
+                                <a asp-controller="DteEventos" asp-action="Details" asp-route-id="@e.EventoId" class="ns-mono small fw-semibold">
+                                    @e.EventoCodigoGeneracion
+                                </a>
+                                @if (!string.IsNullOrWhiteSpace(e.SelloRecibido))
+                                {
+                                    <small class="text-success ns-mono">@e.SelloRecibido.Substring(0, Math.Min(18, e.SelloRecibido.Length))...</small>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <small class="text-muted">Sin DTE/evento asociado</small>
+                        }
+                    </td>
+                    <td>
+                        @if (puedeOperar)
+                        {
+                            @if (esEvento)
+                            {
+                                <form asp-action="AsociarEvento" method="post" class="d-grid gap-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="codigo" value="@tipo" />
+                                    <input type="hidden" name="escenarioId" value="@e.Id" />
+                                    <select name="eventoId" class="form-select form-select-sm" required>
+                                        <option value="">Evento reciente...</option>
+                                        @foreach (var evento in eventos)
+                                        {
+                                            <option value="@evento.Id">
+                                                @evento.EstadoCodigo - @evento.CodigoGeneracion
+                                            </option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">Asociar</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="AsociarDte" method="post" class="d-grid gap-1">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="codigo" value="@tipo" />
+                                    <input type="hidden" name="escenarioId" value="@e.Id" />
+                                    <select name="documentoId" class="form-select form-select-sm" required>
+                                        <option value="">DTE reciente...</option>
+                                        @foreach (var d in documentos)
+                                        {
+                                            <option value="@d.Id">
+                                                @d.EstadoCodigo - @d.NumeroControl
+                                            </option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">Asociar</button>
+                                </form>
+
+                                @if (e.DteDocumentoId.HasValue && e.EstadoActual != "COMPLETADO")
+                                {
+                                    <form asp-action="Reintentar" method="post" class="mt-1" onsubmit="return confirm('Reintentar este escenario?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="codigo" value="@tipo" />
+                                        <input type="hidden" name="documentoId" value="@e.DteDocumentoId" />
+                                        <button type="submit" class="btn btn-outline-warning btn-sm w-100">Abrir reintento</button>
+                                    </form>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <small class="text-muted">Solo lectura</small>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr>
+                    <td colspan="7">
+                        <div class="ns-empty">
+                            <span class="material-symbols-outlined">fact_check</span>
+                            <p>Sin escenarios para este tipo.</p>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">@(esEvento ? "Eventos recientes de este tipo" : "DTE recientes de este tipo")</h2>
+                <p class="text-muted small">Usalos para cubrir escenarios que ya fueron transmitidos antes de entrar a esta pantalla.</p>
+                <div class="table-responsive">
+                    <table class="table table-sm m-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Referencia</th>
+                                <th>Estado</th>
+                                <th class="text-end">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (esEvento)
+                            {
+                                @foreach (var evento in eventos.Take(8))
+                                {
+                                    <tr>
+                                        <td><a asp-controller="DteEventos" asp-action="Details" asp-route-id="@evento.Id" class="ns-mono small">@evento.CodigoGeneracion</a></td>
+                                        <td><span class="@DteEstadoBadge(evento.EstadoCodigo)">@evento.EstadoCodigo</span></td>
+                                        <td class="text-end small">@evento.FechaTransmision.ToString("dd/MM/yyyy")</td>
+                                    </tr>
+                                }
+                                @if (!eventos.Any())
+                                {
+                                    <tr><td colspan="3" class="text-muted small">No hay eventos recientes para comparar.</td></tr>
+                                }
+                            }
+                            else
+                            {
+                                @foreach (var d in documentos.Take(8))
+                                {
+                                    <tr>
+                                        <td><a asp-controller="DteDocumentos" asp-action="Details" asp-route-id="@d.Id" class="ns-mono small">@d.NumeroControl</a></td>
+                                        <td><span class="@DteEstadoBadge(d.EstadoCodigo)">@d.EstadoCodigo</span></td>
+                                        <td class="text-end small">@d.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                    </tr>
+                                }
+                                @if (!documentos.Any())
+                                {
+                                    <tr><td colspan="3" class="text-muted small">No hay DTE recientes para comparar.</td></tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">Criterio de cierre</h2>
+                <ul class="text-muted small mb-0">
+                    <li>COMPLETADO: la referencia asociada esta PROCESADO y tiene sello recibido.</li>
+                    <li>ERROR: Hacienda rechazo la referencia o el servicio marco error.</li>
+                    <li>EN_PROGRESO: existe intento o referencia asociada sin respuesta final.</li>
+                    <li>PENDIENTE: aun no hay intento ni DTE/evento asociado.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>

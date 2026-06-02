@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NeoSTP.Domain.Core.Auditoria;
 using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Certificacion;
 using NeoSTP.Domain.Core.Dte.Contingencia;
@@ -95,6 +96,11 @@ public class NeoStpDbContext : DbContext
     public DbSet<ApiUsageLog> ApiUsageLogs => Set<ApiUsageLog>();
     public DbSet<ApiQuota> ApiQuotas => Set<ApiQuota>();
     public DbSet<AdminIpAllowlistEntry> AdminIpAllowlist => Set<AdminIpAllowlistEntry>();
+
+    // NeoConnect API (Sprint 24)
+    public DbSet<ConnectApiKey> ConnectApiKeys => Set<ConnectApiKey>();
+    public DbSet<ConnectWebhook> ConnectWebhooks => Set<ConnectWebhook>();
+    public DbSet<ConnectWebhookDelivery> ConnectWebhookDeliveries => Set<ConnectWebhookDelivery>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Certificacion;
 using NeoSTP.Application.Dte.Certificacion.Dtos;
+using NeoSTP.Application.Dte.Dtos;
+using NeoSTP.Application.Dte.Eventos;
+using NeoSTP.Application.Dte.Eventos.Dtos;
 using NeoSTP.Application.Empresas;
+using NeoSTP.Domain.Core.Dte.Eventos;
 
 namespace NeoSTP.Web.Controllers;
 
@@ -11,12 +16,21 @@ namespace NeoSTP.Web.Controllers;
 public class CertificacionController : Controller
 {
     private readonly ICertificacionDteService _service;
+    private readonly IDteDocumentosService _documentos;
+    private readonly IDteEventoService _eventos;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
 
-    public CertificacionController(ICertificacionDteService service, ICurrentUser currentUser, IEmpresaContext empresaContext)
+    public CertificacionController(
+        ICertificacionDteService service,
+        IDteDocumentosService documentos,
+        IDteEventoService eventos,
+        ICurrentUser currentUser,
+        IEmpresaContext empresaContext)
     {
         _service = service;
+        _documentos = documentos;
+        _eventos = eventos;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
     }
@@ -59,9 +73,28 @@ public class CertificacionController : Controller
 
         var matriz = await _service.GetMatrizAsync(eid, ct);
         var fila = matriz.Value?.FirstOrDefault(m => string.Equals(m.TipoDteCodigo, codigo, StringComparison.OrdinalIgnoreCase));
+        var tipoNormalizado = codigo.ToUpperInvariant();
+        var esEvento = EsEvento(tipoNormalizado);
 
-        ViewBag.TipoCodigo = codigo.ToUpperInvariant();
+        if (esEvento)
+        {
+            var eventos = await _eventos.GetListAsync(eid, tipoNormalizado, null, ct);
+            ViewBag.EventosRecientes = eventos.Value ?? Array.Empty<DteEventoListDto>();
+        }
+        else
+        {
+            var documentos = await _documentos.GetListAsync(eid, new DteListQuery
+            {
+                Page = 1,
+                PageSize = 25,
+                TipoDteCodigo = tipoNormalizado,
+            }, ct);
+            ViewBag.DocumentosRecientes = documentos.Value?.Items ?? Array.Empty<DteDocumentoListItemDto>();
+        }
+
+        ViewBag.TipoCodigo = tipoNormalizado;
         ViewBag.Progreso = fila;
+        ViewBag.EsEvento = esEvento;
         ViewBag.PuedeOperar = Has("Core.Certificacion.Operar");
         return View(escenarios.Value ?? Array.Empty<CertificacionEscenarioDto>());
     }
@@ -107,10 +140,51 @@ public class CertificacionController : Controller
         return RedirectToAction(nameof(Tipo), new { codigo });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AsociarDte(int escenarioId, int documentoId, string codigo, string? notas, CancellationToken ct)
+    {
+        if (!Has("Core.Certificacion.Operar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _service.MarcarCompletadoAsync(documentoId, new MarcarCompletadoRequest
+        {
+            EscenarioId = escenarioId,
+            Notas = notas,
+        }, eid, _currentUser.Username, ct);
+
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? $"Escenario {result.Value!.EscenarioCodigo} actualizado desde DTE. Estado: {result.Value.EstadoCodigo}."
+            : result.Error;
+        return RedirectToAction(nameof(Tipo), new { codigo });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AsociarEvento(int escenarioId, int eventoId, string codigo, string? notas, CancellationToken ct)
+    {
+        if (!Has("Core.Certificacion.Operar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _service.MarcarCompletadoPorEventoAsync(eventoId, new MarcarCompletadoRequest
+        {
+            EscenarioId = escenarioId,
+            Notas = notas,
+        }, eid, _currentUser.Username, ct);
+
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? $"Escenario {result.Value!.EscenarioCodigo} actualizado desde evento. Estado: {result.Value.EstadoCodigo}."
+            : result.Error;
+        return RedirectToAction(nameof(Tipo), new { codigo });
+    }
+
     // ----- Helpers -----
 
     private bool Has(string codigo)
         => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);
+
+    private static bool EsEvento(string codigo)
+        => TipoEventoCodigos.Todos.Contains(codigo);
 
     private int? RequireEmpresa() => _empresaContext.CurrentEmpresaId;
 

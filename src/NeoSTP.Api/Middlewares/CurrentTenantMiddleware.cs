@@ -1,4 +1,5 @@
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Connect;
 using NeoSTP.Shared;
 
 namespace NeoSTP.Api.Middlewares;
@@ -7,6 +8,7 @@ namespace NeoSTP.Api.Middlewares;
 /// Tras la autenticación, exige que el usuario tenga EmpresaId resuelto, excepto:
 /// - endpoints anónimos (login, refresh, health, openapi)
 /// - SuperAdmin (puede operar sin empresa concreta, modo soporte)
+/// - requests autenticados por API Key (NeoConnect) — el contexto viene en Items
 /// </summary>
 public class CurrentTenantMiddleware
 {
@@ -28,6 +30,13 @@ public class CurrentTenantMiddleware
     {
         var path = context.Request.Path.Value ?? string.Empty;
         if (BypassPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+        {
+            await _next(context);
+            return;
+        }
+
+        // Petición autenticada con API Key de NeoConnect — tenant ya resuelto.
+        if (context.Items.ContainsKey(ApiKeyAuthMiddleware.ContextItemKey))
         {
             await _next(context);
             return;

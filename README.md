@@ -1,5 +1,12 @@
 # NeoSTP Cloud Web
 
+## Actualizacion Sprint 25
+
+- **Sprint 25.3 - Seguridad:** hardening HTTP en Web/API con cabeceras `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y CSP base. Las cookies Web y de modo soporte quedan forzadas a `Secure`/`HttpOnly`/`SameSite=Lax`. CORS de API queda abierto solo en desarrollo cuando no hay `Cors:AllowedOrigins`; en produccion queda cerrado por defecto sin origenes configurados.
+- **Sprint 25.2 - Certificacion DTE:** la matriz explica el flujo operativo, compara escenarios contra DTE/eventos reales y permite asociar documentos o eventos ya transmitidos. El estado del escenario se sincroniza con la respuesta real de Hacienda y el sello recibido.
+- **Sprint 25.1 - Billing:** checkout basado en planes reales de base via `IPlanesService`; ya no usa nombres, precios ni IDs quemados del mockup.
+- **Higiene local:** `tmp/` queda ignorado para no versionar builds temporales usados durante validaciones locales.
+
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
 > **Versión actual: Carga masiva (clientes y productos)** ✅  

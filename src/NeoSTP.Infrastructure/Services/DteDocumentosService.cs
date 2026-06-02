@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Dte.Eventos.Dtos;
@@ -38,6 +40,7 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly IDtePdfService _pdf;
     private readonly IEmailSender _email;
     private readonly IAuditoriaService _auditoria;
+    private readonly IConnectWebhookDispatcher _webhookDispatcher;
 
     public DteDocumentosService(
         NeoStpDbContext db,
@@ -51,7 +54,8 @@ public class DteDocumentosService : IDteDocumentosService
         ISecretProtector protector,
         IDtePdfService pdf,
         IEmailSender email,
-        IAuditoriaService auditoria)
+        IAuditoriaService auditoria,
+        IConnectWebhookDispatcher webhookDispatcher)
     {
         _db = db;
         _calculator = calculator;
@@ -65,6 +69,7 @@ public class DteDocumentosService : IDteDocumentosService
         _pdf = pdf;
         _email = email;
         _auditoria = auditoria;
+        _webhookDispatcher = webhookDispatcher;
     }
 
     public async Task<Result<PagedResult<DteDocumentoListItemDto>>> GetListAsync(int empresaId, DteListQuery query, CancellationToken ct = default)
@@ -511,6 +516,27 @@ public class DteDocumentosService : IDteDocumentosService
             $"[{resp.CodigoHttp}] estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg}",
             doc.Id);
 
+        // NeoConnect: notificar webhooks suscritos al cambio de estado (best-effort)
+        if (nuevoEstado is DteEstadoCodigos.Procesado or DteEstadoCodigos.Rechazado or DteEstadoCodigos.Contingencia)
+        {
+            var connectEvento = nuevoEstado switch
+            {
+                DteEstadoCodigos.Procesado => ConnectEventos.DteProcesado,
+                DteEstadoCodigos.Rechazado => ConnectEventos.DteRechazado,
+                _ => ConnectEventos.DteContingencia,
+            };
+            await _webhookDispatcher.DispatchAsync(new ConnectDteEventoPayload
+            {
+                Evento = connectEvento,
+                EmpresaId = empresaId,
+                DteId = doc.Id,
+                CodigoGeneracion = doc.CodigoGeneracion,
+                TipoDte = doc.TipoDteCodigo,
+                Estado = nuevoEstado,
+                OcurrioAt = DateTime.UtcNow,
+            }, ct);
+        }
+
         return await GetByIdAsync(empresaId, doc.Id, ct);
     }
 
@@ -680,6 +706,19 @@ public class DteDocumentosService : IDteDocumentosService
         doc.UpdatedAt = DateTime.UtcNow; doc.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "INVALIDAR", "OK", motivo ?? "Sin motivo", doc.Id);
+
+        // NeoConnect: notificar webhooks suscritos al evento de invalidación (best-effort)
+        await _webhookDispatcher.DispatchAsync(new ConnectDteEventoPayload
+        {
+            Evento = ConnectEventos.DteInvalidado,
+            EmpresaId = empresaId,
+            DteId = doc.Id,
+            CodigoGeneracion = doc.CodigoGeneracion,
+            TipoDte = doc.TipoDteCodigo,
+            Estado = DteEstadoCodigos.Invalidado,
+            OcurrioAt = DateTime.UtcNow,
+        }, ct);
+
         return Result.Ok();
     }
 
