@@ -15,6 +15,7 @@ using NeoSTP.Application.Dte.Diagnostico;
 using NeoSTP.Application.Dte.Eventos;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
+using NeoSTP.Application.Onboarding;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
@@ -177,6 +178,9 @@ public static class DependencyInjection
 
         // Sprint 8: Dashboard
         services.AddScoped<IDashboardService, DashboardService>();
+
+        // Onboarding self-service: estado de activación derivado de datos reales
+        services.AddScoped<IOnboardingService, OnboardingService>();
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();

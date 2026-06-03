@@ -1,0 +1,73 @@
+@model NeoSTP.Application.Onboarding.Dtos.OnboardingEstadoDto
+
+@*
+    Checklist de activación (onboarding self-service).
+    Se muestra solo mientras la cuenta no está 100% lista; al completarse desaparece.
+*@
+@if (Model is null || Model.Completo)
+{
+    return;
+}
+
+<div class="card border-0 shadow-sm mb-4 ns-onboarding">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">rocket_launch</span></span>
+                <div>
+                    <h2 class="h6 mb-0">Completa tu cuenta para empezar a facturar</h2>
+                    <p class="text-muted small mb-0">Del registro a tu primer DTE en pocos minutos.</p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end">
+                    <div class="ns-mono fw-bold" style="font-size:1.25rem;color:var(--ns-secondary)">
+                        @Model.PasosCompletados<span class="text-muted">/@Model.PasosTotal</span>
+                    </div>
+                    <small class="text-muted">@Model.PorcentajeCompletado% completado</small>
+                </div>
+                <a asp-controller="Onboarding" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                    Abrir asistente
+                    <span class="material-symbols-outlined align-middle" style="font-size:16px">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="progress mb-3" style="height:8px;">
+            <div class="progress-bar" role="progressbar"
+                 style="width:@Model.PorcentajeCompletado%;background:var(--ns-secondary)"
+                 aria-valuenow="@Model.PorcentajeCompletado" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+
+        <div class="row g-2">
+            @foreach (var paso in Model.Pasos)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <div class="ns-onboarding-step d-flex align-items-start gap-2 p-2 rounded h-100 @(paso.Completado ? "is-done" : "")">
+                        <span class="material-symbols-outlined ns-onboarding-icon">
+                            @(paso.Completado ? "check_circle" : paso.Icono)
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold small @(paso.Completado ? "text-decoration-line-through text-muted" : "")">@paso.Titulo</div>
+                            <div class="text-muted" style="font-size:.78rem;line-height:1.3">@paso.Descripcion</div>
+                            @if (!paso.Completado)
+                            {
+                                <a href="@paso.AccionUrl" class="btn btn-sm btn-outline-primary mt-2 py-0 px-2" style="font-size:.78rem">
+                                    @paso.AccionTexto
+                                    <span class="material-symbols-outlined align-middle" style="font-size:14px">arrow_forward</span>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .ns-onboarding-step { border:1px solid var(--ns-border, #e5e7eb); background:#fff; transition:border-color .15s, background .15s; }
+    .ns-onboarding-step .ns-onboarding-icon { color:var(--ns-draft, #64748b); font-size:22px; }
+    .ns-onboarding-step.is-done { background:rgba(16,185,129,.06); border-color:rgba(16,185,129,.35); }
+    .ns-onboarding-step.is-done .ns-onboarding-icon { color:var(--ns-processed, #10B981); }
+</style>

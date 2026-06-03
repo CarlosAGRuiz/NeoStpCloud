@@ -595,7 +595,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 
 | # | Módulo | Estado | Pendientes clave | Prioridad |
 |---|---|---|---|---|
-| 1 | **Core / Administración** | ✅ avanzado | MFA SuperAdmin/IP allowlist ✅; falta consumo por plan/upselling, onboarding self-service | Crítico |
+| 1 | **Core / Administración** | ✅ avanzado | MFA SuperAdmin/IP allowlist ✅; onboarding self-service ✅ (checklist + asistente `/onboarding`); falta consumo por plan/upselling | Crítico |
 | 2 | **NeoDTE** | ✅ avanzado | Hardcodeos territoriales eliminados (`TerritorialOptions`) ✅; falta sembrar CAT-008 Distrito para derivación 100% por catálogo | Crítico |
 | 3 | **Certificación DTE** | ✅ Sprint 14 — módulo completo (matriz, progreso, escenarios, reintentos, errores) | Completar matriz oficial cuando MH publique descripción detallada por escenario | Media |
 | 4 | **Eventos DTE** | ✅ Sprint 15 — persistencia + UI + PDF + integración certificación | Op-Especiales / Retorno aún bloqueados por autorización de cuenta MH | Media |
@@ -662,17 +662,17 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 | 1 | **Pagos LATAM** (Wompi · PayPal · Transferencia) | ✅ | Desbloquea cobro local (tarjeta Wompi + transferencia con verificación manual) |
 | 2 | **Lookups + limpieza de hardcodeos** | ✅ | `ILookupService`/`/api/lookups`; sin literales territoriales mágicos |
 | 3 | **Carga masiva** clientes/productos (Excel/CSV) | ✅ | Onboarding de datos de prospectos en minutos (upsert + dry-run + reporte) |
-| 4 | **Onboarding self-service pulido** | 🔜 | Wizard alta empresa → config DTE → primer DTE en <10 min; checklist de activación → sube conversión |
+| 4 | **Onboarding self-service** | ✅ | `IOnboardingService` deriva 5 pasos de activación de datos reales (perfil, config DTE, certificado, catálogo base, primer DTE PROCESADO); checklist reactivo en el dashboard + asistente `/onboarding`; se oculta al 100% → sube conversión |
 | 5 | **NeoConnect API comercial** | ✅ en curso (Sprint 24) | Gestión de API keys + webhooks firmados + worker de entrega + UI `/Integraciones` listos (reusa cuotas/`ApiUsageLog` del Sprint 20); faltan tests (sub-entrega 6) y endpoints de negocio/sandbox/docs — **base para NeoBusiness y NeoScan** |
 | 6 | **NeoProfit** / **NeoScanAI** | 🔜 | Diferenciadores: análisis financiero sobre DTE PROCESADOS / OCR-IA documental |
 
-**Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva → **pendiente principal: onboarding self-service**.
+**Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva · ✅ Onboarding self-service → **siguiente: NeoConnect endpoints de negocio / NeoProfit**.
 
-### Detalle del siguiente paso — Onboarding self-service
-1. **Wizard de bienvenida** post-registro (barra "X de N pasos"): datos de empresa → configuración DTE (ambiente, credenciales MH, certificado) → primer cliente/producto (o carga masiva) → **emitir primer DTE de prueba**.
-2. **Checklist de activación** en el dashboard ("Completa tu cuenta: 3/5") con enlaces directos a lo que falta.
-3. **Estados de preparación** (config DTE OK, certificado cargado, primer DTE emitido) visibles para el cliente y para SuperAdmin.
-4. Meta: del registro al primer DTE en **< 10 minutos** sin soporte.
+### Detalle — Onboarding self-service ✅
+1. **`IOnboardingService`** (`Application/Onboarding`, impl en `Infrastructure/Services/OnboardingService.cs`): única fuente de verdad; deriva el estado **sin persistir**, aislado por `EmpresaId`. 5 pasos: perfil empresa (NIT/NRC/actividad/dirección) → config DTE (credenciales MH + establecimiento) → certificado cargado → catálogo base (≥1 cliente y ≥1 producto activos) → primer DTE en estado `PROCESADO`.
+2. **Checklist de activación** en el dashboard (`Views/Shared/_OnboardingChecklist.cshtml`): barra "X/5 · %", tarjeta por paso con enlace directo a lo pendiente; **se oculta al llegar al 100%**.
+3. **Asistente de bienvenida** `/onboarding` (`OnboardingController` + `Views/Onboarding/Index.cshtml`): wizard guiado con "siguiente paso" destacado; acceso manual (no fuerza redirección post-login); entrada en el menú lateral "Asistente".
+4. Cubierto por 7 tests unitarios (`OnboardingServiceTests`). Meta: del registro al primer DTE en **< 10 minutos** sin soporte.
 
 ### Detalle de NeoConnect API (habilitador NeoBusiness/NeoScan) — Sprint 24
 

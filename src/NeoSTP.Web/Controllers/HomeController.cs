@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dashboard;
 using NeoSTP.Application.Empresas;
+using NeoSTP.Application.Onboarding;
 using NeoSTP.Web.Models;
 
 namespace NeoSTP.Web.Controllers;
@@ -15,17 +16,20 @@ public class HomeController : Controller
     private readonly IDashboardService _dashboard;
     private readonly IEmpresaContext _empresaContext;
     private readonly IEmpresasService _empresas;
+    private readonly IOnboardingService _onboarding;
 
     public HomeController(
         ICurrentUser currentUser,
         IDashboardService dashboard,
         IEmpresaContext empresaContext,
-        IEmpresasService empresas)
+        IEmpresasService empresas,
+        IOnboardingService onboarding)
     {
         _currentUser = currentUser;
         _dashboard = dashboard;
         _empresaContext = empresaContext;
         _empresas = empresas;
+        _onboarding = onboarding;
     }
 
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -63,12 +67,15 @@ public class HomeController : Controller
             empNombre = emp.Value?.RazonSocial;
         }
 
+        var onboarding = await _onboarding.GetEstadoAsync(empresaId.Value, ct);
+
         var vm = new DashboardViewModel
         {
             Username = _currentUser.Username ?? "",
             EsSuperAdmin = isSuperAdmin,
             EmpresaDashboard = dto,
             EmpresaNombre = empNombre,
+            Onboarding = onboarding,
         };
 
         return View(vm);

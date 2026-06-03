@@ -1,0 +1,110 @@
+@model NeoSTP.Application.Onboarding.Dtos.OnboardingEstadoDto
+@{
+    ViewData["Title"] = "Asistente de bienvenida";
+    var siguiente = Model.SiguientePaso;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Asistente de activación</span></nav>
+        <h1 class="ns-page-title">Configura tu cuenta NeoSTP</h1>
+    </div>
+    <div class="ns-page-actions">
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary btn-sm">← Ir al dashboard</a>
+    </div>
+</div>
+
+@if (Model.Completo)
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <span class="material-symbols-outlined" style="font-size:56px;color:var(--ns-processed)">verified</span>
+            <h2 class="h4 mt-3 mb-1">¡Tu cuenta está lista!</h2>
+            <p class="text-muted mb-4">Completaste todos los pasos de activación. Ya puedes operar con normalidad.</p>
+            <a asp-controller="DteDocumentos" asp-action="Create" asp-route-tipo="01" class="btn btn-primary">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Emitir un DTE
+            </a>
+        </div>
+    </div>
+    return;
+}
+
+<div class="row g-3">
+    @* ── Columna progreso + CTA ───────────────────────────────── *@
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">rocket_launch</span></span>
+                    <div>
+                        <div class="ns-mono fw-bold" style="font-size:1.5rem;color:var(--ns-secondary)">
+                            @Model.PasosCompletados<span class="text-muted">/@Model.PasosTotal</span>
+                        </div>
+                        <small class="text-muted">@Model.PorcentajeCompletado% completado</small>
+                    </div>
+                </div>
+                <div class="progress mb-3" style="height:8px;">
+                    <div class="progress-bar" role="progressbar"
+                         style="width:@Model.PorcentajeCompletado%;background:var(--ns-secondary)"></div>
+                </div>
+                @if (siguiente is not null)
+                {
+                    <p class="small text-muted mb-2">Siguiente paso:</p>
+                    <div class="p-3 rounded mb-3" style="background:rgba(107,56,212,.06);border:1px solid rgba(107,56,212,.25)">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="material-symbols-outlined" style="color:var(--ns-secondary)">@siguiente.Icono</span>
+                            <strong class="small">@siguiente.Titulo</strong>
+                        </div>
+                        <p class="text-muted mb-2" style="font-size:.8rem">@siguiente.Descripcion</p>
+                        <a href="@siguiente.AccionUrl" class="btn btn-primary btn-sm w-100">
+                            @siguiente.AccionTexto
+                            <span class="material-symbols-outlined align-middle" style="font-size:16px">arrow_forward</span>
+                        </a>
+                    </div>
+                }
+                <p class="text-muted small mb-0">Meta: del registro a tu primer DTE en menos de 10 minutos.</p>
+            </div>
+        </div>
+    </div>
+
+    @* ── Columna lista de pasos ──────────────────────────────── *@
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">checklist</span><strong>Pasos de activación</strong></div>
+            <ul class="list-group list-group-flush">
+                @{ var idx = 0; }
+                @foreach (var paso in Model.Pasos)
+                {
+                    idx++;
+                    var esSiguiente = !paso.Completado && siguiente?.Codigo == paso.Codigo;
+                    <li class="list-group-item d-flex align-items-start gap-3 @(esSiguiente ? "bg-light" : "")">
+                        <span class="material-symbols-outlined"
+                              style="font-size:26px;color:@(paso.Completado ? "var(--ns-processed)" : esSiguiente ? "var(--ns-secondary)" : "var(--ns-draft)")">
+                            @(paso.Completado ? "check_circle" : paso.Icono)
+                        </span>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2">
+                                <strong class="@(paso.Completado ? "text-decoration-line-through text-muted" : "")">@idx. @paso.Titulo</strong>
+                                @if (paso.Completado)
+                                {
+                                    <span class="ns-badge ns-badge--processed">listo</span>
+                                }
+                                else if (esSiguiente)
+                                {
+                                    <span class="ns-badge" style="background:rgba(107,56,212,.1);color:var(--ns-secondary)">siguiente</span>
+                                }
+                            </div>
+                            <div class="text-muted small">@paso.Descripcion</div>
+                        </div>
+                        @if (!paso.Completado)
+                        {
+                            <a href="@paso.AccionUrl" class="btn btn-sm @(esSiguiente ? "btn-primary" : "btn-outline-primary") align-self-center">
+                                @paso.AccionTexto
+                            </a>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

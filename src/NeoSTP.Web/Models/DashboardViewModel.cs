@@ -1,4 +1,5 @@
 using NeoSTP.Application.Dashboard.Dtos;
+using NeoSTP.Application.Onboarding.Dtos;
 
 namespace NeoSTP.Web.Models;
 
@@ -11,6 +12,9 @@ public class DashboardViewModel
     /// <summary>Disponible cuando el usuario tiene contexto de empresa (usuario de empresa o SuperAdmin en modo soporte).</summary>
     public DashboardEmpresaDto? EmpresaDashboard { get; set; }
     public string? EmpresaNombre { get; set; }
+
+    /// <summary>Estado de activación (onboarding) de la empresa. Null para SuperAdmin sin empresa.</summary>
+    public OnboardingEstadoDto? Onboarding { get; set; }
 
     /// <summary>Disponible solo para SuperAdmin sin modo soporte activo.</summary>
     public DashboardSuperAdminDto? SuperAdminDashboard { get; set; }

@@ -1,5 +1,14 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - Onboarding self-service
+
+Asistente de activacion para llevar al cliente del registro al primer DTE en < 10 minutos, sin soporte.
+
+- **Servicio de estado** (`IOnboardingService` / `OnboardingService`): deriva 5 pasos de datos reales, aislado por `EmpresaId` y **sin persistir estado** — perfil de empresa (NIT/NRC/actividad/direccion), credenciales de Hacienda + establecimiento, certificado de firma, catalogo base (>=1 cliente y >=1 producto activos), primer DTE en estado `PROCESADO`.
+- **Checklist en el dashboard** (`Views/Shared/_OnboardingChecklist.cshtml`): barra de progreso "X/5 - %", tarjeta por paso con enlace directo a lo pendiente; **se oculta solo al llegar al 100%**.
+- **Asistente** `/onboarding` (`OnboardingController`): wizard guiado con el "siguiente paso" destacado; acceso manual (no fuerza redireccion post-login); entrada "Asistente" en el menu lateral.
+- Cubierto por 7 tests unitarios (`OnboardingServiceTests`). Sin migracion (solo lectura).
+
 ## Actualizacion Sprint 27 - Alineacion total con los mockups Stitch
 
 Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitch en `/design`), manteniendo el look para todo lo nuevo. Solo UI: sin cambios de logica, datos reales preservados, formularios/POST/antiforgery intactos.
@@ -28,8 +37,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 27 — Alineación total de vistas con los mockups** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 267 unit + 2 integración pasando
+> **Versión actual: Onboarding self-service** ✅ (sobre Sprint 27 — alineación de vistas con los mockups)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 274 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

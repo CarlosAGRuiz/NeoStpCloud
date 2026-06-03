@@ -44,6 +44,12 @@
     </div>
 </div>
 
+@* ── Checklist de activación (onboarding) ───────────────────── *@
+@if (Model.Onboarding is not null)
+{
+    <partial name="_OnboardingChecklist" model="Model.Onboarding" />
+}
+
 @* ── Fila 1: KPIs ───────────────────────────────────────────── *@
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
