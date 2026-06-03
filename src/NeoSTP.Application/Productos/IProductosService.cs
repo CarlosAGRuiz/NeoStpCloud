@@ -10,6 +10,8 @@ public interface IProductosService
     Task<Result<ProductoDto>> CreateAsync(int empresaId, CreateProductoRequest request, string? actor, CancellationToken ct = default);
     Task<Result<ProductoDto>> UpdateAsync(int empresaId, int id, UpdateProductoRequest request, string? actor, CancellationToken ct = default);
     Task<Result> InactivarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
+    /// <summary>Reactiva un producto previamente inactivado (soft restore).</summary>
+    Task<Result> RestaurarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
 
     /// <summary>Carga masiva (upsert por código interno). Soporta dry-run.</summary>
     Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default);

@@ -1,0 +1,15 @@
+@model string
+@{
+    var (label, cls) = (Model ?? "").ToUpperInvariant() switch
+    {
+        "ACTIVE"     => ("Activo",         "ns-badge ns-badge--processed"),
+        "TRIALING"   => ("Prueba",         "ns-badge ns-badge--contingency"),
+        "PAST_DUE"   => ("Pago pendiente", "ns-badge ns-badge--rejected"),
+        "INCOMPLETE" => ("Incompleto",     "ns-badge ns-badge--contingency"),
+        "SUSPENDED"  => ("Suspendido",     "ns-badge ns-badge--rejected"),
+        "EXPIRED"    => ("Vencido",        "ns-badge ns-badge--rejected"),
+        "CANCELED"   => ("Cancelado",      "ns-badge ns-badge--draft"),
+        _            => (Model ?? "—",     "ns-badge ns-badge--draft"),
+    };
+}
+<span class="@cls">@label</span>

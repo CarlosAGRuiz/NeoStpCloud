@@ -1,5 +1,12 @@
 # NeoSTP Cloud Web
 
+## Actualizacion Sprint 26 - Modernizacion de vistas + acciones CRUD
+
+- **26.1 - Inventario y matriz de acciones:** documento `docs/Sprint26-Inventario-Vistas.md` con las 71 vistas MVC clasificadas por modulo, criticidad y madurez visual, matriz de acciones CRUD por vista, riesgos de eliminacion (entidades fiscales/pagos/auditoria sin borrado fisico) y pantallas con datos quemados.
+- **26.3 - DTE con errores:** detalle de DTE modernizado a `ns-*` con **panel de error MH prominente** (parse de `descripcionMsg`/`codigoMsg`/`observaciones` + enlace a Diagnostico), **trazabilidad de reintentos** del Worker, **descarga del JWS** firmado y badges/filtros de estado completos (incluye CONTINGENCIA y tipos 04/11/15). Se anadio **nota interna** operativa por DTE (campo `NotaInterna`, no fiscal, no entra al JSON; migracion `Sprint26_NotaInternaDte`). Sin cambiar la maquina de estados fiscal.
+- **26.4 - Catalogos y datos maestros:** **restaurar** (reactivar) clientes y productos inactivados por error (`RestaurarAsync` + auditoria + 7 tests); catalogos normativos del sistema con **proteccion visible** (banner read-only, sin borrado fisico) y vistas Details/Import modernizadas a `ns-*`.
+- **26.5 - Billing y planes:** corregido el unico dato quemado restante — el selector "Cambiar plan" del portal ya no usa IDs/precios ficticios, ahora carga planes reales de `Core_Planes`. **Estados de plan completos** (Activo/Prueba/Pago pendiente/Incompleto/Suspendido/Vencido/Cancelado) via partial reutilizable `_SubStatusBadge`, con aviso de regularizacion de pago.
+
 ## Actualizacion Sprint 25
 
 - **Sprint 25.5 - Pruebas asistidas de eventos DTE:** las filas de certificacion para invalidacion, contingencia, retorno y operaciones especiales pueden abrir una prueba desde la matriz, precargar datos base, transmitir el evento y asociarlo automaticamente al escenario. La matriz conserva la asociacion manual para eventos previos y queda sincronizada con el estado/sello real de Hacienda.
@@ -11,8 +18,8 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Carga masiva (clientes y productos)** ✅  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 259 unit + 2 integración pasando
+> **Versión actual: Sprint 26 — Modernización de vistas + acciones CRUD** ✅  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 267 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
@@ -858,9 +865,10 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 | —      | Carga masiva (clientes y productos Excel/CSV) | ✅     |
 | 22     | NeoProfit básico                              | 🔜     |
 | 23     | NeoScanAI integrado                           | 🔜     |
-| 24     | NeoConnect API comercial                      | 🔜     |
+| 24     | NeoConnect API comercial (API keys, webhooks, worker, UI) | ✅     |
 | 25     | NeoPOS básico                                 | 🔜     |
-| 26     | NeoPortal Clientes                            | 🔜     |
+| 26     | Modernización de vistas + acciones CRUD       | ✅     |
+| —      | NeoPortal Clientes                            | 🔜     |
 | 27–28  | NeoSTP Mobile API + MVP                       | 🔜     |
 | 29     | SuperAdmin operativo avanzado                 | 🔜     |
 | 30     | Preparación comercial y documentación         | 🔜     |
@@ -868,7 +876,7 @@ Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más u
 ## Pruebas
 
 ```powershell
-dotnet test NeoSTP.slnx                          # corre los 259 tests unit + 2 integration
+dotnet test NeoSTP.slnx                          # corre los 267 tests unit + 2 integration
 dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
 ```
 
@@ -895,3 +903,4 @@ Cobertura por área:
 | Eventos DTE — schema/servicio/PDF | 18    | `tests/NeoSTP.Tests.Unit/Dte/Eventos/*Tests.cs` (Sprint 15)            |
 | Hardening — schema/quotas/TOTP/MFA/IP allowlist/backups | 43 | `tests/NeoSTP.Tests.Unit/Ops/*Tests.cs` (Sprint 20)        |
 | Hardening — smoke cross-service   | 2     | `tests/NeoSTP.Tests.Integration/HardeningSmokeTests.cs` (Sprint 20)   |
+| Restaurar maestros (clientes/productos, EF) | 7 | `tests/NeoSTP.Tests.Unit/Datos/RestaurarMaestrosTests.cs` (Sprint 26.4) |

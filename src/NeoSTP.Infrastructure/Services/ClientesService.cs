@@ -143,6 +143,21 @@ public class ClientesService : IClientesService
         return Result.Ok();
     }
 
+    public async Task<Result> RestaurarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    {
+        var cliente = await _db.Clientes.FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId, ct);
+        if (cliente is null) return Result.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
+        if (cliente.EstadoCodigo == EstadoCodes.Activo)
+            return Result.Fail("El cliente ya está activo.", "INVALID_STATE");
+
+        cliente.EstadoCodigo = EstadoCodes.Activo;
+        cliente.UpdatedAt = DateTime.UtcNow;
+        cliente.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "RESTAURAR", "OK", $"Cliente {cliente.Nombre} restaurado", cliente.Id);
+        return Result.Ok();
+    }
+
     public async Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default)
     {
         IReadOnlyList<TabularRow> rows;

@@ -197,6 +197,18 @@ public class ClientesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restaurar(int id, CancellationToken ct)
+    {
+        if (!Has("Clientes.Editar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+
+        var result = await _clientes.RestaurarAsync(eid, id, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Cliente restaurado." : result.Error;
+        return RedirectToAction(nameof(Index));
+    }
+
     private static CreateClienteRequest ToCreate(CreateClienteViewModel m) => new()
     {
         TipoDocumentoCodigo = m.TipoDocumentoCodigo,

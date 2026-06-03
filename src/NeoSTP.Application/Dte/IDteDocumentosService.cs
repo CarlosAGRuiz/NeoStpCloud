@@ -14,6 +14,8 @@ public interface IDteDocumentosService
     Task<Result<DteDocumentoDto>> FirmarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result<DteDocumentoDto>> EnviarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default);
+    /// <summary>Guarda/actualiza la nota interna operativa del DTE (no fiscal, no afecta el JSON).</summary>
+    Task<Result> GuardarNotaInternaAsync(int empresaId, int id, string? nota, string? actor, CancellationToken ct = default);
     Task<Result<CrearEventoResultadoDto>> TransmitirEventoContingenciaAsync(int empresaId, IReadOnlyList<int> documentoIds, int tipoContingencia, string? motivo, string nombreResponsable, string tipoDocResponsable, string numeroDocResponsable, string? actor, CancellationToken ct = default);
     Task<Result<CrearEventoResultadoDto>> TransmitirInvalidacionEventoAsync(int empresaId, int documentoId, int tipoAnulacion, string? motivoAnulacion, string? codigoGeneracionReemplazo, string nombreResponsable, string tipoDocResponsable, string numDocResponsable, string? actor, CancellationToken ct = default);
     Task<Result<CrearEventoResultadoDto>> TransmitirEventoOperacionesEspecialesAsync(int empresaId, string? codigoGeneracionRef, string descripcion, decimal monto, string? actor, CancellationToken ct = default);

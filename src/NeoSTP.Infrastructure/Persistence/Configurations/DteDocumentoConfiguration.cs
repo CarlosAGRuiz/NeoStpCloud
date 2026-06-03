@@ -47,6 +47,7 @@ public class DteDocumentoConfiguration : IEntityTypeConfiguration<DteDocumento>
         builder.Property(d => d.VentaTerceroNombre).HasMaxLength(250);
 
         builder.Property(d => d.Observaciones).HasMaxLength(1000);
+        builder.Property(d => d.NotaInterna).HasMaxLength(2000);
 
         // Totales con precisión fiscal
         var monetaryProps = new[]

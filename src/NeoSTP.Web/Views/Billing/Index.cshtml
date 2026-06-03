@@ -34,6 +34,14 @@
         <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-2"></i>@TempData["Error"]<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     }
 
+    @if (sub != null && (sub.Status is "PAST_DUE" or "INCOMPLETE" or "EXPIRED" or "SUSPENDED"))
+    {
+        <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <span><i class="bi bi-exclamation-triangle me-2"></i>Tu suscripción requiere atención de pago. Regulariza para evitar la suspensión del servicio.</span>
+            <a asp-action="Checkout" class="btn btn-sm btn-warning">Regularizar pago</a>
+        </div>
+    }
+
     @if (sub != null)
     {
         <div class="row g-3 mb-4">
@@ -42,9 +50,7 @@
                     <div class="card-body">
                         <h6 class="card-subtitle mb-2 text-muted">Plan Activo</h6>
                         <h4 class="card-title">@sub.PlanNombre</h4>
-                        <span class="badge @(sub.Status == "ACTIVE" ? "bg-success" : sub.Status == "TRIALING" ? "bg-info" : sub.Status == "PAST_DUE" ? "bg-warning" : "bg-danger")">
-                            @sub.Status
-                        </span>
+                        @await Html.PartialAsync("_SubStatusBadge", (string)sub.Status)
                     </div>
                 </div>
             </div>

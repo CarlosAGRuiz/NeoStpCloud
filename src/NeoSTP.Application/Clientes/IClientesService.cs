@@ -10,6 +10,8 @@ public interface IClientesService
     Task<Result<ClienteDto>> CreateAsync(int empresaId, CreateClienteRequest request, string? actor, CancellationToken ct = default);
     Task<Result<ClienteDto>> UpdateAsync(int empresaId, int id, UpdateClienteRequest request, string? actor, CancellationToken ct = default);
     Task<Result> InactivarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
+    /// <summary>Reactiva un cliente previamente inactivado (soft restore).</summary>
+    Task<Result> RestaurarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
 
     /// <summary>Carga masiva (upsert por tipo+número de documento). Soporta dry-run.</summary>
     Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default);

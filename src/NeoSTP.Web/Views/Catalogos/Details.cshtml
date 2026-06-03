@@ -13,32 +13,42 @@
     </ol>
 </nav>
 
-<div class="d-flex justify-content-between align-items-start mb-3">
+<div class="ns-toolbar">
     <div>
-        <h2 class="mb-1">@catalogo.Nombre <small class="text-muted">v@(catalogo.Version)</small></h2>
+        <h2 class="mb-1 h4">@catalogo.Nombre <small class="text-muted ns-mono">v@(catalogo.Version)</small></h2>
         @if (!string.IsNullOrEmpty(catalogo.Descripcion))
         {
-            <p class="text-muted mb-0">@catalogo.Descripcion</p>
+            <p class="text-muted mb-0 small">@catalogo.Descripcion</p>
         }
-        <div class="mt-2">
+        <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
             @if (catalogo.EsSistema)
             {
-                <span class="badge bg-info text-dark">Sistema</span>
+                <span class="ns-pill ns-pill--off">Sistema (normativo)</span>
             }
             else
             {
-                <span class="badge bg-primary">Empresa</span>
+                <span class="ns-pill ns-pill--on">Empresa</span>
             }
-            <span class="badge @(catalogo.Activo ? "bg-success" : "bg-secondary") ms-1">@(catalogo.Activo ? "ACTIVO" : "INACTIVO")</span>
+            <span class="@(catalogo.Activo ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--draft")">@(catalogo.Activo ? "ACTIVO" : "INACTIVO")</span>
         </div>
     </div>
     <div class="d-flex gap-2">
-        @if (puedeImportar)
+        @if (puedeImportar && !catalogo.EsSistema)
         {
-            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-primary btn-sm">⬆ Importar</a>
+            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-primary btn-sm">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Importar
+            </a>
+        }
+        else if (puedeImportar && catalogo.EsSistema)
+        {
+            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-secondary btn-sm" title="Catálogo normativo: importar con precaución (afecta datos oficiales MH)">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Importar
+            </a>
         }
         <div class="btn-group btn-group-sm">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">⬇ Exportar</button>
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">download</span> Exportar
+            </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" asp-action="Export" asp-route-codigo="@catalogo.Codigo" asp-route-format="Csv">CSV</a></li>
                 <li><a class="dropdown-item" asp-action="Export" asp-route-codigo="@catalogo.Codigo" asp-route-format="Json">JSON</a></li>
@@ -53,79 +63,87 @@
     <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 }
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-md-4">
-        <input type="text" name="parent" value="@parent" class="form-control form-control-sm"
-               placeholder="Filtrar por código de padre (cascada)" />
+@if (catalogo.EsSistema)
+{
+    <div class="alert alert-info d-flex align-items-center gap-2 py-2">
+        <span class="material-symbols-outlined" style="font-size:20px">shield</span>
+        <span class="small">Catálogo <strong>normativo del sistema</strong> (datos oficiales MH). Los ítems son de solo lectura desde esta pantalla; no se eliminan físicamente y solo se actualizan mediante importación oficial.</span>
     </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-outline-primary btn-sm">Filtrar</button>
+}
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input type="text" name="parent" value="@parent" class="form-control form-control-sm" style="min-width:260px"
+               placeholder="Filtrar por código de padre (cascada)" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span> Filtrar
+        </button>
         @if (!string.IsNullOrEmpty(parent))
         {
-            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-link btn-sm">Limpiar</a>
         }
         else
         {
-            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="__ROOT__" class="btn btn-outline-secondary btn-sm ms-1" title="Sólo ítems de primer nivel">Solo raíz</a>
+            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="__ROOT__" class="btn btn-link btn-sm" title="Sólo ítems de primer nivel">Solo raíz</a>
         }
-    </div>
-    <div class="col-auto ms-auto small text-muted align-self-center">
-        @Model.Count ítems
-    </div>
-</form>
+    </form>
+    <span class="small text-muted">@Model.Count ítems</span>
+</div>
 
-<div class="table-responsive">
-    <table class="table table-sm table-hover">
-        <thead class="table-light">
-            <tr>
-                <th style="width:10%">Código</th>
-                <th>Valor</th>
-                <th>Descripción</th>
-                <th class="text-center" style="width:7%">Orden</th>
-                <th style="width:10%">Padre</th>
-                <th class="text-center" style="width:8%">Origen</th>
-                <th class="text-center" style="width:8%">Estado</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var i in Model)
-            {
-                <tr class="@(!i.Activo ? "table-secondary text-muted" : "")">
-                    <td><code>@i.Codigo</code></td>
-                    <td>@i.Valor</td>
-                    <td><small>@(i.Descripcion ?? "")</small></td>
-                    <td class="text-center"><small>@i.Orden</small></td>
-                    <td>
-                        @if (!string.IsNullOrEmpty(i.ParentCodigo))
-                        {
-                            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="@i.ParentCodigo" class="text-decoration-none">
-                                <code>@i.ParentCodigo</code>
-                            </a>
-                        }
-                        else
-                        {
-                            <span class="text-muted small">—</span>
-                        }
-                    </td>
-                    <td class="text-center">
-                        @if (i.EsSistema)
-                        {
-                            <span class="badge bg-info text-dark" title="Ítem del sistema; no se elimina físicamente">Sistema</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-light text-dark border">Empresa</span>
-                        }
-                    </td>
-                    <td class="text-center">
-                        <span class="badge @(i.Activo ? "bg-success" : "bg-secondary")">@(i.Activo ? "OK" : "INACT")</span>
-                    </td>
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th style="width:10%">Código</th>
+                    <th>Valor</th>
+                    <th>Descripción</th>
+                    <th class="text-center" style="width:7%">Orden</th>
+                    <th style="width:10%">Padre</th>
+                    <th class="text-center" style="width:8%">Origen</th>
+                    <th class="text-center" style="width:8%">Estado</th>
                 </tr>
-            }
-            @if (Model.Count == 0)
-            {
-                <tr><td colspan="7" class="text-center text-muted py-4">Sin ítems para los criterios indicados.</td></tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">menu_book</span><p>Sin ítems para los criterios indicados.</p></div></td></tr>
+                }
+                @foreach (var i in Model)
+                {
+                    <tr class="@(!i.Activo ? "text-muted" : "")">
+                        <td><code class="ns-mono">@i.Codigo</code></td>
+                        <td>@i.Valor</td>
+                        <td><small>@(i.Descripcion ?? "")</small></td>
+                        <td class="text-center"><small class="ns-mono">@i.Orden</small></td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(i.ParentCodigo))
+                            {
+                                <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="@i.ParentCodigo" class="text-decoration-none">
+                                    <code class="ns-mono">@i.ParentCodigo</code>
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">—</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @if (i.EsSistema)
+                            {
+                                <span class="ns-pill ns-pill--off" title="Ítem normativo; no se elimina físicamente">Sistema</span>
+                            }
+                            else
+                            {
+                                <span class="ns-pill ns-pill--on">Empresa</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            <span class="@(i.Activo ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--draft")">@(i.Activo ? "OK" : "INACT")</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>

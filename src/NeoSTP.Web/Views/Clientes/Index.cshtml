@@ -63,6 +63,13 @@
                                     <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Inactivar este cliente?');">Inactivar</button>
                                 </form>
                             }
+                            else
+                            {
+                                <form asp-action="Restaurar" asp-route-id="@c.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-outline-success" onclick="return confirm('¿Restaurar (reactivar) este cliente?');">Restaurar</button>
+                                </form>
+                            }
                         </td>
                     </tr>
                 }

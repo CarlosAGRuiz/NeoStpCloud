@@ -124,6 +124,13 @@ public class DteDocumento : AuditableEntity
     /// <summary>Fecha y hora UTC del último intento de retransmisión automática.</summary>
     public DateTime? UltimoIntentoRetransmisionAt { get; set; }
 
+    // ── Anotación operativa interna (Sprint 26) ───────────────────────
+    /// <summary>
+    /// Nota interna del operador para seguimiento (ej. "cliente sin NRC, pendiente corregir").
+    /// NO es un campo fiscal: no entra al JSON DTE ni se transmite a Hacienda.
+    /// </summary>
+    public string? NotaInterna { get; set; }
+
     public ICollection<DteDocumentoDetalle> Detalles { get; set; } = new List<DteDocumentoDetalle>();
     public DteDocumentoJson? Json { get; set; }
 

@@ -3,6 +3,7 @@
     var sub      = ViewBag.Subscription as NeoSTP.Application.Billing.Dtos.BillingSubscriptionDto;
     var payments = ViewBag.Payments as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingPaymentDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingPaymentDto>();
     var invoices = ViewBag.Invoices as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingInvoiceDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingInvoiceDto>();
+    var planes   = ViewBag.Planes as IEnumerable<NeoSTP.Application.Licenciamiento.Dtos.PlanDto> ?? Enumerable.Empty<NeoSTP.Application.Licenciamiento.Dtos.PlanDto>();
 }
 
 <div class="container-fluid py-4">
@@ -55,9 +56,7 @@
                     </div>
                     <div class="col-sm-3">
                         <div class="text-muted small">Estado</div>
-                        <span class="badge @(sub.Status == "ACTIVE" ? "bg-success" : sub.Status == "TRIALING" ? "bg-info" : sub.Status == "PAST_DUE" ? "bg-warning text-dark" : "bg-danger")">
-                            @sub.Status
-                        </span>
+                        @await Html.PartialAsync("_SubStatusBadge", (string)sub.Status)
                     </div>
                     <div class="col-sm-3">
                         <div class="text-muted small">@(sub.Status == "TRIALING" ? "Trial hasta" : "Renovación")</div>
@@ -209,10 +208,16 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Nuevo plan</label>
-                        <select name="newPlanId" class="form-select">
-                            <option value="1">Básico — $299/mes</option>
-                            <option value="2">Profesional — $699/mes</option>
+                        <select name="newPlanId" class="form-select" required>
+                            @foreach (var pl in planes.Where(p => p.Nombre != sub.PlanNombre))
+                            {
+                                <option value="@pl.Id">@pl.Nombre — @pl.MonedaCodigo @pl.PrecioMensual.ToString("N2")/mes</option>
+                            }
                         </select>
+                        @if (!planes.Any(p => p.Nombre != sub.PlanNombre))
+                        {
+                            <div class="form-text text-warning">No hay otros planes disponibles para cambiar.</div>
+                        }
                     </div>
                     <p class="text-muted small mb-0">El cambio se aplica de forma inmediata. La diferencia de precio se prorratea.</p>
                 </div>

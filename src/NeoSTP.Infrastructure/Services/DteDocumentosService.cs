@@ -722,6 +722,23 @@ public class DteDocumentosService : IDteDocumentosService
         return Result.Ok();
     }
 
+    public async Task<Result> GuardarNotaInternaAsync(int empresaId, int id, string? nota, string? actor, CancellationToken ct = default)
+    {
+        var doc = await _db.DteDocumentos.FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        if (doc is null) return Result.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+
+        var limpia = string.IsNullOrWhiteSpace(nota) ? null : nota.Trim();
+        if (limpia is { Length: > 2000 })
+            return Result.Fail("La nota interna no puede exceder 2000 caracteres.", "VALIDATION");
+
+        doc.NotaInterna = limpia;
+        doc.UpdatedAt = DateTime.UtcNow;
+        doc.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "NOTA_INTERNA", "OK", limpia is null ? "Nota borrada" : "Nota actualizada", doc.Id);
+        return Result.Ok();
+    }
+
     /// <summary>
     /// MOMENTO 2: transmite el Evento de Contingencia (contingencia-schema v4) informando los
     /// códigos de generación de los DTE generados en contingencia. Firma RS512 + POST /fesv/contingencia.
@@ -1394,6 +1411,9 @@ public class DteDocumentosService : IDteDocumentosService
         JsonDte = d.Json?.JsonDte,
         JsonFirmado = d.Json?.JsonFirmado,
         RespuestaHacienda = d.Json?.RespuestaHacienda,
+        IntentoRetransmision = d.IntentoRetransmision,
+        UltimoIntentoRetransmisionAt = d.UltimoIntentoRetransmisionAt,
+        NotaInterna = d.NotaInterna,
     };
 
     private Task Audit(int empresaId, string? actor, string accion, string resultado, string? detalle, int entidadId)

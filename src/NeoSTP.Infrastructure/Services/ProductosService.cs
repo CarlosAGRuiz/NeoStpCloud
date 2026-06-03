@@ -131,6 +131,21 @@ public class ProductosService : IProductosService
         return Result.Ok();
     }
 
+    public async Task<Result> RestaurarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    {
+        var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == id && p.EmpresaId == empresaId, ct);
+        if (producto is null) return Result.Fail("Producto no encontrado.", "PRODUCTO_NOT_FOUND");
+        if (producto.EstadoCodigo == EstadoCodes.Activo)
+            return Result.Fail("El producto ya está activo.", "INVALID_STATE");
+
+        producto.EstadoCodigo = EstadoCodes.Activo;
+        producto.UpdatedAt = DateTime.UtcNow;
+        producto.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "RESTAURAR", "OK", $"Producto {producto.CodigoInterno} restaurado", producto.Id);
+        return Result.Ok();
+    }
+
     public async Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default)
     {
         IReadOnlyList<TabularRow> rows;

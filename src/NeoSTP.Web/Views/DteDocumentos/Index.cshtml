@@ -12,8 +12,8 @@
     string EstadoNsBadge(string e) => e switch
     {
         "PROCESADO" => "ns-badge ns-badge--processed",
-        "RECHAZADO" or "ERROR" => "ns-badge ns-badge--rejected",
-        "CONTINGENCIA" => "ns-badge ns-badge--contingency",
+        "RECHAZADO" or "ERROR" or "INVALIDADO" => "ns-badge ns-badge--rejected",
+        "CONTINGENCIA" or "ENVIADO" or "FIRMADO" => "ns-badge ns-badge--contingency",
         _ => "ns-badge ns-badge--draft",
     };
 }
@@ -25,13 +25,16 @@
             <option value="">Todos los tipos</option>
             <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
             <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
+            <option value="04" selected="@(q.TipoDteCodigo == "04")">04 Nota Remisión</option>
             <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
             <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
+            <option value="11" selected="@(q.TipoDteCodigo == "11")">11 Exportación</option>
             <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
+            <option value="15" selected="@(q.TipoDteCodigo == "15")">15 Donación</option>
         </select>
         <select name="EstadoCodigo" class="form-select form-select-sm" style="width:auto">
             <option value="">Todos los estados</option>
-            @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "INVALIDADO", "ERROR" })
+            @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "CONTINGENCIA", "INVALIDADO", "ERROR" })
             {
                 <option value="@s" selected="@(q.EstadoCodigo == s)">@s</option>
             }

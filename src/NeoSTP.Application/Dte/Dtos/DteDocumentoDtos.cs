@@ -85,6 +85,13 @@ public class DteDocumentoDto
     public string? JsonDte { get; set; }
     public string? JsonFirmado { get; set; }
     public string? RespuestaHacienda { get; set; }
+
+    /// <summary>Trazabilidad de reintentos automáticos (Worker de contingencia).</summary>
+    public int IntentoRetransmision { get; set; }
+    public DateTime? UltimoIntentoRetransmisionAt { get; set; }
+
+    /// <summary>Nota interna operativa (no fiscal).</summary>
+    public string? NotaInterna { get; set; }
 }
 
 public class DteDocumentoDetalleDto

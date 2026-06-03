@@ -13,14 +13,22 @@
     </ol>
 </nav>
 
-<h2>Importar a <code>@catalogo.Codigo</code></h2>
-<p class="text-muted">
+<h2 class="h4">Importar a <code class="ns-mono">@catalogo.Codigo</code></h2>
+<p class="text-muted small">
     Formato detectado por extensión del archivo: <strong>.csv</strong>, <strong>.json</strong> o <strong>.xlsx</strong>.
     El archivo debe tener encabezado con al menos las columnas <code>Codigo</code> y <code>Valor</code>.
     Otras columnas opcionales: <code>Descripcion, Orden, ParentCodigo, MetadataJson, Activo</code>.
 </p>
 
-<form method="post" enctype="multipart/form-data" class="card card-body bg-light mb-4">
+@if (catalogo.EsSistema)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2 py-2">
+        <span class="material-symbols-outlined" style="font-size:20px">warning</span>
+        <span class="small">Este es un catálogo <strong>normativo del sistema</strong> (datos oficiales MH). Importar aquí actualiza datos oficiales — usa <strong>Simular</strong> primero y verifica el reporte antes de aplicar.</span>
+    </div>
+}
+
+<form method="post" enctype="multipart/form-data" class="card card-body mb-4">
     @Html.AntiForgeryToken()
 
     <div asp-validation-summary="All" class="text-danger small mb-2"></div>
@@ -63,21 +71,18 @@
             }
         </div>
         <div class="card-body">
-            <div class="row g-3 mb-3">
+            <div class="row g-3 mb-3 text-center">
                 <div class="col-md-3">
-                    <div class="border rounded p-2 text-center"><div class="text-muted small">Total</div><div class="h4 m-0">@result.Total</div></div>
+                    <div class="border rounded p-2"><div class="ns-metric-label">Total</div><div class="ns-mono fw-bold fs-4">@result.Total</div></div>
                 </div>
                 <div class="col-md-3">
-                    <div class="border rounded p-2 text-center bg-success-subtle"><div class="text-muted small">Insertados</div><div class="h4 m-0 text-success">@result.Inserted</div></div>
+                    <div class="border rounded p-2"><div class="ns-metric-label">Insertados</div><div class="ns-mono fw-bold fs-4 text-success">@result.Inserted</div></div>
                 </div>
                 <div class="col-md-3">
-                    <div class="border rounded p-2 text-center bg-primary-subtle"><div class="text-muted small">Actualizados</div><div class="h4 m-0 text-primary">@result.Updated</div></div>
+                    <div class="border rounded p-2"><div class="ns-metric-label">Actualizados</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-secondary)">@result.Updated</div></div>
                 </div>
                 <div class="col-md-3">
-                    <div class="border rounded p-2 text-center @(result.ErrorCount > 0 ? "bg-danger-subtle" : "bg-warning-subtle")">
-                        <div class="text-muted small">Errores / Omitidos</div>
-                        <div class="h4 m-0">@result.ErrorCount / @result.Skipped</div>
-                    </div>
+                    <div class="border rounded p-2"><div class="ns-metric-label">Errores / Omitidos</div><div class="ns-mono fw-bold fs-4 @(result.ErrorCount > 0 ? "text-danger" : "")">@result.ErrorCount / @result.Skipped</div></div>
                 </div>
             </div>
 

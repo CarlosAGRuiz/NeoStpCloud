@@ -173,10 +173,12 @@ public class BillingController : Controller
         var sub = await _billing.GetActiveSubscriptionAsync(empresaId, ct);
         var payments = await _billing.GetPaymentsAsync(empresaId, ct);
         var invoices = await _billing.GetInvoicesAsync(empresaId, ct);
+        var planes = await _planes.GetListAsync(ct);
 
         ViewBag.Subscription = sub.Value;
         ViewBag.Payments = payments.Value ?? new List<BillingPaymentDto>();
         ViewBag.Invoices = invoices.Value ?? new List<BillingInvoiceDto>();
+        ViewBag.Planes = planes.Value ?? Array.Empty<NeoSTP.Application.Licenciamiento.Dtos.PlanDto>();
         return View();
     }
 

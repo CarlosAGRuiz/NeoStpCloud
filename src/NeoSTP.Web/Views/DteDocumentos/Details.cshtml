@@ -1,22 +1,44 @@
 @model NeoSTP.Application.Dte.Dtos.DteDocumentoDto
 @{
     ViewData["Title"] = $"DTE {Model.NumeroControl}";
-    var estadoBadge = Model.EstadoCodigo switch
+    var esSuperAdmin = User.FindFirst(NeoSTP.Web.Auth.CookieCurrentUser.ClaimTipoUsuario)?.Value == "SUPERADMIN";
+    var puedeDiagnostico = User.HasClaim("permiso", "DTE.Diagnostico") || esSuperAdmin;
+    var puedeEmitir = User.HasClaim("permiso", "DTE.Emitir") || esSuperAdmin;
+
+    string EstadoNsBadge(string e) => e switch
     {
-        "BORRADOR" => "bg-secondary",
-        "GENERADO" => "bg-info",
-        "VALIDADO" => "bg-primary",
-        "FIRMADO" => "bg-warning text-dark",
-        "ENVIADO" => "bg-warning text-dark",
-        "PROCESADO" => "bg-success",
-        "RECHAZADO" or "ERROR" => "bg-danger",
-        "INVALIDADO" => "bg-dark",
-        _ => "bg-light text-dark border"
+        "PROCESADO" => "ns-badge ns-badge--processed",
+        "RECHAZADO" or "ERROR" => "ns-badge ns-badge--rejected",
+        "CONTINGENCIA" => "ns-badge ns-badge--contingency",
+        "FIRMADO" or "ENVIADO" or "VALIDADO" or "GENERADO" => "ns-badge ns-badge--contingency",
+        "INVALIDADO" => "ns-badge ns-badge--rejected",
+        _ => "ns-badge ns-badge--draft",
     };
+
+    var esError = Model.EstadoCodigo is "RECHAZADO" or "ERROR";
+    var esProcesado = Model.EstadoCodigo == "PROCESADO";
+
+    // Parse ligero (read-only) de la respuesta cruda de Hacienda para mostrar un resumen amigable.
+    string? mhDescripcion = null, mhCodigoMsg = null, mhEstado = null;
+    var mhObservaciones = new List<string>();
+    if (!string.IsNullOrEmpty(Model.RespuestaHacienda))
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(Model.RespuestaHacienda);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("descripcionMsg", out var dm) && dm.ValueKind == System.Text.Json.JsonValueKind.String) mhDescripcion = dm.GetString();
+            if (root.TryGetProperty("codigoMsg", out var cm)) mhCodigoMsg = cm.ToString();
+            if (root.TryGetProperty("estado", out var es) && es.ValueKind == System.Text.Json.JsonValueKind.String) mhEstado = es.GetString();
+            if (root.TryGetProperty("observaciones", out var obs) && obs.ValueKind == System.Text.Json.JsonValueKind.Array)
+                foreach (var o in obs.EnumerateArray()) { var s = o.GetString(); if (!string.IsNullOrWhiteSpace(s)) mhObservaciones.Add(s!); }
+        }
+        catch { /* respuesta no-JSON: se muestra cruda más abajo */ }
+    }
 }
 
-@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
-@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
 
 <div class="card mb-3">
     <div class="card-body py-4 px-5">
@@ -24,49 +46,112 @@
     </div>
 </div>
 
-<div class="d-flex justify-content-between align-items-start mb-3">
+@* ===== Panel de estado MH prominente ===== *@
+@if (esError)
+{
+    <div class="card mb-3" style="border-left:4px solid var(--ns-rejected)">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="material-symbols-outlined" style="color:var(--ns-rejected)">error</span>
+                        <strong>@(Model.EstadoCodigo == "RECHAZADO" ? "Rechazado por Hacienda" : "Error en el procesamiento")</strong>
+                    </div>
+                    @if (!string.IsNullOrEmpty(mhDescripcion))
+                    {
+                        <p class="m-0">@mhDescripcion @if (!string.IsNullOrEmpty(mhCodigoMsg)) { <span class="text-muted ns-mono">(cód. @mhCodigoMsg)</span> }</p>
+                    }
+                    @if (mhObservaciones.Any())
+                    {
+                        <ul class="m-0 mt-2 small text-danger">@foreach (var o in mhObservaciones) { <li>@o</li> }</ul>
+                    }
+                    @if (string.IsNullOrEmpty(mhDescripcion) && !mhObservaciones.Any() && !string.IsNullOrEmpty(Model.Observaciones))
+                    {
+                        <p class="m-0 small text-muted">@Model.Observaciones</p>
+                    }
+                </div>
+                @if (puedeDiagnostico)
+                {
+                    <a asp-controller="DiagnosticoHacienda" asp-action="Documento" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-danger">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px">troubleshoot</span> Ver en Diagnóstico
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+}
+else if (esProcesado && !string.IsNullOrEmpty(Model.SelloRecibido))
+{
+    <div class="card mb-3" style="border-left:4px solid var(--ns-processed)">
+        <div class="card-body d-flex align-items-center gap-2 flex-wrap">
+            <span class="material-symbols-outlined" style="color:var(--ns-processed)">verified</span>
+            <strong>Procesado por Hacienda</strong>
+            <span class="text-muted">·</span>
+            <span class="small">Sello: <span class="ns-mono text-success">@Model.SelloRecibido</span></span>
+            @if (Model.ProcesadoAt.HasValue) { <span class="text-muted small">· @Model.ProcesadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</span> }
+        </div>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
     <div>
-        <h1 class="h4 m-0">DTE @Model.TipoDteCodigo · <small class="text-muted font-monospace">@Model.NumeroControl</small></h1>
-        <div class="mt-1">
-            <span class="badge @estadoBadge">@Model.EstadoCodigo</span>
-            <span class="badge bg-light text-dark border">Ambiente: @Model.AmbienteCodigo</span>
-            <span class="badge bg-light text-dark border">@Model.FechaEmision.ToString("yyyy-MM-dd") @Model.HoraEmision.ToString(@"hh\:mm")</span>
+        <h1 class="h4 m-0">DTE @Model.TipoDteCodigo · <small class="text-muted ns-mono">@Model.NumeroControl</small></h1>
+        <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+            <span class="@EstadoNsBadge(Model.EstadoCodigo)">@Model.EstadoCodigo</span>
+            <span class="ns-badge ns-badge--draft">Ambiente: @Model.AmbienteCodigo</span>
+            <span class="ns-badge ns-badge--draft">@Model.FechaEmision.ToString("yyyy-MM-dd") @Model.HoraEmision.ToString(@"hh\:mm")</span>
+            @if (Model.IntentoRetransmision > 0)
+            {
+                <span class="ns-badge ns-badge--contingency" title="Reintentos automáticos del Worker">@Model.IntentoRetransmision intento(s)@(Model.UltimoIntentoRetransmisionAt.HasValue ? $" · último {Model.UltimoIntentoRetransmisionAt.Value:yyyy-MM-dd HH:mm}" : "")</span>
+            }
         </div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
-        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">📄 PDF</a>
+        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">picture_as_pdf</span> PDF
+        </a>
         @if (!string.IsNullOrEmpty(Model.JsonDte))
         {
-            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">{ } JSON</a>
+            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">data_object</span> JSON
+            </a>
         }
-        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reenviarModal">✉ Reenviar por correo</button>
+        @if (!string.IsNullOrEmpty(Model.JsonFirmado))
+        {
+            <a asp-action="Jws" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">verified_user</span> JWS
+            </a>
+        }
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reenviarModal">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">mail</span> Reenviar
+        </button>
         @if (Model.EstadoCodigo is "BORRADOR" or "ERROR")
         {
             <form asp-action="Generar" asp-route-id="@Model.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
-                <button class="btn btn-sm btn-info">Generar JSON</button>
+                <button class="btn btn-sm btn-outline-secondary">@(Model.EstadoCodigo == "ERROR" ? "Regenerar JSON" : "Generar JSON")</button>
             </form>
         }
         @if (Model.EstadoCodigo is "BORRADOR" or "GENERADO" or "ERROR")
         {
             <form asp-action="Validar" asp-route-id="@Model.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
-                <button class="btn btn-sm btn-primary">Validar</button>
+                <button class="btn btn-sm btn-primary">@(Model.EstadoCodigo == "ERROR" ? "Revalidar" : "Validar")</button>
             </form>
         }
-        @if (Model.EstadoCodigo is "VALIDADO" or "GENERADO")
+        @if (Model.EstadoCodigo is "FIRMADO" or "VALIDADO" or "GENERADO")
         {
             <form asp-action="Firmar" asp-route-id="@Model.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
-                <button class="btn btn-sm btn-warning">Firmar</button>
+                <button class="btn btn-sm btn-outline-primary">@(Model.EstadoCodigo == "FIRMADO" ? "Refirmar" : "Firmar")</button>
             </form>
         }
         @if (Model.EstadoCodigo is "FIRMADO" or "VALIDADO" or "CONTINGENCIA" or "RECHAZADO")
         {
             <form asp-action="Enviar" asp-route-id="@Model.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
-                <button class="btn btn-sm btn-success" onclick="return confirm('¿Enviar a Hacienda?');">Enviar a Hacienda</button>
+                <button class="btn btn-sm btn-success" onclick="return confirm('¿Enviar a Hacienda?');">@(Model.EstadoCodigo == "RECHAZADO" ? "Reenviar a Hacienda" : "Enviar a Hacienda")</button>
             </form>
         }
         @if (Model.EstadoCodigo != "PROCESADO" && Model.EstadoCodigo != "INVALIDADO")
@@ -74,7 +159,7 @@
             <form asp-action="Invalidar" asp-route-id="@Model.Id" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="motivo" value="Anulado por usuario" />
-                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Invalidar este DTE?');">Invalidar</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Invalidar este DTE? No podrá transmitirse después.');">Invalidar</button>
             </form>
         }
     </div>
@@ -82,13 +167,13 @@
 
 <div class="row g-3">
     <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
+        <div class="card">
             <div class="card-header">Receptor</div>
             <div class="card-body">
                 <p class="m-0"><strong>@(Model.ReceptorNombre ?? "—")</strong></p>
                 <p class="m-0 text-muted small">
-                    @Model.ReceptorTipoDocumento @Model.ReceptorNumeroDocumento
-                    @if (!string.IsNullOrEmpty(Model.ReceptorNrc)) { <span> · NRC @Model.ReceptorNrc</span> }
+                    @Model.ReceptorTipoDocumento <span class="ns-mono">@Model.ReceptorNumeroDocumento</span>
+                    @if (!string.IsNullOrEmpty(Model.ReceptorNrc)) { <span> · NRC <span class="ns-mono">@Model.ReceptorNrc</span></span> }
                 </p>
                 <p class="m-0 text-muted small">@Model.ReceptorCorreo @Model.ReceptorTelefono</p>
                 <p class="m-0 text-muted small">@Model.ReceptorDireccion</p>
@@ -96,26 +181,26 @@
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
+        <div class="card">
             <div class="card-header">Identificación</div>
             <div class="card-body small">
-                <div><strong>Código generación:</strong> <span class="font-monospace">@Model.CodigoGeneracion</span></div>
+                <div><strong>Código generación:</strong> <span class="ns-mono">@Model.CodigoGeneracion</span></div>
                 <div><strong>Versión:</strong> @Model.VersionDte · Modelo: @Model.ModeloFacturacion · Transmisión: @Model.TipoTransmision</div>
                 <div><strong>Condición:</strong> @Model.CondicionOperacionCodigo  @if (Model.PlazoDias.HasValue) { <span> · @Model.PlazoDias días</span> }</div>
                 @if (!string.IsNullOrEmpty(Model.NumeroDocumentoRelacionado))
                 {
-                    <div><strong>Documento relacionado:</strong> @Model.TipoDteRelacionado / @Model.NumeroDocumentoRelacionado</div>
+                    <div><strong>Documento relacionado:</strong> @Model.TipoDteRelacionado / <span class="ns-mono">@Model.NumeroDocumentoRelacionado</span></div>
                 }
             </div>
         </div>
     </div>
 </div>
 
-<div class="card mt-3 border-0 shadow-sm">
+<div class="card mt-3">
     <div class="card-header">Detalle</div>
     <div class="table-responsive">
         <table class="table table-sm m-0">
-            <thead class="table-light">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>Código</th>
@@ -134,15 +219,15 @@
                 {
                     <tr>
                         <td>@l.NumeroLinea</td>
-                        <td><small>@l.Codigo</small></td>
+                        <td><small class="ns-mono">@l.Codigo</small></td>
                         <td>@l.Descripcion</td>
-                        <td class="text-end">@l.Cantidad.ToString("N4")</td>
+                        <td class="text-end ns-mono">@l.Cantidad.ToString("N4")</td>
                         <td><small>@l.UnidadMedidaCodigo</small></td>
-                        <td class="text-end">@l.PrecioUnitario.ToString("N4")</td>
-                        <td class="text-end">@l.MontoDescuento.ToString("N2")</td>
-                        <td class="text-end">@l.VentaGravada.ToString("N2")</td>
-                        <td class="text-end">@l.VentaExenta.ToString("N2")</td>
-                        <td class="text-end">@l.VentaNoSujeta.ToString("N2")</td>
+                        <td class="text-end ns-mono">@l.PrecioUnitario.ToString("N4")</td>
+                        <td class="text-end ns-mono">@l.MontoDescuento.ToString("N2")</td>
+                        <td class="text-end ns-mono">@l.VentaGravada.ToString("N2")</td>
+                        <td class="text-end ns-mono">@l.VentaExenta.ToString("N2")</td>
+                        <td class="text-end ns-mono">@l.VentaNoSujeta.ToString("N2")</td>
                     </tr>
                 }
             </tbody>
@@ -154,32 +239,60 @@
     <div class="col-md-6">
         @if (!string.IsNullOrEmpty(Model.Observaciones))
         {
-            <div class="card border-0 shadow-sm">
+            <div class="card">
                 <div class="card-header">Observaciones</div>
                 <div class="card-body small">@Model.Observaciones</div>
             </div>
         }
     </div>
     <div class="col-md-6">
-        <div class="card border-0 shadow-sm">
+        <div class="card">
             <div class="card-header">Totales</div>
             <div class="card-body">
                 <table class="table table-sm m-0">
                     <tbody>
-                        <tr><td>Total gravada</td><td class="text-end">$ @Model.TotalGravada.ToString("N2")</td></tr>
-                        <tr><td>Total exenta</td><td class="text-end">$ @Model.TotalExenta.ToString("N2")</td></tr>
-                        <tr><td>Total no sujeta</td><td class="text-end">$ @Model.TotalNoSujeto.ToString("N2")</td></tr>
-                        <tr><td>Subtotal ventas</td><td class="text-end">$ @Model.SubTotalVentas.ToString("N2")</td></tr>
-                        <tr><td>Total descuento</td><td class="text-end">$ @Model.TotalDescuento.ToString("N2")</td></tr>
-                        <tr><td>IVA 13%</td><td class="text-end">$ @Model.IvaTotal.ToString("N2")</td></tr>
-                        <tr><td>IVA retenido</td><td class="text-end">$ @Model.IvaRetenido.ToString("N2")</td></tr>
-                        <tr><td>Renta retenida</td><td class="text-end">$ @Model.ReteRenta.ToString("N2")</td></tr>
-                        <tr class="table-active"><th>Total a pagar</th><th class="text-end">$ @Model.TotalPagar.ToString("N2")</th></tr>
+                        <tr><td>Total gravada</td><td class="text-end ns-mono">$ @Model.TotalGravada.ToString("N2")</td></tr>
+                        <tr><td>Total exenta</td><td class="text-end ns-mono">$ @Model.TotalExenta.ToString("N2")</td></tr>
+                        <tr><td>Total no sujeta</td><td class="text-end ns-mono">$ @Model.TotalNoSujeto.ToString("N2")</td></tr>
+                        <tr><td>Subtotal ventas</td><td class="text-end ns-mono">$ @Model.SubTotalVentas.ToString("N2")</td></tr>
+                        <tr><td>Total descuento</td><td class="text-end ns-mono">$ @Model.TotalDescuento.ToString("N2")</td></tr>
+                        <tr><td>IVA 13%</td><td class="text-end ns-mono">$ @Model.IvaTotal.ToString("N2")</td></tr>
+                        <tr><td>IVA retenido</td><td class="text-end ns-mono">$ @Model.IvaRetenido.ToString("N2")</td></tr>
+                        <tr><td>Renta retenida</td><td class="text-end ns-mono">$ @Model.ReteRenta.ToString("N2")</td></tr>
+                        <tr class="table-active"><th>Total a pagar</th><th class="text-end ns-mono">$ @Model.TotalPagar.ToString("N2")</th></tr>
                     </tbody>
                 </table>
                 <p class="text-muted small m-0 mt-2"><em>@Model.TotalLetras</em></p>
             </div>
         </div>
+    </div>
+</div>
+
+@* ===== Nota interna (operativa, no fiscal) ===== *@
+<div class="card mt-3">
+    <div class="card-header d-flex align-items-center gap-2">
+        <span class="material-symbols-outlined" style="font-size:18px">sticky_note_2</span> Nota interna
+        <span class="text-muted small">· seguimiento operativo, no se transmite a Hacienda</span>
+    </div>
+    <div class="card-body">
+        @if (puedeEmitir)
+        {
+            <form asp-action="GuardarNota" asp-route-id="@Model.Id" method="post">
+                @Html.AntiForgeryToken()
+                <textarea name="notaInterna" class="form-control" rows="3" maxlength="2000" placeholder="Ej.: cliente sin NRC, pendiente corregir antes de reenviar…">@Model.NotaInterna</textarea>
+                <div class="d-flex justify-content-end mt-2">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Guardar nota</button>
+                </div>
+            </form>
+        }
+        else if (!string.IsNullOrEmpty(Model.NotaInterna))
+        {
+            <p class="m-0 small" style="white-space:pre-wrap">@Model.NotaInterna</p>
+        }
+        else
+        {
+            <p class="m-0 text-muted small">Sin nota interna.</p>
+        }
     </div>
 </div>
 
@@ -207,28 +320,24 @@
     </div>
 </div>
 
-@if (!string.IsNullOrEmpty(Model.SelloRecibido) || !string.IsNullOrEmpty(Model.RespuestaHacienda))
+@* ===== Trazabilidad: respuesta cruda + tiempos ===== *@
+@if (!string.IsNullOrEmpty(Model.SelloRecibido) || !string.IsNullOrEmpty(Model.RespuestaHacienda) || Model.EnviadoAt.HasValue)
 {
-    <div class="card mt-3 border-0 shadow-sm">
-        <div class="card-header">Respuesta de Hacienda</div>
+    <div class="card mt-3">
+        <div class="card-header">Trazabilidad de Hacienda</div>
         <div class="card-body small">
-            @if (!string.IsNullOrEmpty(Model.SelloRecibido))
-            {
-                <p class="m-0"><strong>Sello recibido:</strong> <span class="font-monospace text-success">@Model.SelloRecibido</span></p>
-            }
-            @if (Model.ProcesadoAt.HasValue)
-            {
-                <p class="m-0"><strong>Procesado:</strong> @Model.ProcesadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</p>
-            }
-            @if (Model.EnviadoAt.HasValue)
-            {
-                <p class="m-0"><strong>Enviado:</strong> @Model.EnviadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</p>
-            }
+            <div class="ns-kv mb-2">
+                @if (Model.EnviadoAt.HasValue) { <dt>Enviado</dt><dd class="ns-mono">@Model.EnviadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</dd> }
+                @if (Model.RespuestaAt.HasValue) { <dt>Respuesta</dt><dd class="ns-mono">@Model.RespuestaAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</dd> }
+                @if (Model.ProcesadoAt.HasValue) { <dt>Procesado</dt><dd class="ns-mono">@Model.ProcesadoAt.Value.ToString("yyyy-MM-dd HH:mm:ss")</dd> }
+                @if (!string.IsNullOrEmpty(mhEstado)) { <dt>Estado MH</dt><dd class="ns-mono">@mhEstado</dd> }
+                @if (Model.IntentoRetransmision > 0) { <dt>Reintentos</dt><dd class="ns-mono">@Model.IntentoRetransmision</dd> }
+            </div>
             @if (!string.IsNullOrEmpty(Model.RespuestaHacienda))
             {
-                <details class="mt-2">
-                    <summary>Respuesta cruda</summary>
-                    <pre class="m-0 p-2 bg-light" style="max-height:200px;overflow:auto">@Model.RespuestaHacienda</pre>
+                <details @(esError ? "open" : "")>
+                    <summary>Respuesta cruda de Hacienda</summary>
+                    <pre class="m-0 mt-2 p-2 bg-light ns-mono" style="max-height:220px;overflow:auto;white-space:pre-wrap">@Model.RespuestaHacienda</pre>
                 </details>
             }
         </div>
@@ -237,22 +346,25 @@
 
 @if (!string.IsNullOrEmpty(Model.JsonFirmado))
 {
-    <div class="card mt-3 border-0 shadow-sm">
+    <div class="card mt-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>JWS firmado</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('jws-pre').textContent)">Copiar</button>
+            <span class="d-flex gap-2">
+                <a asp-action="Jws" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">Descargar .jws</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('jws-pre').textContent)">Copiar</button>
+            </span>
         </div>
-        <pre id="jws-pre" class="m-0 p-3 bg-light small text-break" style="max-height:200px;overflow:auto;white-space:pre-wrap">@Model.JsonFirmado</pre>
+        <pre id="jws-pre" class="m-0 p-3 bg-light small text-break ns-mono" style="max-height:200px;overflow:auto;white-space:pre-wrap">@Model.JsonFirmado</pre>
     </div>
 }
 
 @if (!string.IsNullOrEmpty(Model.JsonDte))
 {
-    <div class="card mt-3 border-0 shadow-sm">
+    <div class="card mt-3">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>JSON DTE sin firmar</span>
             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText(document.getElementById('json-pre').textContent)">Copiar</button>
         </div>
-        <pre id="json-pre" class="m-0 p-3 bg-light small" style="max-height:400px;overflow:auto">@Model.JsonDte</pre>
+        <pre id="json-pre" class="m-0 p-3 bg-light small ns-mono" style="max-height:400px;overflow:auto">@Model.JsonDte</pre>
     </div>
 }

@@ -270,6 +270,29 @@ public class DteDocumentosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GuardarNota(int id, string? notaInterna, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.GuardarNotaInternaAsync(eid, id, notaInterna, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Nota interna guardada." : result.Error;
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Jws(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Consultar") && !Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.GetByIdAsync(eid, id, ct);
+        if (result.IsFailure || result.Value is null) return NotFound();
+        if (string.IsNullOrEmpty(result.Value.JsonFirmado)) return NotFound();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(result.Value.JsonFirmado);
+        return File(bytes, "application/jose", $"{result.Value.CodigoGeneracion}.jws");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reenviar(int id, string? destinatario, CancellationToken ct)
     {
         if (!Has("DTE.Reenviar")) return Forbid();

@@ -187,6 +187,17 @@ public class ProductosController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restaurar(int id, CancellationToken ct)
+    {
+        if (!Has("Productos.Editar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _productos.RestaurarAsync(eid, id, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Producto restaurado." : result.Error;
+        return RedirectToAction(nameof(Index));
+    }
+
     private static CreateProductoRequest ToCreate(CreateProductoViewModel m) => new()
     {
         CodigoInterno = m.CodigoInterno,
