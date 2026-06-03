@@ -50,8 +50,8 @@
         <tbody>
             @foreach (var c in Model)
             {
-                <tr class="@(!c.Activo ? "table-secondary text-muted" : "")">
-                    <td><code>@c.Codigo</code></td>
+                <tr class="@(!c.Activo ? "text-muted" : "")">
+                    <td><code class="ns-mono">@c.Codigo</code></td>
                     <td>
                         @c.Nombre
                         @if (!string.IsNullOrEmpty(c.Descripcion))
@@ -59,24 +59,24 @@
                             <div class="text-muted small">@c.Descripcion</div>
                         }
                     </td>
-                    <td class="text-center"><span class="badge bg-secondary">@c.TotalItems</span></td>
-                    <td class="text-center"><small>v@(c.Version)</small></td>
+                    <td class="text-center"><span class="ns-badge ns-badge--draft">@c.TotalItems</span></td>
+                    <td class="text-center"><small class="ns-mono">v@(c.Version)</small></td>
                     <td class="text-center">
                         @if (c.EsSistema)
                         {
-                            <span class="badge bg-info text-dark" title="Catálogo del sistema (lectura para empresas)">Sistema</span>
+                            <span class="ns-pill ns-pill--off" title="Catálogo del sistema (lectura para empresas)">Sistema</span>
                         }
                         else
                         {
-                            <span class="badge bg-primary">Empresa</span>
+                            <span class="ns-pill ns-pill--on">Empresa</span>
                         }
                     </td>
                     <td class="text-center">
-                        <span class="badge @(c.Activo ? "bg-success" : "bg-secondary")">@(c.Activo ? "ACTIVO" : "INACTIVO")</span>
+                        <span class="@(c.Activo ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--draft")">@(c.Activo ? "ACTIVO" : "INACTIVO")</span>
                     </td>
                     <td class="text-end">
                         <a asp-action="Details" asp-route-codigo="@c.Codigo" class="btn btn-outline-primary btn-sm">Ver ítems</a>
-                        <a asp-action="Export" asp-route-codigo="@c.Codigo" asp-route-format="Csv" class="btn btn-outline-secondary btn-sm" title="Exportar CSV">⬇ CSV</a>
+                        <a asp-action="Export" asp-route-codigo="@c.Codigo" asp-route-format="Csv" class="btn btn-outline-secondary btn-sm" title="Exportar CSV"><span class="material-symbols-outlined align-middle" style="font-size:16px">download</span> CSV</a>
                     </td>
                 </tr>
             }

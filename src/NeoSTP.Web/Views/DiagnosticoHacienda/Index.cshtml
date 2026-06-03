@@ -149,7 +149,7 @@
                         };
                         <tr class="@severityClass">
                             <td>
-                                <span class="badge bg-secondary">@o.CodigoError</span>
+                                <span class="ns-badge ns-badge--draft ns-mono">@o.CodigoError</span>
                             </td>
                             <td>
                                 <div>@o.Mensaje</div>
@@ -173,11 +173,11 @@
                             <td>
                                 @if (o.Resuelta)
                                 {
-                                    <span class="badge bg-success">✓ Resuelta</span>
+                                    <span class="ns-badge ns-badge--processed">Resuelta</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-danger">Pendiente</span>
+                                    <span class="ns-badge ns-badge--rejected">Pendiente</span>
                                 }
                             </td>
                             <td>
@@ -185,7 +185,7 @@
                                 {
                                     <form asp-action="MarcarResuelta" asp-route-id="@o.Id" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
-                                        <button class="btn btn-xs btn-outline-success btn-sm py-0">✓</button>
+                                        <button class="ns-action-btn" title="Marcar como resuelta"><span class="material-symbols-outlined">check</span></button>
                                     </form>
                                 }
                             </td>
@@ -196,11 +196,11 @@
                                 <td colspan="7" class="pt-0 pb-2">
                                     @if (o.CausaProbable is not null)
                                     {
-                                        <span class="text-muted small">⚠️ <strong>Causa:</strong> @o.CausaProbable</span>
+                                        <span class="text-muted small"><strong>Causa:</strong> @o.CausaProbable</span>
                                     }
                                     @if (o.AccionSugerida is not null)
                                     {
-                                        <span class="text-muted small ms-3">💡 <strong>Acción:</strong> @o.AccionSugerida</span>
+                                        <span class="small ms-3" style="color:var(--ns-secondary)"><strong>Acción sugerida:</strong> @o.AccionSugerida</span>
                                     }
                                 </td>
                             </tr>

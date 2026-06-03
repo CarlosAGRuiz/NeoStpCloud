@@ -1,5 +1,15 @@
 # NeoSTP Cloud Web
 
+## Actualizacion Sprint 27 - Alineacion total con los mockups Stitch
+
+Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitch en `/design`), manteniendo el look para todo lo nuevo. Solo UI: sin cambios de logica, datos reales preservados, formularios/POST/antiforgery intactos.
+
+- **27.1 Libreria de componentes** (`wwwroot/css/neostp.css`, documentada en `design/design-system/DESIGN.md`): `ns-page-head`/`ns-breadcrumb`, `ns-kpi` (icon-chip + tendencia + sparkline), `ns-formsection`, `ns-row-actions`/`ns-action-btn`, `ns-ai-card`, `ns-ai-confidence`. Aditiva, no rompe pantallas existentes.
+- **27.2 Nuevo DTE** (`DteDocumentos/Create`): layout 2 columnas con secciones de formulario y panel de totales oscuro en vivo.
+- **27.3 Dashboard** (`Home/Index`): KPI cards con icon-chip y **sparkline de datos reales** (TendenciaDiaria).
+- **27.4 Lote de formularios** (12 vistas): Clientes/Productos/Usuarios/Empresas/Sucursales Create+Edit con `ns-page-head` + `ns-formsection` (bug fix: checkbox de terminos duplicado en alta de usuario).
+- **27.5 SuperAdmin + paneles DTE** (~20 vistas): SuperAdmin, Config DTE, Eventos (Index/Details/4 Create), Contingencia (Index/Lotes/DetalleLote), Diagnostico (Index/Documento/Evento), Catalogos, Planes, Soporte, Empresas/Licencia — KPIs, badges semanticos, iconos Material en vez de emojis, empty states.
+
 ## Actualizacion Sprint 26 - Modernizacion de vistas + acciones CRUD
 
 - **26.1 - Inventario y matriz de acciones:** documento `docs/Sprint26-Inventario-Vistas.md` con las 71 vistas MVC clasificadas por modulo, criticidad y madurez visual, matriz de acciones CRUD por vista, riesgos de eliminacion (entidades fiscales/pagos/auditoria sin borrado fisico) y pantallas con datos quemados.
@@ -18,7 +28,7 @@
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Sprint 26 — Modernización de vistas + acciones CRUD** ✅  
+> **Versión actual: Sprint 27 — Alineación total de vistas con los mockups** ✅  
 > **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 267 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >

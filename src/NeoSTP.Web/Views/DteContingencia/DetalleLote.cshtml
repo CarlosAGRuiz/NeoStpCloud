@@ -4,23 +4,25 @@
     ViewData["Title"] = $"Lote #{Model.Id}";
     string badge = Model.EstadoCodigo switch
     {
-        "PROCESADO" => "bg-success",
-        "ENVIADO" => "bg-info text-dark",
-        "CONSULTADO" => "bg-primary",
-        "ERROR" => "bg-danger",
-        _ => "bg-secondary"
+        "PROCESADO" => "ns-badge ns-badge--processed",
+        "ENVIADO" or "CONSULTADO" => "ns-badge ns-badge--contingency",
+        "ERROR" => "ns-badge ns-badge--rejected",
+        _ => "ns-badge ns-badge--draft"
     };
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>📦 Lote #@Model.Id <span class="badge @badge fs-6">@Model.EstadoCodigo</span></h2>
-    <div class="d-flex gap-2">
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Lotes">Lotes</a><span class="material-symbols-outlined">chevron_right</span><span>Lote #@Model.Id</span></nav>
+        <h1 class="ns-page-title d-flex align-items-center gap-2">Lote #@Model.Id <span class="@badge">@Model.EstadoCodigo</span></h1>
+    </div>
+    <div class="ns-page-actions">
         @if (Model.EstadoCodigo == "ENVIADO" && !string.IsNullOrEmpty(Model.CodigoLote))
         {
             <form asp-action="ConsultarLote" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="loteId" value="@Model.Id" />
-                <button type="submit" class="btn btn-primary btn-sm">🔍 Consultar en Hacienda</button>
+                <button type="submit" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:18px">search</span> Consultar en Hacienda</button>
             </form>
         }
         <a asp-action="Lotes" class="btn btn-outline-secondary btn-sm">← Lotes</a>
@@ -84,15 +86,15 @@
         {
             string dbadge = d.EstadoCodigo switch
             {
-                "PROCESADO" => "bg-success",
-                "ERROR" => "bg-danger",
-                _ => "bg-secondary"
+                "PROCESADO" => "ns-badge ns-badge--processed",
+                "ERROR" => "ns-badge ns-badge--rejected",
+                _ => "ns-badge ns-badge--draft"
             };
             <tr>
-                <td><code class="small">@d.CodigoGeneracion</code></td>
-                <td class="text-center"><span class="badge bg-secondary">@d.TipoDteCodigo</span></td>
-                <td class="text-center"><span class="badge @dbadge">@d.EstadoCodigo</span></td>
-                <td><code class="small">@(d.SelloRecibido ?? "—")</code></td>
+                <td><code class="small ns-mono">@d.CodigoGeneracion</code></td>
+                <td class="text-center"><span class="ns-badge ns-badge--draft">@d.TipoDteCodigo</span></td>
+                <td class="text-center"><span class="@dbadge">@d.EstadoCodigo</span></td>
+                <td><code class="small ns-mono">@(d.SelloRecibido ?? "—")</code></td>
                 <td class="small text-muted">@(d.MensajeHacienda ?? "—")</td>
             </tr>
         }

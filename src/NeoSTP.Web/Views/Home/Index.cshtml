@@ -15,12 +15,26 @@
     return;
 }
 
+@{
+    // Sparkline real a partir de la tendencia diaria (sin datos inventados).
+    var sparkVals = dto.TendenciaDiaria.Select(x => (double)x.Cantidad).ToList();
+    string sparkPath = "";
+    if (sparkVals.Count > 1)
+    {
+        var max = Math.Max(sparkVals.Max(), 1);
+        var n = sparkVals.Count;
+        var pts = sparkVals.Select((v, i) => $"{(i * 100.0 / (n - 1)).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)},{(20 - v / max * 18).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)}");
+        sparkPath = "M" + string.Join(" L", pts);
+    }
+}
+
 @* ── Encabezado ───────────────────────────────────────────── *@
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+<div class="ns-page-head">
     <div>
-        <p class="text-muted mb-0 small text-uppercase" style="letter-spacing:.06em">@Model.EmpresaNombre &mdash; @mesNombre</p>
+        <p class="ns-breadcrumb mb-1">@Model.EmpresaNombre &mdash; <span class="text-uppercase" style="letter-spacing:.06em">@mesNombre</span></p>
+        <h1 class="ns-page-title">Centro de Control DTE</h1>
     </div>
-    <div class="d-flex gap-2">
+    <div class="ns-page-actions">
         <a asp-controller="DteDocumentos" asp-action="Create" asp-route-tipo="01" class="btn btn-primary btn-sm">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Factura
         </a>
@@ -33,60 +47,57 @@
 @* ── Fila 1: KPIs ───────────────────────────────────────────── *@
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <div class="card ns-metric h-100">
-            <div class="card-body d-flex justify-content-between align-items-start">
-                <div>
-                    <p class="ns-metric-label">DTE emitidos hoy</p>
-                    <h2 class="ns-metric-value" style="color:var(--ns-primary)">@dto.DteHoy</h2>
-                </div>
-                <span class="ns-metric-icon" style="background:rgba(19,27,46,.08);color:var(--ns-primary)"><span class="material-symbols-outlined">receipt_long</span></span>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top">
+                <span class="ns-kpi-chip"><span class="material-symbols-outlined">receipt_long</span></span>
             </div>
-        </div>
+            <p class="ns-kpi-label">DTE emitidos hoy</p>
+            <h2 class="ns-kpi-value">@dto.DteHoy</h2>
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-        <div class="card ns-metric h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <p class="ns-metric-label">DTE este mes</p>
-                        <h2 class="ns-metric-value" style="color:var(--ns-secondary)">@dto.DteMes</h2>
-                    </div>
-                    <span class="ns-metric-icon" style="background:rgba(107,56,212,.1);color:var(--ns-secondary)"><span class="material-symbols-outlined">insights</span></span>
-                </div>
-                @if (dto.LimiteDteMensual is > 0)
-                {
-                    <div class="progress mt-3" style="height: 5px;">
-                        <div class="progress-bar @(dto.PorcentajeUsoDte >= 90 ? "bg-danger" : dto.PorcentajeUsoDte >= 70 ? "bg-warning" : "bg-success")"
-                             role="progressbar" style="width: @dto.PorcentajeUsoDte%"></div>
-                    </div>
-                    <small class="text-muted">@dto.DteMes / @dto.LimiteDteMensual (@dto.PorcentajeUsoDte%)</small>
-                }
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top">
+                <span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">insights</span></span>
             </div>
-        </div>
+            <p class="ns-kpi-label">DTE este mes</p>
+            <h2 class="ns-kpi-value">@dto.DteMes</h2>
+            @if (dto.LimiteDteMensual is > 0)
+            {
+                <div class="progress mt-2" style="height: 5px;">
+                    <div class="progress-bar @(dto.PorcentajeUsoDte >= 90 ? "bg-danger" : dto.PorcentajeUsoDte >= 70 ? "bg-warning" : "bg-success")"
+                         role="progressbar" style="width: @dto.PorcentajeUsoDte%"></div>
+                </div>
+                <small class="text-muted">@dto.DteMes / @dto.LimiteDteMensual (@dto.PorcentajeUsoDte%)</small>
+            }
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-        <div class="card ns-metric h-100">
-            <div class="card-body d-flex justify-content-between align-items-start">
-                <div>
-                    <p class="ns-metric-label">Facturado mes (procesado)</p>
-                    <h2 class="ns-metric-value ns-mono" style="color:var(--ns-processed)">$@dto.TotalPagarMes.ToString("N2")</h2>
-                    <small class="text-muted">@dto.Procesados procesado@(dto.Procesados != 1 ? "s" : "")</small>
-                </div>
-                <span class="ns-metric-icon" style="background:rgba(16,185,129,.1);color:var(--ns-processed)"><span class="material-symbols-outlined">payments</span></span>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top">
+                <span class="ns-kpi-chip ns-kpi-chip--processed"><span class="material-symbols-outlined">payments</span></span>
             </div>
-        </div>
+            <p class="ns-kpi-label">Facturado mes (procesado)</p>
+            <h2 class="ns-kpi-value ns-mono" style="color:var(--ns-processed)">$@dto.TotalPagarMes.ToString("N2")</h2>
+            @if (!string.IsNullOrEmpty(sparkPath))
+            {
+                <svg class="ns-spark" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="@sparkPath" style="stroke:var(--ns-processed)" /></svg>
+            }
+            else
+            {
+                <small class="text-muted">@dto.Procesados procesado@(dto.Procesados != 1 ? "s" : "")</small>
+            }
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-        <div class="card ns-metric h-100">
-            <div class="card-body d-flex justify-content-between align-items-start">
-                <div>
-                    <p class="ns-metric-label">Alertas</p>
-                    <h2 class="ns-metric-value" style="color:@(dto.Rechazados > 0 ? "var(--ns-rejected)" : "var(--ns-draft)")">@dto.Rechazados</h2>
-                    <small class="text-muted">@dto.Rechazados rechazado@(dto.Rechazados != 1 ? "s" : "") · @dto.Pendientes pendiente@(dto.Pendientes != 1 ? "s" : "")</small>
-                </div>
-                <span class="ns-metric-icon" style="background:rgba(239,68,68,.1);color:var(--ns-rejected)"><span class="material-symbols-outlined">warning</span></span>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top">
+                <span class="ns-kpi-chip @(dto.Rechazados > 0 ? "ns-kpi-chip--rejected" : "")"><span class="material-symbols-outlined">warning</span></span>
             </div>
-        </div>
+            <p class="ns-kpi-label">Alertas</p>
+            <h2 class="ns-kpi-value" style="color:@(dto.Rechazados > 0 ? "var(--ns-rejected)" : "var(--ns-draft)")">@dto.Rechazados</h2>
+            <small class="text-muted">@dto.Rechazados rechazado@(dto.Rechazados != 1 ? "s" : "") · @dto.Pendientes pendiente@(dto.Pendientes != 1 ? "s" : "")</small>
+        </div></div>
     </div>
 </div>
 
@@ -143,9 +154,9 @@
                             @foreach (var t in dto.PorTipo)
                             {
                                 <tr>
-                                    <td><span class="badge bg-secondary me-1">@t.TipoCodigo</span>@t.TipoNombre</td>
-                                    <td class="text-end fw-semibold">@t.Cantidad</td>
-                                    <td class="text-end">@t.TotalPagar.ToString("N2")</td>
+                                    <td><span class="ns-badge ns-badge--draft me-1">@t.TipoCodigo</span>@t.TipoNombre</td>
+                                    <td class="text-end fw-semibold ns-mono">@t.Cantidad</td>
+                                    <td class="text-end ns-mono">@t.TotalPagar.ToString("N2")</td>
                                 </tr>
                             }
                         </tbody>
@@ -167,7 +178,7 @@
                 @if (dto.PlanNombre is not null)
                 {
                     <div class="mb-3">
-                        <span class="badge bg-primary fs-6">@dto.PlanNombre</span>
+                        <span class="ns-badge" style="background:rgba(19,27,46,.08);color:var(--ns-primary);font-size:13px">@dto.PlanNombre</span>
                     </div>
                     @if (dto.LimiteDteMensual is > 0)
                     {
@@ -187,7 +198,7 @@
                 }
                 else
                 {
-                    <p class="text-warning mb-0">⚠️ Sin plan activo asignado.</p>
+                    <p class="text-warning mb-0 d-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:18px">warning</span> Sin plan activo asignado.</p>
                 }
 
                 <hr />

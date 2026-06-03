@@ -181,6 +181,21 @@ A standard radius of **8px (0.5rem)** is applied to small components like input 
 - **Steppers:** Horizontal connectors between steps. Completed steps use Modern Violet icons; current steps use a Deep Tech Blue border.
 - **Status Badges:** Text in all-caps, 10px size, semi-bold. Backgrounds are low-opacity versions of the semantic colors with high-contrast text.
 
+### Enterprise component library (`ns-*`)
+Consolidated from the Stitch mockups into `wwwroot/css/neostp.css` so every new and modernized
+view shares one look. Use these instead of ad-hoc Bootstrap markup:
+
+- **Page head** (`.ns-page-head` + `.ns-breadcrumb` + `.ns-page-title` + `.ns-page-actions`): breadcrumb, Hanken title, right-aligned primary/secondary actions. Standard top of every operational screen.
+- **KPI card** (`.ns-kpi`): icon chip (`.ns-kpi-chip[--violet|--processed|--rejected|--contingency]`), uppercase label, Hanken value, trend pill (`.ns-trend--up|--down` with arrow), optional 2px sparkline (`.ns-spark`). Wrap in a `.card`.
+- **Form section** (`.ns-formsection` → `.ns-formsection-head` icon+title on surface-container-low → `.ns-formsection-body` grid of `.ns-field`): the standard data-entry block (Nuevo DTE, config screens).
+- **Row quick-actions** (`.ns-row-actions` + `.ns-action-btn[--primary|--danger]`): compact 32px icon buttons for table rows; add `.ns-row-actions--hover` to reveal on row hover. Disabled state supported.
+- **AI insight card** (`.ns-ai-card`, `.ns-ai-card--solid` gradient violet, `.ns-ai-card-head`, `.ns-ai-card-tag`): the NeoScanAI/assistant promo block. Reserve the solid violet gradient for AI surfaces only.
+- **AI confidence badge** (`.ns-ai-confidence--high|--med|--low`): OCR/extraction confidence (NeoScanAI bandeja).
+- **Card head with icon** (`.card-header.ns-card-head`): Material icon + title inside a Bootstrap card.
+- **Dark totals panel** (`.ns-totals`, existing): right-column summary for document creation.
+
+Status colors are always the DTE semantic set: processed (green), rejected (red), contingency (amber), draft (slate). The solid violet gradient is reserved for AI; primary Deep Tech Blue for navigation/primary actions.
+
 ### Integrations (NeoConnect)
 The NeoConnect surface (`/Integraciones`) governs API Keys and webhooks for external integrators. It reuses the standard card/table/badge primitives plus three integration-specific patterns:
 

@@ -4,24 +4,26 @@
     var dtes = (ViewBag.Dtes as IReadOnlyList<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>) ?? new List<NeoSTP.Application.Dte.Dtos.DteDocumentoListItemDto>();
 }
 
-<nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Eventos DTE</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Retorno</li>
-    </ol>
-</nav>
-
-<h2>Evento de retorno</h2>
-<p class="text-muted">Aplica a Factura (FE/01), Factura de Exportación (FEX/11) y Sujeto Excluido (FSE/14) PROCESADAS. Esquema <code>fe-eret</code>, tipoEvento <strong>18</strong>. Requiere <code>codEstableMH</code> real registrado por la empresa.</p>
-
-<form method="post" class="card card-body bg-light">
+<form method="post" style="max-width: 920px;">
     @Html.AntiForgeryToken()
     <input asp-for="CertificacionEscenarioId" type="hidden" />
     <input asp-for="CertificacionTipoCodigo" type="hidden" />
     <input asp-for="CertificacionEscenarioCodigo" type="hidden" />
     <input asp-for="CertificacionEscenarioNombre" type="hidden" />
-    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
 
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb"><a asp-action="Index">Eventos DTE</a><span class="material-symbols-outlined">chevron_right</span><span>Retorno</span></nav>
+            <h1 class="ns-page-title">Evento de retorno</h1>
+        </div>
+        <div class="ns-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-secondary">Transmitir retorno</button>
+        </div>
+    </div>
+    <p class="text-muted small">Aplica a Factura (FE/01), Factura de Exportación (FEX/11) y Sujeto Excluido (FSE/14) PROCESADAS. Esquema <code>fe-eret</code>, tipoEvento <strong>18</strong>. Requiere <code>codEstableMH</code> real registrado por la empresa.</p>
+
+    <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
     @if (Model.CertificacionEscenarioId.HasValue)
     {
         <div class="alert alert-info small">
@@ -30,23 +32,23 @@
         </div>
     }
 
-    <div class="mb-3">
-        <label class="form-label">DTE origen del retorno</label>
-        <select asp-for="DocumentoOrigenId" class="form-select" required>
-            <option value="">— Seleccionar DTE PROCESADO —</option>
-            @foreach (var d in dtes)
-            {
-                <option value="@d.Id" selected="@(Model.DocumentoOrigenId == d.Id)">[@d.TipoDteCodigo] @d.NumeroControl · @d.FechaEmision.ToString("dd/MM/yyyy") · @d.ReceptorNombre · $@d.TotalPagar.ToString("0.00")</option>
-            }
-        </select>
-        @if (dtes.Count == 0)
-        {
-            <small class="text-warning">No hay DTE PROCESADO disponibles.</small>
-        }
-    </div>
-
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-info text-white">Transmitir retorno</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+    <div class="ns-formsection">
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">undo</span><h2>Datos del retorno</h2></div>
+        <div class="ns-formsection-body">
+            <div class="mb-1">
+                <label class="form-label">DTE origen del retorno</label>
+                <select asp-for="DocumentoOrigenId" class="form-select" required>
+                    <option value="">— Seleccionar DTE PROCESADO —</option>
+                    @foreach (var d in dtes)
+                    {
+                        <option value="@d.Id" selected="@(Model.DocumentoOrigenId == d.Id)">[@d.TipoDteCodigo] @d.NumeroControl · @d.FechaEmision.ToString("dd/MM/yyyy") · @d.ReceptorNombre · $@d.TotalPagar.ToString("0.00")</option>
+                    }
+                </select>
+                @if (dtes.Count == 0)
+                {
+                    <small class="text-warning">No hay DTE PROCESADO disponibles.</small>
+                }
+            </div>
+        </div>
     </div>
 </form>

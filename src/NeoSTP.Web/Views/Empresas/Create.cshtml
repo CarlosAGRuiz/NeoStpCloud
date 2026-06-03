@@ -1,12 +1,23 @@
 @model NeoSTP.Web.Models.CreateEmpresaViewModel
 @{ ViewData["Title"] = "Nueva empresa"; }
 
-<h1 class="h4 mb-3">Nueva empresa</h1>
+<form asp-action="Create" method="post" style="max-width: 880px;">
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb"><a asp-action="Index">Empresas</a><span class="material-symbols-outlined">chevron_right</span><span>Nueva</span></nav>
+            <h1 class="ns-page-title">Nueva empresa</h1>
+        </div>
+        <div class="ns-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Crear empresa</button>
+        </div>
+    </div>
 
-<form asp-action="Create" method="post" class="card border-0 shadow-sm p-4" style="max-width: 820px;">
     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
 
-    <div class="row g-3">
+    <div class="ns-formsection">
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">domain</span><h2>Datos de la empresa</h2></div>
+        <div class="ns-formsection-body row g-3">
         <div class="col-md-4">
             <label asp-for="Nit" class="form-label"></label>
             <input asp-for="Nit" class="form-control" />
@@ -53,11 +64,7 @@
             <label asp-for="Correo" class="form-label"></label>
             <input asp-for="Correo" type="email" class="form-control" />
         </div>
-    </div>
-
-    <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-primary">Crear empresa</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
     </div>
 </form>
 

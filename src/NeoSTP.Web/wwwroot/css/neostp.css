@@ -352,6 +352,92 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
 .ns-pill--on { background: rgba(16,185,129,.12); color: var(--ns-processed); }
 .ns-pill--off { background: rgba(100,116,139,.14); color: var(--ns-draft); }
 
+/* ==========================================================================
+   Componentes empresariales (Sprint 27 — consolidados de los mockups Stitch)
+   Aditivos: no alteran las pantallas existentes. Úsalos en vistas nuevas y al
+   modernizar para mantener el look del design system en todo el sistema.
+   ========================================================================== */
+
+/* ---------- Page head: breadcrumb + título + acciones ---------- */
+.ns-page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.ns-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ns-on-surface-variant); margin: 0 0 4px; }
+.ns-breadcrumb a { color: var(--ns-on-surface-variant); text-decoration: none; }
+.ns-breadcrumb a:hover { color: var(--ns-secondary); }
+.ns-breadcrumb .material-symbols-outlined { font-size: 14px; }
+.ns-page-title { font-family: var(--ns-font-head); font-size: 28px; font-weight: 700; color: var(--ns-primary); margin: 0; letter-spacing: -.02em; }
+.ns-page-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- KPI card enriquecido (icon-chip + trend + sparkline) ---------- */
+.ns-kpi { display: flex; flex-direction: column; gap: 4px; }
+.ns-kpi-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.ns-kpi-chip {
+  width: 44px; height: 44px; border-radius: var(--ns-radius);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(19,27,46,.06); color: var(--ns-primary);
+}
+.ns-kpi-chip--violet { background: rgba(107,56,212,.1); color: var(--ns-secondary); }
+.ns-kpi-chip--processed { background: rgba(16,185,129,.12); color: var(--ns-processed); }
+.ns-kpi-chip--rejected { background: rgba(239,68,68,.12); color: var(--ns-rejected); }
+.ns-kpi-chip--contingency { background: rgba(245,158,11,.14); color: #b45309; }
+.ns-kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ns-on-surface-variant); margin: 12px 0 0; }
+.ns-kpi-value { font-family: var(--ns-font-head); font-size: 34px; font-weight: 800; line-height: 1.1; margin: 2px 0 0; color: var(--ns-primary); }
+.ns-trend { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; font-family: var(--ns-font-mono); }
+.ns-trend .material-symbols-outlined { font-size: 16px; }
+.ns-trend--up { color: var(--ns-processed); }
+.ns-trend--down { color: var(--ns-rejected); }
+.ns-spark { height: 36px; width: 100%; margin-top: 10px; }
+.ns-spark path { fill: none; stroke-width: 2; stroke-linecap: round; }
+
+/* ---------- Sección de formulario (header con icono + cuerpo en grid) ---------- */
+.ns-formsection { background: var(--ns-surface-container-lowest); border: 1px solid var(--ns-border-subtle); border-radius: var(--ns-radius-lg); box-shadow: var(--ns-shadow-1); overflow: hidden; }
+.ns-formsection-head { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--ns-border-subtle); background: var(--ns-surface-container-low); }
+.ns-formsection-head .material-symbols-outlined { color: var(--ns-secondary); }
+.ns-formsection-head h2, .ns-formsection-head h3 { font-family: var(--ns-font-body); font-size: 15px; font-weight: 600; color: var(--ns-primary); margin: 0; }
+.ns-formsection-head .ns-formsection-action { margin-left: auto; }
+.ns-formsection-body { padding: 20px; }
+.ns-field { display: flex; flex-direction: column; gap: 4px; }
+.ns-field > label { font-size: 12px; font-weight: 500; color: var(--ns-on-surface-variant); }
+
+/* ---------- Acciones rápidas por fila de tabla ---------- */
+.ns-row-actions { display: inline-flex; align-items: center; gap: 4px; }
+.ns-action-btn {
+  width: 32px; height: 32px; border-radius: var(--ns-radius-sm);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; border: 1px solid var(--ns-border-subtle); color: var(--ns-on-surface-variant);
+  cursor: pointer; transition: all .15s; text-decoration: none;
+}
+.ns-action-btn .material-symbols-outlined { font-size: 18px; }
+.ns-action-btn:hover { color: var(--ns-secondary); border-color: var(--ns-secondary); }
+.ns-action-btn--primary { background: var(--ns-secondary); border-color: var(--ns-secondary); color: #fff; }
+.ns-action-btn--primary:hover { background: var(--ns-secondary-hover); border-color: var(--ns-secondary-hover); color: #fff; }
+.ns-action-btn--danger:hover { color: var(--ns-rejected); border-color: var(--ns-rejected); }
+.ns-action-btn:disabled, .ns-action-btn.disabled { opacity: .45; pointer-events: none; }
+/* Revelar al hover de la fila */
+tr .ns-row-actions--hover { opacity: 0; transition: opacity .15s; }
+tr:hover .ns-row-actions--hover { opacity: 1; }
+
+/* ---------- AI insight card (acento violeta / NeoScanAI) ---------- */
+.ns-ai-card {
+  background: linear-gradient(135deg, rgba(107,56,212,.10) 0%, rgba(16,185,129,.08) 100%);
+  border: 1px solid rgba(107,56,212,.2); border-radius: var(--ns-radius-lg); padding: 20px; position: relative; overflow: hidden;
+}
+.ns-ai-card--solid { background: linear-gradient(135deg, #8455ef 0%, #6b38d4 100%); border-color: transparent; color: #fff; }
+.ns-ai-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ns-ai-card-head .material-symbols-outlined { color: var(--ns-secondary); }
+.ns-ai-card--solid .ns-ai-card-head .material-symbols-outlined { color: #fff; }
+.ns-ai-card-tag { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ns-secondary); }
+.ns-ai-card--solid .ns-ai-card-tag { color: rgba(255,255,255,.85); }
+
+/* ---------- Card section header con icono (dentro de .card) ---------- */
+.ns-content .card-header.ns-card-head { display: flex; align-items: center; gap: 10px; }
+.ns-content .card-header.ns-card-head .material-symbols-outlined { color: var(--ns-secondary); font-size: 20px; }
+
+/* ---------- Indicador de confianza AI (NeoScanAI) ---------- */
+.ns-ai-confidence { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: var(--ns-radius-pill); font-size: 11px; font-weight: 700; }
+.ns-ai-confidence--high { background: rgba(16,185,129,.12); color: var(--ns-processed); }
+.ns-ai-confidence--med { background: rgba(245,158,11,.14); color: #b45309; }
+.ns-ai-confidence--low { background: rgba(239,68,68,.12); color: var(--ns-rejected); }
+
 /* ---------- Login (pantalla sin shell) ---------- */
 .ns-auth {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;

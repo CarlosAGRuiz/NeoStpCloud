@@ -4,21 +4,26 @@
     ViewData["Title"] = $"Diagnóstico Evento #{Model.DteEventoId}";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">🔍 Diagnóstico evento DTE</h1>
-    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">← Volver</a>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Diagnóstico</a><span class="material-symbols-outlined">chevron_right</span><span>Evento #@Model.DteEventoId</span></nav>
+        <h1 class="ns-page-title">Diagnóstico evento DTE</h1>
+    </div>
+    <div class="ns-page-actions">
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">← Volver</a>
+    </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white border-0"><strong>Información del evento</strong></div>
+<div class="card mb-4">
+    <div class="card-header ns-card-head"><span class="material-symbols-outlined">troubleshoot</span><strong>Información del evento</strong></div>
     <div class="card-body">
         <dl class="row mb-0">
             <dt class="col-sm-4">ID</dt>
             <dd class="col-sm-8">#@Model.DteEventoId</dd>
             <dt class="col-sm-4">Tipo evento</dt>
-            <dd class="col-sm-8"><span class="badge bg-secondary">@Model.TipoEventoCodigo</span></dd>
+            <dd class="col-sm-8"><span class="ns-badge ns-badge--draft">@Model.TipoEventoCodigo</span></dd>
             <dt class="col-sm-4">Estado</dt>
-            <dd class="col-sm-8"><span class="badge bg-info">@Model.EstadoCodigo</span></dd>
+            <dd class="col-sm-8"><span class="ns-badge ns-badge--draft">@Model.EstadoCodigo</span></dd>
         </dl>
     </div>
 </div>
@@ -41,23 +46,23 @@
                 <div class="mt-2">
                     <form asp-action="MarcarResuelta" asp-route-id="@o.Id" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
-                        <button class="btn btn-sm btn-success">✓ Marcar resuelta</button>
+                        <button class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:16px">check</span> Marcar resuelta</button>
                     </form>
                 </div>
             }
-            else { <div class="mt-1"><span class="badge bg-success">✓ Resuelta</span></div> }
+            else { <div class="mt-1"><span class="ns-badge ns-badge--processed">Resuelta</span></div> }
         </div>
     }
 }
 else
 {
-    <div class="alert alert-success">✅ No hay errores registrados para este evento.</div>
+    <div class="card"><div class="ns-empty"><span class="material-symbols-outlined">check_circle</span><p>No hay errores registrados para este evento.</p></div></div>
 }
 
 @if (Model.RespuestaMhJson is not null)
 {
     <details class="mt-2">
-        <summary class="btn btn-sm btn-outline-secondary">📨 Última respuesta de Hacienda</summary>
-        <pre class="bg-dark text-light p-3 rounded mt-2 small" style="max-height:400px;overflow:auto">@Model.RespuestaMhJson</pre>
+        <summary class="btn btn-sm btn-outline-secondary">Última respuesta de Hacienda</summary>
+        <pre class="bg-dark text-light p-3 rounded mt-2 small ns-mono" style="max-height:400px;overflow:auto">@Model.RespuestaMhJson</pre>
     </details>
 }

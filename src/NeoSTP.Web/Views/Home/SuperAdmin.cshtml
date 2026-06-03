@@ -7,13 +7,13 @@
 }
 
 @* ── Encabezado ─────────────────────────────────────────────── *@
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="ns-page-head">
     <div>
-        <h1 class="h3 mb-0">Panel SuperAdmin</h1>
-        <p class="text-muted mb-0">Métricas globales &mdash; @mesNombre</p>
+        <p class="ns-breadcrumb mb-1">Métricas globales &mdash; <span class="text-uppercase" style="letter-spacing:.06em">@mesNombre</span></p>
+        <h1 class="ns-page-title">Panel SuperAdmin</h1>
     </div>
-    <div>
-        <a asp-controller="Empresas" asp-action="Index" class="btn btn-outline-secondary btn-sm me-1">Empresas</a>
+    <div class="ns-page-actions">
+        <a asp-controller="Empresas" asp-action="Index" class="btn btn-outline-secondary btn-sm">Empresas</a>
         <a asp-controller="Planes" asp-action="Index" class="btn btn-outline-secondary btn-sm">Planes</a>
     </div>
 </div>
@@ -21,48 +21,41 @@
 @* ── Fila 1: KPIs globales ───────────────────────────────────── *@
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <p class="text-muted small mb-1">Empresas activas</p>
-                <h2 class="mb-0 fw-bold text-success">@dto.EmpresasActivas</h2>
-                <small class="text-muted">de @dto.EmpresasTotal totales</small>
-            </div>
-        </div>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--processed"><span class="material-symbols-outlined">corporate_fare</span></span></div>
+            <p class="ns-kpi-label">Empresas activas</p>
+            <h2 class="ns-kpi-value" style="color:var(--ns-processed)">@dto.EmpresasActivas</h2>
+            <small class="text-muted">de @dto.EmpresasTotal totales</small>
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <p class="text-muted small mb-1">Usuarios activos</p>
-                <h2 class="mb-0 fw-bold text-primary">@dto.UsuariosActivos</h2>
-            </div>
-        </div>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip"><span class="material-symbols-outlined">group</span></span></div>
+            <p class="ns-kpi-label">Usuarios activos</p>
+            <h2 class="ns-kpi-value">@dto.UsuariosActivos</h2>
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <p class="text-muted small mb-1">DTE emitidos (mes)</p>
-                <h2 class="mb-0 fw-bold">@dto.DteTotalMes</h2>
-            </div>
-        </div>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">description</span></span></div>
+            <p class="ns-kpi-label">DTE emitidos (mes)</p>
+            <h2 class="ns-kpi-value">@dto.DteTotalMes</h2>
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body text-center">
-                <p class="text-muted small mb-1">Facturado procesado (mes)</p>
-                <h2 class="mb-0 fw-bold text-warning">$@dto.FacturacionTotalMes.ToString("N2")</h2>
-            </div>
-        </div>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--contingency"><span class="material-symbols-outlined">payments</span></span></div>
+            <p class="ns-kpi-label">Facturado procesado (mes)</p>
+            <h2 class="ns-kpi-value ns-mono" style="color:var(--ns-processed)">$@dto.FacturacionTotalMes.ToString("N2")</h2>
+        </div></div>
     </div>
     <div class="col-sm-6 col-lg">
-        <div class="card border-0 shadow-sm h-100 @(dto.AlertasPlanProximoVencer.Any() ? "border-warning border" : "")">
-            <div class="card-body text-center">
-                <p class="text-muted small mb-1">Alertas planes</p>
-                <h2 class="mb-0 fw-bold @(dto.AlertasPlanProximoVencer.Any() ? "text-danger" : "text-secondary")">
-                    @dto.AlertasPlanProximoVencer.Count
-                </h2>
-                <small class="text-muted">próximos a vencer</small>
-            </div>
-        </div>
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip @(dto.AlertasPlanProximoVencer.Any() ? "ns-kpi-chip--rejected" : "")"><span class="material-symbols-outlined">warning</span></span></div>
+            <p class="ns-kpi-label">Alertas planes</p>
+            <h2 class="ns-kpi-value" style="color:@(dto.AlertasPlanProximoVencer.Any() ? "var(--ns-rejected)" : "var(--ns-draft)")">@dto.AlertasPlanProximoVencer.Count</h2>
+            <small class="text-muted">próximos a vencer</small>
+        </div></div>
     </div>
 </div>
 
@@ -71,10 +64,10 @@
     <div class="col-lg-7">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white border-0">
-                <strong>
+                <strong class="d-flex align-items-center gap-1">
                     @if (dto.AlertasPlanProximoVencer.Any())
                     {
-                        <span class="text-danger">⚠️</span>
+                        <span class="material-symbols-outlined text-danger" style="font-size:18px">warning</span>
                     }
                     Planes próximos a vencer (30 días)
                 </strong>
@@ -112,7 +105,7 @@
             }
             else
             {
-                <div class="card-body text-muted">Sin planes próximos a vencer. ✅</div>
+                <div class="card-body text-muted">Sin planes próximos a vencer.</div>
             }
         </div>
     </div>
@@ -199,10 +192,10 @@
                 <strong>Accesos rápidos</strong>
             </div>
             <div class="card-body d-grid gap-2">
-                <a asp-controller="Empresas" asp-action="Create" class="btn btn-outline-primary btn-sm">➕ Nueva empresa</a>
-                <a asp-controller="Planes" asp-action="Create" class="btn btn-outline-secondary btn-sm">➕ Nuevo plan</a>
-                <a asp-controller="Soporte" asp-action="Index" class="btn btn-outline-warning btn-sm">🔧 Modo soporte</a>
-                <a asp-controller="Usuarios" asp-action="Index" class="btn btn-outline-secondary btn-sm">👥 Usuarios</a>
+                <a asp-controller="Empresas" asp-action="Create" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-2"><span class="material-symbols-outlined" style="font-size:18px">add_business</span> Nueva empresa</a>
+                <a asp-controller="Planes" asp-action="Create" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2"><span class="material-symbols-outlined" style="font-size:18px">add</span> Nuevo plan</a>
+                <a asp-controller="Soporte" asp-action="Index" class="btn btn-outline-warning btn-sm d-flex align-items-center gap-2"><span class="material-symbols-outlined" style="font-size:18px">build</span> Modo soporte</a>
+                <a asp-controller="Usuarios" asp-action="Index" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2"><span class="material-symbols-outlined" style="font-size:18px">group</span> Usuarios</a>
             </div>
         </div>
     </div>

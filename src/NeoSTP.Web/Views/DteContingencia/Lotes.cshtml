@@ -4,9 +4,14 @@
     ViewData["Title"] = "Lotes de Contingencia";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>📦 Lotes de Contingencia</h2>
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Cola DTE</a>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Contingencia</a><span class="material-symbols-outlined">chevron_right</span><span>Lotes</span></nav>
+        <h1 class="ns-page-title">Lotes de contingencia</h1>
+    </div>
+    <div class="ns-page-actions">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Cola DTE</a>
+    </div>
 </div>
 
 @if (TempData["Success"] is string ok)
@@ -20,13 +25,13 @@
 
 @if (!Model.Any())
 {
-    <div class="alert alert-info">No hay lotes registrados.</div>
+    <div class="card"><div class="ns-empty"><span class="material-symbols-outlined">inventory_2</span><p>No hay lotes registrados.</p></div></div>
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
-            <thead class="table-light">
+    <div class="card table-responsive">
+        <table class="table table-sm table-hover align-middle m-0">
+            <thead>
                 <tr>
                     <th>#</th>
                     <th>Evento</th>
@@ -46,18 +51,17 @@ else
             {
                 string badge = l.EstadoCodigo switch
                 {
-                    "PROCESADO" => "bg-success",
-                    "ENVIADO" => "bg-info text-dark",
-                    "CONSULTADO" => "bg-primary",
-                    "ERROR" => "bg-danger",
-                    _ => "bg-secondary"
+                    "PROCESADO" => "ns-badge ns-badge--processed",
+                    "ENVIADO" or "CONSULTADO" => "ns-badge ns-badge--contingency",
+                    "ERROR" => "ns-badge ns-badge--rejected",
+                    _ => "ns-badge ns-badge--draft"
                 };
                 <tr>
-                    <td>@l.Id</td>
+                    <td class="ns-mono">@l.Id</td>
                     <td><a asp-controller="DteEventos" asp-action="Details" asp-route-id="@l.EventoContingenciaId">#@l.EventoContingenciaId</a></td>
-                    <td><code class="small">@(l.CodigoLote ?? "—")</code></td>
-                    <td class="text-center"><span class="badge @badge">@l.EstadoCodigo</span></td>
-                    <td class="text-center"><span class="badge bg-light text-dark border">@l.AmbienteCodigo</span></td>
+                    <td><code class="small ns-mono">@(l.CodigoLote ?? "—")</code></td>
+                    <td class="text-center"><span class="@badge">@l.EstadoCodigo</span></td>
+                    <td class="text-center"><span class="ns-badge ns-badge--draft">@l.AmbienteCodigo</span></td>
                     <td class="text-center">@l.TotalDte</td>
                     <td class="text-center">@l.DteProcesados</td>
                     <td class="text-center">@l.Intentos</td>

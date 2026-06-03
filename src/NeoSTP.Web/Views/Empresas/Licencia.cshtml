@@ -1,9 +1,14 @@
 @model NeoSTP.Application.Empresas.Dtos.LicenciaDto
 @{ ViewData["Title"] = $"Licencia · {Model.EmpresaNombre}"; }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 m-0">Licencia · @Model.EmpresaNombre</h1>
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Empresas</a><span class="material-symbols-outlined">chevron_right</span><span>Licencia</span></nav>
+        <h1 class="ns-page-title">Licencia · @Model.EmpresaNombre</h1>
+    </div>
+    <div class="ns-page-actions">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Volver</a>
+    </div>
 </div>
 
 <div class="row g-3">
@@ -18,7 +23,7 @@
                 else
                 {
                     <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-info">@Model.PlanCodigo</span>
+                        <span class="ns-badge" style="background:rgba(107,56,212,.1);color:var(--ns-secondary)">@Model.PlanCodigo</span>
                         <strong>@Model.PlanNombre</strong>
                     </div>
                     <div class="small text-muted">
@@ -27,8 +32,8 @@
                     </div>
                     <div class="mt-2">
                         Vigente:
-                        @if (Model.Vigente) { <span class="badge bg-success">SÍ</span> }
-                        else { <span class="badge bg-danger">NO</span> }
+                        @if (Model.Vigente) { <span class="ns-badge ns-badge--processed">SÍ</span> }
+                        else { <span class="ns-badge ns-badge--rejected">NO</span> }
                     </div>
                 }
             </div>
@@ -51,17 +56,17 @@
 
     <div class="col-12">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white"><strong>Módulos (@Model.Modulos.Count)</strong></div>
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">widgets</span><strong>Módulos (@Model.Modulos.Count)</strong></div>
             <ul class="list-group list-group-flush">
                 @foreach (var m in Model.Modulos)
                 {
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>
                             <strong>@m.Codigo</strong> <span class="text-muted">— @m.Nombre</span>
-                            @if (m.IncluidoEnPlan) { <span class="badge bg-info ms-2">incluido en plan</span> }
+                            @if (m.IncluidoEnPlan) { <span class="ns-badge ms-2" style="background:rgba(107,56,212,.1);color:var(--ns-secondary)">incluido en plan</span> }
                         </span>
-                        @if (m.Activo) { <span class="badge bg-success">activo</span> }
-                        else { <span class="badge bg-secondary">inactivo</span> }
+                        @if (m.Activo) { <span class="ns-badge ns-badge--processed">activo</span> }
+                        else { <span class="ns-badge ns-badge--draft">inactivo</span> }
                     </li>
                 }
                 @if (!Model.Modulos.Any())

@@ -5,77 +5,74 @@
     var tipos = new[] { "ADMIN", "OPERADOR", "CONTADOR", "READONLY" };
 }
 
-<h1 class="h4 mb-3">Nuevo usuario</h1>
-
-<form asp-action="Create" method="post" class="card border-0 shadow-sm p-4" style="max-width: 720px;">
-    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
-
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label asp-for="Username" class="form-label"></label>
-            <input asp-for="Username" class="form-control" />
-            <span asp-validation-for="Username" class="text-danger small"></span>
+<form asp-action="Create" method="post" style="max-width: 760px;">
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb"><a asp-action="Index">Usuarios</a><span class="material-symbols-outlined">chevron_right</span><span>Nuevo</span></nav>
+            <h1 class="ns-page-title">Nuevo usuario</h1>
         </div>
-        <div class="col-md-6">
-            <label asp-for="Email" class="form-label"></label>
-            <input asp-for="Email" type="email" class="form-control" />
-            <span asp-validation-for="Email" class="text-danger small"></span>
-        </div>
-        <div class="col-md-8">
-            <label asp-for="NombreCompleto" class="form-label"></label>
-            <input asp-for="NombreCompleto" class="form-control" />
-            <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
-        </div>
-        <div class="col-md-4">
-            <label asp-for="Telefono" class="form-label"></label>
-            <input asp-for="Telefono" class="form-control" />
-        </div>
-        <div class="col-md-6">
-            <label asp-for="Password" class="form-label"></label>
-            <input asp-for="Password" class="form-control" />
-            <span asp-validation-for="Password" class="text-danger small"></span>
-        </div>
-        <div class="col-md-6">
-            <label asp-for="TipoUsuarioCodigo" class="form-label"></label>
-            <select asp-for="TipoUsuarioCodigo" class="form-select">
-                @foreach (var t in tipos) { <option value="@t">@t</option> }
-            </select>
-        </div>
-        <div class="col-12">
-            <label class="form-label">Roles</label>
-            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                @foreach (var r in roles)
-                {
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="RoleIds" value="@r.Id" id="rol_@r.Id" />
-                        <label class="form-check-label" for="rol_@r.Id">
-                            <strong>@r.Nombre</strong>
-                            <span class="text-muted small">— @r.Codigo</span>
-                            @if (r.EsSistema) { <span class="badge bg-info ms-1">sistema</span> }
-                        </label>
-                    </div>
-                }
-                @if (!roles.Any())
-                {
-                    <em class="text-muted">No hay roles disponibles.</em>
-                }
-            </div>
+        <div class="ns-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Crear usuario</button>
         </div>
     </div>
 
-        <div class="col-12 mt-2">
-            <div class="form-check">
-                <input asp-for="AceptaTerminos" class="form-check-input" type="checkbox" id="aceptaTerminos" />
-                <label class="form-check-label" for="aceptaTerminos">
-                    He leído y acepto los
-                    <a href="/legal/terms" target="_blank">Términos y Condiciones</a>
-                    y la <a href="/legal/privacy" target="_blank">Política de Privacidad</a>.
-                </label>
-                <span asp-validation-for="AceptaTerminos" class="text-danger small d-block"></span>
-            </div>
-            </div>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
 
-            <div class="col-12 mt-2">
+    <div class="ns-formsection">
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">person_add</span><h2>Datos del usuario</h2></div>
+        <div class="ns-formsection-body row g-3">
+            <div class="col-md-6">
+                <label asp-for="Username" class="form-label"></label>
+                <input asp-for="Username" class="form-control" />
+                <span asp-validation-for="Username" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" type="email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+            <div class="col-md-8">
+                <label asp-for="NombreCompleto" class="form-label"></label>
+                <input asp-for="NombreCompleto" class="form-control" />
+                <span asp-validation-for="NombreCompleto" class="text-danger small"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Telefono" class="form-label"></label>
+                <input asp-for="Telefono" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Password" class="form-label"></label>
+                <input asp-for="Password" class="form-control" />
+                <span asp-validation-for="Password" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="TipoUsuarioCodigo" class="form-label"></label>
+                <select asp-for="TipoUsuarioCodigo" class="form-select">
+                    @foreach (var t in tipos) { <option value="@t">@t</option> }
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Roles</label>
+                <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                    @foreach (var r in roles)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="RoleIds" value="@r.Id" id="rol_@r.Id" />
+                            <label class="form-check-label" for="rol_@r.Id">
+                                <strong>@r.Nombre</strong>
+                                <span class="text-muted small">— @r.Codigo</span>
+                                @if (r.EsSistema) { <span class="ns-badge ns-badge--draft ms-1">sistema</span> }
+                            </label>
+                        </div>
+                    }
+                    @if (!roles.Any())
+                    {
+                        <em class="text-muted">No hay roles disponibles.</em>
+                    }
+                </div>
+            </div>
+            <div class="col-12">
                 <div class="form-check">
                     <input asp-for="AceptaTerminos" class="form-check-input" type="checkbox" id="aceptaTerminos" />
                     <label class="form-check-label" for="aceptaTerminos">
@@ -86,11 +83,8 @@
                     <span asp-validation-for="AceptaTerminos" class="text-danger small d-block"></span>
                 </div>
             </div>
-
-            <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-primary">Crear usuario</button>
-                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
-            </div>
-        </form>
+        </div>
+    </div>
+</form>
 
 @section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }

@@ -1,14 +1,25 @@
 @model NeoSTP.Web.Models.CreateClienteViewModel
 @{ ViewData["Title"] = "Nuevo cliente"; }
 
-<h1 class="h4 mb-3">Nuevo cliente</h1>
+<form asp-action="Create" method="post" style="max-width: 960px;">
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb"><a asp-action="Index">Clientes</a><span class="material-symbols-outlined">chevron_right</span><span>Nuevo</span></nav>
+            <h1 class="ns-page-title">Nuevo cliente</h1>
+        </div>
+        <div class="ns-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Crear cliente</button>
+        </div>
+    </div>
 
-<form asp-action="Create" method="post" class="card border-0 shadow-sm p-4" style="max-width: 920px;">
     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
-    <partial name="_Form" model="Model" />
-    <div class="d-flex gap-2 mt-4">
-        <button type="submit" class="btn btn-primary">Crear cliente</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+
+    <div class="ns-formsection">
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">badge</span><h2>Datos del cliente</h2></div>
+        <div class="ns-formsection-body">
+            <partial name="_Form" model="Model" />
+        </div>
     </div>
 </form>
 

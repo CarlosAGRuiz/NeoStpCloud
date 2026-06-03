@@ -3,40 +3,32 @@
     ViewData["Title"] = $"Evento {Model.TipoEventoCodigo} · {Model.CodigoGeneracion}";
     string badge = Model.EstadoCodigo switch
     {
-        "PROCESADO" => "bg-success",
-        "ENVIADO" or "FIRMADO" => "bg-info text-dark",
-        "RECHAZADO" or "ERROR" => "bg-danger",
-        _ => "bg-secondary"
+        "PROCESADO" => "ns-badge ns-badge--processed",
+        "ENVIADO" or "FIRMADO" => "ns-badge ns-badge--contingency",
+        "RECHAZADO" or "ERROR" => "ns-badge ns-badge--rejected",
+        _ => "ns-badge ns-badge--draft"
     };
 }
 
-<nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Eventos DTE</a></li>
-        <li class="breadcrumb-item active" aria-current="page">@Model.TipoEventoCodigo</li>
-    </ol>
-</nav>
-
-<div class="d-flex justify-content-between align-items-start mb-3">
+<div class="ns-page-head">
     <div>
-        <h2 class="mb-1">@Model.TipoEventoCodigo</h2>
-        <div class="text-muted">
-            <code>@Model.CodigoGeneracion</code> · v@(Model.Version) · @Model.AmbienteCodigo
-        </div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Eventos DTE</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.TipoEventoCodigo</span></nav>
+        <h1 class="ns-page-title">@Model.TipoEventoCodigo</h1>
+        <div class="text-muted small mt-1"><span class="ns-mono">@Model.CodigoGeneracion</span> · v@(Model.Version) · @Model.AmbienteCodigo</div>
         <div class="mt-2">
-            <span class="badge @badge">@Model.EstadoCodigo</span>
+            <span class="@badge">@Model.EstadoCodigo</span>
             @if (!string.IsNullOrEmpty(Model.SelloRecibido))
             {
-                <span class="ms-2 small text-success font-monospace">Sello: @Model.SelloRecibido</span>
+                <span class="ms-2 small ns-mono" style="color:var(--ns-processed)">Sello: @Model.SelloRecibido</span>
             }
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="ns-page-actions">
         @if (Model.TieneJson)
         {
-            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">⬇ JSON</a>
+            <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:18px">data_object</span> JSON</a>
         }
-        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-outline-danger btn-sm">⬇ PDF</a>
+        <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span> PDF</a>
     </div>
 </div>
 
@@ -117,9 +109,9 @@
             {
                 <tr>
                     <td><small>@(n++)</small></td>
-                    <td><span class="badge bg-light text-dark border">@r.TipoDteCodigo</span></td>
-                    <td><code class="small">@r.NumeroControl</code></td>
-                    <td><span class="badge bg-secondary">@r.RolCodigo</span></td>
+                    <td><span class="ns-badge ns-badge--draft">@r.TipoDteCodigo</span></td>
+                    <td><code class="small ns-mono">@r.NumeroControl</code></td>
+                    <td><span class="ns-badge ns-badge--draft">@r.RolCodigo</span></td>
                 </tr>
             }
             </tbody>
@@ -134,15 +126,15 @@
     {
         string rb = r.Estado switch
         {
-            "PROCESADO" => "bg-success",
-            "RECHAZADO" => "bg-danger",
-            _ => "bg-secondary"
+            "PROCESADO" => "ns-badge ns-badge--processed",
+            "RECHAZADO" => "ns-badge ns-badge--rejected",
+            _ => "ns-badge ns-badge--draft"
         };
         <div class="card mb-2">
             <div class="card-body py-2">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="badge @rb">@(r.Estado ?? "—")</span>
+                        <span class="@rb">@(r.Estado ?? "—")</span>
                         <strong class="ms-2">@(r.CodigoMsg ?? "—")</strong>
                         @if (!string.IsNullOrEmpty(r.DescripcionMsg))
                         {

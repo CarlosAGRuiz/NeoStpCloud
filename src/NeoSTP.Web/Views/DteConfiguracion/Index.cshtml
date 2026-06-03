@@ -8,18 +8,23 @@
 @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 m-0">Configuración DTE / Hacienda</h1>
-    <span class="badge @(Model.EsCompleto ? "bg-success" : "bg-warning text-dark") fs-6">
-        @(Model.EsCompleto ? "Configuración completa" : "Configuración incompleta")
-    </span>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">Operación<span class="material-symbols-outlined">chevron_right</span><span>Configuración DTE</span></nav>
+        <h1 class="ns-page-title">Configuración DTE / Hacienda</h1>
+    </div>
+    <div class="ns-page-actions">
+        <span class="@(Model.EsCompleto ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--contingency")" style="font-size:12px">
+            @(Model.EsCompleto ? "Configuración completa" : "Configuración incompleta")
+        </span>
+    </div>
 </div>
 
 <div class="row g-4">
     <!-- Bloque emisor + credenciales -->
     <div class="col-lg-7">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white"><strong>Datos del emisor y credenciales MH</strong></div>
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">badge</span><strong>Datos del emisor y credenciales MH</strong></div>
             <div class="card-body">
                 <form asp-action="Save" method="post">
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
@@ -64,7 +69,7 @@
                             <input asp-for="PasswordMh" type="password" class="form-control" autocomplete="new-password" placeholder="@(Model.TienePasswordMh ? "•••••••• (configurado)" : "")" />
                             @if (Model.TienePasswordMh)
                             {
-                                <div class="form-text text-success">✓ Password configurado y cifrado. Vacío = mantener actual.</div>
+                                <div class="form-text text-success d-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:16px">lock</span> Password configurado y cifrado. Vacío = mantener actual.</div>
                             }
                         </div>
                     </div>
@@ -73,7 +78,7 @@
                         <button type="submit" class="btn btn-primary">Guardar</button>
                         <form asp-action="ProbarConexion" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-outline-success" formaction="@Url.Action("ProbarConexion")">⚡ Probar conexión</button>
+                            <button type="submit" class="btn btn-outline-success d-inline-flex align-items-center gap-1" formaction="@Url.Action("ProbarConexion")"><span class="material-symbols-outlined" style="font-size:18px">bolt</span> Probar conexión</button>
                         </form>
                     </div>
                 </form>
@@ -93,12 +98,12 @@
     <!-- Bloque certificado -->
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white"><strong>Certificado de firma</strong></div>
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">verified_user</span><strong>Certificado de firma</strong></div>
             <div class="card-body">
                 @if (Model.TieneCertificado)
                 {
                     <div class="mb-3">
-                        <div><strong>📄 @Model.CertificadoNombre</strong></div>
+                        <div class="d-flex align-items-center gap-1"><span class="material-symbols-outlined" style="font-size:18px">description</span><strong>@Model.CertificadoNombre</strong></div>
                         <div class="small text-muted">huella SHA1: <code>@Model.CertificadoHuella</code></div>
                         @if (Model.CertificadoVence is not null)
                         {
