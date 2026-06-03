@@ -199,6 +199,7 @@ public static class DependencyInjection
         services.AddScoped<IConnectApiKeyService, ConnectApiKeyService>();
         services.AddScoped<IConnectWebhookService, ConnectWebhookService>();
         services.AddScoped<IConnectWebhookDispatcher, ConnectWebhookDispatcher>();
+        services.AddScoped<IConnectDteService, ConnectDteService>();
 
         // Sprint 20: Hardening — cuotas / rate limiting, MFA (TOTP), IP allowlist
         services.AddScoped<NeoSTP.Application.Ops.IApiQuotaService, ApiQuotaService>();

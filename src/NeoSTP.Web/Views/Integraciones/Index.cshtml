@@ -27,6 +27,23 @@
     </div>
 }
 
+<!-- ===== Acceso a la API pública v1 ===== -->
+<div class="card mb-4">
+    <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="material-symbols-outlined" style="color:var(--ns-secondary)">api</span>
+            <div>
+                <strong>NeoConnect API v1</strong>
+                <div class="text-muted small">
+                    Emite y consulta DTE y gestiona clientes/productos vía API Key.
+                    Base <code class="ns-mono">/api/v1</code> · header <code class="ns-mono">X-Api-Key</code>.
+                </div>
+            </div>
+        </div>
+        <span class="ns-pill ns-pill--on">Spec OpenAPI: <code class="ns-mono">/openapi/v1.json</code></span>
+    </div>
+</div>
+
 <!-- ===== Consumo por API Key ===== -->
 @if (Model.Usage.Any())
 {

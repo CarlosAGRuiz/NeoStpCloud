@@ -119,7 +119,7 @@ public class ApiQuotaMiddleware
             return "NEODTE";
         if (p.StartsWith("/api/billing"))
             return "BILLING";
-        if (p.StartsWith("/api/connect"))
+        if (p.StartsWith("/api/connect") || p.StartsWith("/api/v1"))
             return "NEOCONNECT";
         if (p.StartsWith("/api/")) // resto de endpoints administrativos
             return "CORE";

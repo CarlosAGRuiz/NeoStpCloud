@@ -1,5 +1,16 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoConnect API v1 (endpoints de negocio)
+
+API publica para integraciones externas (NeoBusiness, NeoScan, ERPs), autenticada por **API Key** (`X-Api-Key`).
+
+- **Endpoints `/api/v1`** (`ConnectApiV1Controller`, scope por endpoint): `GET /ping`, `POST /dte` (emision extremo-a-extremo: borrador -> generar -> validar -> firmar -> enviar via `IConnectDteService`), `GET /dte`, `GET /dte/{id}`, `GET /dte/{id}/pdf`, `GET /dte/{id}/json`, `GET|POST /clientes`, `GET|POST /productos`.
+- **Scopes**: `DTE:Read/Write`, `Clientes:Read/Write`, `Productos:Read/Write` (la UI `/Integraciones` los expone automaticamente). Sin scope -> 403 `APIKEY_SCOPE_MISSING`; sin key -> 401 `APIKEY_REQUIRED`.
+- **Sandbox**: el ambiente (PRUEBAS/PRODUCCION) lo define la config DTE de la empresa; el cliente no cambia codigo al pasar a produccion.
+- **Cuotas**: `/api/v1` cuenta contra el modulo NEOCONNECT por API Key (rate limit + `X-RateLimit-*`).
+- **Docs**: spec OpenAPI publico en `/openapi/v1.json` + guia `docs/NeoConnect-API-v1.md`.
+- Tests: `ConnectDteServiceTests` (pipeline + cortes), `ConnectApiKeyServiceTests` (hash/validacion/revocacion/expiracion/aislamiento), `ApiKeyAuthMiddlewareTests` (precedencia JWT, key valida/invalida), `ConnectWebhookDispatcherTests` (entregas a suscritos, backoff, fallido tras max).
+
 ## Actualizacion - Onboarding self-service
 
 Asistente de activacion para llevar al cliente del registro al primer DTE en < 10 minutos, sin soporte.
@@ -37,8 +48,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Onboarding self-service** ✅ (sobre Sprint 27 — alineación de vistas con los mockups)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 274 unit + 2 integración pasando
+> **Versión actual: NeoConnect API v1 — endpoints de negocio** ✅ (sobre Onboarding self-service y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 294 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

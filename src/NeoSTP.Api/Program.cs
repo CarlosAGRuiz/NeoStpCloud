@@ -95,10 +95,9 @@ await EmpresaPruebaSeeder.SeedAsync(app.Services);
 
 app.UseSerilogRequestLogging();
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+// Spec OpenAPI público (documentación de la NeoConnect API). El acceso a los
+// endpoints sigue protegido por API Key / JWT; solo el esquema es público.
+app.MapOpenApi();
 
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();

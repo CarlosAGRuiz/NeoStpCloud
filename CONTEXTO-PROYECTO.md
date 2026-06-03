@@ -663,7 +663,7 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 | 2 | **Lookups + limpieza de hardcodeos** | ✅ | `ILookupService`/`/api/lookups`; sin literales territoriales mágicos |
 | 3 | **Carga masiva** clientes/productos (Excel/CSV) | ✅ | Onboarding de datos de prospectos en minutos (upsert + dry-run + reporte) |
 | 4 | **Onboarding self-service** | ✅ | `IOnboardingService` deriva 5 pasos de activación de datos reales (perfil, config DTE, certificado, catálogo base, primer DTE PROCESADO); checklist reactivo en el dashboard + asistente `/onboarding`; se oculta al 100% → sube conversión |
-| 5 | **NeoConnect API comercial** | ✅ en curso (Sprint 24) | Gestión de API keys + webhooks firmados + worker de entrega + UI `/Integraciones` listos (reusa cuotas/`ApiUsageLog` del Sprint 20); faltan tests (sub-entrega 6) y endpoints de negocio/sandbox/docs — **base para NeoBusiness y NeoScan** |
+| 5 | **NeoConnect API comercial** | ✅ | Gestión (API keys + webhooks firmados + worker + UI `/Integraciones`) **y endpoints de negocio v1** (`/api/v1`: emitir/consultar/descargar DTE, alta/listado clientes y productos por API Key + scopes), sandbox por ambiente DTE, OpenAPI público + `docs/NeoConnect-API-v1.md` — **base para NeoBusiness y NeoScan**; COMPLETO (gestión + negocio + tests) |
 | 6 | **NeoProfit** / **NeoScanAI** | 🔜 | Diferenciadores: análisis financiero sobre DTE PROCESADOS / OCR-IA documental |
 
 **Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva · ✅ Onboarding self-service → **siguiente: NeoConnect endpoints de negocio / NeoProfit**.
@@ -683,11 +683,18 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 - ✅ Webhooks de cambio de estado DTE: `IConnectWebhookDispatcher` disparado (best-effort) desde `DteDocumentosService` al pasar a PROCESADO/RECHAZADO/CONTINGENCIA/INVALIDADO; `ConnectWebhookDeliveryWorker` entrega firmado HMAC-SHA256 (`X-NeoConnect-Signature`) con reintentos y backoff exponencial (2/4/8/16 min, máx. 5).
 - ✅ UI Web `/Integraciones` (AppShell + `ns-*`): métricas de consumo, alta/revocación de keys, alta/test/borrado de webhooks, log de entregas.
 
-**Pendiente:**
-- 🔜 Sub-entrega 6: tests unitarios (`ConnectApiKeyService`, `ApiKeyAuthMiddleware`, dispatcher).
-- 🔜 Endpoints v1 de **negocio**: emitir DTE, consultar estado, descargar PDF/JSON, alta clientes/productos (consumibles por API Key con scopes).
-- 🔜 Sandbox (ambiente PRUEBAS) + documentación pública OpenAPI.
+**Hecho (endpoints de negocio v1):**
+- ✅ `ConnectApiV1Controller` (`/api/v1`, `[AllowAnonymous]`, autenticado por API Key vía `ConnectApiControllerBase` que resuelve `ConnectApiKeyContext` de `HttpContext.Items` y exige scope por endpoint → 401 `APIKEY_REQUIRED` / 403 `APIKEY_SCOPE_MISSING`):
+  - `GET /ping` (verifica key + scopes), `POST /dte` (emitir extremo-a-extremo vía `IConnectDteService.EmitirAsync` = borrador→generar→validar→firmar→enviar), `GET /dte`, `GET /dte/{id}`, `GET /dte/{id}/pdf`, `GET /dte/{id}/json`, `GET|POST /clientes`, `GET|POST /productos`.
+- ✅ Scopes nuevos `Clientes:Write` / `Productos:Write` (la UI `/Integraciones` los expone automáticamente vía `ConnectScopes.All`).
+- ✅ Sandbox: el ambiente (PRUEBAS/PRODUCCION) lo determina la **config DTE de la empresa**, sin cambios en el código del cliente.
+- ✅ Cuotas: `/api/v1` cuenta contra el módulo `NEOCONNECT` por API Key (`ApiQuotaMiddleware`).
+- ✅ OpenAPI público (`MapOpenApi` siempre activo, `GenerateDocumentationFile` enriquece el spec) + guía de desarrollador `docs/NeoConnect-API-v1.md`.
+- ✅ Tests `ConnectDteServiceTests` (pipeline completo + cortes en cada fallo).
+- ✅ Sub-entrega 6 — tests de gestión: `ConnectApiKeyServiceTests` (hash, validación, revocación, expiración, aislamiento), `ApiKeyAuthMiddlewareTests` (precedencia JWT, sin header, key válida→Items, key inválida→401), `ConnectWebhookDispatcherTests` (entregas solo a suscritos, backoff exponencial, fallido tras máx. intentos).
 - **NeoBusiness** consumirá la API para emitir DTE desde sus ventas; **NeoScan** registrará compras/gastos/DTE recibidos.
+
+**NeoConnect: COMPLETO** (gestión + endpoints de negocio + tests).
 
 ## Reglas de negocio transversales (NeoProfit)
 - Solo contar DTE **PROCESADO**; excluir RECHAZADO e INVALIDADO.

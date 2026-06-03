@@ -33,8 +33,11 @@ public static class ConnectScopes
     public const string DteRead = "DTE:Read";
     public const string DteWrite = "DTE:Write";
     public const string ClientesRead = "Clientes:Read";
+    public const string ClientesWrite = "Clientes:Write";
     public const string ProductosRead = "Productos:Read";
+    public const string ProductosWrite = "Productos:Write";
     public const string WebhooksManage = "Webhooks:Manage";
 
-    public static readonly string[] All = [DteRead, DteWrite, ClientesRead, ProductosRead, WebhooksManage];
+    public static readonly string[] All =
+        [DteRead, DteWrite, ClientesRead, ClientesWrite, ProductosRead, ProductosWrite, WebhooksManage];
 }
