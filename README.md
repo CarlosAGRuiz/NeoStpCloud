@@ -1,5 +1,15 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoProfit (Sprint 22): inteligencia financiera
+
+Primer modulo financiero: calcula ventas, IVA, costos, ganancia y utilidad neta a partir de DTE emitidos.
+
+- **Reglas (ProfitCalculator, puro y testeado):** solo cuenta **PROCESADO**; Nota de Credito **resta**, Nota de Debito **suma**; Sujeto Excluido **sin IVA**; producto sin costo -> **"costo pendiente"**.
+- **Dominio:** `Profit_Gastos` y `Profit_Compras` (soft-delete, aislados por EmpresaId); migracion `Sprint22_NeoProfit`; permisos `Profit.Ver` (370) / `Profit.Gestionar` (371) del modulo NEOPROFIT.
+- **API `/api/profit/*`** (gated `RequireModule("NEOPROFIT")`): dashboard, productos, clientes, sucursales, tendencia, y CRUD de gastos/compras.
+- **Web empresarial:** dashboard `NeoProfit` (KPIs `ns-kpi` de venta neta / ganancia+margen / utilidad neta / IVA neto, charts de tendencia y por sucursal, rankings de productos y clientes, alerta de costo pendiente) + **grids con busqueda/paginacion y CRUD** de Gastos y Compras (`ns-formsection`).
+- **Tests:** `ProfitCalculatorTests` (9) + `ProfitServiceTests` (5: agregacion, costo pendiente, aislamiento por empresa, CRUD/soft-delete, validacion).
+
 ## Actualizacion - NeoConnect API v1 (endpoints de negocio)
 
 API publica para integraciones externas (NeoBusiness, NeoScan, ERPs), autenticada por **API Key** (`X-Api-Key`).
@@ -48,8 +58,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: NeoConnect API v1 — endpoints de negocio** ✅ (sobre Onboarding self-service y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 294 unit + 2 integración pasando
+> **Versión actual: NeoProfit (Sprint 22)** ✅ (sobre NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 308 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

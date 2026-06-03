@@ -1,0 +1,220 @@
+@model NeoSTP.Application.Profit.Dtos.ProfitDashboardDto
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using System.Globalization
+@{
+    ViewData["Title"] = "NeoProfit";
+    var puedeGestionar = ViewBag.PuedeGestionar as bool? ?? false;
+    string Money(decimal v) => v.ToString("N2", CultureInfo.InvariantCulture);
+    var jsonOpts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+}
+
+@* ── Encabezado + selector de período ──────────────────────────── *@
+<div class="ns-page-head">
+    <div>
+        <p class="ns-breadcrumb mb-1">Inteligencia &mdash; <span class="text-uppercase" style="letter-spacing:.06em">Rentabilidad</span></p>
+        <h1 class="ns-page-title">NeoProfit</h1>
+    </div>
+    <div class="ns-page-actions">
+        <a asp-controller="ProfitGastos" asp-action="Index" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">payments</span> Gastos</a>
+        <a asp-controller="ProfitCompras" asp-action="Index" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">shopping_cart</span> Compras</a>
+        <form method="get" class="d-flex align-items-end gap-2">
+            <div>
+                <label class="form-label small text-muted mb-0">Desde</label>
+                <input type="date" name="desde" value="@Model.Desde.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+            </div>
+            <div>
+                <label class="form-label small text-muted mb-0">Hasta</label>
+                <input type="date" name="hasta" value="@Model.Hasta.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+            </div>
+            <button class="btn btn-primary btn-sm">Aplicar</button>
+        </form>
+    </div>
+</div>
+
+@if (Model.LineasSinCosto > 0)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2">
+        <span class="material-symbols-outlined">price_change</span>
+        <div>
+            <strong>@Model.LineasSinCosto línea@(Model.LineasSinCosto != 1 ? "s" : "") sin costo.</strong>
+            La utilidad puede estar sobrestimada. Asigna <em>costo unitario</em> a tus productos para un cálculo exacto.
+            <a asp-controller="Productos" asp-action="Index" class="alert-link">Ir a Productos</a>
+        </div>
+    </div>
+}
+
+@* ── KPIs ───────────────────────────────────────────────────────── *@
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip"><span class="material-symbols-outlined">point_of_sale</span></span></div>
+            <p class="ns-kpi-label">Venta neta</p>
+            <h2 class="ns-kpi-value ns-mono">$@Money(Model.VentaNeta)</h2>
+            <small class="text-muted">@Model.Documentos documento@(Model.Documentos != 1 ? "s" : "") procesado@(Model.Documentos != 1 ? "s" : "")</small>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top">
+                <span class="ns-kpi-chip ns-kpi-chip--processed"><span class="material-symbols-outlined">trending_up</span></span>
+                <span class="ns-badge ns-badge--processed">@Model.MargenPorcentaje.ToString("0.#")%</span>
+            </div>
+            <p class="ns-kpi-label">Ganancia bruta</p>
+            <h2 class="ns-kpi-value ns-mono" style="color:var(--ns-processed)">$@Money(Model.GananciaBruta)</h2>
+            <small class="text-muted">Costo: $@Money(Model.CostoVentas)</small>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">savings</span></span></div>
+            <p class="ns-kpi-label">Utilidad neta</p>
+            <h2 class="ns-kpi-value ns-mono" style="color:@(Model.UtilidadNeta >= 0 ? "var(--ns-secondary)" : "var(--ns-rejected)")">$@Money(Model.UtilidadNeta)</h2>
+            <small class="text-muted">Gastos: $@Money(Model.GastosTotal)</small>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip @(Model.IvaNeto >= 0 ? "ns-kpi-chip--rejected" : "")"><span class="material-symbols-outlined">receipt</span></span></div>
+            <p class="ns-kpi-label">IVA neto a pagar</p>
+            <h2 class="ns-kpi-value ns-mono">$@Money(Model.IvaNeto)</h2>
+            <small class="text-muted">Generado $@Money(Model.IvaGenerado) · Crédito $@Money(Model.IvaCredito)</small>
+        </div></div>
+    </div>
+</div>
+
+@* ── Charts ─────────────────────────────────────────────────────── *@
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0"><strong>Ventas en el período</strong></div>
+            <div class="card-body">
+                @if (Model.Tendencia.Any(t => t.Venta != 0))
+                {
+                    <canvas id="chartTendencia" height="90"></canvas>
+                }
+                else
+                {
+                    <div class="ns-empty"><span class="material-symbols-outlined">show_chart</span><p>Sin ventas procesadas en el período.</p></div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pb-0"><strong>Por sucursal</strong></div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                @if (Model.PorSucursal.Any())
+                {
+                    <canvas id="chartSucursal" style="max-height:220px"></canvas>
+                }
+                else
+                {
+                    <p class="text-muted m-0">Sin datos.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Rankings ───────────────────────────────────────────────────── *@
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">inventory_2</span><strong>Top productos por venta</strong></div>
+            @if (Model.TopProductos.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>Producto</th><th class="text-end">Cant.</th><th class="text-end">Venta</th><th class="text-end">Ganancia</th><th class="text-end">Margen</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model.TopProductos)
+                            {
+                                <tr>
+                                    <td>
+                                        @p.Nombre
+                                        @if (p.CostoPendiente) { <span class="ns-badge ns-badge--draft ms-1" title="Costo pendiente">costo?</span> }
+                                    </td>
+                                    <td class="text-end ns-mono">@p.Cantidad.ToString("0.##")</td>
+                                    <td class="text-end ns-mono">@Money(p.Venta)</td>
+                                    <td class="text-end ns-mono" style="color:var(--ns-processed)">@Money(p.Ganancia)</td>
+                                    <td class="text-end ns-mono">@p.MargenPorcentaje.ToString("0.#")%</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else { <div class="card-body text-muted">Sin ventas en el período.</div> }
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">groups</span><strong>Top clientes</strong></div>
+            @if (Model.TopClientes.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 align-middle">
+                        <thead class="table-light"><tr><th>Cliente</th><th class="text-end">Docs</th><th class="text-end">Venta</th></tr></thead>
+                        <tbody>
+                            @foreach (var c in Model.TopClientes)
+                            {
+                                <tr>
+                                    <td>@c.Nombre</td>
+                                    <td class="text-end ns-mono">@c.Documentos</td>
+                                    <td class="text-end ns-mono">@Money(c.Venta)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else { <div class="card-body text-muted">Sin clientes en el período.</div> }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const tendenciaEl = document.getElementById('chartTendencia');
+    if (tendenciaEl) {
+        const data = @Html.Raw(JsonSerializer.Serialize(
+            Model.Tendencia.Select(t => new { fecha = t.Fecha.ToString("dd/MM"), venta = t.Venta }), jsonOpts));
+        new Chart(tendenciaEl, {
+            type: 'line',
+            data: {
+                labels: data.map(x => x.fecha),
+                datasets: [{
+                    label: 'Venta',
+                    data: data.map(x => x.venta),
+                    borderColor: 'rgba(107,56,212,0.95)',
+                    backgroundColor: 'rgba(107,56,212,0.12)',
+                    fill: true, tension: 0.3, borderWidth: 2, pointRadius: 2,
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } , x: { ticks: { maxRotation: 45, font: { size: 10 } } } } }
+        });
+    }
+
+    const sucursalEl = document.getElementById('chartSucursal');
+    if (sucursalEl) {
+        const data = @Html.Raw(JsonSerializer.Serialize(
+            Model.PorSucursal.Select(s => new { nombre = s.Nombre, venta = s.Venta }), jsonOpts));
+        const palette = ['#6b38d4','#10B981','#F59E0B','#3b82f6','#ef4444','#8455ef','#14b8a6','#a78bfa'];
+        new Chart(sucursalEl, {
+            type: 'doughnut',
+            data: {
+                labels: data.map(x => x.nombre),
+                datasets: [{ data: data.map(x => x.venta), backgroundColor: data.map((_, i) => palette[i % palette.length]), borderWidth: 2 }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+        });
+    }
+})();
+</script>
+}

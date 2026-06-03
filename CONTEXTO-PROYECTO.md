@@ -664,7 +664,8 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 | 3 | **Carga masiva** clientes/productos (Excel/CSV) | ✅ | Onboarding de datos de prospectos en minutos (upsert + dry-run + reporte) |
 | 4 | **Onboarding self-service** | ✅ | `IOnboardingService` deriva 5 pasos de activación de datos reales (perfil, config DTE, certificado, catálogo base, primer DTE PROCESADO); checklist reactivo en el dashboard + asistente `/onboarding`; se oculta al 100% → sube conversión |
 | 5 | **NeoConnect API comercial** | ✅ | Gestión (API keys + webhooks firmados + worker + UI `/Integraciones`) **y endpoints de negocio v1** (`/api/v1`: emitir/consultar/descargar DTE, alta/listado clientes y productos por API Key + scopes), sandbox por ambiente DTE, OpenAPI público + `docs/NeoConnect-API-v1.md` — **base para NeoBusiness y NeoScan**; COMPLETO (gestión + negocio + tests) |
-| 6 | **NeoProfit** / **NeoScanAI** | 🔜 | Diferenciadores: análisis financiero sobre DTE PROCESADOS / OCR-IA documental |
+| 6 | **NeoProfit** (Sprint 22) | ✅ | `ProfitCalculator` (PROCESADO, NC resta, ND suma, SE sin IVA, costo pendiente) + `IProfitService`/`/api/profit/*` + dashboard financiero Web + grids/CRUD de gastos y compras; permisos NEOPROFIT 370/371; migración `Sprint22_NeoProfit` |
+| 7 | **NeoScanAI** | 🔜 | Diferenciador: OCR-IA documental (compras/gastos/DTE recibidos) — alimenta NeoProfit |
 
 **Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva · ✅ Onboarding self-service → **siguiente: NeoConnect endpoints de negocio / NeoProfit**.
 
@@ -696,11 +697,13 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 
 **NeoConnect: COMPLETO** (gestión + endpoints de negocio + tests).
 
-## Reglas de negocio transversales (NeoProfit)
+## Reglas de negocio transversales (NeoProfit) — ✅ implementadas
 - Solo contar DTE **PROCESADO**; excluir RECHAZADO e INVALIDADO.
 - Nota de Crédito **resta**, Nota de Débito **suma**.
 - Sujeto Excluido **no genera IVA**.
 - Producto sin costo → marcar **"Costo pendiente"**.
+
+> Implementación: `ProfitCalculator` (puro, en `Application/Profit`) con estas reglas; `ProfitService` proyecta DTE + costos de producto (`CostoUnitario`) + `Profit_Gastos`/`Profit_Compras`. API `/api/profit/*` (gated `RequireModule("NEOPROFIT")` + permisos `Profit.Ver`/`Profit.Gestionar`). Web: dashboard `Profit/Index` (KPIs `ns-kpi` + charts + rankings), grids/CRUD `ProfitGastos`/`ProfitCompras`. Utilidad neta = ganancia bruta − gastos; IVA neto = generado − crédito (gastos deducibles + compras). Tests: `ProfitCalculatorTests` (9) + `ProfitServiceTests` (5).
 
 ---
 

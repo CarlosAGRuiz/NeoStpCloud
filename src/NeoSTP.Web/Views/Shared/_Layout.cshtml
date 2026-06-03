@@ -12,6 +12,7 @@
     var puedeVerEventos = isSuperAdmin || User.HasClaim("permiso", "DTE.Eventos.Ver");
     var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
     var puedeVerIntegraciones = isSuperAdmin || User.HasClaim("permiso", "Connect.ApiKeys.Ver");
+    var puedeVerProfit = isSuperAdmin || User.HasClaim("permiso", "Profit.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 
@@ -87,6 +88,14 @@ else
                 @if (puedeVerCatalogos)
                 {
                     <a class="ns-nav-link @active("Catalogos")" asp-controller="Catalogos" asp-action="Index"><span class="material-symbols-outlined">menu_book</span> Catálogos</a>
+                }
+
+                @if (puedeVerProfit)
+                {
+                    <div class="ns-nav-group">Inteligencia</div>
+                    <a class="ns-nav-link @active("Profit")" asp-controller="Profit" asp-action="Index"><span class="material-symbols-outlined">trending_up</span> NeoProfit</a>
+                    <a class="ns-nav-link @active("ProfitGastos")" asp-controller="ProfitGastos" asp-action="Index"><span class="material-symbols-outlined">payments</span> Gastos</a>
+                    <a class="ns-nav-link @active("ProfitCompras")" asp-controller="ProfitCompras" asp-action="Index"><span class="material-symbols-outlined">shopping_cart</span> Compras</a>
                 }
 
                 <div class="ns-nav-group">Administración</div>

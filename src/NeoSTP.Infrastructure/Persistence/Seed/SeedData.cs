@@ -477,6 +477,10 @@ internal static partial class SeedData
             Perm(354, "Connect.Webhooks.Administrar","NEOCONNECT", "Crear, editar y eliminar webhooks"),
             Perm(355, "Connect.Logs.Ver",            "NEOCONNECT", "Ver logs de uso y entregas de webhooks"),
 
+            // NeoProfit (Sprint 22)
+            Perm(370, "Profit.Ver",       "NEOPROFIT", "Ver dashboard financiero, rankings y métricas de rentabilidad"),
+            Perm(371, "Profit.Gestionar", "NEOPROFIT", "Registrar y editar gastos y compras de NeoProfit"),
+
             // SuperAdmin
             Perm(360, "SuperAdmin.Empresas.Administrar", "ADMIN", "Administrar empresas globalmente"),
             Perm(361, "SuperAdmin.Planes.Administrar",   "ADMIN", "Administrar planes y módulos"),
@@ -513,6 +517,7 @@ internal static partial class SeedData
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
+            370, 371,
             360, 361, 362, 363, 364,
         };
 
@@ -523,6 +528,7 @@ internal static partial class SeedData
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
+            370, 371,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -540,7 +546,7 @@ internal static partial class SeedData
             300, 302, 307, 308, 309, 311, 313, 315,
             322, 324,
             330, 335,
-            340,
+            340, 370,
         };
 
         // READONLY (504) → solo ver

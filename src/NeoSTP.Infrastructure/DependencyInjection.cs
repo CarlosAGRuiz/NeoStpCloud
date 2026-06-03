@@ -17,6 +17,7 @@ using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Onboarding;
 using NeoSTP.Application.Productos;
+using NeoSTP.Application.Profit;
 using NeoSTP.Application.Roles;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Application.Billing;
@@ -181,6 +182,9 @@ public static class DependencyInjection
 
         // Onboarding self-service: estado de activación derivado de datos reales
         services.AddScoped<IOnboardingService, OnboardingService>();
+
+        // NeoProfit (Sprint 22): cálculo financiero sobre DTE + gastos/compras
+        services.AddScoped<IProfitService, ProfitService>();
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();

@@ -1,0 +1,86 @@
+@model NeoSTP.Application.Common.PagedResult<NeoSTP.Application.Profit.Dtos.ProfitCompraDto>
+@{
+    ViewData["Title"] = "Compras";
+    var search = ViewBag.Search as string;
+    var puedeGestionar = ViewBag.PuedeGestionar as bool? ?? false;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Profit" asp-action="Index">NeoProfit</a><span class="material-symbols-outlined">chevron_right</span><span>Compras</span></nav>
+        <h1 class="ns-page-title">Compras / insumos</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar proveedor, documento o descripción…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+    @if (puedeGestionar)
+    {
+        <a asp-action="Create" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva compra</a>
+    }
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Fecha</th><th>Proveedor</th><th>Documento</th><th>Descripción</th>
+                    <th class="text-end">Subtotal</th><th class="text-end">IVA</th><th class="text-end">Total</th>
+                    <th>Estado</th>@if (puedeGestionar) { <th class="text-end">Acciones</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="9"><div class="ns-empty"><span class="material-symbols-outlined">shopping_cart</span><p>Sin compras registradas.</p></div></td></tr>
+                }
+                @foreach (var c in Model?.Items ?? Array.Empty<NeoSTP.Application.Profit.Dtos.ProfitCompraDto>())
+                {
+                    var badge = c.EstadoCodigo == "ACTIVO" ? "ns-pill ns-pill--on" : "ns-pill ns-pill--off";
+                    <tr>
+                        <td class="ns-mono">@c.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td><strong>@c.Proveedor</strong></td>
+                        <td><small class="text-muted ns-mono">@(c.NumeroDocumento ?? "—")</small></td>
+                        <td>@(c.Descripcion ?? "—")</td>
+                        <td class="text-end ns-mono">@c.Subtotal.ToString("N2")</td>
+                        <td class="text-end ns-mono">@c.IvaMonto.ToString("N2")</td>
+                        <td class="text-end ns-mono fw-bold">@c.Total.ToString("N2")</td>
+                        <td><span class="@badge">@c.EstadoCodigo</span></td>
+                        @if (puedeGestionar)
+                        {
+                            <td class="text-end">
+                                <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                                @if (c.EstadoCodigo == "ACTIVO")
+                                {
+                                    <form asp-action="Inactivar" asp-route-id="@c.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Inactivar esta compra?');">Inactivar</button>
+                                    </form>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a></li>
+        }
+    </ul></nav>
+}
+
+<p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) compras.</p>

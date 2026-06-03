@@ -3,6 +3,7 @@ using NeoSTP.Domain.Core.Auditoria;
 using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Connect;
+using NeoSTP.Domain.Core.Profit;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Certificacion;
 using NeoSTP.Domain.Core.Dte.Contingencia;
@@ -101,6 +102,10 @@ public class NeoStpDbContext : DbContext
     public DbSet<ConnectApiKey> ConnectApiKeys => Set<ConnectApiKey>();
     public DbSet<ConnectWebhook> ConnectWebhooks => Set<ConnectWebhook>();
     public DbSet<ConnectWebhookDelivery> ConnectWebhookDeliveries => Set<ConnectWebhookDelivery>();
+
+    // NeoProfit (Sprint 22)
+    public DbSet<ProfitGasto> ProfitGastos => Set<ProfitGasto>();
+    public DbSet<ProfitCompra> ProfitCompras => Set<ProfitCompra>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

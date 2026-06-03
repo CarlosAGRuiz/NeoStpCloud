@@ -1,0 +1,63 @@
+@model NeoSTP.Application.Profit.Dtos.CreateProfitGastoRequest
+@{
+    ViewData["Title"] = "Nuevo gasto";
+    var categorias = (ViewBag.Categorias as string[]) ?? Array.Empty<string>();
+}
+
+<form asp-action="Create" method="post" style="max-width:820px;">
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb"><a asp-action="Index">Gastos</a><span class="material-symbols-outlined">chevron_right</span><span>Nuevo</span></nav>
+            <h1 class="ns-page-title">Nuevo gasto</h1>
+        </div>
+        <div class="ns-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Registrar</button>
+        </div>
+    </div>
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+
+    <div class="ns-formsection">
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">payments</span><h2>Datos del gasto</h2></div>
+        <div class="ns-formsection-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="Fecha" class="form-label">Fecha</label>
+                    <input asp-for="Fecha" type="date" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Categoria" class="form-label">Categoría</label>
+                    <select asp-for="Categoria" class="form-select">
+                        @foreach (var c in categorias) { <option value="@c" selected="@(c == Model.Categoria)">@c</option> }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Proveedor" class="form-label">Proveedor (opcional)</label>
+                    <input asp-for="Proveedor" class="form-control" />
+                </div>
+                <div class="col-md-12">
+                    <label asp-for="Descripcion" class="form-label">Descripción</label>
+                    <input asp-for="Descripcion" class="form-control" />
+                    <span asp-validation-for="Descripcion" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Monto" class="form-label">Monto (sin IVA)</label>
+                    <input asp-for="Monto" type="number" step="0.01" min="0" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="IvaMonto" class="form-label">IVA</label>
+                    <input asp-for="IvaMonto" type="number" step="0.01" min="0" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check mt-4 pt-2">
+                        <input asp-for="IvaDeducible" class="form-check-input" />
+                        <label asp-for="IvaDeducible" class="form-check-label">IVA deducible (crédito fiscal)</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }
