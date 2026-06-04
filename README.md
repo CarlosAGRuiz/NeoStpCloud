@@ -1,5 +1,13 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile (documentacion de API y plan)
+
+Documentacion para la app movil **NeoCloud Mobile** (Flutter, Android), que consume la misma API y base de datos.
+
+- **`docs/NeoCloud-Mobile-API.md`** — guia de integracion para el dev Flutter: auth JWT (login/refresh/me/MFA), `ApiResponse<T>` + codigos de error, configuracion de cuenta DTE (certificado en base64 + credenciales MH), pipeline de emision contra Hacienda, consulta/compartir, clientes/productos/lookups, permisos y referencia rapida de endpoints.
+- **`docs/NeoCloud-Mobile-Plan.md`** — cobertura propuesta-vs-API, brechas de backend (B-1 emision en 1 paso, B-2 Cobros/CxC, B-3 NeoScan/OCR, B-4 Alertas push, B-5 QR de cobro, B-6 verificacion NIT, B-7 DTE recibidos) y plan de 10 sprints (FE Flutter + BE).
+- Verificado en vivo: login, `/me`, `/empresas`, `/dashboard/empresa`, `/dte/configuracion` responden con el shape documentado. El nucleo (emision, consulta, CRM, catalogo, configuracion, compartir) ya esta soportado; las brechas son modulos nuevos del backend.
+
 ## Actualizacion - Branding (logo y firma) en DTE y correo
 
 Cada empresa puede usar su logo y firma en la representacion grafica del DTE y en el correo.
