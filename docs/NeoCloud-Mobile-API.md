@@ -1,12 +1,17 @@
 # NeoCloud Mobile — Guía de integración de la API
 
 Documento técnico para el desarrollo de **NeoCloud Mobile** (Flutter, Android tablet/celular).
-La app consume **la misma API y base de datos** que el panel web actual: no hay backend nuevo, es un
-cliente ligero sobre la API REST de NeoSTP Cloud.
+La app consume **la misma API y base de datos** que el panel web (NeoSTP.Api): no es un backend separado,
+sino un cliente ligero sobre la API REST de NeoSTP Cloud.
 
 > **Audiencia:** desarrollador Flutter.
 > **Backend:** lo mantenemos nosotros (NeoSTP). Este documento define el contrato que la app debe consumir.
-> **Acompaña a:** `NeoCloud-Mobile-Plan.md` (plan de trabajo, sprints y análisis de brechas).
+> **Acompaña a:** `NeoCloud-Mobile-Plan.md` (estado del backend y plan de sprints Flutter).
+>
+> **Estado del backend: COMPLETO.** Todos los endpoints de este documento están **implementados, probados y
+> desplegados** en `main`. Las únicas piezas con proveedor *mock* (pluggable, sin cambiar el contrato) son la
+> **extracción OCR/IA** de NeoScan y el **envío push real (FCM)**; la app se construye igual y la integración
+> real se "enciende" por configuración cuando haya credenciales.
 
 ---
 
@@ -109,7 +114,7 @@ integraciones servidor-a-servidor de NeoConnect).
   "refreshTokenExpiresAt": "2026-06-11T14:00:00Z",
   "user": {
     "id": 12, "empresaId": 5, "username": "vendedor1", "email": "...",
-    "nombreCompleto": "Juan Pérez", "tipoUsuarioCodigo": "EMPRESA",
+    "nombreCompleto": "Juan Pérez", "tipoUsuarioCodigo": "OPERADOR",
     "roles": ["OPERADOR"], "permisos": ["DTE.Emitir","Clientes.Ver", ...]
   },
   "mfaEnrollmentRequired": false
@@ -180,7 +185,9 @@ error alguien inicia sesión con una cuenta SuperAdmin en la app:
   `400 AUTH_NO_TENANT`; nunca verá datos de ninguna empresa por accidente.)
 
 > Resumen para el dev Flutter: trata `tipoUsuarioCodigo == "SUPERADMIN"` como "no soportado en móvil".
-> Para todos los demás, el tenant es implícito y único; nunca pidas ni envíes `empresaId`.
+> Los usuarios de empresa son `ADMIN` / `OPERADOR` / `CONTADOR` / `READONLY` (con `empresaId` no nulo); para
+> ellos el tenant es implícito y único — nunca pidas ni envíes `empresaId`. Lo que muestra cada pantalla lo
+> decide `user.permisos`, no el tipo de usuario.
 
 ---
 
@@ -321,11 +328,10 @@ POST /api/dte/documentos/{id}/enviar    → estado final PROCESADO (con selloRec
 Cada paso devuelve el `DteDocumentoDto` actualizado. Si un paso falla, devuelve error con el código del fallo
 (ej. `FIRMA_FAILED`, `HACIENDA_AUTH_FAILED`) y el documento queda en el último estado válido.
 
-### 7.3.b Emisión en un solo paso (recomendado para móvil) ✅
+### 7.4 Emisión en un solo paso (recomendado para móvil) ✅
 
-Ya disponible bajo JWT (brecha **B-1** entregada). Una sola llamada ejecuta
-borrador→generar→validar→firmar→enviar y devuelve el `DteDocumentoDto` final (idealmente PROCESADO con
-sello). Permiso `DTE.Emitir`.
+Camino recomendado bajo JWT. Una sola llamada ejecuta borrador→generar→validar→firmar→enviar y devuelve el
+`DteDocumentoDto` final (idealmente PROCESADO con sello). Permiso `DTE.Emitir`.
 
 | Método | Ruta | Tipo |
 |---|---|---|
@@ -341,7 +347,7 @@ MH), devuelve el error de ese paso con su código; el documento queda en el últ
 consultarse/retomarse. Este es el camino recomendado para el flujo "vendo → facturo → comparto"; los 5
 pasos sueltos (§7.3) siguen disponibles para flujos avanzados.
 
-### 7.4 Compartir / reenviar
+### 7.5 Compartir / reenviar
 
 | Método | Ruta | Devuelve |
 |---|---|---|
@@ -387,21 +393,22 @@ Permiso de lectura: `DTE.Consultar` (pdf/json) / `DTE.Emitir` (lista).
 | `PATCH` | `/api/clientes/{id}/inactivar` | `Clientes.Editar` |
 | `PATCH` | `/api/clientes/{id}/etiqueta` | `Clientes.Editar` — body `{ etiqueta }` (VIP \| FRECUENTE \| vacío). |
 
-`ClienteDto`: `tipoDocumentoCodigo, numeroDocumento, nrc, nombre, nombreComercial, tipoContribuyenteCodigo,
-esContribuyente, codigoActividad, departamentoCodigo, municipioCodigo, direccion, correo, telefono, estadoCodigo`.
-Para "crear cliente rápido" basta `tipoDocumentoCodigo + numeroDocumento + nombre + tipoContribuyenteCodigo`.
+`ClienteDto`: `id, tipoDocumentoCodigo, numeroDocumento, nrc, nombre, nombreComercial, tipoContribuyenteCodigo,
+esContribuyente, codigoActividad, departamentoCodigo, municipioCodigo, direccion, correo, telefono, estadoCodigo,
+etiqueta`. Para "crear cliente rápido" basta `tipoDocumentoCodigo + numeroDocumento + nombre + tipoContribuyenteCodigo`.
 
 > "Llamar/WhatsApp/correo desde la ficha" se resuelve en Flutter (`url_launcher`) con `telefono`/`correo`.
 
 ### 8.4 Catálogo de productos — `/api/productos`
 
-Mismo patrón CRUD que clientes (`Productos.Ver/Crear/Editar`). `ProductoDto`: `codigoInterno, codigoBarra,
-nombre, descripcion, tipoItem (BIEN/SERVICIO), unidadMedidaCodigo, precioUnitario, costoUnitario,
-aplicaIva, estadoCodigo`. El `codigoBarra` habilita el escaneo→buscar producto.
+Mismo patrón CRUD que clientes: `GET /api/productos` (lista paginada), `GET /{id}`, `POST`, `PUT /{id}`,
+`PATCH /{id}/inactivar` (`Productos.Ver/Crear/Editar`). `ProductoDto`: `id, codigoInterno, codigoBarra,
+nombre, descripcion, tipoItem (BIEN/SERVICIO), esServicio, unidadMedidaCodigo, precioUnitario, costoUnitario,
+aplicaIva, tributoCodigo, estadoCodigo`. El `codigoBarra` habilita el escaneo→buscar producto.
 
 ### 8.5 Búsquedas rápidas y cascadas — `/api/lookups`
 
-Pensado para autocompletes y selects (ligero, devuelve `LookupItem[]` = `{ id, codigo, texto, ... }`):
+Pensado para autocompletes y selects (ligero, devuelve `LookupItem[]` = `{ value, label, parent?, meta? }`):
 
 | Ruta | Uso |
 |---|---|
@@ -427,8 +434,10 @@ Lectura `Cobros.Ver`, escritura `Cobros.Gestionar`.
 | `POST` | `/api/cobros/pagos/{pagoId}/confirmar` | Confirma un pago en revisión (recién entonces reduce el saldo). |
 | `POST` | `/api/cobros/pagos/{pagoId}/anular` | Anula un pago. |
 | `GET` | `/api/cobros/cuentas` | Cuentas/pasarelas de cobro de la empresa (`CuentaCobroDto`). |
-| `POST`/`PUT`/`POST` | `/api/cobros/cuentas` · `/cuentas/{id}` · `/cuentas/{id}/inactivar` | Gestión de cuentas (`Cobros.Gestionar`). |
-| `POST` | `/api/cobros/qr` | **QR de cobro (B-5).** Body `{ dteDocumentoId?, cuentaCobroId?, monto?, referencia? }`. |
+| `POST` | `/api/cobros/cuentas` | Crear cuenta de cobro (`Cobros.Gestionar`). Body `CrearCuentaCobroRequest`. |
+| `PUT` | `/api/cobros/cuentas/{id}` | Actualizar cuenta (`Cobros.Gestionar`). |
+| `POST` | `/api/cobros/cuentas/{id}/inactivar` | Inactivar cuenta (`Cobros.Gestionar`). |
+| `POST` | `/api/cobros/qr` | **QR de cobro.** Body `{ dteDocumentoId?, cuentaCobroId?, monto?, referencia? }` → `CobroQrDto`. |
 
 **QR de cobro** (`POST /api/cobros/qr`): genera un código QR de pago para compartir con el cliente. Si pasas
 `dteDocumentoId`, el **monto = saldo** de la factura y la **referencia = número de control**; si no, indica
@@ -476,7 +485,7 @@ iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
 > Google Vision / LLM) es **pluggable** sin cambiar el contrato: cuando se active, los campos vendrán
 > precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que venga y
 > permitir corregir antes de confirmar). **Límite mensual:** si la empresa supera el cupo configurado
-> (`Scan:LimiteMensual`, 0 = sin límite), `POST /documentos` devuelve `429`/`409` con `LIMIT_EXCEEDED`.
+> (`Scan:LimiteMensual`, 0 = sin límite), `POST /documentos` devuelve `409` con `LIMIT_EXCEEDED`.
 
 ### 8.8 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)
 
@@ -525,13 +534,16 @@ invalidación (anulación de un DTE procesado) y la contingencia se exponen aqu�
 | `DTE.Reenviar` | Reenviar por correo |
 | `DTE.Invalidar` | Anular DTE |
 | `DTE.Configurar` | Configurar emisor/certificado |
-| `Clientes.Ver/Crear/Editar` | CRM |
+| `Clientes.Ver/Crear/Editar` | CRM (incluye etiqueta) |
 | `Productos.Ver/Crear/Editar` | Catálogo |
-| `Profit.Ver` | KPIs financieros (módulo NEOPROFIT) |
+| `Cobros.Ver` / `Cobros.Gestionar` | Cobros/CxC: ver saldos/QR · registrar pagos y cuentas |
+| `ScanAI.Ver` / `ScanAI.Confirmar` | NeoScan: bandeja/captura · confirmar a gasto/compra/DTE recibido |
+| `Profit.Ver` / `Profit.Gestionar` | KPIs financieros / gastos y compras (módulo NEOPROFIT) |
+| _(sin permiso especial)_ | Alertas y dispositivos: cualquier usuario de empresa gestiona los suyos |
 
 - **Licenciamiento por módulo:** algunos endpoints exigen además un módulo activo en el plan
-  (`[RequireModule("NEOPROFIT")]`, etc.) → HTTP 402/403 si el plan no lo incluye. La app debe degradar
-  con elegancia (ocultar la pestaña).
+  (`[RequireModule("NEOPROFIT")]`, `NEOSCANAI`, etc.) → HTTP 402/403 si el plan no lo incluye. La app debe
+  degradar con elegancia (ocultar la pestaña Profit/Scan).
 
 ---
 
@@ -545,9 +557,9 @@ invalidación (anulación de un DTE procesado) y la contingencia se exponen aqu�
 | 401 | `AUTH_INVALID_CREDENTIALS`, `AUTH_USER_INACTIVE`, `AUTH_USER_LOCKED`, `AUTH_REFRESH_INVALID`, `PWD_INVALID` | Login/refresh; si refresh falla, cerrar sesión. |
 | 402 | `LICENSE_INVALID` | Plan no cubre el módulo → upsell/ocultar. |
 | 403 | (permiso/módulo) | Ocultar acción. |
-| 404 | `DTE_NOT_FOUND`, `CLIENTE_NOT_FOUND`, `PRODUCTO_NOT_FOUND`, `CONFIG_NOT_FOUND` | "No encontrado". |
-| 409 | `INVALID_STATE`, `*_DUPLICATE` | Conflicto (ej. transición de estado inválida, documento duplicado). |
-| 429 | `RATE_LIMIT_EXCEEDED` | Respetar `Retry-After`; backoff. |
+| 404 | `DTE_NOT_FOUND`, `CLIENTE_NOT_FOUND`, `PRODUCTO_NOT_FOUND`, `CONFIG_NOT_FOUND`, `PAGO_NOT_FOUND`, `CUENTA_NOT_FOUND`, `SCAN_NOT_FOUND`, `ALERTA_NOT_FOUND`, `DISPOSITIVO_NOT_FOUND`, `GASTO_NOT_FOUND`, `COMPRA_NOT_FOUND` | "No encontrado". |
+| 409 | `INVALID_STATE`, `*_DUPLICATE`, `LIMIT_EXCEEDED` | Conflicto (transición inválida, duplicado, cupo de escaneos/recurso superado). |
+| 429 | `RATE_LIMIT_EXCEEDED` | Cuota de API por empresa/usuario. Respetar `Retry-After`; backoff. |
 | 502 | `FIRMA_FAILED`, `HACIENDA_AUTH_FAILED`, `EMAIL_FAILED` | Falla de firma/MH/correo → reintentar/avisar. |
 
 Siempre registra `traceId` en logs locales para soporte.
