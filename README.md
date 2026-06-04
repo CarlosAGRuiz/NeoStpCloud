@@ -1,5 +1,16 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile: Alertas y push (B-4)
+
+Centro de alertas + notificaciones push para la app movil.
+
+- **Dominio:** `Alerta` (`Notif_Alertas`, con dedupe por clave), `DispositivoNotificacion` (`Notif_Dispositivos`, tokens FCM) y `PreferenciaNotificacion` (`Notif_Preferencias`); migracion `B4_AlertasNotificaciones`.
+- **`IAlertaService` / `AlertaService`:** centro de alertas (listar, resumen para badge, marcar leida/resuelta), registro/baja de dispositivos, preferencias (canal/no molestar/horario). Crear una alerta dispara push best-effort a los dispositivos activos del destinatario.
+- **`IAlertaGeneracionService`:** deriva alertas de datos reales — DTE rechazado (critica), certificado por vencer (<=30 dias), facturas vencidas (cuentas por cobrar); upsert por clave (idempotente).
+- **`IPushSender`** con `MockPushSender` por defecto (registra en logs); FCM real pluggable via `Push:Provider` sin cambiar el contrato.
+- **API `/api/alertas/*`** para usuario de empresa: alertas, resumen, leer/resolver, generar, dispositivos, preferencias.
+- **Tests** `AlertaServiceTests` (dedupe, push a dispositivos activos, resumen por severidad, resolver, upsert de dispositivo, generacion idempotente).
+
 ## Actualizacion - NeoCloud Mobile: NeoScanAI (B-3 / Sprint 23)
 
 Captura/escaneo asistido por IA: bandeja de documentos y conversion a gasto/compra/DTE recibido.
@@ -113,8 +124,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: NeoCloud Mobile — backend (B-3 NeoScanAI)** ✅ (sobre B-2 Cobros/CxC, B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 348 unit + 2 integración pasando
+> **Versión actual: NeoCloud Mobile — backend (B-4 Alertas y push)** ✅ (sobre B-3 NeoScanAI, B-2 Cobros/CxC, B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 354 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

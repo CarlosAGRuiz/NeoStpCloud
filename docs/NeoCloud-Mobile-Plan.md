@@ -16,7 +16,7 @@ Leyenda: ✅ ya existe · 🟡 existe parcial / necesita ajuste · 🔴 brecha (
 |---|---|---|---|
 | 3.1 | Dashboard: ventas día, total facturado, DTE emitidos/rechazados | ✅ | `GET /api/dashboard/empresa` |
 | 3.1 | Dashboard: facturas pendientes de cobro, clientes con deuda | ✅ | `GET /api/cobros/resumen` (B-2) |
-| 3.1 | Alertas fiscales / de cobro | 🔴 | **B-4 Alertas/Notif.** |
+| 3.1 | Alertas fiscales / de cobro | ✅ | `GET /api/alertas/resumen` (B-4) |
 | 3.2 | Emisión rápida DTE (01/03/05/06/14) | ✅ | `POST /api/dte/{tipo}` + pipeline; **B-1** simplifica a 1 paso |
 | 3.2 | Buscar/crear cliente, agregar productos, descuento, vista previa | ✅ | `lookups`, `clientes`, `productos`, totales los calcula el backend |
 | 3.2 | Escanear código de barras → producto | ✅ 📱 | `mobile_scanner` → `GET /api/lookups/productos?search={codigo}` |
@@ -29,7 +29,7 @@ Leyenda: ✅ ya existe · 🟡 existe parcial / necesita ajuste · 🔴 brecha (
 | 3.4 | Catálogo: buscar, escanear, crear rápido, activar/inactivar | ✅ 📱 | `productos` CRUD + `lookups/productos` |
 | 3.4 | Existencia básica / inventario | 🔴 | sin módulo de inventario (fuera de alcance inicial) |
 | 3.5 | NeoScan: escanear factura/PDF/QR, OCR, clasificar | 🟡 | `/api/scanai/documentos/*` (B-3 core); OCR/IA real pendiente (hoy mock) |
-| 3.6 | Alertas push, centro de notificaciones, F-07, cert por vencer | 🔴 | **B-4 Alertas/Notif.** (cert por vencer ya está en config) |
+| 3.6 | Alertas push, centro de notificaciones, F-07, cert por vencer | 🟡 | `/api/alertas/*` (B-4 core); FCM real + F-07 pendientes |
 | 3.7 | Cobros: pendientes/vencidas, registrar pago, adjuntar | ✅ | `GET /api/cobros/pendientes` · `POST /api/cobros/dte/{id}/pagos` (B-2); recordatorio 📱 |
 | 3.7 | QR de pago / enlace de pago | 🔴 | **B-5 QR de cobro** |
 | 3.8 | Consulta DTE: emitidos/recibidos, estado MH, PDF/JSON, reenviar | ✅ | emitidos ✅; **recibidos** vía NeoScan (`registrar-dte-recibido`, B-3) |
@@ -52,7 +52,7 @@ Alertas/Push, QR de cobro, verificación NIT** y la conveniencia **emisión en u
 | **B-1** ✅ | **Emisión en un paso** (entregado) | `POST /api/dte/emitir` (+ atajos `/emitir/factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido`), JWT, permiso `DTE.Emitir`. Orquesta borrador→generar→validar→firmar→enviar vía `IConnectDteService.EmitirAsync`. Tests `DteControllerEmitirTests`. | ✅ Listo |
 | **B-2** 🟡 | **Cobros / Cuentas por cobrar** (core entregado) | ✅ Entregado: entidad `PagoCliente` (`Cobros_Pagos`), `CobranzaCalculator` (saldo/vencimiento/estado), `ICobranzaService`, endpoints `/api/cobros/*` (resumen, pendientes, saldo cliente, registrar/confirmar/anular pago, historial), permisos `Cobros.Ver` 380 / `Cobros.Gestionar` 381, migración `B2_CobranzaPagosCliente`, tests `CobranzaCalculatorTests`+`CobranzaServiceTests`. 🔜 Pendiente: **etiquetas de cliente** (VIP/frecuente; moroso derivado) y UI web. | Alta |
 | **B-3** 🟡 | **NeoScan / OCR** (core entregado) | ✅ Entregado: entidades `ScanDocumento` (`Scan_Documentos`) + `DteDocumentoRecibido` (`Dte_DocumentosRecibidos`), `IScanService`/`ScanService` (bandeja, subir, corregir, registrar-gasto/compra/dte-recibido → alimenta NeoProfit, rechazar), `IScanExtractionService` con **mock pluggable**, endpoints `/api/scanai/documentos/*`, módulo `NEOSCANAI` + permisos `ScanAI.Ver`/`ScanAI.Confirmar` (ya existían), migración `B3_NeoScanAI`, tests `ScanServiceTests`. 🔜 Pendiente: **proveedor OCR/IA real** (hoy mock), límite mensual de escaneos, UI web. | Media |
-| **B-4** | **Alertas y notificaciones push** | Registro de dispositivo (FCM token), centro de alertas, generación de alertas (DTE rechazado, cert por vencer, factura vencida, F-07), marcar resuelta. Endpoints `/api/alertas/*` + worker. Esfuerzo medio-alto. | Media |
+| **B-4** 🟡 | **Alertas y notificaciones push** (core entregado) | ✅ Entregado: entidades `Alerta` (`Notif_Alertas`), `DispositivoNotificacion` (`Notif_Dispositivos`), `PreferenciaNotificacion` (`Notif_Preferencias`); `IAlertaService` (centro, dispositivos, preferencias, push best-effort) + `IAlertaGeneracionService` (deriva de DTE rechazado, cert por vencer, facturas vencidas, dedupe por clave); `IPushSender` con **mock pluggable**; endpoints `/api/alertas/*`; migración `B4_AlertasNotificaciones`; tests `AlertaServiceTests`. 🔜 Pendiente: **FCM real**, job del Worker, F-07. | Media |
 | **B-5** | **QR / enlace de cobro** | Generar QR/enlace de pago asociado a factura/monto, integrado con proveedores (Wompi/PayPal/transferencia ya existen en Billing). Endpoints `/api/cobros/{id}/qr`. Depende de B-2. Esfuerzo medio. | Media |
 | **B-6** | **Verificación de NIT/NRC en línea** | Consulta contra el servicio de MH (si está disponible) para validar/autocompletar receptor. Endpoint `/api/lookups/verificar-nit`. Esfuerzo bajo-medio (sujeto a disponibilidad MH). | Baja |
 | **B-7** | **DTE recibidos** | Registro y consulta de documentos recibidos (proveedores). Se materializa con B-3 (NeoScan) + B-2. | Media |
@@ -141,7 +141,7 @@ Checklist a validar antes/durante el desarrollo (lo cubre el backend):
 - [x] **Emisión en un paso** (`/api/dte/emitir` + atajos por tipo) — **B-1 entregado**.
 - [x] **Cobros/CxC** — **B-2 core entregado** (`/api/cobros/*`); 🔜 etiquetas de cliente + **QR de cobro (B-5)**.
 - [x] **NeoScan** bandeja + conversión a gasto/compra/**DTE recibido** — **B-3 core entregado** (`/api/scanai/*`); 🔜 OCR/IA real (hoy mock).
-- [ ] **Alertas push** — **B-4**.
+- [x] **Alertas/centro de notificaciones + dispositivos FCM** — **B-4 core entregado** (`/api/alertas/*`); 🔜 FCM real + job Worker.
 - [ ] **Verificación NIT** — **B-6**.
 
 > La app puede arrancar **hoy** con Sprints 0–4 (login, dashboard, consulta, emisión con encadenado de pasos

@@ -4,6 +4,7 @@ using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Cobranza;
 using NeoSTP.Domain.Core.Connect;
+using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Domain.Core.Profit;
 using NeoSTP.Domain.Core.Scan;
 using NeoSTP.Domain.Core.Dte;
@@ -115,6 +116,11 @@ public class NeoStpDbContext : DbContext
     // NeoScanAI (Sprint 23 / B-3 NeoCloud Mobile)
     public DbSet<ScanDocumento> ScanDocumentos => Set<ScanDocumento>();
     public DbSet<DteDocumentoRecibido> DteDocumentosRecibidos => Set<DteDocumentoRecibido>();
+
+    // Alertas y notificaciones (B-4 NeoCloud Mobile)
+    public DbSet<Alerta> Alertas => Set<Alerta>();
+    public DbSet<DispositivoNotificacion> DispositivosNotificacion => Set<DispositivoNotificacion>();
+    public DbSet<PreferenciaNotificacion> PreferenciasNotificacion => Set<PreferenciaNotificacion>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

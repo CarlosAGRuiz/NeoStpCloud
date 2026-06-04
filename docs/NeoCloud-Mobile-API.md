@@ -465,7 +465,33 @@ iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
 > precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que venga y
 > permitir corregir antes de confirmar).
 
-### 8.8 Eventos DTE — `/api/dte/eventos`
+### 8.8 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)
+
+Centro de alertas (DTE rechazado, certificado por vencer, factura vencida) + registro de dispositivos
+(FCM) + preferencias. Para todo usuario de empresa autenticado (sus propias alertas + las de la empresa).
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/api/alertas?page&pageSize&estadoCodigo&tipoCodigo` | Centro de notificaciones (`AlertaDto`). Por defecto excluye RESUELTAS. |
+| `GET` | `/api/alertas/resumen` | `{ pendientes, criticas, advertencias }` — para el **badge** del dashboard. |
+| `POST` | `/api/alertas/{id}/leer` · `/{id}/resolver` | Marcar leída / resuelta. |
+| `POST` | `/api/alertas/leer-todas` | Marcar todas como leídas. |
+| `POST` | `/api/alertas/generar` | Recalcula alertas desde datos reales (idempotente, dedupe por clave). Devuelve `{ creadas }`. |
+| `POST` | `/api/alertas/dispositivos` | Registrar token FCM: `{ token, plataforma }` (ANDROID/IOS/WEB). |
+| `POST` | `/api/alertas/dispositivos/eliminar` | Body `{ token }` — baja del dispositivo. |
+| `GET` / `PUT` | `/api/alertas/preferencias` | Canal (PUSH/CORREO/AMBOS), no molestar, horario. |
+
+`AlertaDto`: `id, tipoCodigo, severidad (INFO/ADVERTENCIA/CRITICA), titulo, mensaje, entidadTipo, entidadId,
+estadoCodigo (PENDIENTE/LEIDA/RESUELTA), createdAt`. Usa `entidadTipo`+`entidadId` para el **deep-link**
+("abrir documento desde la alerta").
+
+> **Flujo en la app:** al iniciar sesión, registra el token FCM (`POST /dispositivos`); muestra el badge con
+> `/resumen`; lista en el centro de notificaciones; al tocar una alerta, navega a la entidad y marca leída/resuelta.
+> **Push:** hoy el backend usa un **sender mock** (`Push:Provider=Mock`, registra en logs); el envío real por
+> **FCM es pluggable** sin cambiar el contrato. La generación de alertas se dispara con `POST /generar` (o por
+> un job del Worker a futuro).
+
+### 8.9 Eventos DTE — `/api/dte/eventos`
 
 `GET` lista/detalle/json/pdf; `POST invalidacion | contingencia | retorno | operaciones-especiales`. La
 invalidación (anulación de un DTE procesado) y la contingencia se exponen aquí y en `/api/dte/evento/*`.
@@ -569,6 +595,12 @@ POST   /api/scanai/documentos                                   # subir captura 
 PUT    /api/scanai/documentos/{id}/campos                       # corregir
 POST   /api/scanai/documentos/{id}/resultado                    # resultado externo OCR
 POST   /api/scanai/documentos/{id}/registrar-gasto | registrar-compra | registrar-dte-recibido | rechazar
+
+# Alertas / push (usuario de empresa autenticado)
+GET    /api/alertas | resumen | preferencias
+POST   /api/alertas/{id}/leer | {id}/resolver | leer-todas | generar
+POST   /api/alertas/dispositivos | dispositivos/eliminar
+PUT    /api/alertas/preferencias
 
 # Métricas
 GET    /api/dashboard/empresa

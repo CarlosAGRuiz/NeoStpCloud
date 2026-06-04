@@ -16,6 +16,7 @@ using NeoSTP.Application.Dte.Eventos;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Cobranza;
+using NeoSTP.Application.Notificaciones;
 using NeoSTP.Application.Onboarding;
 using NeoSTP.Application.Scan;
 using NeoSTP.Application.Productos;
@@ -196,6 +197,14 @@ public static class DependencyInjection
         services.AddScoped<IScanService, ScanService>();
         // Toggle del proveedor de extracción OCR/IA. Hoy solo Mock; real pluggable a futuro.
         services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.MockScanExtractionService>();
+
+        // Alertas y notificaciones push (B-4): centro de alertas + generación + push pluggable
+        services.AddScoped<IAlertaService, AlertaService>();
+        services.AddScoped<IAlertaGeneracionService, AlertaGeneracionService>();
+        var pushProvider = configuration["Push:Provider"];
+        // Hoy solo Mock (registra en logs); FcmPushSender real pluggable a futuro.
+        services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.MockPushSender>();
+        _ = pushProvider;
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();
