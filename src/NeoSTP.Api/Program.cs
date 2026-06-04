@@ -13,6 +13,7 @@ using NeoSTP.Application.Ops;
 using NeoSTP.Infrastructure;
 using NeoSTP.Infrastructure.Persistence.Seed;
 using NeoSTP.Shared;
+using Scalar.AspNetCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -98,6 +99,16 @@ app.UseSerilogRequestLogging();
 // Spec OpenAPI público (documentación de la NeoConnect API). El acceso a los
 // endpoints sigue protegido por API Key / JWT; solo el esquema es público.
 app.MapOpenApi();
+
+// Scalar: explorador interactivo de la API en /scalar/v1 (lee /openapi/v1.json).
+// Botón "Authorize" para pegar el Bearer JWT y probar endpoints.
+app.MapScalarApiReference(options =>
+{
+    options
+        .WithTitle("NeoSTP Cloud API")
+        .WithTheme(ScalarTheme.BluePlanet)
+        .WithDefaultHttpClient(ScalarTarget.Shell, ScalarClient.Curl);
+});
 
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();

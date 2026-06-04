@@ -50,6 +50,8 @@ cliente ligero sobre la API REST de NeoSTP Cloud.
 | Producción | (definido por NeoSTP) | apunta a Hacienda **producción** |
 
 - Todas las rutas cuelgan de `/{base}/api/...`.
+- **Explorador interactivo (Scalar):** `GET /scalar/v1` (o `/scalar`, redirige) — UI para navegar y **probar** los endpoints, con botón *Authorize* para pegar el Bearer JWT. Lee el spec OpenAPI.
+- **Spec OpenAPI (JSON):** `GET /openapi/v1.json` — para importar en Postman o generar clientes.
 - **Health check:** `GET /health` → `{ "data": { "status": "ok", "service": "NeoSTP.Api" } }`. Úsalo para el "ping" de conectividad en el splash.
 - **CORS:** afecta solo a navegadores; una app Flutter nativa (Dart `http`/`dio`) **no** está sujeta a CORS. No requiere configuración especial.
 - **Ambiente DTE (PRUEBAS/PRODUCCION):** NO lo decide la app; lo determina la **configuración DTE de la empresa** (ver §6). La app solo muestra el ambiente vigente.
