@@ -1,5 +1,13 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile: emision en un paso (B-1)
+
+Primer endpoint de backend para la app movil: **emision de DTE en una sola llamada**.
+
+- `POST /api/dte/emitir` (+ atajos `/emitir/factura | credito-fiscal | nota-credito | nota-debito | sujeto-excluido`), JWT, permiso `DTE.Emitir`. Orquesta borrador -> generar -> validar -> firmar -> enviar y devuelve el `DteDocumentoDto` final (PROCESADO con sello, o el error del paso que fallo). Reutiliza `IConnectDteService.EmitirAsync`.
+- Tests `DteControllerEmitirTests` (delegacion, resolucion de tenant, mapeo de resultado, atajo por tipo, SuperAdmin con empresaId).
+- Docs `NeoCloud-Mobile-API.md` / `NeoCloud-Mobile-Plan.md` actualizados (B-1 entregado).
+
 ## Actualizacion - NeoCloud Mobile (documentacion de API y plan)
 
 Documentacion para la app movil **NeoCloud Mobile** (Flutter, Android), que consume la misma API y base de datos.
@@ -85,8 +93,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: Branding (logo y firma)** ✅ (sobre correo + rediseño de factura, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 318 unit + 2 integración pasando
+> **Versión actual: NeoCloud Mobile — backend (B-1 emisión en un paso)** ✅ (sobre branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 323 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

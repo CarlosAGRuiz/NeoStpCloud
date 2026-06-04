@@ -49,7 +49,7 @@ Alertas/Push, QR de cobro, verificación NIT** y la conveniencia **emisión en u
 
 | ID | Brecha | Alcance backend | Prioridad |
 |---|---|---|---|
-| **B-1** | **Emisión en un paso** | `POST /api/dte/emitir` (JWT, permiso `DTE.Emitir`) que orqueste borrador→generar→validar→firmar→enviar y devuelva el `DteDocumentoDto` final. Reutiliza `IConnectDteService.EmitirAsync` (ya usado por `/api/v1/dte`). Bajo esfuerzo. | Alta |
+| **B-1** ✅ | **Emisión en un paso** (entregado) | `POST /api/dte/emitir` (+ atajos `/emitir/factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido`), JWT, permiso `DTE.Emitir`. Orquesta borrador→generar→validar→firmar→enviar vía `IConnectDteService.EmitirAsync`. Tests `DteControllerEmitirTests`. | ✅ Listo |
 | **B-2** | **Cobros / Cuentas por cobrar** | Saldo por cliente y por factura, estados pendiente/vencida, registrar pago básico, adjuntar comprobante, etiquetas de cliente (frecuente/moroso/VIP), recordatorios. Nuevas entidades (`Cobro`/`PagoCliente`/`ClienteEtiqueta`) + endpoints `/api/cobros/*`. Esfuerzo alto. | Alta |
 | **B-3** | **NeoScan / OCR** | Sprint 23 del backlog. Bandeja de documentos, captura, OCR/IA (emisor, fecha, monto, n° control, sello, NIT), clasificar como compra/gasto/factura recibida; alimenta NeoProfit. Endpoints `/api/scan/*`. Esfuerzo alto. | Media |
 | **B-4** | **Alertas y notificaciones push** | Registro de dispositivo (FCM token), centro de alertas, generación de alertas (DTE rechazado, cert por vencer, factura vencida, F-07), marcar resuelta. Endpoints `/api/alertas/*` + worker. Esfuerzo medio-alto. | Media |
@@ -135,7 +135,7 @@ Checklist a validar antes/durante el desarrollo (lo cubre el backend):
 - [x] **Consulta** paginada + filtros; PDF con QR/branding; reenvío por correo. (✅)
 - [x] **CRM y catálogo** CRUD + lookups/escaneo. (✅)
 - [x] **Rate limiting** y cuotas (`429` + `Retry-After`) — la app debe respetarlas. (✅)
-- [ ] **Emisión en un paso** (`/api/dte/emitir`) — **B-1** (recomendado para móvil).
+- [x] **Emisión en un paso** (`/api/dte/emitir` + atajos por tipo) — **B-1 entregado**.
 - [ ] **Cobros/CxC**, **QR de cobro** — **B-2 / B-5**.
 - [ ] **NeoScan/OCR** + **DTE recibidos** — **B-3 / B-7**.
 - [ ] **Alertas push** — **B-4**.

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Api.Authorization;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Domain.Core.Dte;
@@ -13,11 +14,13 @@ namespace NeoSTP.Api.Controllers;
 public class DteController : ApiControllerBase
 {
     private readonly IDteDocumentosService _service;
+    private readonly IConnectDteService _connectDte;
     private readonly ICurrentUser _currentUser;
 
-    public DteController(IDteDocumentosService service, ICurrentUser currentUser)
+    public DteController(IDteDocumentosService service, IConnectDteService connectDte, ICurrentUser currentUser)
     {
         _service = service;
+        _connectDte = connectDte;
         _currentUser = currentUser;
     }
 
@@ -73,6 +76,44 @@ public class DteController : ApiControllerBase
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _service.CreateBorradorAsync(eid, req, _currentUser.Username, ct));
     }
+
+    // ---- emisión en un solo paso (borrador → generar → validar → firmar → enviar) ----
+    // Pensado para NeoCloud Mobile: una sola llamada devuelve el DTE en su estado final
+    // (idealmente PROCESADO con sello). El tipo va en el body, o usa los atajos por tipo.
+
+    /// <summary>Emite un DTE de extremo a extremo en una sola llamada.</summary>
+    [HttpPost("emitir")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> Emitir([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _connectDte.EmitirAsync(eid, req, _currentUser.Username, ct));
+    }
+
+    [HttpPost("emitir/factura")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirFactura([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.FacturaConsumidorFinal, empresaId, ct);
+
+    [HttpPost("emitir/credito-fiscal")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirCcf([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.ComprobanteCreditoFiscal, empresaId, ct);
+
+    [HttpPost("emitir/nota-credito")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirNotaCredito([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.NotaCredito, empresaId, ct);
+
+    [HttpPost("emitir/nota-debito")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirNotaDebito([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.NotaDebito, empresaId, ct);
+
+    [HttpPost("emitir/sujeto-excluido")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirSujetoExcluido([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.FacturaSujetoExcluido, empresaId, ct);
 
     // ---- transiciones de estado ----
 
@@ -201,6 +242,13 @@ public class DteController : ApiControllerBase
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         req.TipoDteCodigo = tipoForzado;
         return Respond(await _service.CreateBorradorAsync(eid, req, _currentUser.Username, ct));
+    }
+
+    private async Task<IActionResult> EmitirConTipo(CreateDteDocumentoRequest req, string tipoForzado, int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        req.TipoDteCodigo = tipoForzado;
+        return Respond(await _connectDte.EmitirAsync(eid, req, _currentUser.Username, ct));
     }
 
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;

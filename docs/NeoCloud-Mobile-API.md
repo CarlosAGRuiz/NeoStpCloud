@@ -295,11 +295,25 @@ POST /api/dte/documentos/{id}/enviar    → estado final PROCESADO (con selloRec
 Cada paso devuelve el `DteDocumentoDto` actualizado. Si un paso falla, devuelve error con el código del fallo
 (ej. `FIRMA_FAILED`, `HACIENDA_AUTH_FAILED`) y el documento queda en el último estado válido.
 
-> **Recomendado para móvil (a coordinar con backend):** exponer un **emisión en un solo POST**
-> `POST /api/dte/emitir` que ejecute borrador→generar→validar→firmar→enviar y devuelva el resultado final.
-> Hoy esa orquestación ya existe (`IConnectDteService.EmitirAsync`, usada por la API pública NeoConnect
-> `/api/v1/dte`); replicarla bajo JWT simplifica el flujo "vendo → facturo → comparto" a una sola llamada.
-> Ver brecha **B-1** en el plan. Mientras tanto, la app encadena los 5 pasos.
+### 7.3.b Emisión en un solo paso (recomendado para móvil) ✅
+
+Ya disponible bajo JWT (brecha **B-1** entregada). Una sola llamada ejecuta
+borrador→generar→validar→firmar→enviar y devuelve el `DteDocumentoDto` final (idealmente PROCESADO con
+sello). Permiso `DTE.Emitir`.
+
+| Método | Ruta | Tipo |
+|---|---|---|
+| `POST` | `/api/dte/emitir` | el tipo va en el body (`tipoDteCodigo`) |
+| `POST` | `/api/dte/emitir/factura` | 01 (atajo) |
+| `POST` | `/api/dte/emitir/credito-fiscal` | 03 (atajo) |
+| `POST` | `/api/dte/emitir/nota-credito` | 05 (atajo) |
+| `POST` | `/api/dte/emitir/nota-debito` | 06 (atajo) |
+| `POST` | `/api/dte/emitir/sujeto-excluido` | 14 (atajo) |
+
+Body idéntico a `CreateDteDocumentoRequest` (§7.2). Si algún paso del pipeline falla (validación, firma,
+MH), devuelve el error de ese paso con su código; el documento queda en el último estado válido y puede
+consultarse/retomarse. Este es el camino recomendado para el flujo "vendo → facturo → comparto"; los 5
+pasos sueltos (§7.3) siguen disponibles para flujos avanzados.
 
 ### 7.4 Compartir / reenviar
 
@@ -453,7 +467,7 @@ POST   /api/dte/documentos/{id}/generar | validar | firmar | enviar | invalidar
 POST   /api/dte/evento/contingencia | invalidacion | operaciones-especiales | retorno
 GET    /api/dte/documentos | documentos/{id} | documentos/{id}/pdf | documentos/{id}/json
 POST   /api/dte/documentos/{id}/reenviar
-# (propuesto) POST /api/dte/emitir   ← emisión en un solo paso para móvil
+POST   /api/dte/emitir   |   emitir/factura | emitir/credito-fiscal | emitir/nota-credito | emitir/nota-debito | emitir/sujeto-excluido
 
 # Eventos DTE
 GET    /api/dte/eventos | {id} | {id}/json | {id}/pdf
