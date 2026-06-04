@@ -1,5 +1,15 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile: Cobros / Cuentas por cobrar (B-2)
+
+Modulo de cobranza para la app movil: saldos por cliente/factura y registro de pagos.
+
+- **Saldos derivados** de DTE factura/CCF a credito (condicion 2/3) PROCESADO menos pagos CONFIRMADOS. `CobranzaCalculator` (puro): saldo, vencimiento, estado (PENDIENTE/VENCIDO/PAGADO), dias vencido.
+- **`ICobranzaService` / `CobranzaService`** + entidad `PagoCliente` (`Cobros_Pagos`); migracion `B2_CobranzaPagosCliente`; permisos `Cobros.Ver` (380) / `Cobros.Gestionar` (381).
+- **API `/api/cobros/*`**: `resumen` (dashboard), `pendientes` (paginado, filtros, soloVencidas), `clientes/{id}` (saldo), `dte/{id}/pagos` (historial), `POST dte/{id}/pagos` (registrar), `pagos/{id}/confirmar|anular`. Valida monto > 0 y <= saldo; pago en revision no reduce saldo hasta confirmarse.
+- **Tests** `CobranzaCalculatorTests` + `CobranzaServiceTests` (saldos, exclusion de contado/NC, aislamiento por empresa, resumen pendiente/vencido).
+- Docs `NeoCloud-Mobile-API.md` / `Plan.md` actualizados (B-2 core entregado; pendiente etiquetas de cliente + UI web).
+
 ## Actualizacion - NeoCloud Mobile: emision en un paso (B-1)
 
 Primer endpoint de backend para la app movil: **emision de DTE en una sola llamada**.
@@ -93,8 +103,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: NeoCloud Mobile — backend (B-1 emisión en un paso)** ✅ (sobre branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 323 unit + 2 integración pasando
+> **Versión actual: NeoCloud Mobile — backend (B-2 Cobros/CxC)** ✅ (sobre B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 340 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

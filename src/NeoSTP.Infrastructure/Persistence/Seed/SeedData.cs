@@ -481,6 +481,10 @@ internal static partial class SeedData
             Perm(370, "Profit.Ver",       "NEOPROFIT", "Ver dashboard financiero, rankings y métricas de rentabilidad"),
             Perm(371, "Profit.Gestionar", "NEOPROFIT", "Registrar y editar gastos y compras de NeoProfit"),
 
+            // Cobranza / Cuentas por cobrar (B-2)
+            Perm(380, "Cobros.Ver",       "CORE", "Ver cuentas por cobrar, saldos y pagos de clientes"),
+            Perm(381, "Cobros.Gestionar", "CORE", "Registrar, confirmar y anular pagos de clientes"),
+
             // SuperAdmin
             Perm(360, "SuperAdmin.Empresas.Administrar", "ADMIN", "Administrar empresas globalmente"),
             Perm(361, "SuperAdmin.Planes.Administrar",   "ADMIN", "Administrar planes y módulos"),
@@ -517,7 +521,7 @@ internal static partial class SeedData
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
-            370, 371,
+            370, 371, 380, 381,
             360, 361, 362, 363, 364,
         };
 
@@ -528,7 +532,7 @@ internal static partial class SeedData
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
-            370, 371,
+            370, 371, 380, 381,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -538,6 +542,7 @@ internal static partial class SeedData
             321, 322, 323, 325,
             330, 331, 332, 335, 336, 337,
             345, 346,
+            380, 381,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -546,7 +551,7 @@ internal static partial class SeedData
             300, 302, 307, 308, 309, 311, 313, 315,
             322, 324,
             330, 335,
-            340, 370,
+            340, 370, 380,
         };
 
         // READONLY (504) → solo ver

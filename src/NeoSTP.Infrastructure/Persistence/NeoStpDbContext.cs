@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NeoSTP.Domain.Core.Auditoria;
 using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
+using NeoSTP.Domain.Core.Cobranza;
 using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Profit;
 using NeoSTP.Domain.Core.Dte;
@@ -106,6 +107,9 @@ public class NeoStpDbContext : DbContext
     // NeoProfit (Sprint 22)
     public DbSet<ProfitGasto> ProfitGastos => Set<ProfitGasto>();
     public DbSet<ProfitCompra> ProfitCompras => Set<ProfitCompra>();
+
+    // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
+    public DbSet<PagoCliente> PagosCliente => Set<PagoCliente>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

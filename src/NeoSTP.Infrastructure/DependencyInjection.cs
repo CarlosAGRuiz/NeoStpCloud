@@ -15,6 +15,7 @@ using NeoSTP.Application.Dte.Diagnostico;
 using NeoSTP.Application.Dte.Eventos;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
+using NeoSTP.Application.Cobranza;
 using NeoSTP.Application.Onboarding;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Profit;
@@ -186,6 +187,9 @@ public static class DependencyInjection
 
         // NeoProfit (Sprint 22): cálculo financiero sobre DTE + gastos/compras
         services.AddScoped<IProfitService, ProfitService>();
+
+        // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
+        services.AddScoped<ICobranzaService, CobranzaService>();
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();

@@ -408,7 +408,30 @@ Pensado para autocompletes y selects (ligero, devuelve `LookupItem[]` = `{ id, c
 | `GET /api/lookups/departamentos` · `municipios?departamento=` · `distritos?municipio=` | Cascada territorial SV. |
 | `GET /api/lookups/catalogo/{codigo}?parent=` | Catálogos MH genéricos (tipos doc, unidades, etc.). |
 
-### 8.6 Eventos DTE — `/api/dte/eventos`
+### 8.6 Cobros / Cuentas por cobrar — `/api/cobros` ✅ (B-2 entregado)
+
+Saldos derivados de DTE factura/CCF **a crédito** (condición 2/3) PROCESADO menos pagos CONFIRMADOS.
+Lectura `Cobros.Ver`, escritura `Cobros.Gestionar`.
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/api/cobros/resumen` | `CobranzaResumenDto`: `totalPendiente`, `totalVencido`, `facturasPendientes`, `facturasVencidas`, `clientesConDeuda`. Para las tarjetas del dashboard. |
+| `GET` | `/api/cobros/pendientes?page&pageSize&search&clienteId&soloVencidas` | Lista paginada de `CobroPendienteDto` (saldo, vencimiento, `estadoCobro` PENDIENTE/VENCIDO, `diasVencido`). |
+| `GET` | `/api/cobros/clientes/{clienteId}` | `SaldoClienteDto`: saldo consolidado + facturas pendientes del cliente. |
+| `GET` | `/api/cobros/dte/{dteId}/pagos` | Historial de pagos de una factura. |
+| `POST` | `/api/cobros/dte/{dteId}/pagos` | Registrar pago. Body `RegistrarPagoRequest` `{ fecha?, monto, formaPagoCodigo, referencia?, nota?, comprobanteUrl?, pendienteRevision }`. Valida `monto > 0` y `≤ saldo`. |
+| `POST` | `/api/cobros/pagos/{pagoId}/confirmar` | Confirma un pago en revisión (recién entonces reduce el saldo). |
+| `POST` | `/api/cobros/pagos/{pagoId}/anular` | Anula un pago. |
+
+`CobroPendienteDto`: `dteDocumentoId, tipoDteCodigo, numeroControl, fechaEmision, vencimiento, clienteId,
+clienteNombre, total, pagado, saldo, estadoCobro, diasVencido`.
+
+> Reglas: solo facturas (01) y CCF (03) **a crédito** generan cuenta por cobrar; saldo = `total − Σ pagos
+> confirmados`; vencida si `saldo > 0` y `vencimiento < hoy`. Un pago `pendienteRevision` NO reduce el saldo
+> hasta confirmarse. Los recordatorios (WhatsApp/correo) se disparan desde Flutter con los datos del cliente;
+> reenviar la factura por correo: `POST /api/dte/documentos/{id}/reenviar`.
+
+### 8.7 Eventos DTE — `/api/dte/eventos`
 
 `GET` lista/detalle/json/pdf; `POST invalidacion | contingencia | retorno | operaciones-especiales`. La
 invalidación (anulación de un DTE procesado) y la contingencia se exponen aquí y en `/api/dte/evento/*`.
@@ -501,6 +524,10 @@ POST   /api/dte/eventos/invalidacion | contingencia | retorno | operaciones-espe
 GET/POST/PUT/PATCH  /api/clientes ...
 GET/POST/PUT/PATCH  /api/productos ...
 GET    /api/lookups/clientes | productos | sucursales | departamentos | municipios | distritos | catalogo/{codigo}
+
+# Cobros / CxC (Cobros.Ver / Cobros.Gestionar)
+GET    /api/cobros/resumen | pendientes | clientes/{clienteId} | dte/{dteId}/pagos
+POST   /api/cobros/dte/{dteId}/pagos | pagos/{pagoId}/confirmar | pagos/{pagoId}/anular
 
 # Métricas
 GET    /api/dashboard/empresa

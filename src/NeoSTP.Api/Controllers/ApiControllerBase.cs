@@ -40,7 +40,7 @@ public abstract class ApiControllerBase : ControllerBase
             or "EVENTO_NOT_FOUND" or "LOTE_NOT_FOUND"
             or "QUOTA_NOT_FOUND" or "IP_NOT_FOUND"
             or "APIKEY_NOT_FOUND" or "WEBHOOK_NOT_FOUND"
-            or "GASTO_NOT_FOUND" or "COMPRA_NOT_FOUND" => NotFound(payload),
+            or "GASTO_NOT_FOUND" or "COMPRA_NOT_FOUND" or "PAGO_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" => Conflict(payload),
         "IP_DUPLICATE" => Conflict(payload),
         "IP_INVALID" => BadRequest(payload),

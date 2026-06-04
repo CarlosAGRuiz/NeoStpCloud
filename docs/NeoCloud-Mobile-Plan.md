@@ -15,14 +15,14 @@ Leyenda: ✅ ya existe · 🟡 existe parcial / necesita ajuste · 🔴 brecha (
 | # | Función de la app (propuesta) | Estado API | Endpoints / brecha |
 |---|---|---|---|
 | 3.1 | Dashboard: ventas día, total facturado, DTE emitidos/rechazados | ✅ | `GET /api/dashboard/empresa` |
-| 3.1 | Dashboard: facturas pendientes de cobro, clientes con deuda | 🔴 | **B-2 Cobros/CxC** |
+| 3.1 | Dashboard: facturas pendientes de cobro, clientes con deuda | ✅ | `GET /api/cobros/resumen` (B-2) |
 | 3.1 | Alertas fiscales / de cobro | 🔴 | **B-4 Alertas/Notif.** |
 | 3.2 | Emisión rápida DTE (01/03/05/06/14) | ✅ | `POST /api/dte/{tipo}` + pipeline; **B-1** simplifica a 1 paso |
 | 3.2 | Buscar/crear cliente, agregar productos, descuento, vista previa | ✅ | `lookups`, `clientes`, `productos`, totales los calcula el backend |
 | 3.2 | Escanear código de barras → producto | ✅ 📱 | `mobile_scanner` → `GET /api/lookups/productos?search={codigo}` |
 | 3.2 | Consultar estado MH, compartir PDF/WhatsApp/correo | ✅ 📱 | `documentos/{id}` + `/pdf` + `share_plus`; `reenviar` |
 | 3.3 | CRM ligero: ficha, crear/editar cliente | ✅ | `clientes` CRUD |
-| 3.3 | Saldo pendiente, crédito disponible, historial de cobros | 🔴 | **B-2 Cobros/CxC** |
+| 3.3 | Saldo pendiente, historial de cobros | ✅ | `GET /api/cobros/clientes/{id}` · `dte/{id}/pagos` (B-2) |
 | 3.3 | Importar desde contactos, llamar, WhatsApp, correo | ✅ 📱 | `url_launcher` (datos del `ClienteDto`) |
 | 3.3 | Verificación de NIT contra MH | 🔴 | **B-6 Verificación NIT** |
 | 3.3 | Etiquetas (frecuente/moroso/VIP), notas, recordatorios | 🟡/🔴 | notas internas existen en DTE; etiquetas/recordatorios de cliente = **B-2** |
@@ -30,7 +30,7 @@ Leyenda: ✅ ya existe · 🟡 existe parcial / necesita ajuste · 🔴 brecha (
 | 3.4 | Existencia básica / inventario | 🔴 | sin módulo de inventario (fuera de alcance inicial) |
 | 3.5 | NeoScan: escanear factura/PDF/QR, OCR, clasificar | 🔴 | **B-3 NeoScan/OCR** (Sprint 23 backend pendiente) |
 | 3.6 | Alertas push, centro de notificaciones, F-07, cert por vencer | 🔴 | **B-4 Alertas/Notif.** (cert por vencer ya está en config) |
-| 3.7 | Cobros: pendientes/vencidas, recordatorio, registrar pago, adjuntar | 🔴 | **B-2 Cobros/CxC** |
+| 3.7 | Cobros: pendientes/vencidas, registrar pago, adjuntar | ✅ | `GET /api/cobros/pendientes` · `POST /api/cobros/dte/{id}/pagos` (B-2); recordatorio 📱 |
 | 3.7 | QR de pago / enlace de pago | 🔴 | **B-5 QR de cobro** |
 | 3.8 | Consulta DTE: emitidos/recibidos, estado MH, PDF/JSON, reenviar | ✅ 🟡 | emitidos ✅; **recibidos** depende de **B-3** |
 | 4.1 | QR por factura (verificación MH) | ✅ | ya embebido en el PDF generado |
@@ -50,7 +50,7 @@ Alertas/Push, QR de cobro, verificación NIT** y la conveniencia **emisión en u
 | ID | Brecha | Alcance backend | Prioridad |
 |---|---|---|---|
 | **B-1** ✅ | **Emisión en un paso** (entregado) | `POST /api/dte/emitir` (+ atajos `/emitir/factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido`), JWT, permiso `DTE.Emitir`. Orquesta borrador→generar→validar→firmar→enviar vía `IConnectDteService.EmitirAsync`. Tests `DteControllerEmitirTests`. | ✅ Listo |
-| **B-2** | **Cobros / Cuentas por cobrar** | Saldo por cliente y por factura, estados pendiente/vencida, registrar pago básico, adjuntar comprobante, etiquetas de cliente (frecuente/moroso/VIP), recordatorios. Nuevas entidades (`Cobro`/`PagoCliente`/`ClienteEtiqueta`) + endpoints `/api/cobros/*`. Esfuerzo alto. | Alta |
+| **B-2** 🟡 | **Cobros / Cuentas por cobrar** (core entregado) | ✅ Entregado: entidad `PagoCliente` (`Cobros_Pagos`), `CobranzaCalculator` (saldo/vencimiento/estado), `ICobranzaService`, endpoints `/api/cobros/*` (resumen, pendientes, saldo cliente, registrar/confirmar/anular pago, historial), permisos `Cobros.Ver` 380 / `Cobros.Gestionar` 381, migración `B2_CobranzaPagosCliente`, tests `CobranzaCalculatorTests`+`CobranzaServiceTests`. 🔜 Pendiente: **etiquetas de cliente** (VIP/frecuente; moroso derivado) y UI web. | Alta |
 | **B-3** | **NeoScan / OCR** | Sprint 23 del backlog. Bandeja de documentos, captura, OCR/IA (emisor, fecha, monto, n° control, sello, NIT), clasificar como compra/gasto/factura recibida; alimenta NeoProfit. Endpoints `/api/scan/*`. Esfuerzo alto. | Media |
 | **B-4** | **Alertas y notificaciones push** | Registro de dispositivo (FCM token), centro de alertas, generación de alertas (DTE rechazado, cert por vencer, factura vencida, F-07), marcar resuelta. Endpoints `/api/alertas/*` + worker. Esfuerzo medio-alto. | Media |
 | **B-5** | **QR / enlace de cobro** | Generar QR/enlace de pago asociado a factura/monto, integrado con proveedores (Wompi/PayPal/transferencia ya existen en Billing). Endpoints `/api/cobros/{id}/qr`. Depende de B-2. Esfuerzo medio. | Media |
@@ -139,7 +139,7 @@ Checklist a validar antes/durante el desarrollo (lo cubre el backend):
 - [x] **CRM y catálogo** CRUD + lookups/escaneo. (✅)
 - [x] **Rate limiting** y cuotas (`429` + `Retry-After`) — la app debe respetarlas. (✅)
 - [x] **Emisión en un paso** (`/api/dte/emitir` + atajos por tipo) — **B-1 entregado**.
-- [ ] **Cobros/CxC**, **QR de cobro** — **B-2 / B-5**.
+- [x] **Cobros/CxC** — **B-2 core entregado** (`/api/cobros/*`); 🔜 etiquetas de cliente + **QR de cobro (B-5)**.
 - [ ] **NeoScan/OCR** + **DTE recibidos** — **B-3 / B-7**.
 - [ ] **Alertas push** — **B-4**.
 - [ ] **Verificación NIT** — **B-6**.
