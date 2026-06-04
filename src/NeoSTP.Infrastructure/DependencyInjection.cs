@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<EmpresasService>();
         services.AddScoped<IEmpresasService>(sp => sp.GetRequiredService<EmpresasService>());
         services.AddScoped<ILicenciaResolver>(sp => sp.GetRequiredService<EmpresasService>());
+        services.AddScoped<IBrandingService, BrandingService>();
         services.AddScoped<ISucursalesService, SucursalesService>();
         services.AddScoped<IPuntosVentaService, PuntosVentaService>();
         services.AddScoped<IPlanesService, PlanesService>();

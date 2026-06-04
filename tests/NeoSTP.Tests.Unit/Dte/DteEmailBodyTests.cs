@@ -43,7 +43,17 @@ public class DteEmailBodyTests
         html.Should().Contain("PROCESADO");
 
         var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "tmp");
-        try { Directory.CreateDirectory(dir); File.WriteAllText(Path.Combine(dir, "email-demo.html"), html); }
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "email-demo.html"), html);
+
+            // Variante con logo: reemplaza cid:logo por un data URI para previsualizar en navegador.
+            var conLogo = DteDocumentosService.BuildBody(Sample(), "Distribuidora El Salvador, S.A. de C.V.", incluirLogo: true);
+            var logoPng = SkiaDemo.Imagen(220, 90, "DISAL", color: "#FFFFFF");
+            conLogo = conLogo.Replace("cid:logo", "data:image/png;base64," + Convert.ToBase64String(logoPng));
+            File.WriteAllText(Path.Combine(dir, "email-demo-logo.html"), conLogo);
+        }
         catch { /* muestra best-effort */ }
     }
 

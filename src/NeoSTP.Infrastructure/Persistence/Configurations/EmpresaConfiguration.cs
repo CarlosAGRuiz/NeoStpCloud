@@ -24,6 +24,9 @@ public class EmpresaConfiguration : IEntityTypeConfiguration<Empresa>
         builder.Property(e => e.Telefono).HasMaxLength(30);
         builder.Property(e => e.Correo).HasMaxLength(150);
         builder.Property(e => e.LogoUrl).HasMaxLength(500);
+        builder.Property(e => e.LogoContentType).HasMaxLength(100);
+        builder.Property(e => e.FirmaContentType).HasMaxLength(100);
+        builder.Property(e => e.FirmaTexto).HasMaxLength(300);
         builder.Property(e => e.EstadoCodigo).HasMaxLength(30).IsRequired();
         builder.Property(e => e.CreatedBy).HasMaxLength(100);
         builder.Property(e => e.UpdatedBy).HasMaxLength(100);

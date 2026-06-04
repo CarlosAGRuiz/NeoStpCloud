@@ -51,6 +51,12 @@ public class SmtpEmailSender : IEmailSender
         };
         foreach (var att in m.Attachments)
             body.Attachments.Add(att.FileName, att.Content, ContentType.Parse(att.MediaType));
+        foreach (var img in m.InlineImages)
+        {
+            var resource = body.LinkedResources.Add(img.ContentId, img.Content, ContentType.Parse(img.MediaType));
+            resource.ContentId = img.ContentId;
+            resource.ContentDisposition = new MimeKit.ContentDisposition(MimeKit.ContentDisposition.Inline);
+        }
         mime.Body = body.ToMessageBody();
 
         using var client = new SmtpClient();

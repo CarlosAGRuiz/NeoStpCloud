@@ -68,6 +68,28 @@ public class DtePdfService : IDtePdfService
             col.Item().PaddingTop(12).Element(c => Receptor(c, d));
             col.Item().PaddingTop(12).Element(c => Detalle(c, d));
             col.Item().PaddingTop(10).Element(c => Totales(c, d));
+
+            var firma = d.Empresa?.FirmaBlob;
+            var firmaTexto = d.Empresa?.FirmaTexto;
+            if (firma is { Length: > 0 } || !string.IsNullOrWhiteSpace(firmaTexto))
+                col.Item().PaddingTop(28).Element(c => Firma(c, firma, firmaTexto));
+        });
+    }
+
+    // ---------- Firma ----------
+
+    private static void Firma(IContainer container, byte[]? firma, string? firmaTexto)
+    {
+        container.AlignRight().Width(230).Column(c =>
+        {
+            if (firma is { Length: > 0 })
+                c.Item().Height(48).AlignRight().Image(firma).FitArea();
+            else
+                c.Item().Height(28);
+
+            c.Item().PaddingTop(2).BorderTop(1).BorderColor(Ink).PaddingTop(4)
+                .AlignCenter().Text(string.IsNullOrWhiteSpace(firmaTexto) ? "Firma autorizada" : firmaTexto)
+                .FontSize(8).FontColor(Muted);
         });
     }
 
@@ -82,6 +104,12 @@ public class DtePdfService : IDtePdfService
             // Banda de marca
             outer.Item().Background(Primary).Padding(14).Row(row =>
             {
+                if (emisor?.LogoBlob is { Length: > 0 } logo)
+                {
+                    row.ConstantItem(64).PaddingRight(12).AlignMiddle()
+                        .Height(46).Image(logo).FitArea();
+                }
+
                 row.RelativeItem(2.4f).PaddingRight(10).Column(col =>
                 {
                     col.Item().Text(emisor?.RazonSocial ?? "Empresa emisora")

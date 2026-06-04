@@ -1,0 +1,100 @@
+@model NeoSTP.Application.Empresas.BrandingDto
+@{
+    ViewData["Title"] = "Logo y firma";
+    var v = DateTime.UtcNow.Ticks; // cache-buster para los previews
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="DteConfiguracion" asp-action="Index">Config DTE</a><span class="material-symbols-outlined">chevron_right</span><span>Logo y firma</span></nav>
+        <h1 class="ns-page-title">Logo y firma</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<p class="text-muted">Estas imágenes aparecen en la <strong>representación gráfica (PDF)</strong> de tus DTE y en el <strong>correo</strong> de envío. Formatos: PNG, JPG o WEBP · máx. 1 MB.</p>
+
+<div class="row g-3">
+    <!-- Logo -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">image</span><strong>Logo</strong></div>
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-center mb-3 rounded border" style="height:130px;background:#0f172a">
+                    @if (Model.TieneLogo)
+                    {
+                        <img src="@Url.Action("Logo")?v=@v" alt="Logo" style="max-height:110px;max-width:90%;object-fit:contain" />
+                    }
+                    else
+                    {
+                        <span class="text-secondary small">Sin logo cargado</span>
+                    }
+                </div>
+                <form asp-action="SubirLogo" method="post" enctype="multipart/form-data" class="d-flex gap-2">
+                    @Html.AntiForgeryToken()
+                    <input type="file" name="archivo" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm" required />
+                    <button class="btn btn-primary btn-sm">Subir</button>
+                </form>
+                @if (Model.TieneLogo)
+                {
+                    <form asp-action="QuitarLogo" method="post" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Quitar el logo?');">Quitar logo</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Firma -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">draw</span><strong>Firma</strong></div>
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-center mb-3 rounded border" style="height:130px;background:#ffffff">
+                    @if (Model.TieneFirma)
+                    {
+                        <img src="@Url.Action("Firma")?v=@v" alt="Firma" style="max-height:110px;max-width:90%;object-fit:contain" />
+                    }
+                    else
+                    {
+                        <span class="text-muted small">Sin imagen de firma</span>
+                    }
+                </div>
+                <form asp-action="SubirFirma" method="post" enctype="multipart/form-data" class="d-flex gap-2">
+                    @Html.AntiForgeryToken()
+                    <input type="file" name="archivo" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm" required />
+                    <button class="btn btn-primary btn-sm">Subir</button>
+                </form>
+                @if (Model.TieneFirma)
+                {
+                    <form asp-action="QuitarFirma" method="post" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Quitar la firma?');">Quitar firma</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Texto de firma -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header ns-card-head"><span class="material-symbols-outlined">badge</span><strong>Texto de firma (pie del DTE)</strong></div>
+            <div class="card-body">
+                <form asp-action="GuardarFirmaTexto" method="post" class="row g-2 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-9">
+                        <label class="form-label small text-muted mb-0">Aparece bajo la línea de firma. Ej.: "Firma autorizada — Juan Pérez / Gerente General"</label>
+                        <input name="firmaTexto" value="@Model.FirmaTexto" maxlength="300" class="form-control form-control-sm" placeholder="Firma autorizada" />
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary btn-sm">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

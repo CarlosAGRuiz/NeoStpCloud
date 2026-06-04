@@ -60,6 +60,14 @@ public class MockEmailSender : IEmailSender
                 await File.WriteAllBytesAsync(attPath, att.Content, ct);
             }
 
+            foreach (var img in m.InlineImages)
+            {
+                await w.WriteLineAsync($"--- INLINE: cid:{img.ContentId} ({img.MediaType}, {img.Content.Length} bytes) ---");
+                var imgPath = Path.Combine(_options.MockOutbox,
+                    $"{Path.GetFileNameWithoutExtension(file)}__cid_{img.ContentId}");
+                await File.WriteAllBytesAsync(imgPath, img.Content, ct);
+            }
+
             _logger.LogInformation("MockEmailSender: correo a {To} guardado en {File}.", m.To, file);
 
             return new EmailSendResult

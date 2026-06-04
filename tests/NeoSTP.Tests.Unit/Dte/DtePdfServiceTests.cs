@@ -4,12 +4,30 @@ using NeoSTP.Application.Dte;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Infrastructure.Dte;
+using SkiaSharp;
 using Xunit;
 
 namespace NeoSTP.Tests.Unit.Dte;
 
 public class DtePdfServiceTests
 {
+    /// <summary>Genera un PNG de prueba con un texto (logo/firma) para validar el render.</summary>
+    private static byte[] DemoImagen(int w, int h, string texto, SKColor fondo, SKColor color, bool cursiva = false)
+    {
+        using var surface = SKSurface.Create(new SKImageInfo(w, h));
+        var canvas = surface.Canvas;
+        canvas.Clear(fondo);
+        using var paint = new SKPaint
+        {
+            Color = color, IsAntialias = true, TextSize = h * 0.5f, TextAlign = SKTextAlign.Center,
+            Typeface = SKTypeface.FromFamilyName("Arial", cursiva ? SKFontStyle.Italic : SKFontStyle.Bold),
+        };
+        canvas.DrawText(texto, w / 2f, h * 0.65f, paint);
+        using var img = surface.Snapshot();
+        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
+
     private static DteDocumento BuildDoc()
     {
         var d = new DteDocumento
@@ -100,6 +118,9 @@ public class DtePdfServiceTests
                 ActividadEconomica = "Venta al por menor en comercios no especializados",
                 Direccion = "Col. Escalón, Av. Las Palmas #123, San Salvador", Telefono = "2222-3333",
                 Correo = "ventas@disal.com.sv",
+                LogoBlob = DemoImagen(220, 90, "DISAL", SKColors.Transparent, SKColors.White), LogoContentType = "image/png",
+                FirmaBlob = DemoImagen(240, 80, "Juan Pérez", SKColors.Transparent, new SKColor(0x1E, 0x29, 0x3B), cursiva: true), FirmaContentType = "image/png",
+                FirmaTexto = "Firma autorizada — Juan Pérez / Gerente General",
             },
         };
         d.Detalles.Add(new DteDocumentoDetalle { NumeroLinea = 1, Codigo = "PRD-001", Descripcion = "Caja de papel bond carta (10 resmas)", Cantidad = 5m, PrecioUnitario = 45.5000m });

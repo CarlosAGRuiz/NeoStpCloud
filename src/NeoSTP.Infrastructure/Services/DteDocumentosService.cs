@@ -642,7 +642,8 @@ public class DteDocumentosService : IDteDocumentosService
 
         var emisor = doc.Empresa?.RazonSocial ?? "su proveedor";
         var subject = $"DTE {doc.TipoDteCodigo} {doc.NumeroControl} - {emisor}";
-        var body = BuildBody(doc, emisor);
+        var tieneLogo = doc.Empresa?.LogoBlob is { Length: > 0 };
+        var body = BuildBody(doc, emisor, tieneLogo);
 
         var message = new EmailMessage
         {
@@ -651,6 +652,13 @@ public class DteDocumentosService : IDteDocumentosService
             HtmlBody = body,
         };
         message.Attachments.AddRange(attachments);
+        if (tieneLogo)
+            message.InlineImages.Add(new EmailInlineImage
+            {
+                ContentId = "logo",
+                MediaType = doc.Empresa!.LogoContentType ?? "image/png",
+                Content = doc.Empresa!.LogoBlob!,
+            });
         var result = await _email.EnviarAsync(message, ct);
 
         var dto = new DteReenvioResultDto
@@ -670,10 +678,13 @@ public class DteDocumentosService : IDteDocumentosService
             : Result<DteReenvioResultDto>.Fail(result.Detalle ?? result.Mensaje ?? "Error enviando correo.", "EMAIL_FAILED");
     }
 
-    internal static string BuildBody(DteDocumento d, string emisor)
+    internal static string BuildBody(DteDocumento d, string emisor, bool incluirLogo = false)
     {
         var receptor = d.ReceptorNombre ?? "Estimado(a) cliente";
         var tipo = TipoDteNombreEmail(d.TipoDteCodigo);
+        var logoHtml = incluirLogo
+            ? "<div style=\"margin-bottom:8px\"><img src=\"cid:logo\" alt=\"\" style=\"max-height:40px;max-width:200px\"></div>"
+            : "";
         var (badgeBg, badgeFg) = d.EstadoCodigo switch
         {
             DteEstadoCodigos.Procesado => ("#DCFCE7", "#15803D"),
@@ -708,8 +719,11 @@ public class DteDocumentosService : IDteDocumentosService
                     <!-- Banda de marca -->
                     <tr><td style="background:#131B2E;padding:20px 24px">
                       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                        <td style="color:#FFFFFF;font-size:17px;font-weight:700">{{emisor}}</td>
-                        <td align="right" style="color:#A5B4FC;font-size:12px">{{tipo}}</td>
+                        <td style="vertical-align:middle">
+                          {{logoHtml}}
+                          <span style="color:#FFFFFF;font-size:17px;font-weight:700">{{emisor}}</span>
+                        </td>
+                        <td align="right" style="color:#A5B4FC;font-size:12px;vertical-align:middle">{{tipo}}</td>
                       </tr></table>
                     </td></tr>
 

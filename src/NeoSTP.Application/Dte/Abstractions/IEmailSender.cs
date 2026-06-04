@@ -7,6 +7,14 @@ public class EmailAttachment
     public byte[] Content { get; set; } = Array.Empty<byte>();
 }
 
+/// <summary>Imagen embebida en el cuerpo HTML, referenciada por <c>cid:{ContentId}</c>.</summary>
+public class EmailInlineImage
+{
+    public string ContentId { get; set; } = null!;
+    public string MediaType { get; set; } = "image/png";
+    public byte[] Content { get; set; } = Array.Empty<byte>();
+}
+
 public class EmailMessage
 {
     public string To { get; set; } = null!;
@@ -17,6 +25,8 @@ public class EmailMessage
     public string? Bcc { get; set; }
     public string? ReplyTo { get; set; }
     public List<EmailAttachment> Attachments { get; set; } = new();
+    /// <summary>Imágenes incrustadas (logo, etc.) referenciadas con <c>cid:</c> en el HTML.</summary>
+    public List<EmailInlineImage> InlineImages { get; set; } = new();
 }
 
 public class EmailSendResult

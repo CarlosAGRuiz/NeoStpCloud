@@ -20,5 +20,15 @@ public class Empresa : AuditableEntity
     public string? LogoUrl { get; set; }
     public string EstadoCodigo { get; set; } = EstadoCodes.Activo;
 
+    // ── Branding (logo y firma para la representación gráfica del DTE y el correo) ──
+    /// <summary>Imagen del logo (PNG/JPG) embebida; se muestra en el PDF y el correo.</summary>
+    public byte[]? LogoBlob { get; set; }
+    public string? LogoContentType { get; set; }
+    /// <summary>Imagen de la firma autorizada (PNG/JPG) para el pie del DTE.</summary>
+    public byte[]? FirmaBlob { get; set; }
+    public string? FirmaContentType { get; set; }
+    /// <summary>Texto de firma al pie (ej. "Firma autorizada — Juan Pérez / Gerente"). Alternativa o complemento a la imagen.</summary>
+    public string? FirmaTexto { get; set; }
+
     public ICollection<Sucursal> Sucursales { get; set; } = new List<Sucursal>();
 }
