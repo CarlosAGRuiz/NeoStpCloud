@@ -13,6 +13,9 @@ public interface IClientesService
     /// <summary>Reactiva un cliente previamente inactivado (soft restore).</summary>
     Task<Result> RestaurarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
 
+    /// <summary>Asigna o quita la etiqueta CRM (VIP | FRECUENTE | null) del cliente.</summary>
+    Task<Result> SetEtiquetaAsync(int empresaId, int id, string? etiqueta, string? actor, CancellationToken ct = default);
+
     /// <summary>Carga masiva (upsert por tipo+número de documento). Soporta dry-run.</summary>
     Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default);
 }

@@ -1,5 +1,14 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile: B-6 + follow-ups
+
+Cierre del backend movil: verificacion de NIT, etiquetas de cliente, limite de escaneos y job de alertas.
+
+- **B-6 Verificacion NIT/DUI:** `GET /api/lookups/verificar-nit` valida el formato salvadoreño (NIT 14 / DUI 9 digitos) y autocompleta desde clientes/emisor locales (`INitVerificationService`). La verificacion en linea de MH no es publica -> hook pluggable. Tests `NitVerificationServiceTests`.
+- **Etiquetas de cliente:** `PATCH /api/clientes/{id}/etiqueta` (VIP/FRECUENTE; "moroso" se deriva de cobranza). Campo `Etiqueta` en Cliente; migracion `Followups_EtiquetaCliente`. Tests `ClienteEtiquetaTests`.
+- **Limite mensual de escaneos:** `ScanService` rechaza con `LIMIT_EXCEEDED` al superar `Scan:LimiteMensual` (0 = sin limite).
+- **Job de alertas:** `AlertaGeneracionWorker` en el Worker genera alertas periodicamente (cada `Worker:GeneracionAlertas:IntervaloMinutos`, 60 por defecto) para todas las empresas activas.
+
 ## Actualizacion - NeoCloud Mobile: QR de cobro (B-5)
 
 Genera codigos QR / enlaces de pago para que la empresa cobre a sus clientes.
@@ -133,8 +142,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: NeoCloud Mobile — backend (B-5 QR de cobro)** ✅ (sobre B-4 Alertas/push, B-3 NeoScanAI, B-2 Cobros/CxC, B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 360 unit + 2 integración pasando
+> **Versión actual: NeoCloud Mobile — backend COMPLETO (B-1…B-6 + follow-ups)** ✅ (sobre branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 370 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

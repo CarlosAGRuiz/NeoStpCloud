@@ -61,6 +61,20 @@ public class ClientesController : ApiControllerBase
         return Respond(await _service.InactivarAsync(eid, id, _currentUser.Username, ct), "Cliente inactivado.");
     }
 
+    /// <summary>Asigna o quita la etiqueta CRM (VIP | FRECUENTE | vacío) del cliente.</summary>
+    [HttpPatch("{id:int}/etiqueta")]
+    [RequirePermiso("Clientes.Editar")]
+    public async Task<IActionResult> Etiqueta(int id, [FromBody] EtiquetaClienteRequest body, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.SetEtiquetaAsync(eid, id, body?.Etiqueta, _currentUser.Username, ct), "Etiqueta actualizada.");
+    }
+
+    public class EtiquetaClienteRequest
+    {
+        public string? Etiqueta { get; set; }
+    }
+
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;
 
     private object NoTenant() => Shared.ApiResponse.Fail(

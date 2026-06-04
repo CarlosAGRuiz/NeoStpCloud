@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Profit;
@@ -23,13 +24,17 @@ public class ScanService : IScanService
     private readonly IScanExtractionService _extraction;
     private readonly IProfitService _profit;
     private readonly IAuditoriaService _auditoria;
+    private readonly int _limiteMensual;
 
-    public ScanService(NeoStpDbContext db, IScanExtractionService extraction, IProfitService profit, IAuditoriaService auditoria)
+    public ScanService(NeoStpDbContext db, IScanExtractionService extraction, IProfitService profit,
+        IAuditoriaService auditoria, IConfiguration? configuration = null)
     {
         _db = db;
         _extraction = extraction;
         _profit = profit;
         _auditoria = auditoria;
+        // Límite mensual de escaneos por empresa (0/ausente = sin límite). Configurable: Scan:LimiteMensual.
+        _limiteMensual = configuration?.GetValue("Scan:LimiteMensual", 0) ?? 0;
     }
 
     public async Task<Result<PagedResult<ScanDocumentoDto>>> ListAsync(int empresaId, ScanQuery query, CancellationToken ct = default)
@@ -79,6 +84,14 @@ public class ScanService : IScanService
         catch { return Result<ScanDocumentoDto>.Fail("Contenido base64 inválido.", "VALIDATION"); }
         if (bytes.Length == 0) return Result<ScanDocumentoDto>.Fail("El archivo está vacío.", "VALIDATION");
         if (bytes.Length > MaxBytes) return Result<ScanDocumentoDto>.Fail($"El archivo excede {MaxBytes / 1024 / 1024} MB.", "VALIDATION");
+
+        if (_limiteMensual > 0)
+        {
+            var inicioMes = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var usados = await _db.ScanDocumentos.CountAsync(s => s.EmpresaId == empresaId && s.CreatedAt >= inicioMes, ct);
+            if (usados >= _limiteMensual)
+                return Result<ScanDocumentoDto>.Fail($"Alcanzaste el límite mensual de {_limiteMensual} escaneos.", "LIMIT_EXCEEDED");
+        }
 
         var entity = new ScanDocumento
         {

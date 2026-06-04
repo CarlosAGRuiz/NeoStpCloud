@@ -158,6 +158,24 @@ public class ClientesService : IClientesService
         return Result.Ok();
     }
 
+    private static readonly string[] EtiquetasValidas = ["VIP", "FRECUENTE"];
+
+    public async Task<Result> SetEtiquetaAsync(int empresaId, int id, string? etiqueta, string? actor, CancellationToken ct = default)
+    {
+        var limpia = string.IsNullOrWhiteSpace(etiqueta) ? null : etiqueta.Trim().ToUpperInvariant();
+        if (limpia is not null && !EtiquetasValidas.Contains(limpia))
+            return Result.Fail("Etiqueta inválida. Usa VIP, FRECUENTE o vacío.", "VALIDATION");
+
+        var cliente = await _db.Clientes.FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId, ct);
+        if (cliente is null) return Result.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
+        cliente.Etiqueta = limpia;
+        cliente.UpdatedAt = DateTime.UtcNow;
+        cliente.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "ETIQUETA", "OK", $"Cliente {cliente.Nombre}: etiqueta {limpia ?? "(ninguna)"}", cliente.Id);
+        return Result.Ok();
+    }
+
     public async Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default)
     {
         IReadOnlyList<TabularRow> rows;
@@ -281,6 +299,7 @@ public class ClientesService : IClientesService
         Direccion = c.Direccion,
         Correo = c.Correo, Telefono = c.Telefono,
         EstadoCodigo = c.EstadoCodigo,
+        Etiqueta = c.Etiqueta,
         CreatedAt = c.CreatedAt,
     };
 

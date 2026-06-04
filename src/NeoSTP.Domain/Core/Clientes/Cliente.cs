@@ -37,6 +37,9 @@ public class Cliente : AuditableEntity
 
     public string EstadoCodigo { get; set; } = "ACTIVO";
 
+    /// <summary>Etiqueta operativa del CRM: VIP | FRECUENTE | null. "Moroso" se deriva de cobranza.</summary>
+    public string? Etiqueta { get; set; }
+
     public bool EsContribuyente
         => TipoContribuyenteCodigo == "CONTRIBUYENTE" || TipoContribuyenteCodigo == "GRAN_CONTRIBUYENTE";
 }

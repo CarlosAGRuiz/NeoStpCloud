@@ -15,11 +15,13 @@ namespace NeoSTP.Api.Controllers;
 public class LookupsController : ControllerBase
 {
     private readonly ILookupService _lookups;
+    private readonly INitVerificationService _nit;
     private readonly ICurrentUser _currentUser;
 
-    public LookupsController(ILookupService lookups, ICurrentUser currentUser)
+    public LookupsController(ILookupService lookups, INitVerificationService nit, ICurrentUser currentUser)
     {
         _lookups = lookups;
+        _nit = nit;
         _currentUser = currentUser;
     }
 
@@ -58,4 +60,14 @@ public class LookupsController : ControllerBase
     public async Task<IActionResult> Sucursales(CancellationToken ct)
         => EmpresaId is int e ? Ok(await _lookups.GetSucursalesAsync(e, ct))
                               : Ok(Array.Empty<LookupItem>());
+
+    /// <summary>Verifica el formato de un NIT/DUI y autocompleta desde datos locales (B-6).</summary>
+    [HttpGet("verificar-nit")]
+    public async Task<IActionResult> VerificarNit([FromQuery] string documento, CancellationToken ct)
+    {
+        if (EmpresaId is not int e)
+            return base.Ok(ApiResponse.Fail("No se pudo determinar la empresa.", new[] { "AUTH_NO_TENANT" }, HttpContext.TraceIdentifier));
+        var r = await _nit.VerificarAsync(e, documento ?? string.Empty, ct);
+        return base.Ok(ApiResponse<NitVerificacionDto>.Ok(r, traceId: HttpContext.TraceIdentifier));
+    }
 }

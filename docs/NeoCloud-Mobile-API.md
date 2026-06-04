@@ -385,6 +385,7 @@ Permiso de lectura: `DTE.Consultar` (pdf/json) / `DTE.Emitir` (lista).
 | `POST` | `/api/clientes` (`CreateClienteRequest`) | `Clientes.Crear` |
 | `PUT` | `/api/clientes/{id}` (`UpdateClienteRequest`) | `Clientes.Editar` |
 | `PATCH` | `/api/clientes/{id}/inactivar` | `Clientes.Editar` |
+| `PATCH` | `/api/clientes/{id}/etiqueta` | `Clientes.Editar` — body `{ etiqueta }` (VIP \| FRECUENTE \| vacío). |
 
 `ClienteDto`: `tipoDocumentoCodigo, numeroDocumento, nrc, nombre, nombreComercial, tipoContribuyenteCodigo,
 esContribuyente, codigoActividad, departamentoCodigo, municipioCodigo, direccion, correo, telefono, estadoCodigo`.
@@ -409,6 +410,7 @@ Pensado para autocompletes y selects (ligero, devuelve `LookupItem[]` = `{ id, c
 | `GET /api/lookups/sucursales` | Sucursales de la empresa. |
 | `GET /api/lookups/departamentos` · `municipios?departamento=` · `distritos?municipio=` | Cascada territorial SV. |
 | `GET /api/lookups/catalogo/{codigo}?parent=` | Catálogos MH genéricos (tipos doc, unidades, etc.). |
+| `GET /api/lookups/verificar-nit?documento=` | **Verificación NIT/DUI (B-6):** valida el formato salvadoreño y autocompleta desde tus clientes/emisor. Devuelve `{ formatoValido, tipoDocumento, documentoNormalizado, encontradoLocal, nombre, nrc, fuente }`. (La verificación en línea de MH no es pública; queda como hook pluggable.) |
 
 ### 8.6 Cobros / Cuentas por cobrar — `/api/cobros` ✅ (B-2 entregado)
 
@@ -473,7 +475,8 @@ iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
 > capture/corrija los campos manualmente en la app. El proveedor real (Azure Document Intelligence /
 > Google Vision / LLM) es **pluggable** sin cambiar el contrato: cuando se active, los campos vendrán
 > precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que venga y
-> permitir corregir antes de confirmar).
+> permitir corregir antes de confirmar). **Límite mensual:** si la empresa supera el cupo configurado
+> (`Scan:LimiteMensual`, 0 = sin límite), `POST /documentos` devuelve `429`/`409` con `LIMIT_EXCEEDED`.
 
 ### 8.8 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)
 
@@ -498,8 +501,9 @@ estadoCodigo (PENDIENTE/LEIDA/RESUELTA), createdAt`. Usa `entidadTipo`+`entidadI
 > **Flujo en la app:** al iniciar sesión, registra el token FCM (`POST /dispositivos`); muestra el badge con
 > `/resumen`; lista en el centro de notificaciones; al tocar una alerta, navega a la entidad y marca leída/resuelta.
 > **Push:** hoy el backend usa un **sender mock** (`Push:Provider=Mock`, registra en logs); el envío real por
-> **FCM es pluggable** sin cambiar el contrato. La generación de alertas se dispara con `POST /generar` (o por
-> un job del Worker a futuro).
+> **FCM es pluggable** sin cambiar el contrato. La generación de alertas corre **automáticamente en el Worker**
+> (`AlertaGeneracionWorker`, cada `Worker:GeneracionAlertas:IntervaloMinutos`, 60 por defecto) para todas las
+> empresas activas; además puedes dispararla manualmente con `POST /generar`.
 
 ### 8.9 Eventos DTE — `/api/dte/eventos`
 
@@ -593,7 +597,8 @@ POST   /api/dte/eventos/invalidacion | contingencia | retorno | operaciones-espe
 # Maestros
 GET/POST/PUT/PATCH  /api/clientes ...
 GET/POST/PUT/PATCH  /api/productos ...
-GET    /api/lookups/clientes | productos | sucursales | departamentos | municipios | distritos | catalogo/{codigo}
+GET    /api/lookups/clientes | productos | sucursales | departamentos | municipios | distritos | catalogo/{codigo} | verificar-nit
+PATCH  /api/clientes/{id}/etiqueta                            # VIP | FRECUENTE | vacio (B-2 follow-up)
 
 # Cobros / CxC (Cobros.Ver / Cobros.Gestionar)
 GET    /api/cobros/resumen | pendientes | clientes/{clienteId} | dte/{dteId}/pagos | cuentas

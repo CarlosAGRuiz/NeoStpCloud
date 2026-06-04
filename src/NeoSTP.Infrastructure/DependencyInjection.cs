@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IRolesService, RolesService>();
         services.AddScoped<ICatalogosService, CatalogosService>();
         services.AddScoped<NeoSTP.Application.Lookups.ILookupService, LookupService>();
+        services.AddScoped<NeoSTP.Application.Lookups.INitVerificationService, NitVerificationService>();
         services.AddScoped<ICertificacionDteService, CertificacionDteService>();
         services.AddScoped<IDteEventoService, DteEventoService>();
         services.AddScoped<IDteEventoPdfService, NeoSTP.Infrastructure.Dte.DteEventoPdfService>();

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Profit;
@@ -160,5 +161,19 @@ public class ScanServiceTests
         var scan = (await svc.SubirAsync(EmpresaA, Captura(), "tester")).Value!;
 
         (await svc.GetAsync(EmpresaB, scan.Id)).ErrorCode.Should().Be("SCAN_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Subir_AlcanzaLimiteMensual_LimitExceeded()
+    {
+        var db = NewDb();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Scan:LimiteMensual"] = "1" }).Build();
+        var svc = new ScanService(db, new MockScanExtractionService(), Substitute.For<IProfitService>(), Substitute.For<IAuditoriaService>(), config);
+
+        (await svc.SubirAsync(EmpresaA, Captura(), "tester")).IsSuccess.Should().BeTrue();
+        var segundo = await svc.SubirAsync(EmpresaA, Captura(), "tester");
+
+        segundo.ErrorCode.Should().Be("LIMIT_EXCEEDED");
     }
 }

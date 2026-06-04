@@ -26,6 +26,7 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
         builder.Property(c => c.Correo).HasMaxLength(150);
         builder.Property(c => c.Telefono).HasMaxLength(30);
         builder.Property(c => c.EstadoCodigo).HasMaxLength(30).IsRequired();
+        builder.Property(c => c.Etiqueta).HasMaxLength(20);
         builder.Property(c => c.CreatedBy).HasMaxLength(100);
         builder.Property(c => c.UpdatedBy).HasMaxLength(100);
 

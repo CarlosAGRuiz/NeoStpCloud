@@ -19,6 +19,8 @@ public class ClienteDto
     public string? Correo { get; set; }
     public string? Telefono { get; set; }
     public string EstadoCodigo { get; set; } = "ACTIVO";
+    /// <summary>Etiqueta CRM: VIP | FRECUENTE | null.</summary>
+    public string? Etiqueta { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
