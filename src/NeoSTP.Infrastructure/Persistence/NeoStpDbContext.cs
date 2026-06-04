@@ -5,6 +5,7 @@ using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Cobranza;
 using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Profit;
+using NeoSTP.Domain.Core.Scan;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Certificacion;
 using NeoSTP.Domain.Core.Dte.Contingencia;
@@ -110,6 +111,10 @@ public class NeoStpDbContext : DbContext
 
     // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
     public DbSet<PagoCliente> PagosCliente => Set<PagoCliente>();
+
+    // NeoScanAI (Sprint 23 / B-3 NeoCloud Mobile)
+    public DbSet<ScanDocumento> ScanDocumentos => Set<ScanDocumento>();
+    public DbSet<DteDocumentoRecibido> DteDocumentosRecibidos => Set<DteDocumentoRecibido>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

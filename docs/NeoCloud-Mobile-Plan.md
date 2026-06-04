@@ -28,11 +28,11 @@ Leyenda: ✅ ya existe · 🟡 existe parcial / necesita ajuste · 🔴 brecha (
 | 3.3 | Etiquetas (frecuente/moroso/VIP), notas, recordatorios | 🟡/🔴 | notas internas existen en DTE; etiquetas/recordatorios de cliente = **B-2** |
 | 3.4 | Catálogo: buscar, escanear, crear rápido, activar/inactivar | ✅ 📱 | `productos` CRUD + `lookups/productos` |
 | 3.4 | Existencia básica / inventario | 🔴 | sin módulo de inventario (fuera de alcance inicial) |
-| 3.5 | NeoScan: escanear factura/PDF/QR, OCR, clasificar | 🔴 | **B-3 NeoScan/OCR** (Sprint 23 backend pendiente) |
+| 3.5 | NeoScan: escanear factura/PDF/QR, OCR, clasificar | 🟡 | `/api/scanai/documentos/*` (B-3 core); OCR/IA real pendiente (hoy mock) |
 | 3.6 | Alertas push, centro de notificaciones, F-07, cert por vencer | 🔴 | **B-4 Alertas/Notif.** (cert por vencer ya está en config) |
 | 3.7 | Cobros: pendientes/vencidas, registrar pago, adjuntar | ✅ | `GET /api/cobros/pendientes` · `POST /api/cobros/dte/{id}/pagos` (B-2); recordatorio 📱 |
 | 3.7 | QR de pago / enlace de pago | 🔴 | **B-5 QR de cobro** |
-| 3.8 | Consulta DTE: emitidos/recibidos, estado MH, PDF/JSON, reenviar | ✅ 🟡 | emitidos ✅; **recibidos** depende de **B-3** |
+| 3.8 | Consulta DTE: emitidos/recibidos, estado MH, PDF/JSON, reenviar | ✅ | emitidos ✅; **recibidos** vía NeoScan (`registrar-dte-recibido`, B-3) |
 | 4.1 | QR por factura (verificación MH) | ✅ | ya embebido en el PDF generado |
 | 4.2 | Código de barras por producto | ✅ 📱 | `codigoBarra` en `ProductoDto`; generar etiqueta = web |
 | 4.3 | QR de cobro (Pagadito/ACH/transferencia) | 🔴 | **B-5 QR de cobro** |
@@ -51,7 +51,7 @@ Alertas/Push, QR de cobro, verificación NIT** y la conveniencia **emisión en u
 |---|---|---|---|
 | **B-1** ✅ | **Emisión en un paso** (entregado) | `POST /api/dte/emitir` (+ atajos `/emitir/factura|credito-fiscal|nota-credito|nota-debito|sujeto-excluido`), JWT, permiso `DTE.Emitir`. Orquesta borrador→generar→validar→firmar→enviar vía `IConnectDteService.EmitirAsync`. Tests `DteControllerEmitirTests`. | ✅ Listo |
 | **B-2** 🟡 | **Cobros / Cuentas por cobrar** (core entregado) | ✅ Entregado: entidad `PagoCliente` (`Cobros_Pagos`), `CobranzaCalculator` (saldo/vencimiento/estado), `ICobranzaService`, endpoints `/api/cobros/*` (resumen, pendientes, saldo cliente, registrar/confirmar/anular pago, historial), permisos `Cobros.Ver` 380 / `Cobros.Gestionar` 381, migración `B2_CobranzaPagosCliente`, tests `CobranzaCalculatorTests`+`CobranzaServiceTests`. 🔜 Pendiente: **etiquetas de cliente** (VIP/frecuente; moroso derivado) y UI web. | Alta |
-| **B-3** | **NeoScan / OCR** | Sprint 23 del backlog. Bandeja de documentos, captura, OCR/IA (emisor, fecha, monto, n° control, sello, NIT), clasificar como compra/gasto/factura recibida; alimenta NeoProfit. Endpoints `/api/scan/*`. Esfuerzo alto. | Media |
+| **B-3** 🟡 | **NeoScan / OCR** (core entregado) | ✅ Entregado: entidades `ScanDocumento` (`Scan_Documentos`) + `DteDocumentoRecibido` (`Dte_DocumentosRecibidos`), `IScanService`/`ScanService` (bandeja, subir, corregir, registrar-gasto/compra/dte-recibido → alimenta NeoProfit, rechazar), `IScanExtractionService` con **mock pluggable**, endpoints `/api/scanai/documentos/*`, módulo `NEOSCANAI` + permisos `ScanAI.Ver`/`ScanAI.Confirmar` (ya existían), migración `B3_NeoScanAI`, tests `ScanServiceTests`. 🔜 Pendiente: **proveedor OCR/IA real** (hoy mock), límite mensual de escaneos, UI web. | Media |
 | **B-4** | **Alertas y notificaciones push** | Registro de dispositivo (FCM token), centro de alertas, generación de alertas (DTE rechazado, cert por vencer, factura vencida, F-07), marcar resuelta. Endpoints `/api/alertas/*` + worker. Esfuerzo medio-alto. | Media |
 | **B-5** | **QR / enlace de cobro** | Generar QR/enlace de pago asociado a factura/monto, integrado con proveedores (Wompi/PayPal/transferencia ya existen en Billing). Endpoints `/api/cobros/{id}/qr`. Depende de B-2. Esfuerzo medio. | Media |
 | **B-6** | **Verificación de NIT/NRC en línea** | Consulta contra el servicio de MH (si está disponible) para validar/autocompletar receptor. Endpoint `/api/lookups/verificar-nit`. Esfuerzo bajo-medio (sujeto a disponibilidad MH). | Baja |
@@ -140,7 +140,7 @@ Checklist a validar antes/durante el desarrollo (lo cubre el backend):
 - [x] **Rate limiting** y cuotas (`429` + `Retry-After`) — la app debe respetarlas. (✅)
 - [x] **Emisión en un paso** (`/api/dte/emitir` + atajos por tipo) — **B-1 entregado**.
 - [x] **Cobros/CxC** — **B-2 core entregado** (`/api/cobros/*`); 🔜 etiquetas de cliente + **QR de cobro (B-5)**.
-- [ ] **NeoScan/OCR** + **DTE recibidos** — **B-3 / B-7**.
+- [x] **NeoScan** bandeja + conversión a gasto/compra/**DTE recibido** — **B-3 core entregado** (`/api/scanai/*`); 🔜 OCR/IA real (hoy mock).
 - [ ] **Alertas push** — **B-4**.
 - [ ] **Verificación NIT** — **B-6**.
 

@@ -433,7 +433,39 @@ clienteNombre, total, pagado, saldo, estadoCobro, diasVencido`.
 > hasta confirmarse. Los recordatorios (WhatsApp/correo) se disparan desde Flutter con los datos del cliente;
 > reenviar la factura por correo: `POST /api/dte/documentos/{id}/reenviar`.
 
-### 8.7 Eventos DTE — `/api/dte/eventos`
+### 8.7 NeoScanAI — `/api/scanai/documentos` ✅ (B-3 entregado)
+
+Bandeja de documentos capturados (foto/PDF) → extracción → revisión/corrección → conversión a
+**gasto / compra / DTE recibido** (alimenta NeoProfit). Requiere el módulo **NEOSCANAI**.
+Lectura/captura `ScanAI.Ver`; confirmaciones `ScanAI.Confirmar`.
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/api/scanai/documentos?page&pageSize&search&estadoCodigo&tipoClasificacion` | Bandeja paginada (`ScanDocumentoDto`). |
+| `GET` | `/api/scanai/documentos/{id}` | Detalle (campos extraídos + estado). |
+| `GET` | `/api/scanai/documentos/{id}/archivo` | Descarga la imagen/PDF capturado. |
+| `POST` | `/api/scanai/documentos` | Subir captura. Body `{ nombre, contentType, contenidoBase64, origen }`. Ejecuta la extracción y deja el doc en la bandeja. |
+| `PUT` | `/api/scanai/documentos/{id}/campos` | Corregir campos (`CorregirScanRequest`). |
+| `POST` | `/api/scanai/documentos/{id}/resultado` | Cargar resultado de un proveedor externo de OCR/IA. |
+| `POST` | `/api/scanai/documentos/{id}/registrar-gasto` | Confirmar como gasto (body `CreateProfitGastoRequest`). |
+| `POST` | `/api/scanai/documentos/{id}/registrar-compra` | Confirmar como compra (body `CreateProfitCompraRequest`). |
+| `POST` | `/api/scanai/documentos/{id}/registrar-dte-recibido` | Confirmar como DTE recibido de proveedor. |
+| `POST` | `/api/scanai/documentos/{id}/rechazar` | Rechazar (body `{ motivo }`). |
+
+`ScanDocumentoDto`: `id, estadoCodigo, tipoClasificacion, origen, archivoNombre, tieneArchivo,
+emisorNombre, emisorNit, emisorNrc, fecha, tipoDocumento, numeroControl, selloRecibido, subtotal,
+iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
+
+**Estados:** `RECIBIDO → PROCESANDO → (PROCESADO | REQUIERE_REVISION) → (CONFIRMADO | RECHAZADO)`.
+
+> **Importante (extracción OCR/IA):** hoy el backend usa un **extractor mock** (`Scan:Provider=Mock`):
+> guarda la captura y deja el documento en `REQUIERE_REVISION` con `confianza = 0`, para que el usuario
+> capture/corrija los campos manualmente en la app. El proveedor real (Azure Document Intelligence /
+> Google Vision / LLM) es **pluggable** sin cambiar el contrato: cuando se active, los campos vendrán
+> precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que venga y
+> permitir corregir antes de confirmar).
+
+### 8.8 Eventos DTE — `/api/dte/eventos`
 
 `GET` lista/detalle/json/pdf; `POST invalidacion | contingencia | retorno | operaciones-especiales`. La
 invalidación (anulación de un DTE procesado) y la contingencia se exponen aquí y en `/api/dte/evento/*`.
@@ -530,6 +562,13 @@ GET    /api/lookups/clientes | productos | sucursales | departamentos | municipi
 # Cobros / CxC (Cobros.Ver / Cobros.Gestionar)
 GET    /api/cobros/resumen | pendientes | clientes/{clienteId} | dte/{dteId}/pagos
 POST   /api/cobros/dte/{dteId}/pagos | pagos/{pagoId}/confirmar | pagos/{pagoId}/anular
+
+# NeoScanAI (modulo NEOSCANAI; ScanAI.Ver / ScanAI.Confirmar)
+GET    /api/scanai/documentos | {id} | {id}/archivo
+POST   /api/scanai/documentos                                   # subir captura (base64)
+PUT    /api/scanai/documentos/{id}/campos                       # corregir
+POST   /api/scanai/documentos/{id}/resultado                    # resultado externo OCR
+POST   /api/scanai/documentos/{id}/registrar-gasto | registrar-compra | registrar-dte-recibido | rechazar
 
 # Métricas
 GET    /api/dashboard/empresa

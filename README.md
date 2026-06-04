@@ -1,5 +1,15 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile: NeoScanAI (B-3 / Sprint 23)
+
+Captura/escaneo asistido por IA: bandeja de documentos y conversion a gasto/compra/DTE recibido.
+
+- **Dominio:** `ScanDocumento` (`Scan_Documentos`, bandeja con blob + campos extraidos denormalizados) y `DteDocumentoRecibido` (`Dte_DocumentosRecibidos`); migracion `B3_NeoScanAI`. Reusa el modulo `NEOSCANAI` (103) y permisos `ScanAI.Ver` (345) / `ScanAI.Confirmar` (346) ya existentes.
+- **Extraccion pluggable:** `IScanExtractionService` con `MockScanExtractionService` por defecto (deja el doc en REQUIERE_REVISION con confianza 0 para captura manual); proveedor OCR/IA real (Azure/Google/LLM) conectable sin cambiar el contrato.
+- **`IScanService` / `ScanService`:** subir (base64), listar bandeja, corregir campos, recibir resultado externo, **registrar-gasto/registrar-compra** (reusan NeoProfit -> alimentan Profit), **registrar-dte-recibido**, rechazar; estados RECIBIDO/PROCESANDO/PROCESADO/REQUIERE_REVISION/CONFIRMADO/RECHAZADO/ERROR.
+- **API `/api/scanai/documentos/*`** gated `RequireModule("NEOSCANAI")`; lectura/captura `ScanAI.Ver`, confirmaciones `ScanAI.Confirmar`.
+- **Tests** `ScanServiceTests` (subida+mock, confirmar a gasto/compra/dte-recibido, rechazo, estado invalido, aislamiento). Nota: consolida las 6 tablas del backlog en 2 para v1; pendiente OCR real, limite mensual y UI web.
+
 ## Actualizacion - NeoCloud Mobile: Cobros / Cuentas por cobrar (B-2)
 
 Modulo de cobranza para la app movil: saldos por cliente/factura y registro de pagos.
@@ -103,8 +113,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: NeoCloud Mobile — backend (B-2 Cobros/CxC)** ✅ (sobre B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 340 unit + 2 integración pasando
+> **Versión actual: NeoCloud Mobile — backend (B-3 NeoScanAI)** ✅ (sobre B-2 Cobros/CxC, B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 348 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

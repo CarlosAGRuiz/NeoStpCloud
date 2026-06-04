@@ -17,6 +17,7 @@ using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Application.Cobranza;
 using NeoSTP.Application.Onboarding;
+using NeoSTP.Application.Scan;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Profit;
 using NeoSTP.Application.Roles;
@@ -190,6 +191,11 @@ public static class DependencyInjection
 
         // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
         services.AddScoped<ICobranzaService, CobranzaService>();
+
+        // NeoScanAI (Sprint 23 / B-3): bandeja + extracción (mock por defecto, pluggable)
+        services.AddScoped<IScanService, ScanService>();
+        // Toggle del proveedor de extracción OCR/IA. Hoy solo Mock; real pluggable a futuro.
+        services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.MockScanExtractionService>();
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();
