@@ -192,6 +192,8 @@ public static class DependencyInjection
 
         // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
         services.AddScoped<ICobranzaService, CobranzaService>();
+        // QR / enlaces de cobro (B-5)
+        services.AddScoped<ICobroQrService, CobroQrService>();
 
         // NeoScanAI (Sprint 23 / B-3): bandeja + extracción (mock por defecto, pluggable)
         services.AddScoped<IScanService, ScanService>();

@@ -112,6 +112,7 @@ public class NeoStpDbContext : DbContext
 
     // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
     public DbSet<PagoCliente> PagosCliente => Set<PagoCliente>();
+    public DbSet<CuentaCobro> CuentasCobro => Set<CuentaCobro>();
 
     // NeoScanAI (Sprint 23 / B-3 NeoCloud Mobile)
     public DbSet<ScanDocumento> ScanDocumentos => Set<ScanDocumento>();

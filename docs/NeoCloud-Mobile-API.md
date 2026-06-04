@@ -424,6 +424,16 @@ Lectura `Cobros.Ver`, escritura `Cobros.Gestionar`.
 | `POST` | `/api/cobros/dte/{dteId}/pagos` | Registrar pago. Body `RegistrarPagoRequest` `{ fecha?, monto, formaPagoCodigo, referencia?, nota?, comprobanteUrl?, pendienteRevision }`. Valida `monto > 0` y `≤ saldo`. |
 | `POST` | `/api/cobros/pagos/{pagoId}/confirmar` | Confirma un pago en revisión (recién entonces reduce el saldo). |
 | `POST` | `/api/cobros/pagos/{pagoId}/anular` | Anula un pago. |
+| `GET` | `/api/cobros/cuentas` | Cuentas/pasarelas de cobro de la empresa (`CuentaCobroDto`). |
+| `POST`/`PUT`/`POST` | `/api/cobros/cuentas` · `/cuentas/{id}` · `/cuentas/{id}/inactivar` | Gestión de cuentas (`Cobros.Gestionar`). |
+| `POST` | `/api/cobros/qr` | **QR de cobro (B-5).** Body `{ dteDocumentoId?, cuentaCobroId?, monto?, referencia? }`. |
+
+**QR de cobro** (`POST /api/cobros/qr`): genera un código QR de pago para compartir con el cliente. Si pasas
+`dteDocumentoId`, el **monto = saldo** de la factura y la **referencia = número de control**; si no, indica
+`monto`. Usa la cuenta indicada o la primera activa. Respuesta `CobroQrDto`: `{ monto, referencia,
+cuentaNombre, payload, qrPngBase64 }` — `qrPngBase64` es la imagen PNG lista para mostrar/compartir
+(`share_plus`), y `payload` es la URL de pago (si la cuenta tiene `urlPago` con `{monto}`/`{referencia}`)
+o un texto de transferencia. El panel web administra las cuentas; la app solo genera y comparte el QR.
 
 `CobroPendienteDto`: `dteDocumentoId, tipoDteCodigo, numeroControl, fechaEmision, vencimiento, clienteId,
 clienteNombre, total, pagado, saldo, estadoCobro, diasVencido`.
@@ -586,8 +596,10 @@ GET/POST/PUT/PATCH  /api/productos ...
 GET    /api/lookups/clientes | productos | sucursales | departamentos | municipios | distritos | catalogo/{codigo}
 
 # Cobros / CxC (Cobros.Ver / Cobros.Gestionar)
-GET    /api/cobros/resumen | pendientes | clientes/{clienteId} | dte/{dteId}/pagos
+GET    /api/cobros/resumen | pendientes | clientes/{clienteId} | dte/{dteId}/pagos | cuentas
 POST   /api/cobros/dte/{dteId}/pagos | pagos/{pagoId}/confirmar | pagos/{pagoId}/anular
+POST   /api/cobros/cuentas | cuentas/{id}/inactivar | qr        # QR de cobro (B-5)
+PUT    /api/cobros/cuentas/{id}
 
 # NeoScanAI (modulo NEOSCANAI; ScanAI.Ver / ScanAI.Confirmar)
 GET    /api/scanai/documentos | {id} | {id}/archivo

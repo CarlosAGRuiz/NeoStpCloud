@@ -1,5 +1,14 @@
 # NeoSTP Cloud Web
 
+## Actualizacion - NeoCloud Mobile: QR de cobro (B-5)
+
+Genera codigos QR / enlaces de pago para que la empresa cobre a sus clientes.
+
+- **Dominio:** `CuentaCobro` (`Cobros_CuentasCobro`): cuentas/pasarelas de cobro de la empresa (transferencia/Wompi/Pagadito/ACH/otro) con plantilla de URL de pago (`{monto}`/`{referencia}`); migracion `B5_CuentasCobroQr`.
+- **`ICobroQrService` / `CobroQrService`:** CRUD de cuentas + generacion de QR (QRCoder). El monto se deriva del **saldo de la factura** (`dteDocumentoId`) o se pasa fijo; el payload es la URL de pago (sustituyendo marcadores) o un texto de transferencia; devuelve el PNG en base64.
+- **API:** `GET/POST/PUT /api/cobros/cuentas` (+ inactivar) y `POST /api/cobros/qr` (`Cobros.Ver`/`Cobros.Gestionar`).
+- **Tests** `CobroQrServiceTests` (crear/listar, QR de monto fijo, sustitucion de URL, monto desde saldo de factura, sin cuenta activa, validacion).
+
 ## Actualizacion - NeoCloud Mobile: Alertas y push (B-4)
 
 Centro de alertas + notificaciones push para la app movil.
@@ -124,8 +133,8 @@ Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitc
 
 Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
 
-> **Versión actual: NeoCloud Mobile — backend (B-4 Alertas y push)** ✅ (sobre B-3 NeoScanAI, B-2 Cobros/CxC, B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 354 unit + 2 integración pasando
+> **Versión actual: NeoCloud Mobile — backend (B-5 QR de cobro)** ✅ (sobre B-4 Alertas/push, B-3 NeoScanAI, B-2 Cobros/CxC, B-1 emisión en un paso, branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
+> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 360 unit + 2 integración pasando
 > El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
 >
 > 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:

@@ -17,11 +17,13 @@ namespace NeoSTP.Api.Controllers;
 public class CobranzaController : ApiControllerBase
 {
     private readonly ICobranzaService _service;
+    private readonly ICobroQrService _qr;
     private readonly ICurrentUser _currentUser;
 
-    public CobranzaController(ICobranzaService service, ICurrentUser currentUser)
+    public CobranzaController(ICobranzaService service, ICobroQrService qr, ICurrentUser currentUser)
     {
         _service = service;
+        _qr = qr;
         _currentUser = currentUser;
     }
 
@@ -86,6 +88,50 @@ public class CobranzaController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _service.AnularPagoAsync(eid, pagoId, _currentUser.Username, ct), "Pago anulado.");
+    }
+
+    // ─── QR / enlaces de cobro (B-5) ─────────────────────────────────────────
+
+    /// <summary>Cuentas/pasarelas de cobro de la empresa.</summary>
+    [HttpGet("cuentas")]
+    [RequirePermiso("Cobros.Ver")]
+    public async Task<IActionResult> ListarCuentas([FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Ok(ApiResponse<IReadOnlyList<CuentaCobroDto>>.Ok(await _qr.ListarCuentasAsync(eid, ct), traceId: HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("cuentas")]
+    [RequirePermiso("Cobros.Gestionar")]
+    public async Task<IActionResult> CrearCuenta([FromBody] CrearCuentaCobroRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _qr.CrearCuentaAsync(eid, req, _currentUser.Username, ct));
+    }
+
+    [HttpPut("cuentas/{id:int}")]
+    [RequirePermiso("Cobros.Gestionar")]
+    public async Task<IActionResult> ActualizarCuenta(int id, [FromBody] CrearCuentaCobroRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _qr.ActualizarCuentaAsync(eid, id, req, _currentUser.Username, ct));
+    }
+
+    [HttpPost("cuentas/{id:int}/inactivar")]
+    [RequirePermiso("Cobros.Gestionar")]
+    public async Task<IActionResult> InactivarCuenta(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _qr.InactivarCuentaAsync(eid, id, _currentUser.Username, ct), "Cuenta inactivada.");
+    }
+
+    /// <summary>Genera un QR de pago (asociado a una factura o a un monto) para compartir con el cliente.</summary>
+    [HttpPost("qr")]
+    [RequirePermiso("Cobros.Ver")]
+    public async Task<IActionResult> GenerarQr([FromBody] GenerarQrCobroRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _qr.GenerarQrAsync(eid, req, ct));
     }
 
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;
