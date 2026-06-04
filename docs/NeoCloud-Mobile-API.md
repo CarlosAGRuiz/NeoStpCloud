@@ -31,8 +31,10 @@ cliente ligero sobre la API REST de NeoSTP Cloud.
 
 - **Una sola fuente de verdad:** la app NO firma ni transmite a Hacienda; solo invoca endpoints. El
   backend hace la firma con el certificado y la transmisión a MH.
-- **Multi-tenant:** cada usuario pertenece a una empresa (`empresaId` viaja en el JWT). El SuperAdmin
-  puede operar sobre cualquier empresa pasando `?empresaId=`.
+- **Multi-tenant:** cada usuario pertenece a una empresa (`empresaId` viaja en el JWT). **La app móvil es
+  solo para usuarios de empresa: no maneja SuperAdmin ni envía `?empresaId`** (el tenant es implícito y
+  único, ver §5). El parámetro `?empresaId` que aparece en algunos endpoints es exclusivo del panel web/SuperAdmin
+  y la app debe ignorarlo.
 - **Sin estado en el cliente** salvo los tokens. Toda la lógica fiscal vive en el backend.
 - **Ligera:** la app pagina y filtra del lado servidor (`page`, `pageSize`, `search`), nunca trae
   datasets completos.
@@ -148,13 +150,35 @@ cerrar sesión y volver al login. Implementar como interceptor en `dio`.
 
 ---
 
-## 5. Selección de empresa / tenant
+## 5. Multi-tenant en móvil (IMPORTANTE) — solo usuarios de empresa, sin SuperAdmin
 
-- Para un **usuario de empresa** el `empresaId` está fijo en el token: la app NO necesita seleccionar empresa
-  ni enviar `empresaId` en las llamadas.
-- El **SuperAdmin** no tiene empresa fija: cada endpoint de datos acepta `?empresaId={id}` para indicar
-  sobre qué empresa opera (modo soporte). Para NeoCloud Mobile el caso normal es usuario de empresa, así
-  que el flujo "Selección de empresa / tenant" del diagrama aplica solo a cuentas multi-empresa/SuperAdmin.
+> **Regla de la app:** NeoCloud Mobile **NO maneja SuperAdmin**. La app es exclusivamente para **usuarios
+> de empresa**. No hay pantalla de "selección de empresa" ni se envía nunca `?empresaId`.
+
+### 5.1 Cómo queda garantizado el aislamiento
+
+- El `empresaId` de un usuario de empresa **viaja fijo en el JWT**. Todos los endpoints resuelven el tenant
+  como `EmpresaId_del_token ?? ?empresaId`, por lo que para un usuario de empresa **el token siempre manda**
+  y cualquier `?empresaId` enviado **se ignora**. → Imposible operar sobre otra empresa.
+- El `?empresaId` solo se honra cuando el token **no** trae empresa, y eso **únicamente ocurre con
+  SuperAdmin** (modo soporte del panel web). Como la app no usa SuperAdmin, ese camino no aplica.
+- **Conclusión:** mientras la app use solo cuentas de empresa, el aislamiento multi-tenant es **total y
+  automático**, sin lógica extra en el cliente. La app **no debe** construir ni enviar `?empresaId` en
+  ninguna llamada.
+
+### 5.2 Manejo de SuperAdmin en el login
+
+El endpoint `/api/auth/login` es compartido con la web y sí permite a un SuperAdmin autenticarse. Si por
+error alguien inicia sesión con una cuenta SuperAdmin en la app:
+
+- En la respuesta de login, `user.tipoUsuarioCodigo == "SUPERADMIN"` y `user.empresaId == null`.
+- La app **debe detectarlo y bloquear el acceso** con un mensaje tipo *"Esta es una cuenta de administrador.
+  Usa el panel web de NeoSTP para tareas administrativas"*, y volver al login. No continuar al dashboard.
+- (Refuerzo del backend: un SuperAdmin sin empresa que llame a endpoints de datos sin `?empresaId` recibe
+  `400 AUTH_NO_TENANT`; nunca verá datos de ninguna empresa por accidente.)
+
+> Resumen para el dev Flutter: trata `tipoUsuarioCodigo == "SUPERADMIN"` como "no soportado en móvil".
+> Para todos los demás, el tenant es implícito y único; nunca pidas ni envíes `empresaId`.
 
 ---
 

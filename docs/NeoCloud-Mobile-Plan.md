@@ -70,7 +70,10 @@ entregar valor temprano con bajo riesgo y dejar las brechas grandes para despué
 - Proyecto Flutter, arquitectura (capas, `dio`, `riverpod`/`bloc`, `freezed`).
 - `ApiClient` con `ApiResponse<T>`, manejo de errores tipado, interceptor de **JWT + refresh (401)**.
 - Almacenamiento seguro de tokens; pantalla **Login** + `me`; carga de **permisos**.
-- Selección de empresa (solo multi-empresa/SuperAdmin); **health check** en splash.
+- **Tenant implícito (single-empresa):** la app es **solo para usuarios de empresa**; el `empresaId` sale
+  del token y **nunca** se envía `?empresaId`. Si el login devuelve `tipoUsuarioCodigo == "SUPERADMIN"`,
+  bloquear con "usa el panel web" y volver al login (sin pantalla de selección de empresa). Ver §5 de la guía de API.
+- **Health check** en splash.
 - Tema/diseño base (alineado a la identidad NeoSTP), navegación por pestañas (Inicio, Facturar, Clientes, Escanear, Más).
 - *BE:* ninguno (usa API actual).
 
@@ -154,3 +157,6 @@ Checklist a validar antes/durante el desarrollo (lo cubre el backend):
 - **OpenAPI:** `/openapi/v1.json` como referencia viva del esquema.
 - **Soporte:** ante errores, el `traceId` de cada respuesta correlaciona con los logs del backend.
 - **Seguridad:** tokens en `flutter_secure_storage`; nunca loguear tokens ni el blob del certificado; HTTPS obligatorio en staging/prod.
+- **Multi-tenant:** la app **no maneja SuperAdmin** y **nunca envía `?empresaId`**. El tenant es el del token
+  (único e implícito); el backend ignora `?empresaId` para usuarios de empresa, así que el aislamiento es
+  automático. SuperAdmin se bloquea en el login (mensaje "usa el panel web"). Ver §5 de la guía de API.
