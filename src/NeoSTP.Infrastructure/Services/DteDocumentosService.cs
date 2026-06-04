@@ -670,29 +670,104 @@ public class DteDocumentosService : IDteDocumentosService
             : Result<DteReenvioResultDto>.Fail(result.Detalle ?? result.Mensaje ?? "Error enviando correo.", "EMAIL_FAILED");
     }
 
-    private static string BuildBody(DteDocumento d, string emisor)
+    internal static string BuildBody(DteDocumento d, string emisor)
     {
         var receptor = d.ReceptorNombre ?? "Estimado(a) cliente";
-        return $"""
+        var tipo = TipoDteNombreEmail(d.TipoDteCodigo);
+        var (badgeBg, badgeFg) = d.EstadoCodigo switch
+        {
+            DteEstadoCodigos.Procesado => ("#DCFCE7", "#15803D"),
+            DteEstadoCodigos.Rechazado => ("#FEE2E2", "#B91C1C"),
+            DteEstadoCodigos.Contingencia => ("#FEF3C7", "#B45309"),
+            DteEstadoCodigos.Invalidado => ("#E2E8F0", "#334155"),
+            _ => ("#E0E7FF", "#3730A3"),
+        };
+
+        // Fila del cuadro de datos (label + valor)
+        static string Fila(string label, string valor, bool mono = false)
+            => $"""
+               <tr>
+                 <td style="padding:7px 14px;border-bottom:1px solid #EEF2F7;color:#64748B;font-size:12px;white-space:nowrap">{label}</td>
+                 <td style="padding:7px 14px;border-bottom:1px solid #EEF2F7;color:#1E293B;font-size:13px;{(mono ? "font-family:Consolas,'Courier New',monospace;" : "")}text-align:right">{valor}</td>
+               </tr>
+               """;
+
+        var selloFila = string.IsNullOrEmpty(d.SelloRecibido)
+            ? ""
+            : Fila("Sello de recepción", $"<span style=\"word-break:break-all;font-size:11px\">{d.SelloRecibido}</span>", mono: true);
+
+        return $$"""
             <!doctype html>
             <html lang="es">
-            <body style="font-family:Segoe UI, Arial, sans-serif; color:#222">
-              <p>Estimado(a) <strong>{receptor}</strong>,</p>
-              <p>Adjuntamos el Documento Tributario Electrónico emitido por <strong>{emisor}</strong>:</p>
-              <ul>
-                <li><strong>Tipo:</strong> {d.TipoDteCodigo}</li>
-                <li><strong>Número de control:</strong> <code>{d.NumeroControl}</code></li>
-                <li><strong>Código de generación:</strong> <code>{d.CodigoGeneracion}</code></li>
-                <li><strong>Fecha de emisión:</strong> {d.FechaEmision:yyyy-MM-dd}</li>
-                <li><strong>Total a pagar:</strong> $ {d.TotalPagar:N2}</li>
-                {(string.IsNullOrEmpty(d.SelloRecibido) ? "" : $"<li><strong>Sello recibido:</strong> <code>{d.SelloRecibido}</code></li>")}
-              </ul>
-              <p>Encontrará el PDF (representación gráfica) y el JSON oficial del DTE como archivos adjuntos.</p>
-              <p style="color:#888; font-size:12px">Enviado por NeoSTP Cloud · {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC</p>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+            <body style="margin:0;padding:0;background:#F1F5F9;font-family:'Segoe UI',Arial,sans-serif;color:#1E293B">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:24px 0">
+                <tr><td align="center">
+                  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:96%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(15,23,42,.08)">
+
+                    <!-- Banda de marca -->
+                    <tr><td style="background:#131B2E;padding:20px 24px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                        <td style="color:#FFFFFF;font-size:17px;font-weight:700">{{emisor}}</td>
+                        <td align="right" style="color:#A5B4FC;font-size:12px">{{tipo}}</td>
+                      </tr></table>
+                    </td></tr>
+
+                    <!-- Saludo -->
+                    <tr><td style="padding:24px 24px 8px">
+                      <p style="margin:0 0 6px">Estimado(a) <strong>{{receptor}}</strong>,</p>
+                      <p style="margin:0;color:#475569;font-size:14px">Adjuntamos su Documento Tributario Electrónico emitido por <strong>{{emisor}}</strong>. Encontrará la representación gráfica (PDF) y el archivo oficial (JSON) como adjuntos de este correo.</p>
+                    </td></tr>
+
+                    <!-- Cuadro de datos del DTE -->
+                    <tr><td style="padding:8px 24px 4px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden">
+                        <tr><td colspan="2" style="background:#F8FAFC;padding:9px 14px;font-size:11px;font-weight:700;color:#6B38D4;letter-spacing:.04em">DATOS DEL DOCUMENTO</td></tr>
+                        {{Fila("Tipo de DTE", tipo)}}
+                        {{Fila("Número de control", $"<span style=\"font-size:12px\">{d.NumeroControl}</span>", mono: true)}}
+                        {{Fila("Código de generación", $"<span style=\"font-size:12px\">{d.CodigoGeneracion}</span>", mono: true)}}
+                        {{Fila("Fecha de emisión", $"{d.FechaEmision:dd/MM/yyyy} {d.HoraEmision:hh\\:mm}")}}
+                        {{Fila("Estado", $"<span style=\"background:{badgeBg};color:{badgeFg};padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700\">{d.EstadoCodigo}</span>")}}
+                        {{selloFila}}
+                      </table>
+                    </td></tr>
+
+                    <!-- Total destacado -->
+                    <tr><td style="padding:12px 24px 4px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#131B2E;border-radius:10px">
+                        <tr>
+                          <td style="padding:14px 16px;color:#FFFFFF;font-size:13px;font-weight:600">TOTAL A PAGAR</td>
+                          <td align="right" style="padding:14px 16px;color:#FFFFFF;font-size:20px;font-weight:700">$ {{d.TotalPagar.ToString("N2")}}</td>
+                        </tr>
+                      </table>
+                    </td></tr>
+
+                    <!-- Footer -->
+                    <tr><td style="padding:18px 24px 24px">
+                      <p style="margin:0;color:#94A3B8;font-size:11px;line-height:1.6">
+                        Documento Tributario Electrónico generado por NeoSTP Cloud.<br>
+                        Consulte la validez de este documento en el portal del Ministerio de Hacienda de El Salvador.<br>
+                        Enviado el {{DateTime.UtcNow:dd/MM/yyyy HH:mm}} UTC.
+                      </p>
+                    </td></tr>
+
+                  </table>
+                </td></tr>
+              </table>
             </body>
             </html>
             """;
     }
+
+    private static string TipoDteNombreEmail(string codigo) => codigo switch
+    {
+        TipoDteCodigos.FacturaConsumidorFinal => "Factura (DTE-01)",
+        TipoDteCodigos.ComprobanteCreditoFiscal => "Comprobante de Crédito Fiscal (DTE-03)",
+        TipoDteCodigos.NotaCredito => "Nota de Crédito (DTE-05)",
+        TipoDteCodigos.NotaDebito => "Nota de Débito (DTE-06)",
+        TipoDteCodigos.FacturaSujetoExcluido => "Factura Sujeto Excluido (DTE-14)",
+        _ => $"DTE-{codigo}",
+    };
 
     public async Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default)
     {

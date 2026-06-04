@@ -17,6 +17,46 @@
     <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 }
 
+<!-- ===== Diagnóstico de correo ===== -->
+<div class="card mb-4">
+    <div class="card-header">✉️ Diagnóstico de correo</div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-muted mb-0">Proveedor</label>
+                <div><span class="badge @(Model.EmailProvider == "Smtp" ? "bg-success" : "bg-secondary")">@Model.EmailProvider</span></div>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small text-muted mb-0">Remitente</label>
+                <div class="ns-mono small">@Model.EmailFrom</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-muted mb-0">@(Model.EmailProvider == "Smtp" ? "Servidor SMTP" : "Buzón mock")</label>
+                <div class="ns-mono small">@Model.EmailDestino</div>
+            </div>
+        </div>
+        @if (admin)
+        {
+            <form asp-action="ProbarCorreo" method="post" class="row g-2 align-items-end mt-2">
+                @Html.AntiForgeryToken()
+                <div class="col-md-6">
+                    <label class="form-label small">Enviar correo de prueba a</label>
+                    <input name="destinatario" type="email" class="form-control form-control-sm" placeholder="correo@ejemplo.com" required />
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary btn-sm" type="submit">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px">send</span> Enviar prueba
+                    </button>
+                </div>
+            </form>
+            @if (Model.EmailProvider != "Smtp")
+            {
+                <p class="text-muted small mt-2 mb-0">Modo <strong>Mock</strong>: el correo se guarda como archivo <code>.eml</code> en el buzón en lugar de enviarse. Cambia <code>Email:Provider=Smtp</code> para envío real.</p>
+            }
+        }
+    </div>
+</div>
+
 <!-- ===== Backups ===== -->
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
