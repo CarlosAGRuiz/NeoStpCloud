@@ -144,20 +144,32 @@ finally
 
 static class SecurityHeadersExtensions
 {
+    // CSP estricta para la API JSON (no renderiza HTML/JS).
     private const string ApiCsp = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+
+    // CSP permisiva solo para la UI de Scalar (necesita cargar su bundle JS/CSS y fuentes).
+    private const string ScalarCsp =
+        "default-src 'self'; base-uri 'self'; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; " +
+        "img-src 'self' data: https:; " +
+        "connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:";
 
     public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
         => app.Use(async (context, next) =>
         {
+            var isScalar = context.Request.Path.StartsWithSegments("/scalar");
+
             context.Response.OnStarting(() =>
             {
                 var headers = context.Response.Headers;
                 headers.TryAdd("X-Content-Type-Options", "nosniff");
-                headers.TryAdd("X-Frame-Options", "DENY");
+                if (!isScalar) headers.TryAdd("X-Frame-Options", "DENY");
                 headers.TryAdd("X-XSS-Protection", "0");
                 headers.TryAdd("Referrer-Policy", "no-referrer");
                 headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
-                headers.TryAdd("Content-Security-Policy", ApiCsp);
+                headers.TryAdd("Content-Security-Policy", isScalar ? ScalarCsp : ApiCsp);
                 return Task.CompletedTask;
             });
 
