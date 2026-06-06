@@ -645,7 +645,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 8 | **Catálogos MH** | ✅ Sprint 13 — módulo completo (CRUD/import/export/versión/cascada) | Sembrar resto vía import oficial (CAT-008 Distrito, CAT-019/020 completos) | Media |
 | 9 | **Dashboard** | ✅ base | Integrar NeoProfit, certificación, alertas Hacienda | Alta |
 | 10 | **NeoProfit / NeoBI** | ✅ Sprint 22 — `ProfitCalculator` puro + `IProfitService` + `/api/profit/*` + dashboard Web + grids/CRUD gastos/compras (permisos 370/371) | Snapshots mensuales + alertas de margen | Alta |
-| 11 | **NeoScanAI** | ✅ Backend Mobile B-3 + **UI Web** (`ScanController` `/Scan`: bandeja, preview, corrección de campos, conversión a gasto/compra/DTE recibido, rechazo; permisos `ScanAI.Ver/.Confirmar`) | Integrar OCR/IA real | Alta |
+| 11 | **NeoScanAI** | ✅ Backend Mobile B-3 + **UI Web** (`ScanController` `/Scan`: bandeja, preview, corrección de campos, conversión a gasto/compra/DTE recibido, rechazo; permisos `ScanAI.Ver/.Confirmar`) + **DTE recibidos** (`IDteRecibidoService` + `DteRecibidosController` `/DteRecibidos`: listado/detalle solo lectura) | Integrar OCR/IA real | Alta |
 | 12 | **NeoConnect API** | ✅ Sprint 24 COMPLETO — API keys (hash SHA-256 + scopes), `X-Api-Key` middleware, webhooks firmados HMAC + worker, rate limit por ApiKey, UI `/Integraciones`, **endpoints de negocio v1** (`/api/v1`) + OpenAPI público + tests | Sandbox dedicado + más eventos | Media-alta |
 | 13 | **NeoPOS** | ❌ | Caja, venta rápida, conversión a DTE | Media-alta |
 | 14 | **NeoPortal Clientes** | ❌ | Consulta pública, estado de cuenta | Media |

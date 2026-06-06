@@ -1,0 +1,51 @@
+@model NeoSTP.Application.Scan.Dtos.DteRecibidoDto
+@{
+    ViewData["Title"] = $"DTE recibido #{Model.Id}";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">DTE recibidos</a><span class="material-symbols-outlined">chevron_right</span><span>#@Model.Id</span>
+        </nav>
+        <h1 class="ns-page-title">DTE recibido #@Model.Id</h1>
+    </div>
+    <div class="d-flex gap-2">
+        @if (Model.ScanDocumentoId is int sid)
+        {
+            <a asp-controller="Scan" asp-action="Detalle" asp-route-id="@sid" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">document_scanner</span> Ver escaneo</a>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">store</span> Emisor</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small">Nombre</dt><dd class="col-sm-8">@Model.EmisorNombre</dd>
+                    <dt class="col-sm-4 text-muted small">NIT</dt><dd class="col-sm-8 ns-mono">@(string.IsNullOrWhiteSpace(Model.EmisorNit) ? "—" : Model.EmisorNit)</dd>
+                    <dt class="col-sm-4 text-muted small">NRC</dt><dd class="col-sm-8 ns-mono">@(string.IsNullOrWhiteSpace(Model.EmisorNrc) ? "—" : Model.EmisorNrc)</dd>
+                    <dt class="col-sm-4 text-muted small">Fecha</dt><dd class="col-sm-8 ns-mono">@Model.Fecha.ToString("dd/MM/yyyy")</dd>
+                    <dt class="col-sm-4 text-muted small">Tipo DTE</dt><dd class="col-sm-8 ns-mono">@(string.IsNullOrWhiteSpace(Model.TipoDteCodigo) ? "—" : Model.TipoDteCodigo)</dd>
+                    <dt class="col-sm-4 text-muted small">Número de control</dt><dd class="col-sm-8 ns-mono">@(string.IsNullOrWhiteSpace(Model.NumeroControl) ? "—" : Model.NumeroControl)</dd>
+                    <dt class="col-sm-4 text-muted small">Sello recibido</dt><dd class="col-sm-8 ns-mono small">@(string.IsNullOrWhiteSpace(Model.SelloRecibido) ? "—" : Model.SelloRecibido)</dd>
+                    <dt class="col-sm-4 text-muted small">Registrado</dt><dd class="col-sm-8 ns-mono">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">payments</span> Montos</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between py-2 border-bottom"><span class="text-muted">Subtotal</span><span class="ns-mono">@Model.Subtotal.ToString("N2")</span></div>
+                <div class="d-flex justify-content-between py-2 border-bottom"><span class="text-muted">IVA</span><span class="ns-mono">@Model.Iva.ToString("N2")</span></div>
+                <div class="d-flex justify-content-between py-2"><span class="fw-bold">Total</span><span class="ns-mono fw-bold fs-5">@Model.Total.ToString("N2")</span></div>
+            </div>
+        </div>
+    </div>
+</div>

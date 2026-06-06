@@ -198,6 +198,8 @@ public static class DependencyInjection
 
         // NeoScanAI (Sprint 23 / B-3): bandeja + extracción (mock por defecto, pluggable)
         services.AddScoped<IScanService, ScanService>();
+        // DTE recibidos (registro/respaldo de proveedores, generados desde NeoScanAI) — solo lectura
+        services.AddScoped<IDteRecibidoService, DteRecibidoService>();
         // Toggle del proveedor de extracción OCR/IA. Hoy solo Mock; real pluggable a futuro.
         services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.MockScanExtractionService>();
 

@@ -87,3 +87,30 @@ public sealed class ScanQuery
     public string? EstadoCodigo { get; set; }
     public string? TipoClasificacion { get; set; }
 }
+
+/// <summary>DTE recibido de un proveedor (registro/respaldo), generado desde NeoScanAI.</summary>
+public sealed class DteRecibidoDto
+{
+    public int Id { get; set; }
+    public string EmisorNombre { get; set; } = string.Empty;
+    public string? EmisorNit { get; set; }
+    public string? EmisorNrc { get; set; }
+    public DateOnly Fecha { get; set; }
+    public string? TipoDteCodigo { get; set; }
+    public string? NumeroControl { get; set; }
+    public string? SelloRecibido { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal Iva { get; set; }
+    public decimal Total { get; set; }
+    public int? ScanDocumentoId { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public sealed class DteRecibidoQuery
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+    public string? Search { get; set; }
+    public DateOnly? Desde { get; set; }
+    public DateOnly? Hasta { get; set; }
+}
