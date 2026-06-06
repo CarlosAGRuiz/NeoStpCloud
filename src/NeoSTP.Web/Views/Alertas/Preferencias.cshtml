@@ -1,0 +1,54 @@
+@model NeoSTP.Application.Notificaciones.Dtos.PreferenciaNotificacionDto
+@{
+    ViewData["Title"] = "Preferencias de notificación";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Notificaciones</a><span class="material-symbols-outlined">chevron_right</span><span>Preferencias</span>
+        </nav>
+        <h1 class="ns-page-title">Preferencias de notificación</h1>
+    </div>
+    <div><a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a></div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="card" style="max-width:640px">
+    <div class="card-header"><span class="material-symbols-outlined align-middle">tune</span> Canales y horario</div>
+    <div class="card-body">
+        <form asp-action="Preferencias" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <div class="col-md-6">
+                <label class="form-label small">Canal preferido</label>
+                <select name="Canal" class="form-select form-select-sm">
+                    @foreach (var c in new[] { "PUSH", "EMAIL", "NINGUNO" })
+                    {
+                        <option value="@c" selected="@(Model.Canal == c)">@c</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="NoMolestar" value="true" id="noMolestar" @(Model.NoMolestar ? "checked" : "") />
+                    <label class="form-check-label" for="noMolestar">No molestar (silenciar fuera del horario)</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small">Hora inicio</label>
+                <input name="HoraInicio" type="time" value="@Model.HoraInicio.ToString("HH:mm")" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small">Hora fin</label>
+                <input name="HoraFin" type="time" value="@Model.HoraFin.ToString("HH:mm")" class="form-control form-control-sm" />
+            </div>
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar preferencias</button>
+            </div>
+        </form>
+    </div>
+</div>
+<p class="text-muted small mt-2">Los tokens de dispositivos (push FCM) se registran desde la app móvil.</p>

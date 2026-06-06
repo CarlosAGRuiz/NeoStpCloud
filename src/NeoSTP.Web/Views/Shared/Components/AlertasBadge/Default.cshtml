@@ -1,0 +1,15 @@
+@model NeoSTP.Application.Notificaciones.Dtos.AlertaResumenDto
+@{
+    var total = Model.Pendientes;
+    var critico = Model.Criticas > 0;
+}
+<a class="ns-icon-btn position-relative" asp-controller="Alertas" asp-action="Index" title="Notificaciones">
+    <span class="material-symbols-outlined">notifications</span>
+    @if (total > 0)
+    {
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill @(critico ? "bg-danger" : "bg-warning text-dark")"
+              style="font-size:.62rem">
+            @(total > 99 ? "99+" : total.ToString())
+        </span>
+    }
+</a>

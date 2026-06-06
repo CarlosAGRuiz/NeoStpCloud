@@ -66,6 +66,7 @@ else
                 <div class="ns-nav-group">Operación</div>
                 <a class="ns-nav-link @active("Home")" asp-controller="Home" asp-action="Index"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
                 <a class="ns-nav-link @active("Onboarding")" asp-controller="Onboarding" asp-action="Index"><span class="material-symbols-outlined">rocket_launch</span> Asistente</a>
+                <a class="ns-nav-link @active("Alertas")" asp-controller="Alertas" asp-action="Index"><span class="material-symbols-outlined">notifications</span> Notificaciones</a>
                 <a class="ns-nav-link @active("DteDocumentos")" asp-controller="DteDocumentos" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Documentos DTE</a>
                 @if (puedeVerCobros)
                 {
@@ -180,6 +181,7 @@ else
                             @(enModoSoporte ? soporteEmpresaNombre : "Modo soporte")
                         </a>
                     }
+                    @await Component.InvokeAsync("AlertasBadge")
                     <div class="dropdown">
                         <button class="ns-icon-btn" data-bs-toggle="dropdown" aria-expanded="false">
                             <span class="material-symbols-outlined">account_circle</span>

@@ -1,0 +1,133 @@
+@model NeoSTP.Web.Controllers.AlertasIndexViewModel
+@{
+    ViewData["Title"] = "Notificaciones";
+
+    string SevBadge(string sev) => sev switch
+    {
+        "CRITICA" or "CRITICO" or "ERROR" => "ns-badge--rejected",
+        "ADVERTENCIA" or "WARNING" => "ns-badge--contingency",
+        _ => "ns-badge--draft",
+    };
+    string EstadoBadge(string e) => e switch
+    {
+        "RESUELTA" => "ns-badge--processed",
+        "LEIDA" => "ns-badge--draft",
+        _ => "ns-badge--contingency",
+    };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Notificaciones</span></nav>
+        <h1 class="ns-page-title">Centro de notificaciones</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Preferencias" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">tune</span> Preferencias</a>
+        <form asp-action="Generar" method="post" class="m-0">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">refresh</span> Recalcular</button>
+        </form>
+        <form asp-action="LeerTodas" method="post" class="m-0">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">done_all</span> Marcar todas leídas</button>
+        </form>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4 col-12">
+        <div class="card h-100"><div class="card-body"><div class="ns-metric-label">Pendientes</div><div class="ns-mono fw-bold fs-4">@Model.Resumen.Pendientes</div></div></div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="card h-100"><div class="card-body"><div class="ns-metric-label">Críticas</div><div class="ns-mono fw-bold fs-4 text-danger">@Model.Resumen.Criticas</div></div></div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="card h-100"><div class="card-body"><div class="ns-metric-label">Advertencias</div><div class="ns-mono fw-bold fs-4" style="color:#b45309">@Model.Resumen.Advertencias</div></div></div>
+    </div>
+</div>
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <select name="estado" class="form-select form-select-sm" style="width:200px">
+            <option value="">Pendientes y leídas</option>
+            @foreach (var e in Model.Estados)
+            {
+                <option value="@e" selected="@(Model.Estado == e)">@e</option>
+            }
+        </select>
+        <input name="tipo" value="@Model.Tipo" class="form-control form-control-sm" style="width:200px" placeholder="Tipo (opcional)" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span> Filtrar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Severidad</th>
+                    <th>Título</th>
+                    <th>Mensaje</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Alertas.Items.Any())
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">notifications_off</span><p>No tienes notificaciones.</p></div></td></tr>
+                }
+                @foreach (var a in Model.Alertas.Items)
+                {
+                    <tr>
+                        <td><span class="ns-badge @SevBadge(a.Severidad)">@a.Severidad</span></td>
+                        <td class="fw-semibold">@a.Titulo</td>
+                        <td class="small text-muted">@a.Mensaje</td>
+                        <td><code class="ns-mono small">@a.TipoCodigo</code></td>
+                        <td><span class="ns-badge @EstadoBadge(a.EstadoCodigo)">@a.EstadoCodigo</span></td>
+                        <td class="ns-mono small">@a.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="text-end">
+                            <div class="d-flex gap-1 justify-content-end">
+                                @if (a.EstadoCodigo == "PENDIENTE")
+                                {
+                                    <form asp-action="Leer" asp-route-id="@a.Id" method="post" class="m-0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Marcar leída"><span class="material-symbols-outlined" style="font-size:18px">mark_email_read</span></button>
+                                    </form>
+                                }
+                                @if (a.EstadoCodigo != "RESUELTA")
+                                {
+                                    <form asp-action="Resolver" asp-route-id="@a.Id" method="post" class="m-0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Resolver"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span></button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Alertas.TotalPages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm">
+            @for (int i = 1; i <= Model.Alertas.TotalPages; i++)
+            {
+                <li class="page-item @(i == Model.Alertas.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-estado="@Model.Estado" asp-route-tipo="@Model.Tipo">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+<p class="text-muted small mt-2">Total: @Model.Alertas.Total notificaciones.</p>

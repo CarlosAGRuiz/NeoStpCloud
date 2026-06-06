@@ -651,7 +651,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 14 | **NeoPortal Clientes** | ❌ | Consulta pública, estado de cuenta | Media |
 | 15 | **NeoCloud Mobile** | ✅ backend (B-1…B-6) — emisión 1-paso, Cobros/CxC, ScanAI, Alertas/push, QR cobro, verificación NIT; docs `NeoCloud-Mobile-API.md` + `NeoCloud-Mobile-Plan.md` | App Flutter (cliente) por desarrollar; integraciones externas OCR/FCM/NIT-MH | Media |
 | 16 | **Cobranza / CxC** | ✅ Backend Mobile B-2/B-5 — `ICobranzaService`/`ICobroQrService`, pagos + cuentas de cobro + QR, `/api/cobros/*` | UI Web (solo API hoy) | Media-alta |
-| 17 | **Alertas / Notificaciones** | ✅ Backend Mobile B-4 — `IAlertaService` + generación en Worker + push pluggable, `/api/alertas/*` | FCM real + UI Web (solo API hoy) | Media |
+| 17 | **Alertas / Notificaciones** | ✅ Backend Mobile B-4 + **UI Web** (`AlertasController` `/Alertas`: centro de notificaciones, recalcular, marcar leídas/resolver, preferencias; campana con badge en topbar vía `AlertasBadgeViewComponent`) — solo autenticado, sin permiso dedicado | FCM real | Media |
 | 18 | **SuperAdmin** | ✅ parcial | Billing, salud sistema, incidentes, churn, soporte | Alta |
 | 19 | **Billing SaaS** | ✅ Sprint 19 + **Pagos LATAM** | Multi-proveedor (Wompi/PayPal/Transferencia/Stripe/MercadoPago), transferencia con verificación manual; falta cargar credenciales reales + monto por plan | Crítico (venta) |
 | 20 | **Legal / Compliance** | ✅ Sprint 18 | Términos, privacidad, consentimiento | Crítico (venta) |
