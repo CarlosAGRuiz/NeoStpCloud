@@ -13,6 +13,7 @@
     var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
     var puedeVerIntegraciones = isSuperAdmin || User.HasClaim("permiso", "Connect.ApiKeys.Ver");
     var puedeVerProfit = isSuperAdmin || User.HasClaim("permiso", "Profit.Ver");
+    var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 
@@ -65,6 +66,10 @@ else
                 <a class="ns-nav-link @active("Home")" asp-controller="Home" asp-action="Index"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
                 <a class="ns-nav-link @active("Onboarding")" asp-controller="Onboarding" asp-action="Index"><span class="material-symbols-outlined">rocket_launch</span> Asistente</a>
                 <a class="ns-nav-link @active("DteDocumentos")" asp-controller="DteDocumentos" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Documentos DTE</a>
+                @if (puedeVerCobros)
+                {
+                    <a class="ns-nav-link @active("Cobros")" asp-controller="Cobros" asp-action="Index"><span class="material-symbols-outlined">paid</span> Cobros</a>
+                }
                 @if (puedeVerEventos)
                 {
                     <a class="ns-nav-link @active("DteEventos")" asp-controller="DteEventos" asp-action="Index"><span class="material-symbols-outlined">event_note</span> Eventos</a>

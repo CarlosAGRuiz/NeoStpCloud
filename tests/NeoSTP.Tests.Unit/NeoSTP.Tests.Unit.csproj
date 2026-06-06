@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\NeoSTP.Application\NeoSTP.Application.csproj" />
     <ProjectReference Include="..\..\src\NeoSTP.Domain\NeoSTP.Domain.csproj" />
     <ProjectReference Include="..\..\src\NeoSTP.Infrastructure\NeoSTP.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\NeoSTP.Web\NeoSTP.Web.csproj" />
   </ItemGroup>
 
 </Project>

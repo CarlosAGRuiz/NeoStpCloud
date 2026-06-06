@@ -1,0 +1,140 @@
+@model NeoSTP.Web.Controllers.CobrosCuentasViewModel
+@{
+    ViewData["Title"] = "Cuentas de cobro";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Cobros</a><span class="material-symbols-outlined">chevron_right</span><span>Cuentas</span></nav>
+        <h1 class="ns-page-title">Cuentas de cobro</h1>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver a cobros</a>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (Model.PuedeGestionar)
+{
+    <div class="card mb-4">
+        <div class="card-header"><span class="material-symbols-outlined align-middle">add_card</span> Nueva cuenta</div>
+        <div class="card-body">
+            <form asp-action="CrearCuenta" method="post" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="col-md-2">
+                    <label class="form-label small">Tipo</label>
+                    <select name="Tipo" class="form-select form-select-sm">
+                        @foreach (var tipo in Model.Tipos)
+                        {
+                            <option value="@tipo">@tipo</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Nombre</label>
+                    <input name="Nombre" class="form-control form-control-sm" placeholder="Cuenta BAC, Wompi, Pagadito..." required />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Banco</label>
+                    <input name="Banco" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Numero cuenta</label>
+                    <input name="NumeroCuenta" class="form-control form-control-sm ns-mono" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Titular</label>
+                    <input name="Titular" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label small">URL de pago</label>
+                    <input name="UrlPago" class="form-control form-control-sm ns-mono" placeholder="https://pasarela/pagar?monto={monto}&ref={referencia}" />
+                    <div class="form-text">Opcional. Usa plantillas <code>{monto}</code> y <code>{referencia}</code>.</div>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary btn-sm w-100" type="submit">Crear cuenta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Nombre</th>
+                    <th>Banco</th>
+                    <th>Numero</th>
+                    <th>Titular</th>
+                    <th>URL pago</th>
+                    <th>Estado</th>
+                    @if (Model.PuedeGestionar) { <th class="text-end">Acciones</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Cuentas.Any())
+                {
+                    <tr><td colspan="@(Model.PuedeGestionar ? 8 : 7)"><div class="ns-empty"><span class="material-symbols-outlined">account_balance</span><p>Sin cuentas de cobro configuradas.</p></div></td></tr>
+                }
+                @foreach (var c in Model.Cuentas)
+                {
+                    <tr>
+                        <td><span class="ns-badge ns-badge--draft">@c.Tipo</span></td>
+                        <td><strong>@c.Nombre</strong></td>
+                        <td>@(c.Banco ?? "-")</td>
+                        <td><code class="ns-mono small">@(c.NumeroCuenta ?? "-")</code></td>
+                        <td>@(c.Titular ?? "-")</td>
+                        <td><code class="ns-mono small">@(c.UrlPago ?? "-")</code></td>
+                        <td>
+                            @if (c.EstadoCodigo == "ACTIVO") { <span class="ns-pill ns-pill--on">Activa</span> }
+                            else { <span class="ns-pill ns-pill--off">@c.EstadoCodigo</span> }
+                        </td>
+                        @if (Model.PuedeGestionar)
+                        {
+                            <td class="text-end">
+                                @if (c.EstadoCodigo == "ACTIVO")
+                                {
+                                    <form asp-action="InactivarCuenta" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Inactivar</button>
+                                    </form>
+                                }
+                            </td>
+                        }
+                    </tr>
+                    @if (Model.PuedeGestionar)
+                    {
+                        <tr>
+                            <td colspan="8" class="border-top-0 bg-light">
+                                <form asp-action="EditarCuenta" method="post" class="row g-2 align-items-end">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@c.Id" />
+                                    <div class="col-md-2">
+                                        <label class="form-label small">Tipo</label>
+                                        <select name="Tipo" class="form-select form-select-sm">
+                                            <option value="@c.Tipo">@c.Tipo</option>
+                                            @foreach (var tipo in Model.Tipos.Where(t => t != c.Tipo))
+                                            {
+                                                <option value="@tipo">@tipo</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2"><label class="form-label small">Nombre</label><input name="Nombre" value="@c.Nombre" class="form-control form-control-sm" required /></div>
+                                    <div class="col-md-2"><label class="form-label small">Banco</label><input name="Banco" value="@c.Banco" class="form-control form-control-sm" /></div>
+                                    <div class="col-md-2"><label class="form-label small">Numero</label><input name="NumeroCuenta" value="@c.NumeroCuenta" class="form-control form-control-sm ns-mono" /></div>
+                                    <div class="col-md-2"><label class="form-label small">Titular</label><input name="Titular" value="@c.Titular" class="form-control form-control-sm" /></div>
+                                    <div class="col-md-2"><label class="form-label small">URL pago</label><input name="UrlPago" value="@c.UrlPago" class="form-control form-control-sm ns-mono" /></div>
+                                    <div class="col-12 text-end"><button class="btn btn-sm btn-outline-primary" type="submit">Guardar cambios</button></div>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
