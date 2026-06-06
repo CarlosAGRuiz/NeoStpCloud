@@ -200,16 +200,49 @@ public static class DependencyInjection
         services.AddScoped<IScanService, ScanService>();
         // DTE recibidos (registro/respaldo de proveedores, generados desde NeoScanAI) — solo lectura
         services.AddScoped<IDteRecibidoService, DteRecibidoService>();
-        // Toggle del proveedor de extracción OCR/IA. Hoy solo Mock; real pluggable a futuro.
-        services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.MockScanExtractionService>();
+        // Toggle del proveedor de extracción OCR/IA (Scan:Provider). Mock por defecto; Gemini real (M2.1).
+        var scanProvider = configuration["Scan:Provider"];
+        if (string.Equals(scanProvider, "Gemini", StringComparison.OrdinalIgnoreCase))
+        {
+            services.Configure<NeoSTP.Infrastructure.Scan.GeminiScanOptions>(configuration.GetSection("Scan:Gemini"));
+            services.AddHttpClient(NeoSTP.Infrastructure.Scan.GeminiScanExtractionService.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 2;
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(90);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(45);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(90);
+                });
+            services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.GeminiScanExtractionService>();
+        }
+        else
+        {
+            services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.MockScanExtractionService>();
+        }
 
         // Alertas y notificaciones push (B-4): centro de alertas + generación + push pluggable
         services.AddScoped<IAlertaService, AlertaService>();
         services.AddScoped<IAlertaGeneracionService, AlertaGeneracionService>();
+        // Toggle del proveedor de push (Push:Provider). Mock por defecto; Fcm real (M2.2).
         var pushProvider = configuration["Push:Provider"];
-        // Hoy solo Mock (registra en logs); FcmPushSender real pluggable a futuro.
-        services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.MockPushSender>();
-        _ = pushProvider;
+        if (string.Equals(pushProvider, "Fcm", StringComparison.OrdinalIgnoreCase))
+        {
+            services.Configure<NeoSTP.Infrastructure.Notificaciones.FcmOptions>(configuration.GetSection("Push:Fcm"));
+            services.AddHttpClient(NeoSTP.Infrastructure.Notificaciones.FcmPushSender.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 2;
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(40);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(40);
+                });
+            services.AddSingleton<NeoSTP.Infrastructure.Notificaciones.IFcmAccessTokenProvider, NeoSTP.Infrastructure.Notificaciones.ServiceAccountTokenProvider>();
+            services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.FcmPushSender>();
+        }
+        else
+        {
+            services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.MockPushSender>();
+        }
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();

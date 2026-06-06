@@ -14,6 +14,12 @@ public sealed class PushResult
     public bool Success { get; set; }
     public int Enviados { get; set; }
     public string? Detalle { get; set; }
+
+    /// <summary>
+    /// Tokens rechazados por el proveedor como no registrados/ inválidos (ej. FCM UNREGISTERED).
+    /// El llamador debe desactivarlos para no reintentar. Vacío en el proveedor Mock.
+    /// </summary>
+    public IReadOnlyList<string> InvalidTokens { get; set; } = Array.Empty<string>();
 }
 
 /// <summary>

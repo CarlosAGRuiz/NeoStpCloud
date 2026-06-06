@@ -78,6 +78,25 @@ public class AlertaServiceTests
     }
 
     [Fact]
+    public async Task Crear_DesactivaTokensReportadosComoInvalidos()
+    {
+        var db = NewDb();
+        db.DispositivosNotificacion.Add(new DispositivoNotificacion { EmpresaId = EmpresaA, UsuarioId = Usuario, Token = "ok", Activo = true });
+        db.DispositivosNotificacion.Add(new DispositivoNotificacion { EmpresaId = EmpresaA, UsuarioId = Usuario, Token = "bad", Activo = true });
+        await db.SaveChangesAsync();
+
+        var push = Substitute.For<IPushSender>();
+        push.EnviarAsync(Arg.Any<PushMessage>(), Arg.Any<CancellationToken>())
+            .Returns(new PushResult { Success = true, Enviados = 1, InvalidTokens = new[] { "bad" } });
+        var svc = new AlertaService(db, push, NullLogger<AlertaService>.Instance);
+
+        await svc.CrearAsync(Req());
+
+        (await db.DispositivosNotificacion.FirstAsync(d => d.Token == "bad")).Activo.Should().BeFalse();
+        (await db.DispositivosNotificacion.FirstAsync(d => d.Token == "ok")).Activo.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Resumen_CuentaPendientesPorSeveridad()
     {
         var db = NewDb();

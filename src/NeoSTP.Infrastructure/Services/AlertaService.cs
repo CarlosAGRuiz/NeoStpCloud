@@ -145,7 +145,7 @@ public class AlertaService : IAlertaService
             var tokens = await tokensQuery.Select(d => d.Token).ToListAsync(ct);
             if (tokens.Count == 0) return;
 
-            await _push.EnviarAsync(new PushMessage
+            var result = await _push.EnviarAsync(new PushMessage
             {
                 Tokens = tokens,
                 Titulo = alerta.Titulo,
@@ -158,11 +158,30 @@ public class AlertaService : IAlertaService
                     ["entidadId"] = alerta.EntidadId?.ToString() ?? string.Empty,
                 },
             }, ct);
+
+            await DesactivarTokensInvalidosAsync(result.InvalidTokens, ct);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "AlertaService: error enviando push para alerta {Id}", alerta.Id);
         }
+    }
+
+    /// <summary>Desactiva los tokens que el proveedor reportó como inválidos/no registrados.</summary>
+    private async Task DesactivarTokensInvalidosAsync(IReadOnlyList<string> invalidos, CancellationToken ct)
+    {
+        if (invalidos is null || invalidos.Count == 0) return;
+        var dispositivos = await _db.DispositivosNotificacion
+            .Where(d => invalidos.Contains(d.Token) && d.Activo)
+            .ToListAsync(ct);
+        if (dispositivos.Count == 0) return;
+        foreach (var d in dispositivos)
+        {
+            d.Activo = false;
+            d.UpdatedAt = DateTime.UtcNow;
+        }
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation("AlertaService: {N} token(s) push desactivados por inválidos.", dispositivos.Count);
     }
 
     // ─── Dispositivos ───────────────────────────────────────────────────────────
