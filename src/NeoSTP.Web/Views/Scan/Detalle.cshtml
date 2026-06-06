@@ -1,0 +1,285 @@
+@model NeoSTP.Web.Controllers.ScanDetalleViewModel
+@{
+    ViewData["Title"] = $"NeoScan · #{Model.Doc.Id}";
+    var d = Model.Doc;
+    var cerrado = d.EstadoCodigo is "CONFIRMADO" or "RECHAZADO";
+    var esImagen = (d.ArchivoContentType ?? "").StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+    var esPdf = (d.ArchivoContentType ?? "").Contains("pdf", StringComparison.OrdinalIgnoreCase);
+
+    string Badge(string estado) => estado switch
+    {
+        "CONFIRMADO" or "PROCESADO" => "ns-badge--processed",
+        "REQUIERE_REVISION" or "PROCESANDO" => "ns-badge--contingency",
+        "RECHAZADO" or "ERROR" => "ns-badge--rejected",
+        _ => "",
+    };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">NeoScan</a><span class="material-symbols-outlined">chevron_right</span><span>#@d.Id</span>
+        </nav>
+        <h1 class="ns-page-title">Documento #@d.Id <span class="ns-badge @Badge(d.EstadoCodigo)">@d.EstadoCodigo</span></h1>
+    </div>
+    <div><a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver a la bandeja</a></div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (cerrado)
+{
+    <div class="alert alert-info">
+        Este documento ya está <strong>@d.EstadoCodigo</strong>@(string.IsNullOrWhiteSpace(d.TipoClasificacion) ? "" : $" como {d.TipoClasificacion}").
+        @if (d.ProfitGastoId is int g) { <span>· ProfitGasto #@g</span> }
+        @if (d.ProfitCompraId is int c) { <span>· ProfitCompra #@c</span> }
+        @if (d.DteRecibidoId is int r) { <span>· DteRecibido #@r</span> }
+        @if (!string.IsNullOrWhiteSpace(d.Notas)) { <div class="small mt-1">Notas: @d.Notas</div> }
+    </div>
+}
+
+<div class="row g-3">
+    <!-- Preview del archivo -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">image</span> Captura</div>
+            <div class="card-body text-center">
+                @if (!d.TieneArchivo)
+                {
+                    <div class="ns-empty"><span class="material-symbols-outlined">hide_image</span><p>Sin archivo adjunto.</p></div>
+                }
+                else if (esImagen)
+                {
+                    <img src="@Url.Action("Archivo", new { id = d.Id })" alt="@d.ArchivoNombre" class="img-fluid rounded border" style="max-height:560px" />
+                }
+                else if (esPdf)
+                {
+                    <iframe src="@Url.Action("Archivo", new { id = d.Id })" style="width:100%;height:560px;border:0" title="PDF"></iframe>
+                }
+                else
+                {
+                    <a href="@Url.Action("Archivo", new { id = d.Id })" class="btn btn-outline-primary" target="_blank">
+                        <span class="material-symbols-outlined align-middle">download</span> Descargar @d.ArchivoNombre
+                    </a>
+                }
+                <div class="small text-muted mt-2">
+                    Origen: @d.Origen · Confianza: @((d.Confianza * 100).ToString("0"))% · @d.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Campos extraídos / corrección -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">edit_document</span> Campos extraídos</div>
+            <div class="card-body">
+                <form asp-action="Corregir" asp-route-id="@d.Id" method="post" class="row g-2">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-8">
+                        <label class="form-label small">Emisor</label>
+                        <input name="EmisorNombre" value="@d.EmisorNombre" class="form-control form-control-sm" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">NIT</label>
+                        <input name="EmisorNit" value="@d.EmisorNit" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">NRC</label>
+                        <input name="EmisorNrc" value="@d.EmisorNrc" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Fecha</label>
+                        <input name="Fecha" type="date" value="@(d.Fecha?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Tipo documento</label>
+                        <input name="TipoDocumento" value="@d.TipoDocumento" class="form-control form-control-sm" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Número de control</label>
+                        <input name="NumeroControl" value="@d.NumeroControl" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Sello recibido</label>
+                        <input name="SelloRecibido" value="@d.SelloRecibido" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Subtotal</label>
+                        <input name="Subtotal" type="number" step="0.01" value="@d.Subtotal" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">IVA</label>
+                        <input name="Iva" type="number" step="0.01" value="@d.Iva" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Total</label>
+                        <input name="Total" type="number" step="0.01" value="@d.Total" class="form-control form-control-sm ns-mono" @(cerrado ? "disabled" : "") />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Notas</label>
+                        <textarea name="Notas" rows="2" class="form-control form-control-sm" @(cerrado ? "disabled" : "")>@d.Notas</textarea>
+                    </div>
+                    @if (!cerrado)
+                    {
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar correcciones</button>
+                        </div>
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.PuedeConfirmar && !cerrado)
+{
+    <div class="card mt-3">
+        <div class="card-header"><span class="material-symbols-outlined align-middle">fact_check</span> Confirmar documento</div>
+        <div class="card-body">
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-gasto" type="button">Como gasto</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-compra" type="button">Como compra</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dte" type="button">Como DTE recibido</button></li>
+            </ul>
+            <div class="tab-content">
+                <!-- Gasto -->
+                <div class="tab-pane fade show active" id="tab-gasto">
+                    <form asp-action="RegistrarGasto" asp-route-id="@d.Id" method="post" class="row g-2 align-items-end">
+                        @Html.AntiForgeryToken()
+                        <div class="col-md-3">
+                            <label class="form-label small">Fecha</label>
+                            <input name="Fecha" type="date" value="@((d.Fecha ?? DateOnly.FromDateTime(DateTime.UtcNow)).ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Categoría</label>
+                            <select name="Categoria" class="form-select form-select-sm">
+                                @foreach (var cat in Model.CategoriasGasto) { <option value="@cat">@cat</option> }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Descripción</label>
+                            <input name="Descripcion" value="@d.EmisorNombre" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Proveedor</label>
+                            <input name="Proveedor" value="@d.EmisorNombre" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Monto</label>
+                            <input name="Monto" type="number" step="0.01" min="0" value="@(d.Subtotal ?? d.Total)" class="form-control form-control-sm ns-mono" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">IVA</label>
+                            <input name="IvaMonto" type="number" step="0.01" min="0" value="@d.Iva" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center pt-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="IvaDeducible" value="true" id="ivaDed" checked />
+                                <label class="form-check-label small" for="ivaDed">IVA deducible</label>
+                            </div>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-success btn-sm">Confirmar como gasto</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- Compra -->
+                <div class="tab-pane fade" id="tab-compra">
+                    <form asp-action="RegistrarCompra" asp-route-id="@d.Id" method="post" class="row g-2 align-items-end">
+                        @Html.AntiForgeryToken()
+                        <div class="col-md-3">
+                            <label class="form-label small">Fecha</label>
+                            <input name="Fecha" type="date" value="@((d.Fecha ?? DateOnly.FromDateTime(DateTime.UtcNow)).ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small">Proveedor</label>
+                            <input name="Proveedor" value="@d.EmisorNombre" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Número documento</label>
+                            <input name="NumeroDocumento" value="@d.NumeroControl" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Descripción</label>
+                            <input name="Descripcion" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Subtotal</label>
+                            <input name="Subtotal" type="number" step="0.01" min="0" value="@(d.Subtotal ?? d.Total)" class="form-control form-control-sm ns-mono" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">IVA</label>
+                            <input name="IvaMonto" type="number" step="0.01" min="0" value="@d.Iva" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-success btn-sm">Confirmar como compra</button>
+                        </div>
+                    </form>
+                </div>
+                <!-- DTE recibido -->
+                <div class="tab-pane fade" id="tab-dte">
+                    <form asp-action="RegistrarDteRecibido" asp-route-id="@d.Id" method="post" class="row g-2 align-items-end">
+                        @Html.AntiForgeryToken()
+                        <div class="col-md-6">
+                            <label class="form-label small">Emisor</label>
+                            <input name="EmisorNombre" value="@d.EmisorNombre" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">NIT</label>
+                            <input name="EmisorNit" value="@d.EmisorNit" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">NRC</label>
+                            <input name="EmisorNrc" value="@d.EmisorNrc" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Fecha</label>
+                            <input name="Fecha" type="date" value="@((d.Fecha ?? DateOnly.FromDateTime(DateTime.UtcNow)).ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Tipo DTE</label>
+                            <input name="TipoDteCodigo" value="@d.TipoDocumento" class="form-control form-control-sm ns-mono" placeholder="03, 01..." />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Número de control</label>
+                            <input name="NumeroControl" value="@d.NumeroControl" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Sello recibido</label>
+                            <input name="SelloRecibido" value="@d.SelloRecibido" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Subtotal</label>
+                            <input name="Subtotal" type="number" step="0.01" min="0" value="@d.Subtotal" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">IVA</label>
+                            <input name="Iva" type="number" step="0.01" min="0" value="@d.Iva" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Total</label>
+                            <input name="Total" type="number" step="0.01" min="0" value="@d.Total" class="form-control form-control-sm ns-mono" />
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-success btn-sm">Registrar DTE recibido</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <hr />
+            <form asp-action="Rechazar" asp-route-id="@d.Id" method="post" class="d-flex gap-2 align-items-end justify-content-end"
+                  onsubmit="return confirm('¿Rechazar este documento?');">
+                @Html.AntiForgeryToken()
+                <div style="flex:1; max-width:420px">
+                    <label class="form-label small">Motivo de rechazo (opcional)</label>
+                    <input name="motivo" class="form-control form-control-sm" placeholder="Documento ilegible, duplicado..." />
+                </div>
+                <button type="submit" class="btn btn-outline-danger btn-sm">Rechazar</button>
+            </form>
+        </div>
+    </div>
+}

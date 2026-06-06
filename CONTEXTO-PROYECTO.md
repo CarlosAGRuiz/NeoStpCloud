@@ -645,7 +645,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 8 | **Catálogos MH** | ✅ Sprint 13 — módulo completo (CRUD/import/export/versión/cascada) | Sembrar resto vía import oficial (CAT-008 Distrito, CAT-019/020 completos) | Media |
 | 9 | **Dashboard** | ✅ base | Integrar NeoProfit, certificación, alertas Hacienda | Alta |
 | 10 | **NeoProfit / NeoBI** | ✅ Sprint 22 — `ProfitCalculator` puro + `IProfitService` + `/api/profit/*` + dashboard Web + grids/CRUD gastos/compras (permisos 370/371) | Snapshots mensuales + alertas de margen | Alta |
-| 11 | **NeoScanAI** | ✅ Backend Mobile B-3 — `IScanService`, bandeja + conversión a gasto/compra/DTE recibido, `/api/scanai/*`, OCR pluggable (mock) | Integrar OCR/IA real + UI Web (solo API hoy) | Alta |
+| 11 | **NeoScanAI** | ✅ Backend Mobile B-3 + **UI Web** (`ScanController` `/Scan`: bandeja, preview, corrección de campos, conversión a gasto/compra/DTE recibido, rechazo; permisos `ScanAI.Ver/.Confirmar`) | Integrar OCR/IA real | Alta |
 | 12 | **NeoConnect API** | ✅ Sprint 24 COMPLETO — API keys (hash SHA-256 + scopes), `X-Api-Key` middleware, webhooks firmados HMAC + worker, rate limit por ApiKey, UI `/Integraciones`, **endpoints de negocio v1** (`/api/v1`) + OpenAPI público + tests | Sandbox dedicado + más eventos | Media-alta |
 | 13 | **NeoPOS** | ❌ | Caja, venta rápida, conversión a DTE | Media-alta |
 | 14 | **NeoPortal Clientes** | ❌ | Consulta pública, estado de cuenta | Media |
@@ -709,7 +709,7 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 | 5 | **NeoConnect API comercial** | ✅ | Gestión (API keys + webhooks firmados + worker + UI `/Integraciones`) **y endpoints de negocio v1** (`/api/v1`: emitir/consultar/descargar DTE, alta/listado clientes y productos por API Key + scopes), sandbox por ambiente DTE, OpenAPI público + `docs/NeoConnect-API-v1.md` — **base para NeoBusiness y NeoScan**; COMPLETO (gestión + negocio + tests) |
 | 6 | **NeoProfit** (Sprint 22) | ✅ | `ProfitCalculator` (PROCESADO, NC resta, ND suma, SE sin IVA, costo pendiente) + `IProfitService`/`/api/profit/*` + dashboard financiero Web + grids/CRUD de gastos y compras; permisos NEOPROFIT 370/371; migración `Sprint22_NeoProfit` |
 | 7 | **Backend NeoCloud Mobile** (B-1…B-6) | ✅ | API lista para la app Flutter: emisión 1-paso, Cobros/CxC, NeoScanAI (OCR pluggable), Alertas/push, QR de cobro, verificación NIT; tenant-safe (mobile = empresa-only, sin SuperAdmin); docs `NeoCloud-Mobile-API.md` + `NeoCloud-Mobile-Plan.md`; explorador Scalar `/scalar/v1` |
-| 8 | **NeoScanAI** | ✅ backend (B-3) | Bandeja + conversión a gasto/compra/DTE recibido vía API (`/api/scanai/*`); OCR/IA real e UI Web pendientes |
+| 8 | **NeoScanAI** | ✅ backend (B-3) + UI Web | Bandeja + conversión a gasto/compra/DTE recibido vía API (`/api/scanai/*`) y vía web (`/Scan`: bandeja, preview, corrección, conversión); OCR/IA real pendiente |
 | 9 | **Plan V2** | 📋 | Roadmap de mejoras y nuevos módulos (paridad Web↔API, integraciones reales OCR/FCM, NeoPOS, Inventario, NeoBI, NeoPortal, App Flutter, etc.) — ver `docs/Plan-V2.md` |
 
 **Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva · ✅ Onboarding self-service · ✅ NeoConnect (gestión + negocio) · ✅ NeoProfit · ✅ Backend Mobile (B-1…B-6) → **siguiente: ejecutar `docs/Plan-V2.md` (paridad Web↔API + app Flutter + integraciones reales)**.

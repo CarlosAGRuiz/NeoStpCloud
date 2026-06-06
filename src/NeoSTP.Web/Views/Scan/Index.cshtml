@@ -1,0 +1,102 @@
+@model NeoSTP.Web.Controllers.ScanIndexViewModel
+@{
+    ViewData["Title"] = "NeoScan";
+
+    string Badge(string estado) => estado switch
+    {
+        "CONFIRMADO" => "ns-badge--processed",
+        "PROCESADO" => "ns-badge--processed",
+        "REQUIERE_REVISION" => "ns-badge--contingency",
+        "PROCESANDO" => "ns-badge--contingency",
+        "RECHAZADO" => "ns-badge--rejected",
+        "ERROR" => "ns-badge--rejected",
+        _ => "",
+    };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>NeoScan</span></nav>
+        <h1 class="ns-page-title">Bandeja de documentos</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@Model.Search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar emisor, número de control o archivo..." />
+        <select name="estado" class="form-select form-select-sm" style="width:200px">
+            <option value="">Todos los estados</option>
+            @foreach (var e in Model.Estados)
+            {
+                <option value="@e" selected="@(Model.Estado == e)">@e</option>
+            }
+        </select>
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Emisor</th>
+                    <th>Fecha</th>
+                    <th>Número control</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-center">Confianza</th>
+                    <th>Estado</th>
+                    <th>Clasificación</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Documentos.Items.Any())
+                {
+                    <tr><td colspan="9"><div class="ns-empty"><span class="material-symbols-outlined">document_scanner</span><p>Sin documentos en la bandeja.</p></div></td></tr>
+                }
+                @foreach (var d in Model.Documentos.Items)
+                {
+                    <tr>
+                        <td class="ns-mono">@d.Id</td>
+                        <td>
+                            <div>@(string.IsNullOrWhiteSpace(d.EmisorNombre) ? "—" : d.EmisorNombre)</div>
+                            @if (!string.IsNullOrWhiteSpace(d.EmisorNit)) { <div class="small text-muted ns-mono">@d.EmisorNit</div> }
+                        </td>
+                        <td class="ns-mono">@(d.Fecha?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td><code class="ns-mono small">@(string.IsNullOrWhiteSpace(d.NumeroControl) ? "—" : d.NumeroControl)</code></td>
+                        <td class="text-end ns-mono">@(d.Total?.ToString("N2") ?? "—")</td>
+                        <td class="text-center ns-mono">@((d.Confianza * 100).ToString("0"))%</td>
+                        <td><span class="ns-badge @Badge(d.EstadoCodigo)">@d.EstadoCodigo</span></td>
+                        <td>@(string.IsNullOrWhiteSpace(d.TipoClasificacion) ? "—" : d.TipoClasificacion)</td>
+                        <td class="text-end">
+                            <a asp-action="Detalle" asp-route-id="@d.Id" class="btn btn-sm btn-outline-primary">
+                                <span class="material-symbols-outlined align-middle" style="font-size:18px">visibility</span> Revisar
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Documentos.TotalPages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm">
+            @for (int i = 1; i <= Model.Documentos.TotalPages; i++)
+            {
+                <li class="page-item @(i == Model.Documentos.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@Model.Search" asp-route-estado="@Model.Estado">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+<p class="text-muted small mt-2">Total: @Model.Documentos.Total documentos.</p>
