@@ -16,12 +16,14 @@ public class UsuariosService : IUsuariosService
     private readonly NeoStpDbContext _db;
     private readonly IPasswordHasher _hasher;
     private readonly IAuditoriaService _auditoria;
+    private readonly IPasswordPolicy _passwordPolicy;
 
-    public UsuariosService(NeoStpDbContext db, IPasswordHasher hasher, IAuditoriaService auditoria)
+    public UsuariosService(NeoStpDbContext db, IPasswordHasher hasher, IAuditoriaService auditoria, IPasswordPolicy passwordPolicy)
     {
         _db = db;
         _hasher = hasher;
         _auditoria = auditoria;
+        _passwordPolicy = passwordPolicy;
     }
 
     public async Task<Result<PagedResult<UsuarioDto>>> GetListAsync(int? empresaId, PagedQuery query, CancellationToken ct = default)
@@ -158,10 +160,8 @@ public class UsuariosService : IUsuariosService
 
     public async Task<Result> ChangePasswordAsync(int userId, ChangePasswordRequest request, string? actor, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
-        {
-            return Result.Fail("La nueva contraseña debe tener al menos 8 caracteres.", "PWD_WEAK");
-        }
+        var policy = _passwordPolicy.Validate(request.NewPassword);
+        if (policy.IsFailure) return policy;
 
         var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (usuario is null) return Result.Fail("Usuario no encontrado.", "USER_NOT_FOUND");
@@ -182,10 +182,8 @@ public class UsuariosService : IUsuariosService
 
     public async Task<Result> ResetPasswordAsync(int? empresaId, int id, ResetPasswordRequest request, string? actor, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
-        {
-            return Result.Fail("La nueva contraseña debe tener al menos 8 caracteres.", "PWD_WEAK");
-        }
+        var policy = _passwordPolicy.Validate(request.NewPassword);
+        if (policy.IsFailure) return policy;
 
         var usuario = await LoadAsync(empresaId, id, asNoTracking: false, ct);
         if (usuario is null) return Result.Fail("Usuario no encontrado.", "USER_NOT_FOUND");
@@ -210,13 +208,14 @@ public class UsuariosService : IUsuariosService
         };
     }
 
-    private static Result ValidateCreate(CreateUsuarioRequest r)
+    private Result ValidateCreate(CreateUsuarioRequest r)
     {
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(r.Username)) errors.Add("Username es obligatorio.");
         if (string.IsNullOrWhiteSpace(r.Email)) errors.Add("Email es obligatorio.");
         if (string.IsNullOrWhiteSpace(r.NombreCompleto)) errors.Add("Nombre completo es obligatorio.");
-        if (string.IsNullOrWhiteSpace(r.Password) || r.Password.Length < 8) errors.Add("Password debe tener al menos 8 caracteres.");
+        var policy = _passwordPolicy.Validate(r.Password);
+        if (policy.IsFailure) errors.AddRange(policy.ValidationErrors ?? new[] { "Contraseña inválida." });
         return errors.Count == 0 ? Result.Ok() : Result.Fail("Datos inválidos.", "VALIDATION", errors);
     }
 

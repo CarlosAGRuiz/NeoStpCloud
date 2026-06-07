@@ -15,8 +15,6 @@ namespace NeoSTP.Infrastructure.Auth;
 public class AuthService : IAuthService
 {
     private const string AuditModule = "AUTH";
-    private const int MaxIntentosFallidos = 5;
-    private static readonly TimeSpan BloqueoDuracion = TimeSpan.FromMinutes(15);
 
     private readonly NeoStpDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
@@ -24,6 +22,7 @@ public class AuthService : IAuthService
     private readonly IAuditoriaService _auditoria;
     private readonly IMfaService _mfa;
     private readonly JwtOptions _jwtOptions;
+    private readonly LockoutOptions _lockout;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -33,6 +32,7 @@ public class AuthService : IAuthService
         IAuditoriaService auditoria,
         IMfaService mfa,
         IOptions<JwtOptions> jwtOptions,
+        IOptions<SecurityOptions> securityOptions,
         ILogger<AuthService> logger)
     {
         _db = db;
@@ -41,6 +41,7 @@ public class AuthService : IAuthService
         _auditoria = auditoria;
         _mfa = mfa;
         _jwtOptions = jwtOptions.Value;
+        _lockout = securityOptions.Value.Lockout;
         _logger = logger;
     }
 
@@ -78,9 +79,9 @@ public class AuthService : IAuthService
         if (!_passwordHasher.Verify(request.Password, usuario.PasswordHash))
         {
             usuario.IntentosFallidos++;
-            if (usuario.IntentosFallidos >= MaxIntentosFallidos)
+            if (_lockout.MaxFailedAttempts > 0 && usuario.IntentosFallidos >= _lockout.MaxFailedAttempts)
             {
-                usuario.BloqueadoHasta = DateTime.UtcNow.Add(BloqueoDuracion);
+                usuario.BloqueadoHasta = DateTime.UtcNow.AddMinutes(_lockout.LockoutMinutes);
                 usuario.EstadoCodigo = EstadoCodes.Bloqueado;
             }
             await _db.SaveChangesAsync(ct);

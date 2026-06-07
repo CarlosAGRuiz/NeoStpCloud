@@ -7,6 +7,8 @@
     <!-- Genera el XML de comentarios para enriquecer la documentación OpenAPI (NeoConnect API v1). -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- M6.1: secretos de desarrollo via `dotnet user-secrets` (fuera del repo). -->
+    <UserSecretsId>neostp-api</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

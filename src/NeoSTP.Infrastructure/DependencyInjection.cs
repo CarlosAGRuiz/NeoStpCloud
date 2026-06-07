@@ -53,6 +53,9 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuditoriaService, AuditoriaService>();
         services.AddScoped<IAuditoriaQueryService, AuditoriaQueryService>();
+        // Seguridad (M6.2): política de contraseña + bloqueo configurables.
+        services.Configure<NeoSTP.Application.Auth.SecurityOptions>(configuration.GetSection(NeoSTP.Application.Auth.SecurityOptions.SectionName));
+        services.AddScoped<IPasswordPolicy, PasswordPolicy>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUsuariosService, UsuariosService>();
         services.AddScoped<IRolesService, RolesService>();

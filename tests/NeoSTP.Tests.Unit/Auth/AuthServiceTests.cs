@@ -60,7 +60,9 @@ public class AuthServiceTests
         mfa.VerificarCodigoLoginAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(NeoSTP.Application.Common.Result.Ok());
 
-        var svc = new AuthService(db, hasher, jwt, audit, mfa, jwtOptions, NullLogger<AuthService>.Instance);
+        var securityOptions = Options.Create(new NeoSTP.Application.Auth.SecurityOptions());
+
+        var svc = new AuthService(db, hasher, jwt, audit, mfa, jwtOptions, securityOptions, NullLogger<AuthService>.Instance);
         return (svc, db, jwt, audit);
     }
 
