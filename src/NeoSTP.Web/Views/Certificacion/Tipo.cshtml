@@ -36,12 +36,7 @@
     };
 }
 
-<nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Certificacion</a></li>
-        <li class="breadcrumb-item active" aria-current="page">@(progreso?.Nombre ?? tipo)</li>
-    </ol>
-</nav>
+<nav class="ns-breadcrumb mb-2"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Certificación</a><span class="material-symbols-outlined">chevron_right</span><span>@(progreso?.Nombre ?? tipo)</span></nav>
 
 <section class="mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -50,7 +45,7 @@
                 <span class="ns-chip">@tipo</span>
                 <span class="ns-badge ns-badge--draft">@(esEvento ? "Evento DTE" : "Documento DTE")</span>
             </div>
-            <h1 class="mb-1">@(progreso?.Nombre ?? tipo)</h1>
+            <h1 class="ns-page-title">@(progreso?.Nombre ?? tipo)</h1>
             @if (!string.IsNullOrWhiteSpace(progreso?.Descripcion))
             {
                 <p class="text-muted mb-0">@progreso.Descripcion</p>

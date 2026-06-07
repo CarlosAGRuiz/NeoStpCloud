@@ -4,22 +4,14 @@
     ViewData["Title"] = "Errores de certificacion";
 }
 
-<nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Certificacion</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Errores</li>
-    </ol>
-</nav>
-
-<section class="mb-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-        <div>
-            <h1 class="mb-1">Errores de certificacion</h1>
-            <p class="text-muted mb-0">Respuestas rechazadas o fallidas de Hacienda vinculadas a pruebas reales.</p>
-        </div>
-        <a asp-action="Index" class="btn btn-outline-primary btn-sm">Volver al resumen</a>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Certificación</a><span class="material-symbols-outlined">chevron_right</span><span>Errores</span></nav>
+        <h1 class="ns-page-title">Errores de certificación</h1>
+        <p class="text-muted mb-0">Respuestas rechazadas o fallidas de Hacienda vinculadas a pruebas reales.</p>
     </div>
-</section>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver al resumen</a>
+</div>
 
 <form method="get" class="card mb-3">
     <div class="card-body">

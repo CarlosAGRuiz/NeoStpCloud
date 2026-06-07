@@ -96,22 +96,22 @@
         </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-        <div class="card h-100"><div class="card-body ns-kpi">
+        <a asp-controller="DteDocumentos" asp-action="Index" asp-route-EstadoCodigo="RECHAZADO" class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
             <div class="ns-kpi-top">
                 <span class="ns-kpi-chip @(dto.Rechazados > 0 ? "ns-kpi-chip--rejected" : "")"><span class="material-symbols-outlined">warning</span></span>
             </div>
-            <p class="ns-kpi-label">Alertas</p>
+            <p class="ns-kpi-label">DTE rechazados</p>
             <h2 class="ns-kpi-value" style="color:@(dto.Rechazados > 0 ? "var(--ns-rejected)" : "var(--ns-draft)")">@dto.Rechazados</h2>
             <small class="text-muted">@dto.Rechazados rechazado@(dto.Rechazados != 1 ? "s" : "") · @dto.Pendientes pendiente@(dto.Pendientes != 1 ? "s" : "")</small>
-        </div></div>
+        </div></a>
     </div>
 </div>
 
 @* ── Fila 2: Charts ────────────────────────────────────────── *@
 <div class="row g-3 mb-4">
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white border-0 pb-0">
+        <div class="card h-100">
+            <div class="card-header">
                 <strong>Emisión diaria — últimos 30 días</strong>
             </div>
             <div class="card-body">
@@ -120,8 +120,8 @@
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white border-0 pb-0">
+        <div class="card h-100">
+            <div class="card-header">
                 <strong>Estados este mes</strong>
             </div>
             <div class="card-body d-flex align-items-center justify-content-center">
@@ -141,8 +141,8 @@
 @* ── Fila 3: Tablas ────────────────────────────────────────── *@
 <div class="row g-3">
     <div class="col-lg-7">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0">
+        <div class="card">
+            <div class="card-header">
                 <strong>Por tipo de DTE — mes actual</strong>
             </div>
             @if (dto.PorTipo.Any())
@@ -176,8 +176,8 @@
         </div>
     </div>
     <div class="col-lg-5">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white border-0">
+        <div class="card h-100">
+            <div class="card-header">
                 <strong>Plan activo</strong>
             </div>
             <div class="card-body">

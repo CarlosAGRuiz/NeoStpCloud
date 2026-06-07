@@ -11,29 +11,21 @@
         => m.Completo ? "ns-badge ns-badge--processed" : m.ConError > 0 ? "ns-badge ns-badge--rejected" : "ns-badge ns-badge--draft";
 }
 
-<section class="mb-4">
-    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
-        <div>
-            <nav class="d-flex align-items-center gap-2 text-muted small mb-2">
-                <span>NeoDTE</span>
-                <span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
-                <span class="text-dark fw-semibold">Certificacion</span>
-            </nav>
-            <h1 class="mb-1">Certificacion DTE</h1>
-            <p class="text-muted mb-0">Controla la matriz exigida por Hacienda usando DTE y eventos reales emitidos en ambiente de pruebas.</p>
-        </div>
-        <div class="d-flex gap-2">
-            <a asp-action="Matriz" class="btn btn-outline-primary btn-sm">
-                <span class="material-symbols-outlined align-middle" style="font-size:18px">view_list</span>
-                Matriz completa
-            </a>
-            <a asp-action="Errores" class="btn btn-outline-danger btn-sm">
-                <span class="material-symbols-outlined align-middle" style="font-size:18px">report</span>
-                Errores
-            </a>
-        </div>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Certificación</span></nav>
+        <h1 class="ns-page-title">Certificación DTE</h1>
+        <p class="text-muted mb-0">Controla la matriz exigida por Hacienda usando DTE y eventos reales emitidos en ambiente de pruebas.</p>
     </div>
-</section>
+    <div class="d-flex gap-2">
+        <a asp-action="Matriz" class="btn btn-outline-primary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">view_list</span> Matriz completa
+        </a>
+        <a asp-action="Errores" class="btn btn-outline-danger btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">report</span> Errores
+        </a>
+    </div>
+</div>
 
 @if (TempData["Success"] is string ok)
 {
