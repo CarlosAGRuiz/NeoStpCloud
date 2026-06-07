@@ -1,5 +1,6 @@
 using NeoSTP.Application.Workers;
 using NeoSTP.Infrastructure;
+using NeoSTP.Infrastructure.BackgroundTasks;
 using NeoSTP.Worker;
 using NeoSTP.Worker.Jobs;
 using Serilog;
@@ -31,6 +32,9 @@ builder.Services.AddHostedService<ContingenciaLoteWorker>();
 builder.Services.AddHostedService<BackupWorker>();
 builder.Services.AddHostedService<ConnectWebhookDeliveryWorker>();
 builder.Services.AddHostedService<AlertaGeneracionWorker>();
+
+// ── Cola de trabajo en proceso (M4.4): descarga de tareas pesadas ─
+builder.Services.AddBackgroundTaskQueue();
 
 var host = builder.Build();
 

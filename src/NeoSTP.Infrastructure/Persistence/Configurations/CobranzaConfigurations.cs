@@ -24,6 +24,8 @@ public class PagoClienteConfiguration : IEntityTypeConfiguration<PagoCliente>
 
         b.HasIndex(x => new { x.EmpresaId, x.DteDocumentoId });
         b.HasIndex(x => new { x.EmpresaId, x.EstadoCodigo });
+        // M4.3: acelera el subquery correlacionado de saldos (pagos confirmados por documento).
+        b.HasIndex(x => new { x.DteDocumentoId, x.EstadoCodigo });
     }
 }
 
