@@ -7,10 +7,25 @@
     var filtro = ViewBag.FiltroActual as DiagnosticoFiltroRequest;
 }
 
-@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible"><button type="button" class="btn-close" data-bs-dismiss="alert"></button>@ok</div> }
-@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible"><button type="button" class="btn-close" data-bs-dismiss="alert"></button>@err</div> }
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Diagnóstico</span></nav>
+        <h1 class="ns-page-title">Diagnóstico de errores Hacienda</h1>
+    </div>
+    <form asp-action="Sincronizar" method="post" class="m-0">
+        @Html.AntiForgeryToken()
+        <button class="btn btn-sm btn-outline-secondary">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">sync</span> Sincronizar historial
+        </button>
+    </form>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
 
 <div class="ns-toolbar">
+    <p class="text-muted small m-0">Mapeo de códigos de error de Hacienda a explicaciones y acciones sugeridas.</p>
+</div>
     <p class="text-muted small m-0">Mapeo de códigos de error de Hacienda a explicaciones y acciones sugeridas.</p>
     <form asp-action="Sincronizar" method="post" class="d-inline m-0">
         @Html.AntiForgeryToken()

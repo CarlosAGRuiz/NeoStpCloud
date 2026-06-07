@@ -3,6 +3,21 @@
     ViewData["Title"] = "Sucursales";
 }
 
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Sucursales</span></nav>
+        <h1 class="ns-page-title">Sucursales</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">point_of_sale</span> Puntos de venta
+        </a>
+        <a asp-action="Create" class="btn btn-primary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva sucursal
+        </a>
+    </div>
+</div>
+
 @if (TempData["Success"] is string ok)
 {
     <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -20,17 +35,9 @@
         </button>
         @if (!string.IsNullOrEmpty(ViewBag.Search as string))
         {
-            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">✕ Limpiar</a>
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">close</span> Limpiar</a>
         }
     </form>
-    <div class="d-flex gap-2">
-        <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">point_of_sale</span> Puntos de venta
-        </a>
-        <a asp-action="Create" class="btn btn-primary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva sucursal
-        </a>
-    </div>
 </div>
 
 <div class="card">

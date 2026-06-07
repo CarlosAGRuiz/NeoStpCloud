@@ -5,23 +5,33 @@
     var isSuperAdmin = (bool)(ViewBag.IsSuperAdmin ?? false);
 }
 
-@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
-@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
-
-<div class="ns-toolbar">
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Empresas</span></nav>
+        <h1 class="ns-page-title">Empresas</h1>
+    </div>
     @if (isSuperAdmin)
     {
+        <a asp-action="Create" class="btn btn-primary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva empresa
+        </a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (isSuperAdmin)
+{
+    <div class="ns-toolbar">
         <form method="get" class="ns-toolbar-search">
             <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar NIT, razón social…" />
             <button type="submit" class="btn btn-outline-secondary btn-sm">
                 <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
             </button>
         </form>
-        <a asp-action="Create" class="btn btn-primary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva empresa
-        </a>
-    }
-</div>
+    </div>
+}
 
 <div class="card">
     <div class="table-responsive">

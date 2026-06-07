@@ -5,6 +5,13 @@
     var estado = ViewBag.Estado as string;
 }
 
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Eventos DTE</span></nav>
+        <h1 class="ns-page-title">Eventos DTE</h1>
+    </div>
+</div>
+
 @if (TempData["Success"] is string ok)
 {
     <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>

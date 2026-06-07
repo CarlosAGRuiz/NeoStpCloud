@@ -7,6 +7,13 @@
     var rawKeyNombre = TempData["RawKeyNombre"] as string;
 }
 
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Integraciones</span></nav>
+        <h1 class="ns-page-title">NeoConnect · Integraciones</h1>
+    </div>
+</div>
+
 @if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> }
 
@@ -21,7 +28,7 @@
             <p class="text-muted small mb-2">Cópiala ahora. Por seguridad <strong>no se volverá a mostrar</strong>; solo se guarda su hash.</p>
             <div class="input-group">
                 <input id="rawKeyInput" class="form-control ns-mono" value="@rawKey" readonly />
-                <button class="btn btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('rawKeyInput').value); this.textContent='Copiado ✓';">Copiar</button>
+                <button class="btn btn-primary" type="button" onclick="navigator.clipboard.writeText(document.getElementById('rawKeyInput').value); this.textContent='Copiado';">Copiar</button>
             </div>
         </div>
     </div>
@@ -63,8 +70,8 @@
                             <div><div class="ns-mono fw-bold fs-5">@u.TotalPeticiones</div><div class="ns-metric-label">Total</div></div>
                         </div>
                         <div class="text-muted small mt-3">
-                            Webhooks: <span class="ns-badge ns-badge--processed">@u.WebhooksEntregados ✓</span>
-                            @if (u.WebhooksFallidos > 0) { <span class="ns-badge ns-badge--rejected">@u.WebhooksFallidos ✕</span> }
+                            Webhooks: <span class="ns-badge ns-badge--processed">@u.WebhooksEntregados entregados</span>
+                            @if (u.WebhooksFallidos > 0) { <span class="ns-badge ns-badge--rejected">@u.WebhooksFallidos fallidos</span> }
                         </div>
                     </div>
                 </div>

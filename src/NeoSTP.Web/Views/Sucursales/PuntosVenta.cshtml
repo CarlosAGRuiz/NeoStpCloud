@@ -5,11 +5,14 @@
     int? filtroSucursalId = ViewBag.SucursalId as int?;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Puntos de Venta</h2>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Sucursales</a><span class="material-symbols-outlined">chevron_right</span><span>Puntos de venta</span></nav>
+        <h1 class="ns-page-title">Puntos de venta</h1>
+    </div>
     <div class="d-flex gap-2">
-        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">🏢 Sucursales</a>
-        <a asp-action="CreatePuntoVenta" asp-route-sucursalId="@filtroSucursalId" class="btn btn-primary btn-sm">+ Nuevo punto de venta</a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">store</span> Sucursales</a>
+        <a asp-action="CreatePuntoVenta" asp-route-sucursalId="@filtroSucursalId" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo punto de venta</a>
     </div>
 </div>
 
@@ -39,7 +42,7 @@
         <button type="submit" class="btn btn-outline-primary btn-sm">Buscar</button>
         @if (filtroSucursalId.HasValue || !string.IsNullOrEmpty(ViewBag.Search as string))
         {
-            <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm ms-1">✕ Limpiar</a>
+            <a asp-action="PuntosVenta" class="btn btn-outline-secondary btn-sm ms-1"><span class="material-symbols-outlined align-middle" style="font-size:18px">close</span> Limpiar</a>
         }
     </div>
 </form>
