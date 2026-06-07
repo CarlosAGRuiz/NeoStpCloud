@@ -6,6 +6,11 @@
     <ProjectReference Include="..\NeoSTP.Shared\NeoSTP.Shared.csproj" />
   </ItemGroup>
 
+  <!-- Health checks (M3.2): tipos de ASP.NET para AddHealthChecks/MapHealthChecks compartidos por Api y Web. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="mercadopago-sdk" Version="3.1.0" />

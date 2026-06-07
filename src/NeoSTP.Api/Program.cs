@@ -11,6 +11,7 @@ using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Legal;
 using NeoSTP.Application.Ops;
 using NeoSTP.Infrastructure;
+using NeoSTP.Infrastructure.Diagnostics;
 using NeoSTP.Infrastructure.Persistence.Seed;
 using NeoSTP.Shared;
 using Scalar.AspNetCore;
@@ -31,6 +32,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddNeoStpHealthChecks();
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
 builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
 
@@ -127,6 +129,7 @@ app.MapGet("/health", () => ApiResponse<object>.Ok(new
     service = "NeoSTP.Api",
     timestamp = DateTime.UtcNow
 }));
+app.MapNeoStpHealthChecks();
 
 try
 {

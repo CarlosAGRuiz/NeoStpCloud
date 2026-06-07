@@ -3,6 +3,7 @@ using NeoSTP.Application;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Legal;
 using NeoSTP.Infrastructure;
+using NeoSTP.Infrastructure.Diagnostics;
 using NeoSTP.Web.Auth;
 using Serilog;
 
@@ -20,6 +21,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddNeoStpHealthChecks();
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -71,6 +73,8 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+app.MapNeoStpHealthChecks();
 
 try
 {
