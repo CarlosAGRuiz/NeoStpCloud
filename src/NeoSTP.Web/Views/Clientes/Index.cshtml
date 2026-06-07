@@ -4,16 +4,11 @@
     var search = ViewBag.Search as string;
 }
 
-@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
-@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
-
-<div class="ns-toolbar">
-    <form method="get" class="ns-toolbar-search">
-        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar nombre, documento o NRC…" />
-        <button type="submit" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
-        </button>
-    </form>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Clientes</span></nav>
+        <h1 class="ns-page-title">Clientes</h1>
+    </div>
     <div class="d-flex gap-2">
         <a asp-action="Importar" class="btn btn-outline-secondary btn-sm">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Carga masiva
@@ -22,6 +17,18 @@
             <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo cliente
         </a>
     </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar nombre, documento o NRC…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
+        </button>
+    </form>
 </div>
 
 <div class="card">

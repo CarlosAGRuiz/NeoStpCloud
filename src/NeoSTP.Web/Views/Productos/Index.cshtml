@@ -4,16 +4,11 @@
     var search = ViewBag.Search as string;
 }
 
-@if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
-@if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
-
-<div class="ns-toolbar">
-    <form method="get" class="ns-toolbar-search">
-        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar código, nombre o barra…" />
-        <button type="submit" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
-        </button>
-    </form>
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Productos</span></nav>
+        <h1 class="ns-page-title">Productos</h1>
+    </div>
     <div class="d-flex gap-2">
         <a asp-action="Importar" class="btn btn-outline-secondary btn-sm">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Carga masiva
@@ -22,6 +17,18 @@
             <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo producto
         </a>
     </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar código, nombre o barra…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
+        </button>
+    </form>
 </div>
 
 <div class="card">
@@ -54,7 +61,7 @@
                         <td><span class="badge @tipoBadge">@p.TipoItem</span></td>
                         <td><small>@p.UnidadMedidaCodigo</small></td>
                         <td class="text-end">@p.PrecioUnitario.ToString("N4")</td>
-                        <td>@(p.AplicaIva ? "✓" : "—")</td>
+                        <td>@if (p.AplicaIva) { <span class="material-symbols-outlined align-middle text-success" style="font-size:18px">check</span> } else { <text>—</text> }</td>
                         <td><span class="@badge">@p.EstadoCodigo</span></td>
                         <td class="text-end">
                             <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Editar</a>
