@@ -11,6 +11,7 @@
     var puedeVerCertificacion = isSuperAdmin || User.HasClaim("permiso", "Core.Certificacion.Ver");
     var puedeVerEventos = isSuperAdmin || User.HasClaim("permiso", "DTE.Eventos.Ver");
     var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
+    var puedeVerAuditoria = isSuperAdmin || User.HasClaim("permiso", "Core.Auditoria.Ver");
     var puedeVerIntegraciones = isSuperAdmin || User.HasClaim("permiso", "Connect.ApiKeys.Ver");
     var puedeVerProfit = isSuperAdmin || User.HasClaim("permiso", "Profit.Ver");
     var puedeVerScan = isSuperAdmin || User.HasClaim("permiso", "ScanAI.Ver");
@@ -126,12 +127,16 @@ else
                     <a class="ns-nav-link @active("Integraciones")" asp-controller="Integraciones" asp-action="Index"><span class="material-symbols-outlined">hub</span> Integraciones</a>
                 }
 
-                @if (puedeVerHardening || isSuperAdmin)
+                @if (puedeVerHardening || isSuperAdmin || puedeVerAuditoria)
                 {
                     <div class="ns-nav-group">Sistema</div>
                     @if (isSuperAdmin)
                     {
                         <a class="ns-nav-link" asp-controller="Billing" asp-action="Transferencias"><span class="material-symbols-outlined">price_check</span> Verificar pagos</a>
+                    }
+                    @if (puedeVerAuditoria)
+                    {
+                        <a class="ns-nav-link @active("Auditoria")" asp-controller="Auditoria" asp-action="Index"><span class="material-symbols-outlined">history</span> Auditoría</a>
                     }
                     @if (puedeVerHardening)
                     {
