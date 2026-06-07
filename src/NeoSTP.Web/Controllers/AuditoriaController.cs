@@ -1,9 +1,9 @@
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
+using NeoSTP.Shared;
 
 namespace NeoSTP.Web.Controllers;
 
@@ -58,24 +58,14 @@ public class AuditoriaController : Controller
         var query = Construir(filtro, empresaId, 1);
         var filas = await _auditoria.ExportAsync(query, ct: ct);
 
-        var sb = new StringBuilder();
-        sb.AppendLine("Fecha,Empresa,Usuario,Modulo,Accion,Entidad,EntidadId,Resultado,IP,Detalle");
+        var csv = new CsvExporter("Fecha", "Empresa", "Usuario", "Modulo", "Accion", "Entidad", "EntidadId", "Resultado", "IP", "Detalle");
         foreach (var a in filas)
         {
-            sb.Append(Csv(a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"))).Append(',')
-              .Append(Csv(a.EmpresaId?.ToString())).Append(',')
-              .Append(Csv(a.Username)).Append(',')
-              .Append(Csv(a.Modulo)).Append(',')
-              .Append(Csv(a.Accion)).Append(',')
-              .Append(Csv(a.Entidad)).Append(',')
-              .Append(Csv(a.EntidadId)).Append(',')
-              .Append(Csv(a.Resultado)).Append(',')
-              .Append(Csv(a.IpAddress)).Append(',')
-              .Append(Csv(a.Detalle)).AppendLine();
+            csv.AddRow(a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"), a.EmpresaId, a.Username, a.Modulo,
+                a.Accion, a.Entidad, a.EntidadId, a.Resultado, a.IpAddress, a.Detalle);
         }
 
-        var bytes = new UTF8Encoding(true).GetBytes(sb.ToString()); // BOM para Excel
-        return File(bytes, "text/csv", $"auditoria_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
+        return File(csv.ToBytes(), "text/csv", $"auditoria_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv");
     }
 
     private AuditoriaQuery Construir(AuditoriaFiltro f, int? empresaId, int page) => new()
@@ -106,13 +96,6 @@ public class AuditoriaController : Controller
     private bool EsSuperAdmin => _currentUser.TipoUsuarioCodigo == "SUPERADMIN";
 
     private bool Has(string codigo) => EsSuperAdmin || _currentUser.HasPermiso(codigo);
-
-    private static string Csv(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return string.Empty;
-        var v = value.Replace("\"", "\"\"");
-        return $"\"{v}\"";
-    }
 }
 
 /// <summary>Filtros enviados por querystring (bind plano para reusarlos en Index y Export).</summary>

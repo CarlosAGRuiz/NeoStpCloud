@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 451 unit + 7 integración
+> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 459 unit + 7 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -134,6 +134,8 @@ escenarios, reintentos, snapshots de errores MH, dashboard con barras de progres
 · **Calidad/CI (M5):** tests de integración (composición de servicios reales sobre DbContext InMemory: Scan↔Profit↔DTE recibidos, Cobranza↔QR↔generación de alertas); pipeline CI GitHub Actions (`.github/workflows/ci.yml`: build + test en cada push/PR).
 · **Seguridad (M6):** política de contraseña + bloqueo de cuenta configurables (sección `Security`, `IPasswordPolicy` + `AuthService`, aplicada en alta/cambio/reseteo); User Secrets en dev (`UserSecretsId` en Api/Web); doc `docs/M6-Seguridad.md`. MFA TOTP disponible para todos los usuarios (obligatorio SuperAdmin).
 · **Rendimiento (M4):** índices de BD revisados (módulos nuevos ya cubiertos; +índice `Cobros_Pagos(DteDocumentoId, EstadoCodigo)` para el subquery de saldos, migración `M4_IndiceCobrosPagosSaldo`); cola de trabajo en proceso `IBackgroundTaskQueue` (Channel acotado) + `QueuedHostedService` (registrada en Worker) para descargar OCR/push/reportes.
+· **UX (M7):** utilidad `CsvExporter` reutilizable (Shared, escape RFC 4180 + BOM) usada por el export de Auditoría; limpieza de emojis residuales en el AppShell.
+· **DevEx (M8):** dockerización Web/Api/Worker (Dockerfiles multi-stage) + `docker-compose.yml` (SQL Server + servicios) + `.dockerignore`; doc `docs/M8-DevEx.md`.
 · **436 tests unit + 7 integración.**
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12

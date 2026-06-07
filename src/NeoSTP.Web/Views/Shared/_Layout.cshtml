@@ -161,7 +161,7 @@ else
             @if (enModoSoporte)
             {
                 <div class="ns-support-banner">
-                    <span>⚠️ <strong>Modo soporte activo</strong> · operando como: <strong>@soporteEmpresaNombre</strong></span>
+                    <span><span class="material-symbols-outlined align-middle" style="font-size:18px">warning</span> <strong>Modo soporte activo</strong> · operando como: <strong>@soporteEmpresaNombre</strong></span>
                     <form asp-controller="Soporte" asp-action="Salir" method="post" class="d-inline m-0">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm btn-link p-0">Salir del modo soporte</button>

@@ -1,0 +1,15 @@
+# Artefactos de build y archivos que no deben entrar a la imagen
+**/bin/
+**/obj/
+**/publish/
+**/.vs/
+**/.git/
+**/.github/
+**/.idea/
+tmp/
+logs/
+**/logs/
+# Secretos locales: NUNCA se copian a la imagen
+**/appsettings.Local.json
+**/*.user
+*.md
