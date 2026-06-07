@@ -153,6 +153,52 @@ public class DteGeneratorTests
     }
 
     [Fact]
+    public void Generar_NotaDebito_TipoDte06_ConRelacionadoYReceptorNrc()
+    {
+        var d = NewDoc(TipoDteCodigos.NotaDebito);
+        d.ReceptorNrc = "98765"; // ND es documento entre contribuyentes (usa NRC del receptor)
+        d.NumeroDocumentoRelacionado = "DTE-03-00010001-000000000000099";
+        d.TipoDteRelacionado = "03";
+        d.TipoGeneracionRelacionado = "2";
+        _calc.Recalcular(d);
+        var result = _gen.Generar(d);
+
+        result.IsSuccess.Should().BeTrue();
+        var json = JsonDocument.Parse(result.Value!);
+        json.RootElement.GetProperty("identificacion").GetProperty("tipoDte").GetString().Should().Be("06");
+        json.RootElement.GetProperty("receptor").GetProperty("nrc").GetString().Should().Be("98765");
+        json.RootElement.GetProperty("documentoRelacionado").GetArrayLength().Should().Be(1);
+    }
+
+    [Fact]
+    public void Generar_NotaRemision_TipoDte04_ConReceptor()
+    {
+        var d = NewDoc(TipoDteCodigos.NotaRemision);
+        _calc.Recalcular(d);
+        var result = _gen.Generar(d);
+
+        result.IsSuccess.Should().BeTrue();
+        var json = JsonDocument.Parse(result.Value!);
+        json.RootElement.GetProperty("identificacion").GetProperty("tipoDte").GetString().Should().Be("04");
+        json.RootElement.GetProperty("receptor").GetProperty("nombre").GetString().Should().Be("Consumidor Final");
+    }
+
+    [Fact]
+    public void Generar_FacturaExportacion_TipoDte11_ConPaisYTributoExportacion()
+    {
+        var d = NewDoc(TipoDteCodigos.FacturaExportacion);
+        _calc.Recalcular(d);
+        var result = _gen.Generar(d);
+
+        result.IsSuccess.Should().BeTrue();
+        var json = JsonDocument.Parse(result.Value!);
+        json.RootElement.GetProperty("identificacion").GetProperty("tipoDte").GetString().Should().Be("11");
+        json.RootElement.GetProperty("receptor").GetProperty("codPais").GetString().Should().Be("9539");
+        var cuerpo = json.RootElement.GetProperty("cuerpoDocumento");
+        cuerpo[0].GetProperty("tributos")[0].GetString().Should().Be("C3"); // IVA exportación 0%
+    }
+
+    [Fact]
     public void Generar_SinDetalles_FallaConValidacion()
     {
         var d = NewDoc(TipoDteCodigos.FacturaConsumidorFinal);

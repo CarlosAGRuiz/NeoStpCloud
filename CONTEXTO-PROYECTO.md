@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 459 unit + 7 integración
+> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 462 unit + 7 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
