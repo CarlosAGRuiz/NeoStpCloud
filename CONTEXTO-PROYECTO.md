@@ -134,7 +134,7 @@ escenarios, reintentos, snapshots de errores MH, dashboard con barras de progres
 · **Calidad/CI (M5):** tests de integración (composición de servicios reales sobre DbContext InMemory: Scan↔Profit↔DTE recibidos, Cobranza↔QR↔generación de alertas); pipeline CI GitHub Actions (`.github/workflows/ci.yml`: build + test en cada push/PR).
 · **Seguridad (M6):** política de contraseña + bloqueo de cuenta configurables (sección `Security`, `IPasswordPolicy` + `AuthService`, aplicada en alta/cambio/reseteo); User Secrets en dev (`UserSecretsId` en Api/Web); doc `docs/M6-Seguridad.md`. MFA TOTP disponible para todos los usuarios (obligatorio SuperAdmin).
 · **Rendimiento (M4):** índices de BD revisados (módulos nuevos ya cubiertos; +índice `Cobros_Pagos(DteDocumentoId, EstadoCodigo)` para el subquery de saldos, migración `M4_IndiceCobrosPagosSaldo`); cola de trabajo en proceso `IBackgroundTaskQueue` (Channel acotado) + `QueuedHostedService` (registrada en Worker) para descargar OCR/push/reportes.
-· **UX (M7):** utilidad `CsvExporter` reutilizable (Shared, escape RFC 4180 + BOM) usada por el export de Auditoría; limpieza de emojis residuales en el AppShell.
+· **UX (M7):** utilidad `CsvExporter` reutilizable (Shared, escape RFC 4180 + BOM) usada por el export de Auditoría; **encabezado `ns-page-head` unificado en todas las grids** (core + admin + operación) con alerts descartables; Hardening modernizado; **0 emojis residuales** en vistas.
 · **DevEx (M8):** dockerización Web/Api/Worker (Dockerfiles multi-stage) + `docker-compose.yml` (SQL Server + servicios) + `.dockerignore`; doc `docs/M8-DevEx.md`.
 · **436 tests unit + 7 integración.**
 
