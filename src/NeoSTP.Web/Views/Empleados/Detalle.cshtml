@@ -1,0 +1,68 @@
+@model NeoSTP.Application.Rrhh.Dtos.EmpleadoDetalleDto
+@{
+    ViewData["Title"] = $"Empleado · {Model.NombreCompleto}";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var puedeVerNomina = ViewBag.PuedeVerNomina is bool n && n;
+    var p = Model.NominaPreview;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Empleados</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Codigo</span>
+        </nav>
+        <h1 class="ns-page-title">@Model.NombreCompleto <span class="ns-pill @(Model.EstadoCodigo == "ACTIVO" ? "ns-pill--on" : "ns-pill--off")">@Model.EstadoCodigo</span></h1>
+    </div>
+    <div class="d-flex gap-2">
+        @if (puedeGestionar) { <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">edit</span> Editar</a> }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">badge</span> Datos del empleado</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small">Código</dt><dd class="col-sm-8 ns-mono">@Model.Codigo</dd>
+                    <dt class="col-sm-4 text-muted small">Documento</dt><dd class="col-sm-8 ns-mono">@Model.TipoDocumento · @Model.NumeroDocumento</dd>
+                    <dt class="col-sm-4 text-muted small">NIT</dt><dd class="col-sm-8 ns-mono">@(Model.Nit ?? "—")</dd>
+                    <dt class="col-sm-4 text-muted small">ISSS</dt><dd class="col-sm-8 ns-mono">@(Model.IsssNumero ?? "—")</dd>
+                    <dt class="col-sm-4 text-muted small">AFP</dt><dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.AfpInstitucion) ? "—" : Model.AfpInstitucion) <span class="ns-mono small text-muted">@Model.AfpNumero</span></dd>
+                    <dt class="col-sm-4 text-muted small">Cargo</dt><dd class="col-sm-8">@(Model.Cargo ?? "—")</dd>
+                    <dt class="col-sm-4 text-muted small">Ingreso</dt><dd class="col-sm-8 ns-mono">@Model.FechaIngreso.ToString("dd/MM/yyyy")</dd>
+                    @if (Model.FechaEgreso is DateOnly fe) { <dt class="col-sm-4 text-muted small">Egreso</dt><dd class="col-sm-8 ns-mono">@fe.ToString("dd/MM/yyyy")</dd> }
+                    <dt class="col-sm-4 text-muted small">Contrato</dt><dd class="col-sm-8">@Model.TipoContrato · pago @Model.PeriodicidadPago</dd>
+                    <dt class="col-sm-4 text-muted small">Salario mensual</dt><dd class="col-sm-8 ns-mono fw-bold">$ @Model.SalarioMensual.ToString("N2")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        @if (puedeVerNomina && p is not null)
+        {
+            <div class="card h-100">
+                <div class="card-header"><span class="material-symbols-outlined align-middle">calculate</span> Vista previa de nómina (mensual)</div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between py-1"><span class="text-muted">Salario bruto</span><span class="ns-mono">@p.SalarioBruto.ToString("N2")</span></div>
+                    <div class="d-flex justify-content-between py-1"><span class="text-muted">ISSS (3%)</span><span class="ns-mono text-danger">-@p.IsssEmpleado.ToString("N2")</span></div>
+                    <div class="d-flex justify-content-between py-1"><span class="text-muted">AFP (7.25%)</span><span class="ns-mono text-danger">-@p.AfpEmpleado.ToString("N2")</span></div>
+                    <div class="d-flex justify-content-between py-1 border-bottom"><span class="text-muted">Renta (ISR)</span><span class="ns-mono text-danger">-@p.Renta.ToString("N2")</span></div>
+                    <div class="d-flex justify-content-between py-2"><span class="fw-bold">Líquido a pagar</span><span class="ns-mono fw-bold fs-5" style="color:var(--ns-processed)">@p.SalarioNeto.ToString("N2")</span></div>
+                    <hr />
+                    <div class="small text-muted">Aporte patronal: ISSS @p.IsssPatronal.ToString("N2") · AFP @p.AfpPatronal.ToString("N2")</div>
+                    <div class="small text-muted">Costo patronal total: <span class="ns-mono">@p.CostoPatronal.ToString("N2")</span></div>
+                    <p class="text-muted small mt-2 mb-0">Estimación con tablas ES vigentes. La planilla quincenal se calcula en la corrida (próximo sprint).</p>
+                </div>
+            </div>
+        }
+        else if (!puedeVerNomina)
+        {
+            <div class="card h-100"><div class="card-body ns-empty"><span class="material-symbols-outlined">lock</span><p>Sin permiso para ver nómina.</p></div></div>
+        }
+    </div>
+</div>

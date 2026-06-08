@@ -6,6 +6,7 @@ using NeoSTP.Domain.Core.Cobranza;
 using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Domain.Core.Profit;
+using NeoSTP.Domain.Core.Rrhh;
 using NeoSTP.Domain.Core.Scan;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Certificacion;
@@ -122,6 +123,10 @@ public class NeoStpDbContext : DbContext
     public DbSet<Alerta> Alertas => Set<Alerta>();
     public DbSet<DispositivoNotificacion> DispositivosNotificacion => Set<DispositivoNotificacion>();
     public DbSet<PreferenciaNotificacion> PreferenciasNotificacion => Set<PreferenciaNotificacion>();
+
+    // RRHH / Nómina (NEORRHH — V2)
+    public DbSet<Empleado> Empleados => Set<Empleado>();
+    public DbSet<ContratoLaboral> ContratosLaborales => Set<ContratoLaboral>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

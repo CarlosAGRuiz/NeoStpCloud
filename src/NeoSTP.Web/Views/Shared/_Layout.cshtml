@@ -15,6 +15,7 @@
     var puedeVerIntegraciones = isSuperAdmin || User.HasClaim("permiso", "Connect.ApiKeys.Ver");
     var puedeVerProfit = isSuperAdmin || User.HasClaim("permiso", "Profit.Ver");
     var puedeVerScan = isSuperAdmin || User.HasClaim("permiso", "ScanAI.Ver");
+    var puedeVerEmpleados = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Empleados.Ver");
     var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
@@ -112,6 +113,12 @@ else
                         <a class="ns-nav-link @active("Scan")" asp-controller="Scan" asp-action="Index"><span class="material-symbols-outlined">document_scanner</span> NeoScan</a>
                         <a class="ns-nav-link @active("DteRecibidos")" asp-controller="DteRecibidos" asp-action="Index"><span class="material-symbols-outlined">inbox</span> DTE recibidos</a>
                     }
+                }
+
+                @if (puedeVerEmpleados)
+                {
+                    <div class="ns-nav-group">Recursos Humanos</div>
+                    <a class="ns-nav-link @active("Empleados")" asp-controller="Empleados" asp-action="Index"><span class="material-symbols-outlined">badge</span> Empleados</a>
                 }
 
                 <div class="ns-nav-group">Administración</div>

@@ -1,0 +1,24 @@
+@model NeoSTP.Application.Rrhh.Dtos.CreateEmpleadoRequest
+@{
+    ViewData["Title"] = "Nuevo empleado";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Empleados</a><span class="material-symbols-outlined">chevron_right</span><span>Nuevo</span></nav>
+        <h1 class="ns-page-title">Nuevo empleado</h1>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <partial name="_Fields" model="Model" />
+            <div class="text-end mt-3">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+                <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>

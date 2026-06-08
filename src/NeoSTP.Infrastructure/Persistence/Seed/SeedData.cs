@@ -371,6 +371,7 @@ internal static partial class SeedData
             Mod(110, "INVENTARIO",   "Inventario",        "Stock, movimientos, kardex",                         "boxes",          11),
             Mod(111, "COMPRAS",      "Compras",           "Compras y proveedores",                              "truck",          12),
             Mod(112, "GASTOS",       "Gastos",            "Control de gastos",                                  "wallet",         13),
+            Mod(113, "NEORRHH",      "NeoRRHH",           "Recursos humanos y nómina",                          "users",          14),
         };
 
         modelBuilder.Entity<Modulo>().HasData(modulos);
@@ -414,10 +415,10 @@ internal static partial class SeedData
             Pm(202, 100), Pm(202, 101), Pm(202, 102), Pm(202, 103), Pm(202, 108), Pm(202, 110),
             // BusinessFull
             Pm(203, 100), Pm(203, 101), Pm(203, 102), Pm(203, 103), Pm(203, 104), Pm(203, 105),
-            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112),
+            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113),
             // Enterprise (todos)
             Pm(204, 100), Pm(204, 101), Pm(204, 102), Pm(204, 103), Pm(204, 104), Pm(204, 105),
-            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112),
+            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113),
             // IntegradorAPI
             Pm(205, 100), Pm(205, 101), Pm(205, 106),
             // Contador
@@ -493,6 +494,11 @@ internal static partial class SeedData
             // Hardening / Operación (Sprint 20)
             Perm(363, "Ops.Hardening.Ver",         "ADMIN", "Ver backups, cuotas y lista blanca de IP"),
             Perm(364, "Ops.Hardening.Administrar", "ADMIN", "Ejecutar backups, configurar cuotas e IP allowlist"),
+
+            // RRHH / Nómina (NEORRHH — V2)
+            Perm(390, "Rrhh.Empleados.Ver",       "NEORRHH", "Ver empleados"),
+            Perm(391, "Rrhh.Empleados.Gestionar", "NEORRHH", "Crear, editar e inactivar empleados"),
+            Perm(392, "Rrhh.Nomina.Ver",          "NEORRHH", "Ver cálculo de nómina"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -522,6 +528,7 @@ internal static partial class SeedData
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
             370, 371, 380, 381,
+            390, 391, 392,
             360, 361, 362, 363, 364,
         };
 
@@ -533,6 +540,7 @@ internal static partial class SeedData
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
             370, 371, 380, 381,
+            390, 391, 392,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -552,6 +560,7 @@ internal static partial class SeedData
             322, 324,
             330, 335,
             340, 370, 380,
+            390, 392,
         };
 
         // READONLY (504) → solo ver

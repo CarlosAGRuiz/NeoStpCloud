@@ -5,7 +5,7 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 462 unit + 7 integración
+> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 485 unit + 7 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
@@ -136,7 +136,8 @@ escenarios, reintentos, snapshots de errores MH, dashboard con barras de progres
 · **Rendimiento (M4):** índices de BD revisados (módulos nuevos ya cubiertos; +índice `Cobros_Pagos(DteDocumentoId, EstadoCodigo)` para el subquery de saldos, migración `M4_IndiceCobrosPagosSaldo`); cola de trabajo en proceso `IBackgroundTaskQueue` (Channel acotado) + `QueuedHostedService` (registrada en Worker) para descargar OCR/push/reportes.
 · **UX (M7):** utilidad `CsvExporter` reutilizable (Shared, escape RFC 4180 + BOM) usada por el export de Auditoría; **encabezado `ns-page-head` unificado en todas las grids** (core + admin + operación) con alerts descartables; Hardening modernizado; **0 emojis residuales** en vistas.
 · **DevEx (M8):** dockerización Web/Api/Worker (Dockerfiles multi-stage) + `docker-compose.yml` (SQL Server + servicios) + `.dockerignore`; doc `docs/M8-DevEx.md`.
-· **436 tests unit + 7 integración.**
+· **ERP/CRM V2:** plan consolidado `docs/Plan-V2-ERP-CRM.md` (app Flutter y NeoScan fuera de este repo; API-first). **NEORRHH (módulo 113) Sprint 1**: `NominaCalculator` puro El Salvador (ISSS/AFP/Renta 2026 parametrizables, `NominaOptions`); entidades `Empleado`/`ContratoLaboral` (`Rrhh_Empleados`/`Rrhh_Contratos`); `IEmpleadosService` (CRUD + contrato vigente + preview de nómina); web `/Empleados` (Index/Detalle/Create/Edit `ns-*`); permisos `Rrhh.Empleados.Ver/Gestionar` (390/391) + `Rrhh.Nomina.Ver` (392); migración `NEORRHH_Schema`; tests (calculator 11 + servicio 5 + controller 7).
+· **485 tests unit + 7 integración.**
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
 
