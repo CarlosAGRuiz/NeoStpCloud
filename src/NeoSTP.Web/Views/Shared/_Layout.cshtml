@@ -16,6 +16,7 @@
     var puedeVerProfit = isSuperAdmin || User.HasClaim("permiso", "Profit.Ver");
     var puedeVerScan = isSuperAdmin || User.HasClaim("permiso", "ScanAI.Ver");
     var puedeVerEmpleados = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Empleados.Ver");
+    var puedeVerNomina = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Nomina.Ver");
     var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
@@ -115,10 +116,17 @@ else
                     }
                 }
 
-                @if (puedeVerEmpleados)
+                @if (puedeVerEmpleados || puedeVerNomina)
                 {
                     <div class="ns-nav-group">Recursos Humanos</div>
-                    <a class="ns-nav-link @active("Empleados")" asp-controller="Empleados" asp-action="Index"><span class="material-symbols-outlined">badge</span> Empleados</a>
+                    @if (puedeVerEmpleados)
+                    {
+                        <a class="ns-nav-link @active("Empleados")" asp-controller="Empleados" asp-action="Index"><span class="material-symbols-outlined">badge</span> Empleados</a>
+                    }
+                    @if (puedeVerNomina)
+                    {
+                        <a class="ns-nav-link @active("Planilla")" asp-controller="Planilla" asp-action="Index"><span class="material-symbols-outlined">payments</span> Planilla</a>
+                    }
                 }
 
                 <div class="ns-nav-group">Administración</div>

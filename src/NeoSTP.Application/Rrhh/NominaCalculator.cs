@@ -66,6 +66,36 @@ public sealed class NominaCalculator
         };
     }
 
+    /// <summary>
+    /// Cálculo de una quincena por prorrateo 50/50: devengado y deducciones (ISSS/AFP/Renta)
+    /// son la mitad del cálculo mensual. La suma de las dos quincenas reconcilia el mes
+    /// (con posible diferencia de centavos por redondeo). Política configurable a futuro.
+    /// </summary>
+    public NominaResultado CalcularQuincena(decimal salarioMensual, NominaOptions opciones)
+    {
+        var m = CalcularMensual(salarioMensual, opciones);
+        decimal H(decimal v) => R(v / 2m);
+
+        var bruto = H(m.SalarioBruto);
+        var isssEmp = H(m.IsssEmpleado);
+        var afpEmp = H(m.AfpEmpleado);
+        var renta = H(m.Renta);
+        var isssPat = H(m.IsssPatronal);
+        var afpPat = H(m.AfpPatronal);
+        var deducciones = R(isssEmp + afpEmp + renta);
+
+        return new NominaResultado
+        {
+            SalarioBruto = bruto,
+            BaseIsss = H(m.BaseIsss), IsssEmpleado = isssEmp, IsssPatronal = isssPat,
+            BaseAfp = H(m.BaseAfp), AfpEmpleado = afpEmp, AfpPatronal = afpPat,
+            BaseRenta = H(m.BaseRenta), Renta = renta,
+            TotalDeduccionesEmpleado = deducciones,
+            SalarioNeto = R(bruto - deducciones),
+            CostoPatronal = R(bruto + isssPat + afpPat),
+        };
+    }
+
     /// <summary>Retención de Renta según la tabla de tramos (cuota fija + % sobre el exceso).</summary>
     public decimal CalcularRenta(decimal baseGravable, IReadOnlyList<RentaTramo> tabla)
     {

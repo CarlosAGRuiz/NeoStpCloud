@@ -1,0 +1,46 @@
+@model NeoSTP.Application.Rrhh.Dtos.CrearPlanillaRequest
+@{
+    ViewData["Title"] = "Nueva corrida de planilla";
+    var meses = new[] { "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Planillas</a><span class="material-symbols-outlined">chevron_right</span><span>Nueva</span></nav>
+        <h1 class="ns-page-title">Nueva corrida de planilla</h1>
+    </div>
+</div>
+
+<div class="card" style="max-width:560px">
+    <div class="card-body">
+        <div asp-validation-summary="All" class="alert alert-danger @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+        <form asp-action="Crear" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <div class="col-md-4">
+                <label class="form-label small">Año</label>
+                <input asp-for="Anio" type="number" min="2000" max="2100" class="form-control form-control-sm ns-mono" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Mes</label>
+                <select asp-for="Mes" class="form-select form-select-sm">
+                    @for (int m = 1; m <= 12; m++) { <option value="@m">@m.ToString("00") · @meses[m]</option> }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Período</label>
+                <select asp-for="Quincena" class="form-select form-select-sm">
+                    <option value="1">1ª quincena (1–15)</option>
+                    <option value="2">2ª quincena (16–fin)</option>
+                    <option value="0">Mensual</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <p class="text-muted small mb-0">Se calculará para todos los empleados activos con contrato vigente, usando las tablas ES vigentes (ISSS/AFP/Renta). La quincena se prorratea 50/50 del mensual.</p>
+            </div>
+            <div class="col-12 text-end">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+                <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">calculate</span> Calcular planilla</button>
+            </div>
+        </form>
+    </div>
+</div>

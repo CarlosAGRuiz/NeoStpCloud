@@ -1,0 +1,88 @@
+@model NeoSTP.Application.Rrhh.Dtos.PlanillaPeriodoDetalleDto
+@{
+    ViewData["Title"] = $"Planilla {Model.Etiqueta}";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var calculada = Model.EstadoCodigo == "CALCULADA";
+    var cerrada = Model.EstadoCodigo == "CERRADA";
+    var anulada = Model.EstadoCodigo == "ANULADA";
+    string Badge(string e) => e switch { "CERRADA" => "ns-badge--processed", "CALCULADA" => "ns-badge--contingency", "ANULADA" => "ns-badge--rejected", _ => "ns-badge--draft" };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Planillas</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Etiqueta</span></nav>
+        <h1 class="ns-page-title">Planilla @Model.Etiqueta <span class="ns-badge @Badge(Model.EstadoCodigo)">@Model.EstadoCodigo</span></h1>
+        <p class="text-muted mb-0">@Model.FechaInicio.ToString("dd/MM/yyyy") – @Model.FechaFin.ToString("dd/MM/yyyy") · @Model.Detalles.Count empleados</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="ExportCsv" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">download</span> CSV</a>
+        @if (puedeGestionar && calculada)
+        {
+            <form asp-action="Recalcular" asp-route-id="@Model.Id" method="post" class="m-0">@Html.AntiForgeryToken()<button class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">refresh</span> Recalcular</button></form>
+            <form asp-action="Cerrar" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Cerrar la planilla? Se registrará como gasto y no podrá recalcularse.');">@Html.AntiForgeryToken()<button class="btn btn-success btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">lock</span> Cerrar</button></form>
+        }
+        @if (puedeGestionar && !anulada)
+        {
+            <form asp-action="Anular" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular la planilla?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm">Anular</button></form>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (cerrada && Model.ProfitGastoId is int gid) { <div class="alert alert-info">Cerrada · registrada como gasto de NeoProfit (#@gid, categoría PLANILLA).</div> }
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Devengado</div><div class="ns-mono fw-bold fs-4">@Model.TotalDevengado.ToString("N2")</div></div></div></div>
+    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Deducciones</div><div class="ns-mono fw-bold fs-4 text-danger">@Model.TotalDeducciones.ToString("N2")</div></div></div></div>
+    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Neto a pagar</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-processed)">@Model.TotalNeto.ToString("N2")</div></div></div></div>
+    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Costo patronal</div><div class="ns-mono fw-bold fs-4">@Model.TotalCostoPatronal.ToString("N2")</div></div></div></div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Empleado</th>
+                    <th class="text-end">Devengado</th>
+                    <th class="text-end">ISSS</th>
+                    <th class="text-end">AFP</th>
+                    <th class="text-end">Renta</th>
+                    <th class="text-end">Deduc.</th>
+                    <th class="text-end">Neto</th>
+                    <th class="text-end">Costo pat.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model.Detalles)
+                {
+                    <tr>
+                        <td class="ns-mono">@d.EmpleadoCodigo</td>
+                        <td>@d.EmpleadoNombre</td>
+                        <td class="text-end ns-mono">@d.Devengado.ToString("N2")</td>
+                        <td class="text-end ns-mono text-danger">@d.Isss.ToString("N2")</td>
+                        <td class="text-end ns-mono text-danger">@d.Afp.ToString("N2")</td>
+                        <td class="text-end ns-mono text-danger">@d.Renta.ToString("N2")</td>
+                        <td class="text-end ns-mono">@d.TotalDeducciones.ToString("N2")</td>
+                        <td class="text-end ns-mono fw-bold">@d.SalarioNeto.ToString("N2")</td>
+                        <td class="text-end ns-mono">@d.CostoPatronal.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="table-light">
+                <tr class="fw-bold">
+                    <td colspan="2">Totales</td>
+                    <td class="text-end ns-mono">@Model.TotalDevengado.ToString("N2")</td>
+                    <td colspan="2"></td>
+                    <td></td>
+                    <td class="text-end ns-mono text-danger">@Model.TotalDeducciones.ToString("N2")</td>
+                    <td class="text-end ns-mono">@Model.TotalNeto.ToString("N2")</td>
+                    <td class="text-end ns-mono">@Model.TotalCostoPatronal.ToString("N2")</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>

@@ -127,6 +127,8 @@ public class NeoStpDbContext : DbContext
     // RRHH / Nómina (NEORRHH — V2)
     public DbSet<Empleado> Empleados => Set<Empleado>();
     public DbSet<ContratoLaboral> ContratosLaborales => Set<ContratoLaboral>();
+    public DbSet<PlanillaPeriodo> PlanillaPeriodos => Set<PlanillaPeriodo>();
+    public DbSet<PlanillaDetalle> PlanillaDetalles => Set<PlanillaDetalle>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

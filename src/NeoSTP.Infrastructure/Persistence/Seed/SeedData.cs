@@ -498,7 +498,8 @@ internal static partial class SeedData
             // RRHH / Nómina (NEORRHH — V2)
             Perm(390, "Rrhh.Empleados.Ver",       "NEORRHH", "Ver empleados"),
             Perm(391, "Rrhh.Empleados.Gestionar", "NEORRHH", "Crear, editar e inactivar empleados"),
-            Perm(392, "Rrhh.Nomina.Ver",          "NEORRHH", "Ver cálculo de nómina"),
+            Perm(392, "Rrhh.Nomina.Ver",          "NEORRHH", "Ver cálculo de nómina y planillas"),
+            Perm(393, "Rrhh.Nomina.Gestionar",    "NEORRHH", "Crear, cerrar y anular corridas de planilla"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -528,7 +529,7 @@ internal static partial class SeedData
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
             370, 371, 380, 381,
-            390, 391, 392,
+            390, 391, 392, 393,
             360, 361, 362, 363, 364,
         };
 
@@ -540,7 +541,7 @@ internal static partial class SeedData
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
             370, 371, 380, 381,
-            390, 391, 392,
+            390, 391, 392, 393,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos

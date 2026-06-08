@@ -75,6 +75,28 @@ public class NominaCalculatorTests
     }
 
     [Fact]
+    public void Quincena_Salario1000_EsLaMitadDelMensual()
+    {
+        var r = _calc.CalcularQuincena(1000m, Opts());
+        r.SalarioBruto.Should().Be(500.00m);
+        r.IsssEmpleado.Should().Be(15.00m);   // 30 / 2
+        r.AfpEmpleado.Should().Be(36.25m);    // 72.50 / 2
+        r.Renta.Should().Be(30.23m);          // 60.45 / 2 (redondeo)
+        r.TotalDeduccionesEmpleado.Should().Be(81.48m);
+        r.SalarioNeto.Should().Be(418.52m);
+        r.CostoPatronal.Should().Be(581.25m); // 500 + 37.50 + 43.75
+    }
+
+    [Fact]
+    public void Quincena_DosQuincenas_ReconcilianElMes_AproxCentavo()
+    {
+        var opts = Opts();
+        var q = _calc.CalcularQuincena(1000m, opts);
+        var m = _calc.CalcularMensual(1000m, opts);
+        (q.SalarioNeto * 2).Should().BeApproximately(m.SalarioNeto, 0.02m);
+    }
+
+    [Fact]
     public void Mensual_TasasParametrizables_SeRespetan()
     {
         var opts = new NominaOptions
