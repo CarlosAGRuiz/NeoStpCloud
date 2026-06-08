@@ -41,7 +41,8 @@ public abstract class ApiControllerBase : ControllerBase
             or "QUOTA_NOT_FOUND" or "IP_NOT_FOUND"
             or "APIKEY_NOT_FOUND" or "WEBHOOK_NOT_FOUND"
             or "GASTO_NOT_FOUND" or "COMPRA_NOT_FOUND" or "PAGO_NOT_FOUND" or "SCAN_NOT_FOUND"
-            or "ALERTA_NOT_FOUND" or "DISPOSITIVO_NOT_FOUND" or "CUENTA_NOT_FOUND" => NotFound(payload),
+            or "ALERTA_NOT_FOUND" or "DISPOSITIVO_NOT_FOUND" or "CUENTA_NOT_FOUND"
+            or "EMPLEADO_NOT_FOUND" or "PLANILLA_NOT_FOUND" or "DETALLE_NOT_FOUND" or "RECIBIDO_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" => Conflict(payload),
         "IP_DUPLICATE" => Conflict(payload),
         "IP_INVALID" => BadRequest(payload),
@@ -52,7 +53,8 @@ public abstract class ApiControllerBase : ControllerBase
             or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED"
             or "CLIENTE_DUPLICATE" or "PRODUCTO_DUPLICATE"
             or "CAT_DUPLICATE" or "CAT_ITEM_DUPLICATE"
-            or "CAT_SYSTEM_NOT_EDITABLE" or "CAT_ITEM_SYSTEM" or "CAT_ITEM_HAS_CHILDREN" => Conflict(payload),
+            or "CAT_SYSTEM_NOT_EDITABLE" or "CAT_ITEM_SYSTEM" or "CAT_ITEM_HAS_CHILDREN"
+            or "DUPLICATE" => Conflict(payload),
         "CAT_PARENT_NOT_FOUND" or "CAT_PARENT_SELF" => BadRequest(payload),
         "CERT_TIPO_MISMATCH" or "CERT_NADA_PENDIENTE" or "CERT_NO_ESCENARIOS"
             or "EVENTO_SIN_SELLO" or "SIN_DTE_RELACIONADOS" or "SIN_JWS_DISPONIBLE"

@@ -116,6 +116,40 @@ public class PlanillaServiceTests
     }
 
     [Fact]
+    public async Task GetRecibo_DevuelveDatosDelEmpleado()
+    {
+        var db = NewDb(empleados: 1);
+        var (svc, _) = NewSvc(db);
+        var creada = await svc.CrearAsync(Empresa, Q1(), "tester");
+        var empleadoId = (await db.Empleados.FirstAsync()).Id;
+
+        var r = await svc.GetReciboAsync(Empresa, creada.Value!.Id, empleadoId);
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EmpleadoCodigo.Should().Be("E001");
+        r.Value.SalarioNeto.Should().Be(418.52m);
+        r.Value.PeriodoEtiqueta.Should().Contain("Q1");
+    }
+
+    [Fact]
+    public async Task GetExportRows_IncluyeDatosDeSeguridadSocial()
+    {
+        var db = NewDb(empleados: 1);
+        var e = await db.Empleados.FirstAsync();
+        e.IsssNumero = "ISSS-1"; e.AfpInstitucion = "Crecer"; e.AfpNumero = "AFP-1";
+        await db.SaveChangesAsync();
+        var (svc, _) = NewSvc(db);
+        var creada = await svc.CrearAsync(Empresa, Q1(), "tester");
+
+        var r = await svc.GetExportRowsAsync(Empresa, creada.Value!.Id);
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value.Should().ContainSingle();
+        r.Value[0].IsssNumero.Should().Be("ISSS-1");
+        r.Value[0].AfpInstitucion.Should().Be("Crecer");
+    }
+
+    [Fact]
     public async Task Anular_Cerrada_RevierteGasto()
     {
         var db = NewDb();

@@ -14,12 +14,14 @@ namespace NeoSTP.Web.Controllers;
 public class PlanillaController : Controller
 {
     private readonly IPlanillaService _planilla;
+    private readonly INominaPdfService _pdf;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
 
-    public PlanillaController(IPlanillaService planilla, ICurrentUser currentUser, IEmpresaContext empresaContext)
+    public PlanillaController(IPlanillaService planilla, INominaPdfService pdf, ICurrentUser currentUser, IEmpresaContext empresaContext)
     {
         _planilla = planilla;
+        _pdf = pdf;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
     }
@@ -123,6 +125,49 @@ public class PlanillaController : Controller
                 d.OtrosDescuentos, d.TotalDeducciones, d.SalarioNeto, d.IsssPatronal, d.AfpPatronal, d.CostoPatronal);
         }
         return File(csv.ToBytes(), "text/csv", $"planilla_{p.Anio}_{p.Mes:00}_Q{p.Quincena}.csv");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Recibo(int id, int empleadoId, CancellationToken ct)
+    {
+        if (!Has("Rrhh.Nomina.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _planilla.GetReciboAsync(eid, id, empleadoId, ct);
+        if (result.IsFailure) return NotFound();
+        var bytes = _pdf.GenerarRecibo(result.Value!);
+        return File(bytes, "application/pdf", $"recibo_{result.Value!.EmpleadoCodigo}_{result.Value.PeriodoEtiqueta.Replace("/", "-").Replace(" ", "")}.pdf");
+    }
+
+    [HttpGet]
+    public Task<IActionResult> ExportIsss(int id, CancellationToken ct) => ExportSeguridadSocial(id, esIsss: true, ct);
+
+    [HttpGet]
+    public Task<IActionResult> ExportAfp(int id, CancellationToken ct) => ExportSeguridadSocial(id, esIsss: false, ct);
+
+    private async Task<IActionResult> ExportSeguridadSocial(int id, bool esIsss, CancellationToken ct)
+    {
+        if (!Has("Rrhh.Nomina.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _planilla.GetExportRowsAsync(eid, id, ct);
+        if (result.IsFailure) return NotFound();
+
+        CsvExporter csv;
+        if (esIsss)
+        {
+            csv = new CsvExporter("NumeroISSS", "Empleado", "SalarioDevengado", "CuotaEmpleado", "CuotaPatronal", "TotalAporte");
+            foreach (var r in result.Value!)
+                csv.AddRow(r.IsssNumero, r.EmpleadoNombre, r.Devengado, r.Isss, r.IsssPatronal, r.Isss + r.IsssPatronal);
+        }
+        else
+        {
+            csv = new CsvExporter("AFP", "NumeroAFP", "Empleado", "SalarioBase", "AporteEmpleado", "AportePatronal", "TotalAporte");
+            foreach (var r in result.Value!)
+                csv.AddRow(r.AfpInstitucion, r.AfpNumero, r.EmpleadoNombre, r.Devengado, r.Afp, r.AfpPatronal, r.Afp + r.AfpPatronal);
+        }
+        var nombre = esIsss ? "isss" : "afp";
+        return File(csv.ToBytes(), "text/csv", $"planilla_{nombre}_{id}.csv");
     }
 
     private bool Has(string codigo) => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);

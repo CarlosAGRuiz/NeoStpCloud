@@ -18,6 +18,7 @@ public sealed class PlanillaPeriodoDto
 
 public sealed class PlanillaDetalleDto
 {
+    public int EmpleadoId { get; set; }
     public string EmpleadoCodigo { get; set; } = string.Empty;
     public string EmpleadoNombre { get; set; } = string.Empty;
     public decimal SalarioMensual { get; set; }
@@ -52,6 +53,25 @@ public sealed class PlanillaPeriodoDetalleDto
     public List<PlanillaDetalleDto> Detalles { get; set; } = new();
 
     public string Etiqueta => Quincena == 0 ? $"{Mes:00}/{Anio} (mensual)" : $"{Mes:00}/{Anio} · Q{Quincena}";
+}
+
+/// <summary>Fila para exportes (planilla, ISSS, AFP): detalle + datos de seguridad social del empleado.</summary>
+public sealed class PlanillaExportRow
+{
+    public string EmpleadoCodigo { get; set; } = string.Empty;
+    public string EmpleadoNombre { get; set; } = string.Empty;
+    public string? IsssNumero { get; set; }
+    public string? AfpInstitucion { get; set; }
+    public string? AfpNumero { get; set; }
+    public decimal Devengado { get; set; }
+    public decimal Isss { get; set; }
+    public decimal IsssPatronal { get; set; }
+    public decimal Afp { get; set; }
+    public decimal AfpPatronal { get; set; }
+    public decimal Renta { get; set; }
+    public decimal TotalDeducciones { get; set; }
+    public decimal SalarioNeto { get; set; }
+    public decimal CostoPatronal { get; set; }
 }
 
 public sealed class CrearPlanillaRequest

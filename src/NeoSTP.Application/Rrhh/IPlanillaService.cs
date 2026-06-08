@@ -16,4 +16,10 @@ public interface IPlanillaService
     Task<Result<PlanillaPeriodoDetalleDto>> RecalcularAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result> CerrarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result> AnularAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
+
+    /// <summary>Datos del recibo de un empleado dentro de un período (para PDF).</summary>
+    Task<Result<ReciboNominaModel>> GetReciboAsync(int empresaId, int periodoId, int empleadoId, CancellationToken ct = default);
+
+    /// <summary>Filas del período con datos de seguridad social, para exportes (planilla/ISSS/AFP).</summary>
+    Task<Result<List<PlanillaExportRow>>> GetExportRowsAsync(int empresaId, int periodoId, CancellationToken ct = default);
 }

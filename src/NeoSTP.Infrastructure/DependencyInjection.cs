@@ -209,6 +209,7 @@ public static class DependencyInjection
         services.Configure<NeoSTP.Application.Rrhh.NominaOptions>(configuration.GetSection(NeoSTP.Application.Rrhh.NominaOptions.SectionName));
         services.AddScoped<NeoSTP.Application.Rrhh.IEmpleadosService, EmpleadosService>();
         services.AddScoped<NeoSTP.Application.Rrhh.IPlanillaService, PlanillaService>();
+        services.AddScoped<NeoSTP.Application.Rrhh.INominaPdfService, NeoSTP.Infrastructure.Rrhh.NominaPdfService>();
         // Toggle del proveedor de extracción OCR/IA (Scan:Provider). Mock por defecto; Gemini real (M2.1).
         var scanProvider = configuration["Scan:Provider"];
         if (string.Equals(scanProvider, "Gemini", StringComparison.OrdinalIgnoreCase))

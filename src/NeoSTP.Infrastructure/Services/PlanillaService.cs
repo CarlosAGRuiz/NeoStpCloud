@@ -145,6 +145,60 @@ public class PlanillaService : IPlanillaService
         return Result.Ok();
     }
 
+    public async Task<Result<ReciboNominaModel>> GetReciboAsync(int empresaId, int periodoId, int empleadoId, CancellationToken ct = default)
+    {
+        var periodo = await _db.PlanillaPeriodos.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == periodoId && p.EmpresaId == empresaId, ct);
+        if (periodo is null) return Result<ReciboNominaModel>.Fail("Planilla no encontrada.", "PLANILLA_NOT_FOUND");
+
+        var d = await _db.PlanillaDetalles.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.PlanillaPeriodoId == periodoId && x.EmpleadoId == empleadoId, ct);
+        if (d is null) return Result<ReciboNominaModel>.Fail("El empleado no está en esta planilla.", "DETALLE_NOT_FOUND");
+
+        var empleado = await _db.Empleados.AsNoTracking()
+            .Where(e => e.Id == empleadoId && e.EmpresaId == empresaId)
+            .Select(e => new { e.Cargo, e.IsssNumero, e.AfpInstitucion, e.AfpNumero })
+            .FirstOrDefaultAsync(ct);
+        var empresaNombre = await _db.Empresas.AsNoTracking()
+            .Where(e => e.Id == empresaId).Select(e => e.RazonSocial).FirstOrDefaultAsync(ct) ?? "";
+
+        var etiqueta = periodo.Quincena == 0 ? $"{periodo.Mes:00}/{periodo.Anio} (mensual)" : $"{periodo.Mes:00}/{periodo.Anio} · Q{periodo.Quincena}";
+        return Result<ReciboNominaModel>.Ok(new ReciboNominaModel
+        {
+            EmpresaNombre = empresaNombre, PeriodoEtiqueta = etiqueta,
+            FechaInicio = periodo.FechaInicio, FechaFin = periodo.FechaFin, EstadoCodigo = periodo.EstadoCodigo,
+            EmpleadoCodigo = d.EmpleadoCodigo, EmpleadoNombre = d.EmpleadoNombre,
+            Cargo = empleado?.Cargo, IsssNumero = empleado?.IsssNumero,
+            AfpInstitucion = empleado?.AfpInstitucion, AfpNumero = empleado?.AfpNumero,
+            SalarioMensual = d.SalarioMensual, Devengado = d.Devengado,
+            Isss = d.Isss, Afp = d.Afp, Renta = d.Renta, OtrosDescuentos = d.OtrosDescuentos,
+            TotalDeducciones = d.TotalDeducciones, SalarioNeto = d.SalarioNeto,
+        });
+    }
+
+    public async Task<Result<List<PlanillaExportRow>>> GetExportRowsAsync(int empresaId, int periodoId, CancellationToken ct = default)
+    {
+        var existe = await _db.PlanillaPeriodos.AnyAsync(p => p.Id == periodoId && p.EmpresaId == empresaId, ct);
+        if (!existe) return Result<List<PlanillaExportRow>>.Fail("Planilla no encontrada.", "PLANILLA_NOT_FOUND");
+
+        var rows = await (from d in _db.PlanillaDetalles.AsNoTracking()
+                          where d.PlanillaPeriodoId == periodoId
+                          join e in _db.Empleados.AsNoTracking() on d.EmpleadoId equals e.Id into emp
+                          from e in emp.DefaultIfEmpty()
+                          orderby d.EmpleadoCodigo
+                          select new PlanillaExportRow
+                          {
+                              EmpleadoCodigo = d.EmpleadoCodigo, EmpleadoNombre = d.EmpleadoNombre,
+                              IsssNumero = e != null ? e.IsssNumero : null,
+                              AfpInstitucion = e != null ? e.AfpInstitucion : null,
+                              AfpNumero = e != null ? e.AfpNumero : null,
+                              Devengado = d.Devengado, Isss = d.Isss, IsssPatronal = d.IsssPatronal,
+                              Afp = d.Afp, AfpPatronal = d.AfpPatronal, Renta = d.Renta,
+                              TotalDeducciones = d.TotalDeducciones, SalarioNeto = d.SalarioNeto, CostoPatronal = d.CostoPatronal,
+                          }).ToListAsync(ct);
+        return Result<List<PlanillaExportRow>>.Ok(rows);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private async Task GenerarDetallesAsync(int empresaId, PlanillaPeriodo periodo, int quincena, CancellationToken ct)
@@ -201,6 +255,7 @@ public class PlanillaService : IPlanillaService
         TotalDevengado = p.TotalDevengado, TotalDeducciones = p.TotalDeducciones, TotalNeto = p.TotalNeto, TotalCostoPatronal = p.TotalCostoPatronal,
         Detalles = p.Detalles.OrderBy(d => d.EmpleadoCodigo).Select(d => new PlanillaDetalleDto
         {
+            EmpleadoId = d.EmpleadoId,
             EmpleadoCodigo = d.EmpleadoCodigo, EmpleadoNombre = d.EmpleadoNombre, SalarioMensual = d.SalarioMensual,
             Devengado = d.Devengado, Isss = d.Isss, Afp = d.Afp, Renta = d.Renta, OtrosDescuentos = d.OtrosDescuentos,
             TotalDeducciones = d.TotalDeducciones, SalarioNeto = d.SalarioNeto,

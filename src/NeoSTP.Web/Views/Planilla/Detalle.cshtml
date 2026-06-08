@@ -15,7 +15,14 @@
         <p class="text-muted mb-0">@Model.FechaInicio.ToString("dd/MM/yyyy") – @Model.FechaFin.ToString("dd/MM/yyyy") · @Model.Detalles.Count empleados</p>
     </div>
     <div class="d-flex gap-2">
-        <a asp-action="ExportCsv" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">download</span> CSV</a>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><span class="material-symbols-outlined align-middle" style="font-size:18px">download</span> Exportar</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-action="ExportCsv" asp-route-id="@Model.Id">Planilla (CSV)</a></li>
+                <li><a class="dropdown-item" asp-action="ExportIsss" asp-route-id="@Model.Id">Planilla ISSS (CSV)</a></li>
+                <li><a class="dropdown-item" asp-action="ExportAfp" asp-route-id="@Model.Id">Planilla AFP (CSV)</a></li>
+            </ul>
+        </div>
         @if (puedeGestionar && calculada)
         {
             <form asp-action="Recalcular" asp-route-id="@Model.Id" method="post" class="m-0">@Html.AntiForgeryToken()<button class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">refresh</span> Recalcular</button></form>
@@ -54,6 +61,7 @@
                     <th class="text-end">Deduc.</th>
                     <th class="text-end">Neto</th>
                     <th class="text-end">Costo pat.</th>
+                    <th class="text-end"></th>
                 </tr>
             </thead>
             <tbody>
@@ -69,6 +77,9 @@
                         <td class="text-end ns-mono">@d.TotalDeducciones.ToString("N2")</td>
                         <td class="text-end ns-mono fw-bold">@d.SalarioNeto.ToString("N2")</td>
                         <td class="text-end ns-mono">@d.CostoPatronal.ToString("N2")</td>
+                        <td class="text-end">
+                            <a asp-action="Recibo" asp-route-id="@Model.Id" asp-route-empleadoId="@d.EmpleadoId" target="_blank" class="btn btn-sm btn-outline-primary" title="Recibo PDF"><span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span></a>
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -81,6 +92,7 @@
                     <td class="text-end ns-mono text-danger">@Model.TotalDeducciones.ToString("N2")</td>
                     <td class="text-end ns-mono">@Model.TotalNeto.ToString("N2")</td>
                     <td class="text-end ns-mono">@Model.TotalCostoPatronal.ToString("N2")</td>
+                    <td></td>
                 </tr>
             </tfoot>
         </table>
