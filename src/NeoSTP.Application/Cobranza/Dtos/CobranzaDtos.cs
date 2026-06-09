@@ -73,3 +73,33 @@ public sealed class CobranzaQuery
     public int? ClienteId { get; set; }
     public bool SoloVencidas { get; set; }
 }
+
+public sealed class EjecutarRecordatoriosCobroRequest
+{
+    public int DiasVencidoMinimo { get; set; } = 1;
+    public int Maximo { get; set; } = 50;
+    public bool EnviarEmail { get; set; } = true;
+    public bool EnviarWhatsApp { get; set; }
+    /// <summary>Si true, ignora el log de hoy y reintenta el envio.</summary>
+    public bool Forzar { get; set; }
+}
+
+public sealed class RecordatorioCobroResumenDto
+{
+    public int Evaluadas { get; set; }
+    public int EnviadosEmail { get; set; }
+    public int EnviadosWhatsApp { get; set; }
+    public int Omitidos { get; set; }
+    public int Fallidos { get; set; }
+    public List<RecordatorioCobroDetalleDto> Detalles { get; set; } = [];
+}
+
+public sealed class RecordatorioCobroDetalleDto
+{
+    public int DteDocumentoId { get; set; }
+    public string NumeroControl { get; set; } = string.Empty;
+    public string Canal { get; set; } = string.Empty;
+    public string EstadoCodigo { get; set; } = string.Empty;
+    public string? Destinatario { get; set; }
+    public string? Motivo { get; set; }
+}

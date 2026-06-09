@@ -17,8 +17,9 @@ public class DteCalculator : IDteCalculator
                          || d.TipoDteCodigo == TipoDteCodigos.NotaCredito
                          || d.TipoDteCodigo == TipoDteCodigos.NotaDebito;
         var esSujetoExcluido = d.TipoDteCodigo == TipoDteCodigos.FacturaSujetoExcluido;
+        var esRetencion = d.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion;
 
-        decimal totalGravada = 0, totalExenta = 0, totalNoSujeta = 0, ivaTotal = 0;
+        decimal totalGravada = 0, totalExenta = 0, totalNoSujeta = 0, ivaTotal = 0, ivaRetenidoTotal = 0;
 
         foreach (var l in d.Detalles)
         {
@@ -31,6 +32,17 @@ public class DteCalculator : IDteCalculator
             l.VentaExenta = 0;
             l.VentaNoSujeta = 0;
             l.IvaItem = 0;
+
+            if (esRetencion)
+            {
+                // CR (07): la línea es un documento sujeto a retención.
+                // VentaGravada = monto sujeto; IvaItem = IVA retenido según código MH (22→1%, C4/C9→13%).
+                l.VentaGravada = Round2(neto);
+                l.IvaItem = Round2(neto * DteRetencion.Tasa(l.RetencionCodigoMH));
+                totalGravada += l.VentaGravada;
+                ivaRetenidoTotal += l.IvaItem;
+                continue;
+            }
 
             if (esSujetoExcluido)
             {
@@ -81,6 +93,18 @@ public class DteCalculator : IDteCalculator
         d.PorcentajeDescuento = 0;
 
         d.SubTotal = Round2(d.SubTotalVentas - d.TotalDescuento);
+
+        if (esRetencion)
+        {
+            // CR (07): resumen = totalSujetoRetencion + totalIVAretenido (+ letras del IVA retenido).
+            d.IvaTotal = 0;
+            d.IvaRetenido = Round2(ivaRetenidoTotal);
+            d.MontoTotalOperacion = d.SubTotal;           // total sujeto a retención
+            d.TotalNoGravado = 0;
+            d.TotalPagar = d.IvaRetenido;                 // el valor del comprobante es el IVA retenido
+            d.TotalLetras = MontoEnLetras(d.TotalPagar);  // → totalIVAretenidoLetras
+            return;
+        }
 
         if (esSujetoExcluido)
         {

@@ -197,6 +197,7 @@ public static class DependencyInjection
 
         // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
         services.AddScoped<ICobranzaService, CobranzaService>();
+        services.AddScoped<IRecordatorioCobroService, RecordatorioCobroService>();
         // QR / enlaces de cobro (B-5)
         services.AddScoped<ICobroQrService, CobroQrService>();
 
@@ -216,6 +217,7 @@ public static class DependencyInjection
 
         // Compras / CxP (NEOCOMPRAS — V2): proveedores + facturas de compra + pagos.
         services.AddScoped<NeoSTP.Application.Compras.ICompraService, CompraService>();
+        services.AddScoped<NeoSTP.Application.Crm.ICrmService, CrmService>();
 
         // Punto de venta (NEOPOS — V2): ventas + ticket PDF térmico + impresoras/ESC-POS.
         services.Configure<NeoSTP.Application.Pos.PosOptions>(configuration.GetSection(NeoSTP.Application.Pos.PosOptions.SectionName));
@@ -274,6 +276,7 @@ public static class DependencyInjection
         {
             services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.MockPushSender>();
         }
+        services.AddScoped<IWhatsAppSender, NeoSTP.Infrastructure.Notificaciones.MockWhatsAppSender>();
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();

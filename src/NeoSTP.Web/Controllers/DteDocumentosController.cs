@@ -9,6 +9,7 @@ using NeoSTP.Application.Dte.Certificacion;
 using NeoSTP.Application.Dte.Certificacion.Dtos;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Productos;
+using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Web.Models;
 
 namespace NeoSTP.Web.Controllers;
@@ -62,6 +63,53 @@ public class DteDocumentosController : Controller
         var result = await _service.GetByIdAsync(eid, id, ct);
         if (result.IsFailure) return NotFound();
         return View(result.Value);
+    }
+
+    /// <summary>Comprobante de Retención (07): formulario dedicado — las líneas son documentos sujetos a retención.</summary>
+    [HttpGet]
+    public async Task<IActionResult> CrearRetencion(CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        await LoadFormDataAsync(eid, ct);
+        return View(new CreateDteDocumentoRequest
+        {
+            TipoDteCodigo = TipoDteCodigos.ComprobanteRetencion,
+            Lineas = { new CreateDteDocumentoLineaRequest { DocRelacionadoTipoDte = "03", RetencionCodigoMH = "22" } },
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CrearRetencion(CreateDteDocumentoRequest model, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        model.TipoDteCodigo = TipoDteCodigos.ComprobanteRetencion;
+        model.Lineas = (model.Lineas ?? new())
+            .Where(l => !string.IsNullOrWhiteSpace(l.DocRelacionadoNumero) || (l.MontoSujetoRetencion ?? 0) > 0)
+            .ToList();
+        if (model.Lineas.Count == 0)
+            ModelState.AddModelError(string.Empty, "Agrega al menos un documento sujeto a retención.");
+
+        if (!ModelState.IsValid)
+        {
+            await LoadFormDataAsync(eid, ct);
+            return View(model);
+        }
+
+        var result = await _service.CreateBorradorAsync(eid, model, _currentUser.Username, ct);
+        if (result.IsFailure)
+        {
+            ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
+            foreach (var e in result.ValidationErrors) ModelState.AddModelError(string.Empty, e);
+            await LoadFormDataAsync(eid, ct);
+            return View(model);
+        }
+
+        TempData["Success"] = "Comprobante de Retención en borrador. Continúa con Generar → Validar → Firmar → Enviar.";
+        return RedirectToAction(nameof(Details), new { id = result.Value!.Id });
     }
 
     [HttpGet]

@@ -373,6 +373,7 @@ public class DtePdfService : IDtePdfService
         TipoDteCodigos.NotaCredito => "NOTA DE CRÉDITO · DTE-05",
         TipoDteCodigos.NotaDebito => "NOTA DE DÉBITO · DTE-06",
         TipoDteCodigos.FacturaSujetoExcluido => "SUJETO EXCLUIDO · DTE-14",
+        TipoDteCodigos.ComprobanteRetencion => "COMPROBANTE DE RETENCIÓN · DTE-07",
         _ => $"DTE-{codigo}",
     };
 

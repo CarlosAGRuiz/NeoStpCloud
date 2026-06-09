@@ -24,6 +24,10 @@ public class DteDocumentoDetalleConfiguration : IEntityTypeConfiguration<DteDocu
         builder.Property(d => d.VentaGravada).HasPrecision(18, 4);
         builder.Property(d => d.IvaItem).HasPrecision(18, 4);
 
+        // Comprobante de Retención (07)
+        builder.Property(d => d.DocRelacionadoTipoDte).HasMaxLength(3);
+        builder.Property(d => d.RetencionCodigoMH).HasMaxLength(3);
+
         builder.Property(d => d.CreatedBy).HasMaxLength(100);
         builder.Property(d => d.UpdatedBy).HasMaxLength(100);
 

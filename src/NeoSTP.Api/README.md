@@ -71,6 +71,7 @@ Los secretos locales deben vivir en `src/NeoSTP.Api/appsettings.Local.json`, que
 | `Push` | Push `Mock` o `Fcm`. |
 | `Pos` | IVA, ancho de ticket, moneda y pie de ticket. |
 | `Nomina` | Parametros ISSS/AFP/Renta. |
+| `Worker:RecordatoriosCobro` | Job opcional de recordatorios CxC vencida por email/WhatsApp. |
 
 Ejemplo minimo:
 
@@ -315,6 +316,7 @@ Mapeo general:
 | GET/POST/PUT | `/api/cobros/cuentas` | Cuentas de cobro. |
 | POST | `/api/cobros/cuentas/{id}/inactivar` | Inactivar cuenta. |
 | POST | `/api/cobros/qr` | Generar QR/enlace. |
+| POST | `/api/cobros/recordatorios/ejecutar` | Ejecutar recordatorios de facturas vencidas por email/WhatsApp. |
 | GET/POST/PUT | `/api/compras/proveedores` | Proveedores. |
 | POST | `/api/compras/proveedores/{id}/inactivar` | Inactivar proveedor. |
 | POST | `/api/compras/proveedores/{id}/reactivar` | Reactivar proveedor. |
@@ -388,6 +390,25 @@ Mapeo general:
 | POST | `/api/scanai/documentos/{id}/registrar-dte-recibido` | Registrar DTE recibido. |
 | POST | `/api/scanai/documentos/{id}/rechazar` | Rechazar documento. |
 
+### NEOCRM
+
+Esquema tecnico: `docs/NEOCRM-Schema-V2-C1.md`.
+
+| Metodo | Ruta | Uso |
+|---|---|---|
+| GET | `/api/crm/resumen` | KPIs de contactos, pipeline y actividades. |
+| GET/POST | `/api/crm/contactos` | Listar o crear contactos CRM. |
+| GET/PUT | `/api/crm/contactos/{id}` | Consultar o editar contacto. |
+| POST | `/api/crm/contactos/{id}/inactivar` | Inactivar contacto. |
+| GET/POST | `/api/crm/etapas` | Listar o crear etapas del pipeline. |
+| PUT | `/api/crm/etapas/{id}` | Editar etapa del pipeline. |
+| GET/POST | `/api/crm/oportunidades` | Listar o crear oportunidades. |
+| GET/PUT | `/api/crm/oportunidades/{id}` | Consultar o editar oportunidad. |
+| POST | `/api/crm/oportunidades/{id}/etapa` | Mover oportunidad de etapa; cierra como ganada/perdida si la etapa lo define. |
+| GET/POST | `/api/crm/actividades` | Listar o crear actividades. |
+| POST | `/api/crm/actividades/{id}/completar` | Completar actividad. |
+| POST | `/api/crm/actividades/{id}/cancelar` | Cancelar actividad. |
+
 ### Alertas, correo, hardening y billing
 
 | Metodo | Ruta | Uso |
@@ -445,6 +466,15 @@ curl http://localhost:5058/api/auth/me \
   -H "Authorization: Bearer <jwt>"
 ```
 
+Ejecutar recordatorios de cobro:
+
+```bash
+curl -X POST http://localhost:5058/api/cobros/recordatorios/ejecutar \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d "{\"diasVencidoMinimo\":1,\"maximo\":50,\"enviarEmail\":true,\"enviarWhatsApp\":false}"
+```
+
 Ping NeoConnect:
 
 ```bash
@@ -468,6 +498,29 @@ X-NeoConnect-Signature: sha256=<hex>
 ```
 
 El worker reintenta con backoff exponencial y marca fallido tras el maximo configurado.
+
+## Worker de recordatorios CxC
+
+`RecordatorioCobroWorker` vive en `src/NeoSTP.Worker` y esta deshabilitado por defecto para evitar envios accidentales. Cuando `Worker:RecordatoriosCobro:Enabled=true`, recorre empresas activas y ejecuta el mismo caso de uso del endpoint `/api/cobros/recordatorios/ejecutar`.
+
+Configuracion base:
+
+```json
+{
+  "Worker": {
+    "RecordatoriosCobro": {
+      "Enabled": false,
+      "IntervaloHoras": 24,
+      "DiasVencidoMinimo": 1,
+      "MaximoPorEmpresa": 50,
+      "EnviarEmail": true,
+      "EnviarWhatsApp": false
+    }
+  }
+}
+```
+
+El envio por correo usa `ITenantEmailSender`, por lo que respeta SMTP por empresa y fallback global. WhatsApp usa `IWhatsAppSender`; la implementacion actual es `MockWhatsAppSender` y deja el contrato listo para conectar WhatsApp Business API sin cambiar Cobranza. Cada intento queda registrado en `Cobros_Recordatorios` con `EmpresaId`, DTE, cliente, canal, destinatario, estado, saldo y dias vencidos para auditoria e idempotencia diaria por documento/canal.
 
 ## Convenciones para ampliar la API
 
@@ -496,3 +549,5 @@ Areas con cobertura relevante:
 - NeoConnect API keys, middleware y webhooks.
 - Cobros, compras, inventario, POS/caja, RRHH, NeoProfit, NeoScanAI.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
+- Recordatorios de cobranza: envio, omision por destinatario faltante e idempotencia diaria.
+- NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido y actividades.

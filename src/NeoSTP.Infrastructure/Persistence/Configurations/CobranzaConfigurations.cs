@@ -49,3 +49,27 @@ public class CuentaCobroConfiguration : IEntityTypeConfiguration<CuentaCobro>
         b.HasIndex(x => new { x.EmpresaId, x.EstadoCodigo });
     }
 }
+
+public class RecordatorioCobroConfiguration : IEntityTypeConfiguration<RecordatorioCobro>
+{
+    public void Configure(EntityTypeBuilder<RecordatorioCobro> b)
+    {
+        b.ToTable("Cobros_Recordatorios");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Canal).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Destinatario).HasMaxLength(200).IsRequired();
+        b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Motivo).HasMaxLength(500);
+        b.Property(x => x.MessageId).HasMaxLength(160);
+        b.Property(x => x.Saldo).HasPrecision(18, 2);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.DteDocumento).WithMany().HasForeignKey(x => x.DteDocumentoId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Cliente).WithMany().HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasIndex(x => new { x.EmpresaId, x.DteDocumentoId, x.Canal, x.FechaRecordatorio });
+        b.HasIndex(x => new { x.EmpresaId, x.FechaRecordatorio, x.EstadoCodigo });
+    }
+}

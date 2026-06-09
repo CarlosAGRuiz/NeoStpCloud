@@ -1,0 +1,211 @@
+@using NeoSTP.Application.Dte.Dtos
+@model CreateDteDocumentoRequest
+@{
+    ViewData["Title"] = "Nuevo Comprobante de Retención (07)";
+    var clientes = ViewBag.Clientes as IEnumerable<NeoSTP.Application.Clientes.Dtos.ClienteDto>
+        ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var tiposRelacionados = new (string Code, string Label)[]
+    {
+        ("03", "03 Crédito Fiscal"),
+        ("01", "01 Factura"),
+        ("05", "05 Nota de Crédito"),
+        ("06", "06 Nota de Débito"),
+        ("11", "11 Factura Exportación"),
+        ("14", "14 Sujeto Excluido"),
+    };
+}
+
+<form asp-action="CrearRetencion" method="post" id="cr-form">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="TipoDteCodigo" value="07" />
+
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb">
+                <a asp-action="Index">Documentos DTE</a>
+                <span class="material-symbols-outlined">chevron_right</span>
+                <span>Comprobante de Retención</span>
+            </nav>
+            <h1 class="ns-page-title">Nuevo Comprobante de Retención · DTE-07</h1>
+        </div>
+        <div class="ns-page-actions">
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar borrador
+            </button>
+        </div>
+    </div>
+
+    <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+    <div class="alert alert-info d-flex align-items-start gap-2">
+        <span class="material-symbols-outlined" style="font-size:22px">info</span>
+        <div class="small">
+            <strong>Importante (formato de Hacienda):</strong> si el documento sujeto a retención es un <b>DTE electrónico</b>,
+            en "Nº documento" debes poner su <b>código de generación</b> (UUID, ej. <code class="ns-mono">76F19422-085D-45B7-A998-4374A3A8EAD7</code>),
+            <u>no</u> el número de control <code class="ns-mono">DTE-03-…</code>. Para documentos <b>físicos</b> (pre-DTE), usa el número correlativo
+            (alfanumérico, máx. 20, sin guiones). Si esto no se respeta, Hacienda rechaza con
+            <em>"numDocumento no cumple el formato requerido"</em>.
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8 d-flex flex-column gap-4">
+            <div class="ns-formsection">
+                <div class="ns-formsection-head">
+                    <span class="material-symbols-outlined">person</span>
+                    <h2>Receptor (sujeto de la retención)</h2>
+                </div>
+                <div class="ns-formsection-body row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Cliente / proveedor retenido (contribuyente con NRC)</label>
+                        <select asp-for="ClienteId" class="form-select" required>
+                            <option value="">— Selecciona —</option>
+                            @foreach (var c in clientes)
+                            {
+                                <option value="@c.Id">@c.Nombre (@c.TipoDocumentoCodigo @c.NumeroDocumento)</option>
+                            }
+                        </select>
+                        <div class="form-text">Debe ser un contribuyente registrado con NIT y NRC.</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Observaciones (opcional)</label>
+                        <input asp-for="Observaciones" class="form-control" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="ns-formsection">
+                <div class="ns-formsection-head">
+                    <span class="material-symbols-outlined">receipt_long</span>
+                    <h2>Documentos sujetos a retención</h2>
+                </div>
+                <div class="ns-formsection-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle" id="crTabla">
+                            <thead>
+                                <tr>
+                                    <th style="min-width:120px">Tipo doc.</th>
+                                    <th style="min-width:240px">Nº documento (cód. generación o físico)</th>
+                                    <th style="min-width:130px">Fecha emisión</th>
+                                    <th style="min-width:120px">Monto sujeto</th>
+                                    <th style="min-width:140px">Retención</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="crBody">
+                                @for (var i = 0; i < Model.Lineas.Count; i++)
+                                {
+                                    <tr>
+                                        <td>
+                                            <select name="Lineas[@i].DocRelacionadoTipoDte" class="form-select form-select-sm cr-tipo">
+                                                @foreach (var t in tiposRelacionados)
+                                                {
+                                                    <option value="@t.Code" selected="@(Model.Lineas[i].DocRelacionadoTipoDte == t.Code)">@t.Label</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td><input name="Lineas[@i].DocRelacionadoNumero" value="@Model.Lineas[i].DocRelacionadoNumero" class="form-control form-control-sm ns-mono cr-num" placeholder="76F19422-085D-45B7-…" /></td>
+                                        <td><input name="Lineas[@i].DocRelacionadoFecha" value="@(Model.Lineas[i].DocRelacionadoFecha?.ToString("yyyy-MM-dd"))" type="date" class="form-control form-control-sm cr-fecha" /></td>
+                                        <td><input name="Lineas[@i].MontoSujetoRetencion" value="@Model.Lineas[i].MontoSujetoRetencion" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cr-monto" /></td>
+                                        <td>
+                                            <select name="Lineas[@i].RetencionCodigoMH" class="form-select form-select-sm cr-cod">
+                                                <option value="22" selected="@(Model.Lineas[i].RetencionCodigoMH is null or "22")">22 · IVA 1%</option>
+                                                <option value="C4" selected="@(Model.Lineas[i].RetencionCodigoMH == "C4")">C4 · IVA 13%</option>
+                                                <option value="C9" selected="@(Model.Lineas[i].RetencionCodigoMH == "C9")">C9 · Otros</option>
+                                            </select>
+                                        </td>
+                                        <td><button type="button" class="btn btn-outline-danger btn-sm cr-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="crAdd">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Agregar documento
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="ns-formsection">
+                <div class="ns-formsection-head">
+                    <span class="material-symbols-outlined">calculate</span>
+                    <h2>Resumen estimado</h2>
+                </div>
+                <div class="ns-formsection-body">
+                    <div class="d-flex justify-content-between"><span class="ns-metric-label">Total sujeto a retención</span><span class="ns-mono" id="crTotSujeto">$ 0.00</span></div>
+                    <div class="d-flex justify-content-between mt-2"><span class="ns-metric-label">Total IVA retenido</span><span class="ns-mono fw-bold" id="crTotRetenido">$ 0.00</span></div>
+                    <hr />
+                    <p class="form-text mb-0">El cálculo definitivo lo hace el sistema al guardar (22 → 1%, C4/C9 → 13% del monto sujeto).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<template id="crRowTpl">
+    <tr>
+        <td>
+            <select class="form-select form-select-sm cr-tipo">
+                @foreach (var t in tiposRelacionados)
+                {
+                    <option value="@t.Code">@t.Label</option>
+                }
+            </select>
+        </td>
+        <td><input class="form-control form-control-sm ns-mono cr-num" placeholder="76F19422-085D-45B7-…" /></td>
+        <td><input type="date" class="form-control form-control-sm cr-fecha" /></td>
+        <td><input type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cr-monto" /></td>
+        <td>
+            <select class="form-select form-select-sm cr-cod">
+                <option value="22">22 · IVA 1%</option>
+                <option value="C4">C4 · IVA 13%</option>
+                <option value="C9">C9 · Otros</option>
+            </select>
+        </td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm cr-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+    </tr>
+</template>
+
+<script>
+    (function () {
+        var body = document.getElementById('crBody');
+        var tpl = document.getElementById('crRowTpl');
+
+        function reindex() {
+            Array.prototype.forEach.call(body.querySelectorAll('tr'), function (tr, i) {
+                tr.querySelector('.cr-tipo').name = 'Lineas[' + i + '].DocRelacionadoTipoDte';
+                tr.querySelector('.cr-num').name = 'Lineas[' + i + '].DocRelacionadoNumero';
+                tr.querySelector('.cr-fecha').name = 'Lineas[' + i + '].DocRelacionadoFecha';
+                tr.querySelector('.cr-monto').name = 'Lineas[' + i + '].MontoSujetoRetencion';
+                tr.querySelector('.cr-cod').name = 'Lineas[' + i + '].RetencionCodigoMH';
+            });
+        }
+        function recalc() {
+            var sujeto = 0, retenido = 0;
+            Array.prototype.forEach.call(body.querySelectorAll('tr'), function (tr) {
+                var m = parseFloat(tr.querySelector('.cr-monto').value) || 0;
+                var cod = tr.querySelector('.cr-cod').value;
+                sujeto += m;
+                retenido += m * (cod === '22' ? 0.01 : 0.13);
+            });
+            document.getElementById('crTotSujeto').textContent = '$ ' + sujeto.toFixed(2);
+            document.getElementById('crTotRetenido').textContent = '$ ' + retenido.toFixed(2);
+        }
+        function wire(tr) {
+            tr.querySelector('.cr-del').addEventListener('click', function () { tr.remove(); reindex(); recalc(); });
+            tr.querySelector('.cr-monto').addEventListener('input', recalc);
+            tr.querySelector('.cr-cod').addEventListener('change', recalc);
+        }
+        document.getElementById('crAdd').addEventListener('click', function () {
+            var tr = tpl.content.cloneNode(true).querySelector('tr');
+            body.appendChild(tr);
+            wire(tr);
+            reindex();
+        });
+        Array.prototype.forEach.call(body.querySelectorAll('tr'), wire);
+        recalc();
+    })();
+</script>

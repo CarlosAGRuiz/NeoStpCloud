@@ -27,9 +27,9 @@ Ultimos commits revisados para este contexto:
 - `f5e4174 style(web)`: modernizacion de vistas Catalogos, Clientes, Empleados y Planilla.
 - `c6eff23 fix(seeder)`: backfill de modulos del plan en la empresa de pruebas.
 
-Estado actualizado: NeoPOS, caja, Inventario, Compras/CxP, Tesoreria y configuracion SMTP por empresa ya forman parte de la base implementada. La documentacion tecnica de la API vive en `src/NeoSTP.Api/README.md` y debe mantenerse sincronizada con OpenAPI/Scalar y los controllers.
+Estado actualizado: NeoPOS, caja, Inventario, Compras/CxP, Tesoreria y configuracion SMTP por empresa ya forman parte de la base implementada. V2-C0 quedo cerrado como contrato API-first con checklist tecnico y cobertura de permisos para controllers nuevos. V2-C1 NEOCRM quedo cerrado en backend/API-first con modulo 114, permisos, tablas `Crm_*`, cotizaciones/lineas, servicio `ICrmService`, endpoints `/api/crm/*`, migraciones `20260609214258_V2_C1_NeoCrm` y `20260609223000_V2_C1_NeoCrm_Cotizaciones`, documento `docs/NEOCRM-Schema-V2-C1.md` y tests de servicio/contrato. V2-D3 tiene primer corte implementado con recordatorios CxC por email/WhatsApp pluggable, worker opcional, endpoint interno y log `Cobros_Recordatorios`. La documentacion tecnica de la API vive en `src/NeoSTP.Api/README.md` y debe mantenerse sincronizada con OpenAPI/Scalar y los controllers.
 
-Siguiente sprint recomendado: consolidacion API-first, con contratos estables, pruebas de integracion para flujos criticos y documentacion comercial/tecnica antes de abrir NEOCRM y NeoPortal Clientes.
+Siguiente sprint recomendado: V2-C2 NeoPortal Clientes 107, para consulta/descarga de DTE y estado de cuenta sin soporte manual. Plan de cierre: `docs/Plan-Cierre-Fase-V2.md`.
 
 ---
 

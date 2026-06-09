@@ -371,6 +371,7 @@ internal static partial class SeedData
             Mod(110, "INVENTARIO",   "Inventario",        "Stock, movimientos, kardex",                         "boxes",          11),
             Mod(111, "COMPRAS",      "Compras",           "Compras y proveedores",                              "truck",          12),
             Mod(112, "GASTOS",       "Gastos",            "Control de gastos",                                  "wallet",         13),
+            Mod(114, "NEOCRM",       "NeoCRM",            "Contactos, oportunidades, pipeline y actividades",    "handshake",      16),
             Mod(113, "NEORRHH",      "NeoRRHH",           "Recursos humanos y nómina",                          "users",          14),
             Mod(115, "NEOTESORERIA", "Tesorería",         "Cuentas de banco/caja y movimientos",                "account_balance", 15),
         };
@@ -413,13 +414,13 @@ internal static partial class SeedData
             // Pyme
             Pm(201, 100), Pm(201, 101), Pm(201, 102),
             // Pro
-            Pm(202, 100), Pm(202, 101), Pm(202, 102), Pm(202, 103), Pm(202, 108), Pm(202, 110),
+            Pm(202, 100), Pm(202, 101), Pm(202, 102), Pm(202, 103), Pm(202, 108), Pm(202, 110), Pm(202, 114),
             // BusinessFull
             Pm(203, 100), Pm(203, 101), Pm(203, 102), Pm(203, 103), Pm(203, 104), Pm(203, 105),
-            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 115),
+            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 114), Pm(203, 115),
             // Enterprise (todos)
             Pm(204, 100), Pm(204, 101), Pm(204, 102), Pm(204, 103), Pm(204, 104), Pm(204, 105),
-            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 115),
+            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 114), Pm(204, 115),
             // IntegradorAPI
             Pm(205, 100), Pm(205, 101), Pm(205, 106),
             // Contador
@@ -524,6 +525,14 @@ internal static partial class SeedData
             Perm(403, "Pos.Vender",    "NEOPOS", "Registrar ventas y emitir tickets"),
             Perm(404, "Pos.Anular",    "NEOPOS", "Anular ventas POS"),
             Perm(405, "Pos.Configurar","NEOPOS", "Configurar punto de venta e impresoras"),
+
+            // NEOCRM (V2-C1)
+            Perm(408, "Crm.Contactos.Ver",          "NEOCRM", "Ver contactos CRM"),
+            Perm(409, "Crm.Contactos.Gestionar",    "NEOCRM", "Crear, editar e inactivar contactos CRM"),
+            Perm(410, "Crm.Oportunidades.Ver",      "NEOCRM", "Ver oportunidades, pipeline y resumen CRM"),
+            Perm(411, "Crm.Oportunidades.Gestionar","NEOCRM", "Crear oportunidades y mover etapas"),
+            Perm(412, "Crm.Actividades.Ver",        "NEOCRM", "Ver actividades CRM"),
+            Perm(413, "Crm.Actividades.Gestionar",  "NEOCRM", "Crear, completar y cancelar actividades CRM"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -558,6 +567,7 @@ internal static partial class SeedData
             398, 399, 400, 401,
             402, 403, 404, 405,
             406, 407,
+            408, 409, 410, 411, 412, 413,
             360, 361, 362, 363, 364,
         };
 
@@ -574,6 +584,7 @@ internal static partial class SeedData
             398, 399, 400, 401,
             402, 403, 404, 405,
             406, 407,
+            408, 409, 410, 411, 412, 413,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -586,6 +597,7 @@ internal static partial class SeedData
             380, 381,
             402, 403, 404,
             406, 407,
+            408, 409, 410, 411, 412, 413,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -600,6 +612,7 @@ internal static partial class SeedData
             398, 400,
             402,
             406,
+            408, 410, 412,
         };
 
         // READONLY (504) → solo ver
@@ -609,6 +622,7 @@ internal static partial class SeedData
             322,
             330, 335,
             340,
+            408, 410, 412,
         };
 
         var rolPermisos = new List<object>();

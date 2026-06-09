@@ -115,6 +115,12 @@ public class DteController : ApiControllerBase
     public Task<IActionResult> EmitirSujetoExcluido([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
         => EmitirConTipo(req, TipoDteCodigos.FacturaSujetoExcluido, empresaId, ct);
 
+    /// <summary>Comprobante de Retención (07): las líneas son documentos sujetos a retención (DocRelacionado* + MontoSujetoRetencion).</summary>
+    [HttpPost("emitir/retencion")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirRetencion([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.ComprobanteRetencion, empresaId, ct);
+
     // ---- transiciones de estado ----
 
     [HttpPost("documentos/{id:int}/generar")]

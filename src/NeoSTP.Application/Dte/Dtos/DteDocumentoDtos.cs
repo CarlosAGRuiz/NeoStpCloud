@@ -112,6 +112,11 @@ public class DteDocumentoDetalleDto
     public decimal IvaItem { get; set; }
     public bool NoGravado { get; set; }
     public string? Observaciones { get; set; }
+
+    // Comprobante de Retención (07)
+    public string? DocRelacionadoTipoDte { get; set; }
+    public DateTime? DocRelacionadoFecha { get; set; }
+    public string? RetencionCodigoMH { get; set; }
 }
 
 public class CreateDteDocumentoRequest
@@ -160,6 +165,18 @@ public class CreateDteDocumentoLineaRequest
     public string Clasificacion { get; set; } = "GRAVADA";
     public bool NoGravado { get; set; }
     public string? Observaciones { get; set; }
+
+    // ── Comprobante de Retención (07): la línea representa un documento sujeto a retención ──
+    /// <summary>07: tipo del DTE relacionado (CAT-002; normalmente 03 CCF).</summary>
+    public string? DocRelacionadoTipoDte { get; set; }
+    /// <summary>07: número del doc relacionado — código de generación (UUID) si es electrónico, o número físico (máx. 20 alfanumérico, sin guiones).</summary>
+    public string? DocRelacionadoNumero { get; set; }
+    /// <summary>07: fecha de emisión del documento relacionado.</summary>
+    public DateTime? DocRelacionadoFecha { get; set; }
+    /// <summary>07: código de retención MH — 22 = IVA 1% (default), C4 = IVA 13%, C9 = otros.</summary>
+    public string? RetencionCodigoMH { get; set; }
+    /// <summary>07: monto sujeto a retención. Si no se envía, se usa Cantidad × PrecioUnitario.</summary>
+    public decimal? MontoSujetoRetencion { get; set; }
 }
 
 public class ReceptorDto

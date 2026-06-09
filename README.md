@@ -82,7 +82,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 | Cód | Módulo | Descripción | Estado |
 |---|---|---|---|
 | 100 | CORE | Empresas, sucursales, PV, usuarios, roles/permisos, catálogos, auditoría | ✅ |
-| 101 | NEODTE | Emisión DTE (8 tipos), certificación MH, eventos, contingencia, diagnóstico | ✅ |
+| 101 | NEODTE | Emisión DTE (9 tipos, incl. 07 Retención), certificación MH, eventos, contingencia, diagnóstico | ✅ |
 | 102 | **NEOPOS** | Punto de venta: ventas, tickets, impresión, correo, promoción a DTE, **corte de caja** | ✅ S1–S4 |
 | 103 | NEOSCANAI | Captura/OCR de documentos (backend; UI en la app) | ✅ backend |
 | 104 | NEOPROFIT | P&L: ventas, costos, gastos/compras, rankings | ✅ |
@@ -99,8 +99,9 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 
 ### Destacados de la suite
 
-- **Facturación electrónica (DTE)** — 8 tipos de documento, certificación MH, firma, contingencia,
-  eventos persistidos, diagnóstico de errores de Hacienda. Branding por empresa (logo/firma en PDF y correo).
+- **Facturación electrónica (DTE)** — 9 tipos de documento (01, 03, 04, 05, 06, **07 Comprobante de Retención**, 11, 14, 15),
+  certificación MH, firma, contingencia, eventos persistidos, diagnóstico de errores de Hacienda.
+  Branding por empresa (logo/firma en PDF y correo).
 - **NeoPOS** — ventas con carrito, **tickets térmicos 58/80mm** en PDF, **vista imprimible** (`window.print()`),
   **ESC/POS por red** (TCP 9100) a impresoras térmicas, **envío del ticket por correo**, resumen del día.
   Ventas como comprobante no fiscal **promovibles a Factura/CCF electrónica** (DTE) en un clic.

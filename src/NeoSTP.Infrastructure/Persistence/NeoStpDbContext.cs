@@ -4,6 +4,7 @@ using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Cobranza;
 using NeoSTP.Domain.Core.Connect;
+using NeoSTP.Domain.Core.Crm;
 using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Domain.Core.Profit;
 using NeoSTP.Domain.Core.Rrhh;
@@ -114,6 +115,15 @@ public class NeoStpDbContext : DbContext
     // Cobranza / Cuentas por cobrar (B-2 NeoCloud Mobile)
     public DbSet<PagoCliente> PagosCliente => Set<PagoCliente>();
     public DbSet<CuentaCobro> CuentasCobro => Set<CuentaCobro>();
+    public DbSet<RecordatorioCobro> RecordatoriosCobro => Set<RecordatorioCobro>();
+
+    // NEOCRM (V2-C1)
+    public DbSet<ContactoCrm> ContactosCrm => Set<ContactoCrm>();
+    public DbSet<EtapaPipelineCrm> EtapasPipelineCrm => Set<EtapaPipelineCrm>();
+    public DbSet<OportunidadCrm> OportunidadesCrm => Set<OportunidadCrm>();
+    public DbSet<ActividadCrm> ActividadesCrm => Set<ActividadCrm>();
+    public DbSet<CotizacionCrm> CotizacionesCrm => Set<CotizacionCrm>();
+    public DbSet<CotizacionCrmLinea> CotizacionLineasCrm => Set<CotizacionCrmLinea>();
 
     // NeoScanAI (Sprint 23 / B-3 NeoCloud Mobile)
     public DbSet<ScanDocumento> ScanDocumentos => Set<ScanDocumento>();

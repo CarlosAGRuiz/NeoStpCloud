@@ -27,6 +27,7 @@ public class DteDocumentosService : IDteDocumentosService
         TipoDteCodigos.NotaRemision,
         TipoDteCodigos.FacturaExportacion,
         TipoDteCodigos.ComprobanteDonacion,
+        TipoDteCodigos.ComprobanteRetencion,
     };
 
     private readonly NeoStpDbContext _db;
@@ -240,6 +241,49 @@ public class DteDocumentosService : IDteDocumentosService
 
         // Detalles
         var numLinea = 1;
+
+        if (request.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion)
+        {
+            // CR (07): cada línea es un documento sujeto a retención (no productos).
+            foreach (var linea in request.Lineas)
+            {
+                var numero = (linea.DocRelacionadoNumero ?? "").Trim();
+                var esElectronico = DteRetencion.EsCodigoGeneracion(numero);
+                if (esElectronico) numero = numero.ToUpperInvariant(); // MH exige el UUID en mayúsculas
+                var tipoRel = string.IsNullOrWhiteSpace(linea.DocRelacionadoTipoDte) ? "03" : linea.DocRelacionadoTipoDte.Trim();
+                var codigoRet = string.IsNullOrWhiteSpace(linea.RetencionCodigoMH)
+                    ? DteRetencion.CodigoIva1
+                    : linea.RetencionCodigoMH.Trim().ToUpperInvariant();
+                var monto = linea.MontoSujetoRetencion ?? (linea.Cantidad * linea.PrecioUnitario);
+
+                doc.Detalles.Add(new DteDocumentoDetalle
+                {
+                    NumeroLinea = numLinea++,
+                    Codigo = numero,
+                    Descripcion = string.IsNullOrWhiteSpace(linea.Descripcion)
+                        ? $"Retención de IVA sobre DTE {tipoRel} {numero}"
+                        : linea.Descripcion,
+                    UnidadMedidaCodigo = "59",
+                    TipoItem = esElectronico ? 2 : 1, // tipoGeneracion: 2 electrónico, 1 físico
+                    Cantidad = 1,
+                    PrecioUnitario = monto,           // monto sujeto a retención
+                    MontoDescuento = 0,
+                    DocRelacionadoTipoDte = tipoRel,
+                    DocRelacionadoFecha = linea.DocRelacionadoFecha,
+                    RetencionCodigoMH = codigoRet,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = actor,
+                });
+            }
+
+            _calculator.Recalcular(doc);
+            _db.DteDocumentos.Add(doc);
+            await _db.SaveChangesAsync(ct);
+            await Audit(empresaId, actor, "CREATE_BORRADOR", "OK",
+                $"DTE {doc.TipoDteCodigo} #{doc.NumeroControl} en borrador (IVA retenido={doc.TotalPagar:0.00})", doc.Id);
+            return await GetByIdAsync(empresaId, doc.Id, ct);
+        }
+
         foreach (var linea in request.Lineas)
         {
             string codigo = linea.Codigo;
@@ -781,6 +825,7 @@ public class DteDocumentosService : IDteDocumentosService
         TipoDteCodigos.NotaCredito => "Nota de Crédito (DTE-05)",
         TipoDteCodigos.NotaDebito => "Nota de Débito (DTE-06)",
         TipoDteCodigos.FacturaSujetoExcluido => "Factura Sujeto Excluido (DTE-14)",
+        TipoDteCodigos.ComprobanteRetencion => "Comprobante de Retención (DTE-07)",
         _ => $"DTE-{codigo}",
     };
 
@@ -1374,6 +1419,27 @@ public class DteDocumentosService : IDteDocumentosService
             errors.Add($"Tipo de DTE no soportado: {r.TipoDteCodigo}.");
         if (r.Lineas is null || r.Lineas.Count == 0)
             errors.Add("Debe incluir al menos una línea de detalle.");
+        else if (r.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion)
+        {
+            // CR (07): cada línea es un documento sujeto a retención.
+            for (var i = 0; i < r.Lineas.Count; i++)
+            {
+                var l = r.Lineas[i];
+                var numero = l.DocRelacionadoNumero?.Trim();
+                if (string.IsNullOrWhiteSpace(numero))
+                    errors.Add($"Línea {i + 1}: número del documento relacionado requerido (código de generación para DTE, o número físico).");
+                else if (!DteRetencion.EsCodigoGeneracion(numero) && !DteRetencion.EsNumeroFisicoValido(numero))
+                    errors.Add($"Línea {i + 1}: número inválido. Para DTE electrónicos usa el CÓDIGO DE GENERACIÓN (UUID, ej. 76F19422-085D-45B7-A998-4374A3A8EAD7), no el número de control; para documentos físicos, alfanumérico de hasta 20 caracteres sin guiones.");
+                if (l.DocRelacionadoFecha is null)
+                    errors.Add($"Línea {i + 1}: fecha de emisión del documento relacionado requerida.");
+                var monto = l.MontoSujetoRetencion ?? (l.Cantidad * l.PrecioUnitario);
+                if (monto <= 0)
+                    errors.Add($"Línea {i + 1}: el monto sujeto a retención debe ser > 0.");
+                if (!string.IsNullOrWhiteSpace(l.RetencionCodigoMH)
+                    && !DteRetencion.CodigosMH.Contains(l.RetencionCodigoMH.Trim().ToUpperInvariant()))
+                    errors.Add($"Línea {i + 1}: código de retención inválido (usa 22 = IVA 1%, C4 = IVA 13% o C9 = otros).");
+            }
+        }
         else
         {
             for (var i = 0; i < r.Lineas.Count; i++)
@@ -1416,6 +1482,8 @@ public class DteDocumentosService : IDteDocumentosService
             errors.Add("Receptor obligatorio para este tipo de DTE.");
         if (d.TipoDteCodigo == TipoDteCodigos.ComprobanteCreditoFiscal && string.IsNullOrEmpty(d.ReceptorNrc))
             errors.Add("CCF requiere NRC del receptor.");
+        if (d.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion && string.IsNullOrEmpty(d.ReceptorNrc))
+            errors.Add("El Comprobante de Retención requiere NRC del receptor (sujeto de la retención).");
         return errors;
     }
 
@@ -1497,6 +1565,9 @@ public class DteDocumentosService : IDteDocumentosService
                 IvaItem = l.IvaItem,
                 NoGravado = l.NoGravado,
                 Observaciones = l.Observaciones,
+                DocRelacionadoTipoDte = l.DocRelacionadoTipoDte,
+                DocRelacionadoFecha = l.DocRelacionadoFecha,
+                RetencionCodigoMH = l.RetencionCodigoMH,
             }).ToList(),
         JsonDte = d.Json?.JsonDte,
         JsonFirmado = d.Json?.JsonFirmado,

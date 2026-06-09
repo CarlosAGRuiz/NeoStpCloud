@@ -37,4 +37,18 @@ public class DteDocumentoDetalle : AuditableEntity
     public bool NoGravado { get; set; }
 
     public string? Observaciones { get; set; }
+
+    // ── Comprobante de Retención (07): la línea es un documento sujeto a retención ──
+    // En 07: Codigo = numDocumento del doc relacionado (codigoGeneracion UUID si electrónico),
+    // TipoItem = tipoGeneracion (1 físico / 2 electrónico), PrecioUnitario = montoSujetoGrav,
+    // VentaGravada = monto sujeto, IvaItem = ivaRetenido.
+
+    /// <summary>07: tipo del DTE relacionado sujeto a retención (CAT-002, normalmente 03).</summary>
+    public string? DocRelacionadoTipoDte { get; set; }
+
+    /// <summary>07: fecha de emisión del documento relacionado.</summary>
+    public DateTime? DocRelacionadoFecha { get; set; }
+
+    /// <summary>07: código de retención MH (CAT-015): 22 = IVA 1%, C4 = IVA 13%, C9 = otros.</summary>
+    public string? RetencionCodigoMH { get; set; }
 }

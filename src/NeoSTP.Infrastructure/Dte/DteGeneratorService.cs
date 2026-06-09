@@ -53,6 +53,7 @@ public class DteGeneratorService : IDteGeneratorService
             TipoDteCodigos.NotaRemision => BuildNotaRemision(d, emisor, config),
             TipoDteCodigos.FacturaExportacion => BuildFacturaExportacion(d, emisor, config, _territorial),
             TipoDteCodigos.ComprobanteDonacion => BuildComprobanteDonacion(d, emisor, config, _territorial),
+            TipoDteCodigos.ComprobanteRetencion => BuildComprobanteRetencion(d, emisor, config),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
@@ -514,6 +515,60 @@ public class DteGeneratorService : IDteGeneratorService
     }
 
     // ----------- Bloques comunes -------------------------------------
+
+    // ----------- 07 Comprobante de Retención (fe-cr-v1) --------------
+
+    private static object BuildComprobanteRetencion(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    {
+        return new
+        {
+            identificacion = BuildIdentificacion(d, 1),
+            emisor = BuildEmisorCcf(d, emisor, config),
+            receptor = BuildReceptorRetencion(d),
+            // Cuerpo: documentos sujetos a retención. numDocumento DEBE ser el código de
+            // generación (UUID en MAYÚSCULAS) si el doc es electrónico (tipoGeneracion=2),
+            // o un número alfanumérico ≤20 si es físico (tipoGeneracion=1).
+            cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => new
+            {
+                numItem = idx + 1,
+                tipoDte = string.IsNullOrWhiteSpace(l.DocRelacionadoTipoDte) ? "03" : l.DocRelacionadoTipoDte,
+                tipoGeneracion = DteRetencion.EsCodigoGeneracion(l.Codigo) ? 2 : 1,
+                numDocumento = DteRetencion.EsCodigoGeneracion(l.Codigo) ? l.Codigo.ToUpperInvariant() : l.Codigo,
+                fechaEmision = (l.DocRelacionadoFecha ?? d.FechaEmision).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                montoSujetoGrav = (double)l.VentaGravada,
+                codigoRetencionMH = string.IsNullOrWhiteSpace(l.RetencionCodigoMH) ? DteRetencion.CodigoIva1 : l.RetencionCodigoMH,
+                ivaRetenido = (double)l.IvaItem,
+                descripcion = l.Descripcion,
+            }).ToArray(),
+            resumen = new
+            {
+                totalSujetoRetencion = (double)d.TotalGravada,
+                totalIVAretenido = (double)d.IvaRetenido,
+                totalIVAretenidoLetras = d.TotalLetras,
+            },
+            extension = (object?)null,
+            apendice = (object?)null,
+        };
+    }
+
+    private static object BuildReceptorRetencion(DteDocumento d) => new
+    {
+        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "36",
+        numDocumento = d.ReceptorNumeroDocumento,
+        nrc = d.ReceptorNrc,
+        nombre = d.ReceptorNombre,
+        codActividad = d.ReceptorCodigoActividad,
+        descActividad = d.ReceptorActividadEconomica,
+        nombreComercial = (string?)null,
+        direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
+        {
+            departamento = d.ReceptorDepartamentoCodigo,
+            municipio = d.ReceptorMunicipioCodigo,
+            complemento = d.ReceptorDireccion,
+        },
+        telefono = d.ReceptorTelefono,
+        correo = d.ReceptorCorreo,
+    };
 
     private static object BuildIdentificacion(DteDocumento d, int version) => new
     {

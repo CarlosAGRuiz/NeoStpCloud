@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(NeoStpDbContext))]
-    partial class NeoStpDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260609214258_V2_C1_NeoCrm")]
+    partial class V2_C1_NeoCrm
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -9908,211 +9911,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.ToTable("Crm_Contactos", (string)null);
                 });
 
-            modelBuilder.Entity("NeoSTP.Domain.Core.Crm.CotizacionCrm", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("ClienteId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ContactoCrmId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<decimal>("DescuentoTotal")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int?>("DteDocumentoId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("EstadoCodigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateOnly>("FechaEmision")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("FechaValidez")
-                        .HasColumnType("date");
-
-                    b.Property<decimal>("IvaTotal")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("MonedaCodigo")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("Observaciones")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int?>("OportunidadCrmId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("SubTotal")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("Terminos")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("Titulo")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("nvarchar(160)");
-
-                    b.Property<decimal>("Total")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClienteId");
-
-                    b.HasIndex("ContactoCrmId");
-
-                    b.HasIndex("DteDocumentoId");
-
-                    b.HasIndex("OportunidadCrmId");
-
-                    b.HasIndex("EmpresaId", "Numero")
-                        .IsUnique();
-
-                    b.HasIndex("EmpresaId", "OportunidadCrmId");
-
-                    b.HasIndex("EmpresaId", "EstadoCodigo", "FechaEmision");
-
-                    b.ToTable("Crm_Cotizaciones", (string)null);
-                });
-
-            modelBuilder.Entity("NeoSTP.Domain.Core.Crm.CotizacionCrmLinea", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Cantidad")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("Codigo")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("CotizacionCrmId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("IvaItem")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal>("MontoDescuento")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int>("NumeroLinea")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("PorcentajeDescuento")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("decimal(9,4)");
-
-                    b.Property<decimal>("PrecioUnitario")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int?>("ProductoId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TipoItem")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalLinea")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("UnidadMedidaCodigo")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<decimal>("VentaExenta")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal>("VentaGravada")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal>("VentaNoSujeta")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CotizacionCrmId");
-
-                    b.HasIndex("ProductoId");
-
-                    b.HasIndex("EmpresaId", "CotizacionCrmId");
-
-                    b.ToTable("Crm_CotizacionLineas", (string)null);
-                });
-
             modelBuilder.Entity("NeoSTP.Domain.Core.Crm.EtapaPipelineCrm", b =>
                 {
                     b.Property<int>("Id")
@@ -19044,13 +18842,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<DateTime?>("DocRelacionadoFecha")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DocRelacionadoTipoDte")
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
-
                     b.Property<int>("DocumentoId")
                         .HasColumnType("int");
 
@@ -19078,10 +18869,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
 
                     b.Property<int?>("ProductoId")
                         .HasColumnType("int");
-
-                    b.Property<string>("RetencionCodigoMH")
-                        .HasMaxLength(3)
-                        .HasColumnType("nvarchar(3)");
 
                     b.Property<int>("TipoItem")
                         .HasColumnType("int");
@@ -24748,71 +24535,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Empresa");
                 });
 
-            modelBuilder.Entity("NeoSTP.Domain.Core.Crm.CotizacionCrm", b =>
-                {
-                    b.HasOne("NeoSTP.Domain.Core.Clientes.Cliente", "Cliente")
-                        .WithMany()
-                        .HasForeignKey("ClienteId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("NeoSTP.Domain.Core.Crm.ContactoCrm", "Contacto")
-                        .WithMany("Cotizaciones")
-                        .HasForeignKey("ContactoCrmId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("NeoSTP.Domain.Core.Dte.DteDocumento", "DteDocumento")
-                        .WithMany()
-                        .HasForeignKey("DteDocumentoId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NeoSTP.Domain.Core.Crm.OportunidadCrm", "Oportunidad")
-                        .WithMany("Cotizaciones")
-                        .HasForeignKey("OportunidadCrmId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Cliente");
-
-                    b.Navigation("Contacto");
-
-                    b.Navigation("DteDocumento");
-
-                    b.Navigation("Empresa");
-
-                    b.Navigation("Oportunidad");
-                });
-
-            modelBuilder.Entity("NeoSTP.Domain.Core.Crm.CotizacionCrmLinea", b =>
-                {
-                    b.HasOne("NeoSTP.Domain.Core.Crm.CotizacionCrm", "Cotizacion")
-                        .WithMany("Lineas")
-                        .HasForeignKey("CotizacionCrmId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NeoSTP.Domain.Core.Productos.Producto", "Producto")
-                        .WithMany()
-                        .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Cotizacion");
-
-                    b.Navigation("Empresa");
-
-                    b.Navigation("Producto");
-                });
-
             modelBuilder.Entity("NeoSTP.Domain.Core.Crm.EtapaPipelineCrm", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
@@ -25449,14 +25171,7 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Actividades");
 
-                    b.Navigation("Cotizaciones");
-
                     b.Navigation("Oportunidades");
-                });
-
-            modelBuilder.Entity("NeoSTP.Domain.Core.Crm.CotizacionCrm", b =>
-                {
-                    b.Navigation("Lineas");
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Crm.EtapaPipelineCrm", b =>
@@ -25467,8 +25182,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("NeoSTP.Domain.Core.Crm.OportunidadCrm", b =>
                 {
                     b.Navigation("Actividades");
-
-                    b.Navigation("Cotizaciones");
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificacionMatriz", b =>

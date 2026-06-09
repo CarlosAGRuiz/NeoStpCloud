@@ -32,6 +32,7 @@ builder.Services.AddHostedService<ContingenciaLoteWorker>();
 builder.Services.AddHostedService<BackupWorker>();
 builder.Services.AddHostedService<ConnectWebhookDeliveryWorker>();
 builder.Services.AddHostedService<AlertaGeneracionWorker>();
+builder.Services.AddHostedService<RecordatorioCobroWorker>();
 
 // ── Cola de trabajo en proceso (M4.4): descarga de tareas pesadas ─
 builder.Services.AddBackgroundTaskQueue();

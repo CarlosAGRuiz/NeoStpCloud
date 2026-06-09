@@ -18,12 +18,14 @@ public class CobranzaController : ApiControllerBase
 {
     private readonly ICobranzaService _service;
     private readonly ICobroQrService _qr;
+    private readonly IRecordatorioCobroService _recordatorios;
     private readonly ICurrentUser _currentUser;
 
-    public CobranzaController(ICobranzaService service, ICobroQrService qr, ICurrentUser currentUser)
+    public CobranzaController(ICobranzaService service, ICobroQrService qr, IRecordatorioCobroService recordatorios, ICurrentUser currentUser)
     {
         _service = service;
         _qr = qr;
+        _recordatorios = recordatorios;
         _currentUser = currentUser;
     }
 
@@ -132,6 +134,15 @@ public class CobranzaController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _qr.GenerarQrAsync(eid, req, ct));
+    }
+
+    /// <summary>Ejecuta recordatorios salientes de facturas vencidas (email/WhatsApp).</summary>
+    [HttpPost("recordatorios/ejecutar")]
+    [RequirePermiso("Cobros.Gestionar")]
+    public async Task<IActionResult> EjecutarRecordatorios([FromBody] EjecutarRecordatoriosCobroRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _recordatorios.EjecutarAsync(eid, req, _currentUser.Username, ct));
     }
 
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;

@@ -13,12 +13,24 @@ public class WorkerOptions
     public ContingenciaLoteOptions ContingenciaLote { get; set; } = new();
     public WebhookDeliveryOptions WebhookDelivery { get; set; } = new();
     public GeneracionAlertasOptions GeneracionAlertas { get; set; } = new();
+    public RecordatoriosCobroOptions RecordatoriosCobro { get; set; } = new();
 }
 
 public class GeneracionAlertasOptions
 {
     /// <summary>Intervalo entre ejecuciones del job (minutos). Default: 60.</summary>
     public int IntervaloMinutos { get; set; } = 60;
+}
+
+public class RecordatoriosCobroOptions
+{
+    public bool Enabled { get; set; }
+    /// <summary>Intervalo entre ejecuciones del job (horas). Default: 24.</summary>
+    public int IntervaloHoras { get; set; } = 24;
+    public int DiasVencidoMinimo { get; set; } = 1;
+    public int MaximoPorEmpresa { get; set; } = 50;
+    public bool EnviarEmail { get; set; } = true;
+    public bool EnviarWhatsApp { get; set; }
 }
 
 public class RetransmisionContingenciaOptions
