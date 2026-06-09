@@ -37,6 +37,11 @@ public class ConfiguracionCorreoDto
     public string? FromEmail { get; set; }
 }
 
+public class ProbarCorreoRequest
+{
+    [Required, EmailAddress, StringLength(160)] public string Destino { get; set; } = null!;
+}
+
 public class GuardarConfiguracionCorreoRequest
 {
     public bool Activo { get; set; }
