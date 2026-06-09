@@ -3,7 +3,9 @@
 @{
     ViewData["Title"] = $"Venta {Model.Numero}";
     var puedeAnular = ViewBag.PuedeAnular is bool a && a;
+    var puedeFacturar = ViewBag.PuedeFacturar is bool f && f;
     var anulada = Model.EstadoCodigo == "ANULADA";
+    var facturada = Model.EstadoFacturacion == "FACTURADA";
     var impresorasRed = ViewBag.ImpresorasRed as List<ImpresoraPosDto> ?? new List<ImpresoraPosDto>();
 }
 
@@ -35,6 +37,30 @@
                 </ul>
             </div>
         }
+        @if (puedeFacturar && !anulada && !facturada)
+        {
+            <div class="dropdown">
+                <button class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown"><span class="material-symbols-outlined align-middle" style="font-size:18px">receipt_long</span> Facturar (DTE)</button>
+                <ul class="dropdown-menu dropdown-menu-end p-2" style="min-width:220px">
+                    <li class="small text-muted px-2 pb-1">Emitir documento electrónico</li>
+                    <li>
+                        <form asp-action="Promover" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Emitir Factura electrónica (01) de esta venta?');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="tipoDteCodigo" value="01" />
+                            <button type="submit" class="dropdown-item">Factura de consumidor (01)</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form asp-action="Promover" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Emitir CCF (03)? Requiere cliente con NRC.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="tipoDteCodigo" value="03" />
+                            @if (Model.ClienteId is int cid) { <input type="hidden" name="clienteId" value="@cid" /> }
+                            <button type="submit" class="dropdown-item">Crédito fiscal (03)</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        }
         @if (puedeAnular && !anulada)
         {
             <form asp-action="Anular" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular la venta?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm">Anular</button></form>
@@ -45,6 +71,13 @@
 
 @if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (facturada && Model.DteDocumentoId is int dteId)
+{
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <span><span class="material-symbols-outlined align-middle">verified</span> Facturada como DTE electrónico.</span>
+        <a asp-controller="DteDocumentos" asp-action="Details" asp-route-id="@dteId" class="btn btn-sm btn-outline-primary">Ver DTE #@dteId</a>
+    </div>
+}
 
 <div class="row g-3">
     <div class="col-lg-8">

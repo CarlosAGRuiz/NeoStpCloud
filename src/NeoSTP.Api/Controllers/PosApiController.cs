@@ -63,6 +63,15 @@ public class PosApiController : ApiControllerBase
         return Respond(await _pos.AnularAsync(eid, id, _currentUser.Username, ct), "Venta anulada.");
     }
 
+    /// <summary>Promueve la venta a Factura/CCF electrónica (DTE).</summary>
+    [HttpPost("ventas/{id:int}/promover")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> PromoverVenta(int id, [FromBody] NeoSTP.Application.Pos.Dtos.PromoverVentaRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _pos.PromoverADteAsync(eid, id, req ?? new(), _currentUser.Username, ct));
+    }
+
     /// <summary>Ticket de la venta en PDF (formato térmico).</summary>
     [HttpGet("ventas/{id:int}/ticket")]
     [RequirePermiso("Pos.Ver")]

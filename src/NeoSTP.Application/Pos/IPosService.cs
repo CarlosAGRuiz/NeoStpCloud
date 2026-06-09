@@ -21,6 +21,12 @@ public interface IPosService
     Task<Result> EnviarTicketCorreoAsync(int empresaId, int id, string email, string? actor, CancellationToken ct = default);
 
     Task<Result<PosResumenDiaDto>> ResumenDiaAsync(int empresaId, DateOnly fecha, CancellationToken ct = default);
+
+    /// <summary>
+    /// Promueve una venta POS a Factura/CCF electrónica (DTE), emitiéndola por el pipeline DTE.
+    /// Al procesarse, enlaza la venta con el DTE generado y la marca FACTURADA.
+    /// </summary>
+    Task<Result<VentaPosDetalleDto>> PromoverADteAsync(int empresaId, int ventaId, PromoverVentaRequest request, string? actor, CancellationToken ct = default);
 }
 
 /// <summary>Genera el PDF de un ticket de venta (formato térmico 58/80mm).</summary>

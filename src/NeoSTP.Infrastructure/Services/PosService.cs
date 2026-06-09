@@ -3,7 +3,9 @@ using Microsoft.Extensions.Options;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Comunicaciones;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte.Abstractions;
+using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Pos;
 using NeoSTP.Application.Pos.Dtos;
 using NeoSTP.Domain.Core.Pos;
@@ -24,14 +26,16 @@ public class PosService : IPosService
     private readonly IAuditoriaService _auditoria;
     private readonly ITicketPdfService _ticketPdf;
     private readonly ITenantEmailSender _email;
+    private readonly IConnectDteService _dte;
     private readonly PosOptions _opts;
 
-    public PosService(NeoStpDbContext db, IAuditoriaService auditoria, ITicketPdfService ticketPdf, ITenantEmailSender email, IOptions<PosOptions> opts)
+    public PosService(NeoStpDbContext db, IAuditoriaService auditoria, ITicketPdfService ticketPdf, ITenantEmailSender email, IConnectDteService dte, IOptions<PosOptions> opts)
     {
         _db = db;
         _auditoria = auditoria;
         _ticketPdf = ticketPdf;
         _email = email;
+        _dte = dte;
         _opts = opts.Value;
     }
 
@@ -223,7 +227,67 @@ public class PosService : IPosService
         });
     }
 
+    public async Task<Result<VentaPosDetalleDto>> PromoverADteAsync(int empresaId, int ventaId, PromoverVentaRequest request, string? actor, CancellationToken ct = default)
+    {
+        var v = await _db.VentasPos.Include(x => x.Lineas).FirstOrDefaultAsync(x => x.Id == ventaId && x.EmpresaId == empresaId, ct);
+        if (v is null) return Result<VentaPosDetalleDto>.Fail("Venta no encontrada.", "VENTA_POS_NOT_FOUND");
+        if (v.EstadoCodigo == VentaPosEstados.Anulada) return Result<VentaPosDetalleDto>.Fail("La venta está anulada.", "INVALID_STATE");
+        if (v.EstadoFacturacion == VentaPosFacturacion.Facturada)
+            return Result<VentaPosDetalleDto>.Fail("La venta ya fue facturada.", "INVALID_STATE");
+        if (v.Lineas.Count == 0) return Result<VentaPosDetalleDto>.Fail("La venta no tiene líneas.", "VALIDATION");
+
+        var tipo = request.TipoDteCodigo is "01" or "03" ? request.TipoDteCodigo : "01";
+        var clienteId = request.ClienteId ?? v.ClienteId;
+        if (tipo == "03" && clienteId is null)
+            return Result<VentaPosDetalleDto>.Fail("El CCF (03) requiere un cliente con NRC.", "VALIDATION");
+
+        // Los precios POS son IVA incluido → mapean directo a FC (01); para CCF (03) el
+        // pipeline DTE reconoce la clasificación GRAVADA y deriva el IVA contenido igual (gravada*0.13/1.13).
+        var dteReq = new CreateDteDocumentoRequest
+        {
+            TipoDteCodigo = tipo,
+            SucursalId = v.SucursalId,
+            PuntoVentaId = v.PuntoVentaId,
+            ClienteId = clienteId,
+            CondicionOperacionCodigo = "1", // contado
+            FormaPagoCodigo = MapFormaPago(v.FormaPagoCodigo),
+            TipoMonedaCodigo = "USD",
+            Observaciones = $"Generado desde venta POS {v.Numero}",
+            Lineas = v.Lineas.Select(l => new CreateDteDocumentoLineaRequest
+            {
+                ProductoId = l.ProductoId,
+                Codigo = l.Codigo,
+                Descripcion = l.Descripcion,
+                Cantidad = l.Cantidad,
+                PrecioUnitario = l.PrecioUnitario,
+                MontoDescuento = l.Descuento,
+                Clasificacion = l.AplicaIva ? "GRAVADA" : "EXENTA",
+            }).ToList(),
+        };
+
+        var emision = await _dte.EmitirAsync(empresaId, dteReq, actor, ct);
+        if (emision.IsFailure)
+            return Result<VentaPosDetalleDto>.Fail(emision.Error ?? "No se pudo emitir el DTE.", emision.ErrorCode);
+
+        v.DteDocumentoId = emision.Value!.Id;
+        v.EstadoFacturacion = VentaPosFacturacion.Facturada;
+        v.UpdatedAt = DateTime.UtcNow; v.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "PROMOVER_DTE", $"{v.Numero} → DTE #{emision.Value.Id} ({tipo})", v.Id);
+        return Result<VentaPosDetalleDto>.Ok(ToDetalle(v));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /// <summary>Mapea la forma de pago POS al catálogo MH CAT-017 (aprox.).</summary>
+    private static string MapFormaPago(string formaPos) => formaPos switch
+    {
+        FormasPagoPos.Efectivo => "01",
+        FormasPagoPos.Tarjeta => "02",
+        FormasPagoPos.Transferencia => "03",
+        FormasPagoPos.Qr => "03",
+        _ => "99",
+    };
 
     private async Task<string> SiguienteNumeroAsync(int empresaId, CancellationToken ct)
     {

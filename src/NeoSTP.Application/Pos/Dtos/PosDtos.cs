@@ -85,3 +85,12 @@ public class EnviarTicketRequest
 {
     [Required, EmailAddress] public string Email { get; set; } = null!;
 }
+
+/// <summary>Promoción de una venta POS a Factura/CCF electrónica (DTE).</summary>
+public class PromoverVentaRequest
+{
+    /// <summary>01 = Factura (consumidor); 03 = CCF (requiere receptor con NRC).</summary>
+    public string TipoDteCodigo { get; set; } = "01";
+    /// <summary>Cliente del DTE; si no se indica, se usa el de la venta (o consumidor final).</summary>
+    public int? ClienteId { get; set; }
+}

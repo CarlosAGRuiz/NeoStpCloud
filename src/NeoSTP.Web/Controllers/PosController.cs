@@ -113,6 +113,7 @@ public class PosController : Controller
         var result = await _pos.GetAsync(eid, id, ct);
         if (result.IsFailure) return NotFound();
         ViewBag.PuedeAnular = Has("Pos.Anular");
+        ViewBag.PuedeFacturar = Has("Pos.Vender") && Has("DTE.Emitir");
         var impresoras = await _posConfig.ListImpresorasAsync(eid, ct);
         ViewBag.ImpresorasRed = impresoras.Value?
             .Where(i => i.Conexion == NeoSTP.Domain.Core.Pos.ConexionImpresora.Red && i.EstadoCodigo == "ACTIVA")
@@ -154,6 +155,20 @@ public class PosController : Controller
 
         var result = await _pos.EnviarTicketCorreoAsync(eid, id, email, _currentUser.Username, ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? $"Ticket enviado a {email}." : result.Error;
+        return RedirectToAction(nameof(Detalle), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Promover(int id, string tipoDteCodigo = "01", int? clienteId = null, CancellationToken ct = default)
+    {
+        if (!Has("Pos.Vender") || !Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _pos.PromoverADteAsync(eid, id, new PromoverVentaRequest { TipoDteCodigo = tipoDteCodigo, ClienteId = clienteId }, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? $"Venta facturada como DTE (#{result.Value!.DteDocumentoId})."
+            : result.Error;
         return RedirectToAction(nameof(Detalle), new { id });
     }
 

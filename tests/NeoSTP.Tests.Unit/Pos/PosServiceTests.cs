@@ -2,8 +2,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Common;
 using NeoSTP.Application.Comunicaciones;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte.Abstractions;
+using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Pos;
 using NeoSTP.Application.Pos.Dtos;
 using NeoSTP.Domain.Core.Empresas;
@@ -36,13 +39,14 @@ public class PosServiceTests
         return db;
     }
 
-    private static (PosService svc, ITenantEmailSender email) NewSvc(NeoStpDbContext db)
+    private static (PosService svc, ITenantEmailSender email, IConnectDteService dte) NewSvc(NeoStpDbContext db)
     {
         var email = Substitute.For<ITenantEmailSender>();
         email.EnviarAsync(Arg.Any<int>(), Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>())
             .Returns(new EmailSendResult { Success = true, MessageId = "ok" });
-        var svc = new PosService(db, Substitute.For<IAuditoriaService>(), new TicketPdfService(), email, Options.Create(new PosOptions()));
-        return (svc, email);
+        var dte = Substitute.For<IConnectDteService>();
+        var svc = new PosService(db, Substitute.For<IAuditoriaService>(), new TicketPdfService(), email, dte, Options.Create(new PosOptions()));
+        return (svc, email, dte);
     }
 
     private static CrearVentaRequest VentaConProducto(decimal cant = 2m) => new()
@@ -54,7 +58,7 @@ public class PosServiceTests
     [Fact]
     public async Task CrearVenta_CalculaTotalesYNumeroYCambio()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
 
         var r = await svc.CrearVentaAsync(Empresa, VentaConProducto(2m), "cajero");
 
@@ -72,7 +76,7 @@ public class PosServiceTests
     [Fact]
     public async Task CrearVenta_NumeracionCorrelativa()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
         await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
 
         var r2 = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
@@ -83,7 +87,7 @@ public class PosServiceTests
     [Fact]
     public async Task CrearVenta_SinLineas_Falla()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
 
         var r = await svc.CrearVentaAsync(Empresa, new CrearVentaRequest { FormaPagoCodigo = "EFECTIVO", Lineas = [] }, "c");
 
@@ -94,7 +98,7 @@ public class PosServiceTests
     [Fact]
     public async Task CrearVenta_ItemManualSinPrecio_Falla()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
 
         var r = await svc.CrearVentaAsync(Empresa, new CrearVentaRequest
         { FormaPagoCodigo = "EFECTIVO", Lineas = [new CrearVentaLineaRequest { Descripcion = "X", Cantidad = 1m }] }, "c");
@@ -106,7 +110,7 @@ public class PosServiceTests
     [Fact]
     public async Task Anular_DejaAnulada()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
         var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
 
         var r = await svc.AnularAsync(Empresa, v.Value!.Id, "c");
@@ -118,7 +122,7 @@ public class PosServiceTests
     [Fact]
     public async Task GetTicket_TraeDatosEmpresaYLineas()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
         var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
 
         var t = await svc.GetTicketAsync(Empresa, v.Value!.Id);
@@ -133,7 +137,7 @@ public class PosServiceTests
     [Fact]
     public async Task EnviarTicket_AdjuntaPdfYLlamaEmail()
     {
-        var db = NewDb(); var (svc, email) = NewSvc(db);
+        var db = NewDb(); var (svc, email, _) = NewSvc(db);
         var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
 
         var r = await svc.EnviarTicketCorreoAsync(Empresa, v.Value!.Id, "cliente@x.com", "c");
@@ -147,7 +151,7 @@ public class PosServiceTests
     [Fact]
     public async Task ResumenDia_AgrupaPorFormaPago()
     {
-        var db = NewDb(); var (svc, _) = NewSvc(db);
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
         await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c"); // efectivo 22.60
         await svc.CrearVentaAsync(Empresa, new CrearVentaRequest
         { FormaPagoCodigo = "TARJETA", Lineas = [new CrearVentaLineaRequest { ProductoId = 1, Cantidad = 1m }] }, "c"); // 11.30
@@ -159,6 +163,50 @@ public class PosServiceTests
         r.Value.Total.Should().Be(33.90m);
         r.Value.Efectivo.Should().Be(22.60m);
         r.Value.Tarjeta.Should().Be(11.30m);
+    }
+
+    [Fact]
+    public async Task PromoverADte_Exito_EnlazaYMarcaFacturada()
+    {
+        var db = NewDb(); var (svc, _, dte) = NewSvc(db);
+        var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
+        dte.EmitirAsync(Empresa, Arg.Any<CreateDteDocumentoRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.Ok(new DteDocumentoDto { Id = 777, EstadoCodigo = "PROCESADO" }));
+
+        var r = await svc.PromoverADteAsync(Empresa, v.Value!.Id, new PromoverVentaRequest { TipoDteCodigo = "01" }, "c");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EstadoFacturacion.Should().Be("FACTURADA");
+        r.Value.DteDocumentoId.Should().Be(777);
+        await dte.Received(1).EmitirAsync(Empresa,
+            Arg.Is<CreateDteDocumentoRequest>(req => req.TipoDteCodigo == "01" && req.Lineas.Count == 1 && req.CondicionOperacionCodigo == "1"),
+            "c", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PromoverADte_FallaEmision_NoMarcaFacturada()
+    {
+        var db = NewDb(); var (svc, _, dte) = NewSvc(db);
+        var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
+        dte.EmitirAsync(Empresa, Arg.Any<CreateDteDocumentoRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.Fail("Certificado no cargado.", "VALIDATION"));
+
+        var r = await svc.PromoverADteAsync(Empresa, v.Value!.Id, new PromoverVentaRequest(), "c");
+
+        r.IsFailure.Should().BeTrue();
+        (await db.VentasPos.FirstAsync()).EstadoFacturacion.Should().Be("NO_FACTURADA");
+    }
+
+    [Fact]
+    public async Task PromoverADte_CcfSinCliente_Falla()
+    {
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
+        var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c");
+
+        var r = await svc.PromoverADteAsync(Empresa, v.Value!.Id, new PromoverVentaRequest { TipoDteCodigo = "03" }, "c");
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("VALIDATION");
     }
 
     [Fact]
