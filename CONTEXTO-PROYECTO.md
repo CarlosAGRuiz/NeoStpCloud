@@ -10,6 +10,29 @@
 
 ---
 
+## Actualizacion reciente - 2026-06-09
+
+Ultimos commits revisados para este contexto:
+
+- `d36d58c feat(pos)`: cierre de NeoPOS S4 con sesion/corte de caja, endpoints POS caja, vistas Web, migracion `NEOPOS_S4_SesionCaja` y tests de caja.
+- `5b7517f feat(api)`: configuracion SMTP por empresa desde `/api/correo`.
+- `6be7c7f feat(inventario)`: auto-integracion compra/venta con inventario y alerta de stock bajo.
+- `f247b7f fix(dte)`: envio de DTE usando SMTP por empresa mediante `ITenantEmailSender`.
+- `f915505 fix(web)`: Web aplica migraciones y seed al arrancar.
+- `a12f518 feat(inventario)`: modulo INVENTARIO 110 con existencias, kardex y costo promedio.
+- `59111cf feat(pos)`: promocion de venta POS a Factura/CCF electronica.
+- `d1c8616 feat(pos)`: NeoPOS ventas, tickets, impresion y correo por empresa.
+- `0b8db98 feat(compras)`: NEOCOMPRAS 111 con proveedores y CxP.
+- `f3f49c3 feat(tesoreria)`: NEOTESORERIA 115 con cuentas banco/caja y movimientos.
+- `f5e4174 style(web)`: modernizacion de vistas Catalogos, Clientes, Empleados y Planilla.
+- `c6eff23 fix(seeder)`: backfill de modulos del plan en la empresa de pruebas.
+
+Estado actualizado: NeoPOS, caja, Inventario, Compras/CxP, Tesoreria y configuracion SMTP por empresa ya forman parte de la base implementada. La documentacion tecnica de la API vive en `src/NeoSTP.Api/README.md` y debe mantenerse sincronizada con OpenAPI/Scalar y los controllers.
+
+Siguiente sprint recomendado: consolidacion API-first, con contratos estables, pruebas de integracion para flujos criticos y documentacion comercial/tecnica antes de abrir NEOCRM y NeoPortal Clientes.
+
+---
+
 ## Índice
 
 1. [Visión general del ecosistema](#1-visión-general-del-ecosistema)

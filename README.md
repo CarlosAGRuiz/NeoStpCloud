@@ -222,6 +222,7 @@ dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 - **OpenAPI**: `/openapi/v1.json` · **Scalar** (explorador interactivo): `/scalar/v1`.
 - **Autenticación**: JWT (Bearer) para usuarios; **API Key** por scope para NeoConnect (`/api/v1`).
 - **App móvil**: emisión de DTE en un paso (`POST /api/dte/emitir`), cobros, scan, alertas, RRHH, POS, etc.
+- **README técnico de la API**: [`src/NeoSTP.Api/README.md`](src/NeoSTP.Api/README.md).
 
 Endpoints por área (ejemplos): `api/dte/*`, `api/cobros/*`, `api/scanai/*`, `api/alertas/*`,
 `api/profit/*`, `api/rrhh/*`, `api/tesoreria/*`, `api/compras/*`, `api/inventario/*`,
