@@ -17,6 +17,11 @@
     var puedeVerScan = isSuperAdmin || User.HasClaim("permiso", "ScanAI.Ver");
     var puedeVerEmpleados = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Empleados.Ver");
     var puedeVerNomina = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Nomina.Ver");
+    var puedeVerTesoreria = isSuperAdmin || User.HasClaim("permiso", "Tesoreria.Cuentas.Ver");
+    var puedeVerProveedores = isSuperAdmin || User.HasClaim("permiso", "Compras.Proveedores.Ver");
+    var puedeVerCompras = isSuperAdmin || User.HasClaim("permiso", "Compras.Ver");
+    var puedeVerPos = isSuperAdmin || User.HasClaim("permiso", "Pos.Ver");
+    var puedeConfigurarCorreo = isSuperAdmin || User.HasClaim("permiso", "Core.Correo.Configurar");
     var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
@@ -116,6 +121,14 @@ else
                     }
                 }
 
+                @if (puedeVerPos)
+                {
+                    <div class="ns-nav-group">Punto de venta</div>
+                    <a class="ns-nav-link @active("Pos")" asp-controller="Pos" asp-action="Index"><span class="material-symbols-outlined">point_of_sale</span> Ventas POS</a>
+                    <a class="ns-nav-link" asp-controller="Pos" asp-action="Nueva"><span class="material-symbols-outlined">add_shopping_cart</span> Nueva venta</a>
+                    <a class="ns-nav-link @active("Impresoras")" asp-controller="Impresoras" asp-action="Index"><span class="material-symbols-outlined">print</span> Impresoras</a>
+                }
+
                 @if (puedeVerEmpleados || puedeVerNomina)
                 {
                     <div class="ns-nav-group">Recursos Humanos</div>
@@ -129,6 +142,26 @@ else
                     }
                 }
 
+                @if (puedeVerTesoreria)
+                {
+                    <div class="ns-nav-group">Tesorería</div>
+                    <a class="ns-nav-link @active("Tesoreria")" asp-controller="Tesoreria" asp-action="Index"><span class="material-symbols-outlined">account_balance</span> Cuentas</a>
+                    <a class="ns-nav-link @active("Movimientos")" asp-controller="Tesoreria" asp-action="Movimientos"><span class="material-symbols-outlined">sync_alt</span> Movimientos</a>
+                }
+
+                @if (puedeVerProveedores || puedeVerCompras)
+                {
+                    <div class="ns-nav-group">Compras</div>
+                    @if (puedeVerProveedores)
+                    {
+                        <a class="ns-nav-link @active("Proveedores")" asp-controller="Proveedores" asp-action="Index"><span class="material-symbols-outlined">local_shipping</span> Proveedores</a>
+                    }
+                    @if (puedeVerCompras)
+                    {
+                        <a class="ns-nav-link @active("Compras")" asp-controller="Compras" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Cuentas por pagar</a>
+                    }
+                }
+
                 <div class="ns-nav-group">Administración</div>
                 <a class="ns-nav-link @active("Empresas")" asp-controller="Empresas" asp-action="Index"><span class="material-symbols-outlined">domain</span> Empresas</a>
                 <a class="ns-nav-link @active("Sucursales")" asp-controller="Sucursales" asp-action="Index"><span class="material-symbols-outlined">store</span> Sucursales</a>
@@ -136,6 +169,10 @@ else
                 <a class="ns-nav-link @active("Planes")" asp-controller="Planes" asp-action="Index"><span class="material-symbols-outlined">workspace_premium</span> Planes</a>
                 <a class="ns-nav-link @active("DteConfiguracion")" asp-controller="DteConfiguracion" asp-action="Index"><span class="material-symbols-outlined">settings</span> Config DTE</a>
                 <a class="ns-nav-link @active("Branding")" asp-controller="Branding" asp-action="Index"><span class="material-symbols-outlined">palette</span> Logo y firma</a>
+                @if (puedeConfigurarCorreo)
+                {
+                    <a class="ns-nav-link @active("Correo")" asp-controller="Correo" asp-action="Index"><span class="material-symbols-outlined">mail</span> Correo</a>
+                }
                 <a class="ns-nav-link @active("Billing")" asp-controller="Billing" asp-action="Index"><span class="material-symbols-outlined">credit_card</span> Billing</a>
                 @if (puedeVerIntegraciones)
                 {

@@ -78,18 +78,23 @@ Alertas+FCM · Billing+pasarelas.
 
 ## 4. Roadmap unificado (por fases, valor temprano + bajo riesgo)
 
-### Fase A — ERP interno (lo que pediste primero)
-1. **NEORRHH base** (113): módulo+permisos seed, `Empleado`/`ContratoLaboral`, `NominaCalculator` puro (ISSS/AFP/Renta 2026 parametrizables) + tests, CRUD empleados `ns-*`.
-2. **NEORRHH planilla quincenal**: corrida de período (1-15 / 16-fin), `PlanillaDetalle`, recibo PDF, exportes ISSS/AFP (CsvExporter), **pago→gasto PLANILLA** (alimenta NeoProfit). Cálculo masivo por la cola (M4.4).
-3. **NEOTESORERIA mínima** (115): cuentas + movimientos, para registrar pagos de planilla/gastos.
+### Fase A — ERP interno (lo que pediste primero) ✅ COMPLETA
+1. ✅ **NEORRHH base** (113): módulo+permisos seed, `Empleado`/`ContratoLaboral`, `NominaCalculator` puro (ISSS/AFP/Renta 2026 parametrizables) + tests, CRUD empleados `ns-*`.
+2. ✅ **NEORRHH planilla quincenal**: corrida de período (1-15 / 16-fin), `PlanillaDetalle`, recibo PDF, exportes ISSS/AFP (CsvExporter), **pago→gasto PLANILLA** (alimenta NeoProfit).
+3. ✅ **NEOTESORERIA mínima** (115): `CuentaTesoreria` (banco/caja, saldo corriente) + `MovimientoTesoreria` (ingreso/egreso, origen PLANILLA/GASTO/COBRO), `ITesoreriaService`, `api/tesoreria/*` + web `ns-*`, resumen de saldos. Tablas `Tes_Cuentas`/`Tes_Movimientos`, permisos 394-397, plan BusinessFull/Enterprise.
+
+> **Activación en empresa de pruebas:** `EmpresaPruebaSeeder` ahora hace *backfill* idempotente de los
+> módulos del plan al arrancar, de modo que módulos liberados después de provisionar (NEORRHH, NEOTESORERIA)
+> quedan activos sin recrear la empresa.
 
 ### Fase B — Ciclo de egresos/stock
-4. **N3 Compras/CxP** (111): proveedores + órdenes + cuentas por pagar (espejo de Cobros/CxC) + integra NeoScan (DTE recibido→compra).
+4. ✅ **N3 Compras/CxP** (111): `Proveedor` + `FacturaCompra` (CxP, espejo de Cobros/CxC) + `PagoProveedor`, `CuentasPagarCalculator` puro (saldo/estado/vencimiento), `ICompraService`, `api/compras/*` + web `ns-*`. Integra **NeoProfit** (gasto categoría COMPRA al registrar) y **Tesorería** (egreso opcional al pagar). Tablas `Compras_Proveedores`/`Compras_Facturas`/`Compras_Pagos`, permisos 398-401. *Pendiente sprint 2:* integrar NeoScan (DTE recibido→compra) + órdenes de compra.
 5. **N2 Inventario** (110): existencias + kardex + costo promedio (mejora costo en NeoProfit) + stock bajo (Alertas).
 
 ### Fase C — Comercial
 6. **NEOCRM** (114): contactos + pipeline + actividades + cotización→DTE.
-7. **N1 NeoPOS** (102) · **N5 NeoPortal** (107).
+7. **N1 NeoPOS** (102) — *Sprint 1 ✅*: `VentaPos`/`VentaPosLinea`, `PosCalculator` puro (IVA incluido), `IPosService`, ticket **PDF térmico 58/80mm** (QuestPDF), **vista imprimible** (`window.print()`), **envío por correo** (adjunta PDF), resumen del día, `api/pos/*` + web `ns-*` (pantalla de venta con carrito JS + búsqueda de productos). Tablas `Pos_Ventas`/`Pos_VentaLineas`, permisos 402-405, módulo NEOPOS (Pyme+). Campo `DteDocumentoId` listo para promover a DTE.
+   - *Sprint 2 ✅*: **impresoras** (`ImpresoraPos`, conexión NAVEGADOR/RED/APP, CRUD + UI) · **ESC/POS de red (IP)** (`EscPosTicketBuilder` puro + `TcpNetworkPrinter` TCP 9100, imprimir venta/prueba) · **correo por empresa (UI, cifrado)** (`ConfiguracionCorreo` + `ITenantEmailSender` con fallback global, password vía `ISecretProtector`, permiso `Core.Correo.Configurar` 316). Tablas `Pos_Impresoras`/`Com_ConfiguracionCorreo`. *Pendiente Sprint 3:* promoción venta→Factura/CCF. · **N5 NeoPortal** (107).
 
 ### Fase D — Cierre fiscal/contable
 8. **N4 NeoBI fiscal** (Libro IVA ventas/compras, F-07, retenciones) + **NEOCONTA** (116) asientos/balanza.

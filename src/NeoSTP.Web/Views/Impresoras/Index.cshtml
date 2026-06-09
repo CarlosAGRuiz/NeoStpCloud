@@ -1,0 +1,72 @@
+@using NeoSTP.Application.Pos.Dtos
+@model List<ImpresoraPosDto>
+@{
+    ViewData["Title"] = "Impresoras";
+    var puedeConfigurar = ViewBag.PuedeConfigurar is bool c && c;
+    string Conn(string c) => c switch { "RED" => "ns-badge--processed", "APP" => "ns-badge--contingency", _ => "ns-badge--draft" };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-controller="Pos" asp-action="Index">POS</a><span class="material-symbols-outlined">chevron_right</span><span>Impresoras</span></nav>
+        <h1 class="ns-page-title">Impresoras de tickets</h1>
+    </div>
+    @if (puedeConfigurar)
+    {
+        <a asp-action="Editar" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva impresora</a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="alert alert-light border small">
+    <span class="material-symbols-outlined align-middle">info</span>
+    <strong>Navegador:</strong> imprime con el diálogo del sistema (cualquier impresora). ·
+    <strong>Red:</strong> envía ESC/POS a una impresora térmica por IP. ·
+    <strong>App:</strong> la app móvil gestiona la impresión.
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Conexión</th>
+                    <th class="text-center">Ancho</th>
+                    <th>Destino</th>
+                    <th class="text-center">Predet.</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || Model.Count == 0)
+                {
+                    <tr><td colspan="6"><div class="ns-empty"><span class="material-symbols-outlined">print</span><p>Sin impresoras configuradas.</p></div></td></tr>
+                }
+                @foreach (var i in Model ?? new List<ImpresoraPosDto>())
+                {
+                    <tr>
+                        <td><strong>@i.Nombre</strong> @if (!string.IsNullOrWhiteSpace(i.Notas)) { <div class="small text-muted">@i.Notas</div> }</td>
+                        <td><span class="ns-badge @Conn(i.Conexion)">@i.Conexion</span></td>
+                        <td class="text-center ns-mono">@i.AnchoMm mm</td>
+                        <td class="ns-mono small">@(i.Conexion == "RED" ? $"{i.Ip}:{i.Puerto}" : "—")</td>
+                        <td class="text-center">@(i.EsPredeterminada ? "★" : "")</td>
+                        <td class="text-end">
+                            @if (puedeConfigurar)
+                            {
+                                @if (i.Conexion == "RED")
+                                {
+                                    <form asp-action="Probar" asp-route-id="@i.Id" method="post" class="d-inline">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-secondary" title="Imprimir prueba"><span class="material-symbols-outlined" style="font-size:16px">print</span></button></form>
+                                }
+                                <a asp-action="Editar" asp-route-id="@i.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                                <form asp-action="Eliminar" asp-route-id="@i.Id" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar la impresora?');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger">Eliminar</button></form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

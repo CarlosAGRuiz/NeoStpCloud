@@ -372,6 +372,7 @@ internal static partial class SeedData
             Mod(111, "COMPRAS",      "Compras",           "Compras y proveedores",                              "truck",          12),
             Mod(112, "GASTOS",       "Gastos",            "Control de gastos",                                  "wallet",         13),
             Mod(113, "NEORRHH",      "NeoRRHH",           "Recursos humanos y nómina",                          "users",          14),
+            Mod(115, "NEOTESORERIA", "Tesorería",         "Cuentas de banco/caja y movimientos",                "account_balance", 15),
         };
 
         modelBuilder.Entity<Modulo>().HasData(modulos);
@@ -415,10 +416,10 @@ internal static partial class SeedData
             Pm(202, 100), Pm(202, 101), Pm(202, 102), Pm(202, 103), Pm(202, 108), Pm(202, 110),
             // BusinessFull
             Pm(203, 100), Pm(203, 101), Pm(203, 102), Pm(203, 103), Pm(203, 104), Pm(203, 105),
-            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113),
+            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 115),
             // Enterprise (todos)
             Pm(204, 100), Pm(204, 101), Pm(204, 102), Pm(204, 103), Pm(204, 104), Pm(204, 105),
-            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113),
+            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 115),
             // IntegradorAPI
             Pm(205, 100), Pm(205, 101), Pm(205, 106),
             // Contador
@@ -449,6 +450,7 @@ internal static partial class SeedData
             Perm(313, "Core.Certificacion.Ver",    "NEODTE",    "Ver matriz y progreso de certificación DTE"),
             Perm(314, "Core.Certificacion.Operar", "NEODTE",    "Generar pruebas, asociar documentos, reintentar"),
             Perm(315, "DTE.Eventos.Ver",           "NEODTE",    "Consultar eventos DTE persistidos"),
+            Perm(316, "Core.Correo.Configurar",    "CORE",      "Configurar el correo saliente (SMTP) de la empresa"),
 
             // DTE
             Perm(320, "DTE.Configurar",   "NEODTE", "Configurar emisor, ambiente y credenciales DTE"),
@@ -500,6 +502,24 @@ internal static partial class SeedData
             Perm(391, "Rrhh.Empleados.Gestionar", "NEORRHH", "Crear, editar e inactivar empleados"),
             Perm(392, "Rrhh.Nomina.Ver",          "NEORRHH", "Ver cálculo de nómina y planillas"),
             Perm(393, "Rrhh.Nomina.Gestionar",    "NEORRHH", "Crear, cerrar y anular corridas de planilla"),
+
+            // Tesorería (NEOTESORERIA — V2)
+            Perm(394, "Tesoreria.Cuentas.Ver",          "NEOTESORERIA", "Ver cuentas de tesorería"),
+            Perm(395, "Tesoreria.Cuentas.Gestionar",    "NEOTESORERIA", "Crear, editar e inactivar cuentas"),
+            Perm(396, "Tesoreria.Movimientos.Ver",      "NEOTESORERIA", "Ver movimientos de tesorería"),
+            Perm(397, "Tesoreria.Movimientos.Gestionar","NEOTESORERIA", "Registrar y anular movimientos"),
+
+            // Compras / Cuentas por pagar (COMPRAS — V2)
+            Perm(398, "Compras.Proveedores.Ver",       "COMPRAS", "Ver proveedores"),
+            Perm(399, "Compras.Proveedores.Gestionar", "COMPRAS", "Crear, editar e inactivar proveedores"),
+            Perm(400, "Compras.Ver",                   "COMPRAS", "Ver facturas de compra y cuentas por pagar"),
+            Perm(401, "Compras.Gestionar",             "COMPRAS", "Registrar facturas y pagos a proveedores"),
+
+            // Punto de venta (NEOPOS — V2)
+            Perm(402, "Pos.Ver",       "NEOPOS", "Ver ventas POS y resumen del día"),
+            Perm(403, "Pos.Vender",    "NEOPOS", "Registrar ventas y emitir tickets"),
+            Perm(404, "Pos.Anular",    "NEOPOS", "Anular ventas POS"),
+            Perm(405, "Pos.Configurar","NEOPOS", "Configurar punto de venta e impresoras"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -524,24 +544,30 @@ internal static partial class SeedData
         // SUPERADMIN (500) → todos los permisos
         var superAdmin = new[]
         {
-            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,
+            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
             370, 371, 380, 381,
             390, 391, 392, 393,
+            394, 395, 396, 397,
+            398, 399, 400, 401,
+            402, 403, 404, 405,
             360, 361, 362, 363, 364,
         };
 
         // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin
         var admin = new[]
         {
-            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315,
+            300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
             340, 345, 346, 350,
             370, 371, 380, 381,
             390, 391, 392, 393,
+            394, 395, 396, 397,
+            398, 399, 400, 401,
+            402, 403, 404, 405,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -552,6 +578,7 @@ internal static partial class SeedData
             330, 331, 332, 335, 336, 337,
             345, 346,
             380, 381,
+            402, 403, 404,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -562,6 +589,9 @@ internal static partial class SeedData
             330, 335,
             340, 370, 380,
             390, 392,
+            394, 396,
+            398, 400,
+            402,
         };
 
         // READONLY (504) → solo ver

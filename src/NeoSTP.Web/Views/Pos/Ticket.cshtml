@@ -1,0 +1,100 @@
+@using NeoSTP.Application.Pos
+@model TicketModel
+@{
+    Layout = null;
+    var autoPrint = ViewBag.AutoPrint is bool p && p;
+    var ancho = Model.AnchoMm <= 58 ? "58mm" : "80mm";
+    var money = Model.MonedaSimbolo;
+    string? logo = Model.LogoPng is { Length: > 0 } ? $"data:image/png;base64,{Convert.ToBase64String(Model.LogoPng)}" : null;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ticket @Model.Numero</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #e9ecef; font-family: 'Consolas', 'Courier New', monospace; color: #111; }
+        .ticket { width: @ancho; background: #fff; margin: 16px auto; padding: 8px 10px; }
+        .center { text-align: center; }
+        .muted { color: #555; }
+        .b { font-weight: bold; }
+        .lg { font-size: 14px; }
+        hr { border: none; border-top: 1px dashed #999; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        td { vertical-align: top; padding: 1px 0; }
+        .right { text-align: right; }
+        .logo { max-width: 60%; max-height: 70px; margin-bottom: 4px; }
+        .tot td { padding: 1px 0; }
+        .bar { position: sticky; top: 0; text-align: center; padding: 8px; background:#131B2E; }
+        .bar button { font: inherit; padding: 6px 16px; margin: 0 4px; border: 0; border-radius: 6px; cursor: pointer; }
+        .bar .print { background:#6B38D4; color:#fff; }
+        .bar .close { background:#fff; color:#131B2E; }
+        @@media print { .bar { display: none; } body { background: #fff; } .ticket { margin: 0; width: auto; } }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <button class="print" onclick="window.print()">🖨 Imprimir</button>
+        <button class="close" onclick="window.close()">Cerrar</button>
+    </div>
+
+    <div class="ticket">
+        <div class="center">
+            @if (logo is not null) { <img src="@logo" class="logo" alt="logo" /> }
+            <div class="b lg">@Model.EmpresaNombre</div>
+            @if (!string.IsNullOrWhiteSpace(Model.EmpresaNit)) { <div class="muted">NIT: @Model.EmpresaNit</div> }
+            @if (!string.IsNullOrWhiteSpace(Model.EmpresaNrc)) { <div class="muted">NRC: @Model.EmpresaNrc</div> }
+            @if (!string.IsNullOrWhiteSpace(Model.Direccion)) { <div class="muted">@Model.Direccion</div> }
+            @if (!string.IsNullOrWhiteSpace(Model.Telefono)) { <div class="muted">Tel: @Model.Telefono</div> }
+        </div>
+        <hr />
+        <div><span class="b">Ticket:</span> @Model.Numero</div>
+        <div><span class="b">Fecha:</span> @Model.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+        <div><span class="b">Cliente:</span> @Model.ClienteNombre</div>
+        @if (Model.EstadoCodigo == "ANULADA") { <div class="center b">*** ANULADA ***</div> }
+        <hr />
+        <table>
+            <tbody>
+                @foreach (var l in Model.Lineas)
+                {
+                    <tr>
+                        <td>@l.Descripcion</td>
+                        <td class="right">@money@l.Total.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td class="muted" colspan="2" style="font-size:11px">&nbsp;&nbsp;@l.Cantidad.ToString("0.##") x @money@l.PrecioUnitario.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <hr />
+        <table class="tot">
+            <tbody>
+                @if (Model.TotalDescuento > 0) { <tr><td>Descuento</td><td class="right">@money@Model.TotalDescuento.ToString("N2")</td></tr> }
+                <tr><td>Subtotal</td><td class="right">@money@Model.Subtotal.ToString("N2")</td></tr>
+                <tr><td>IVA</td><td class="right">@money@Model.IvaTotal.ToString("N2")</td></tr>
+                <tr class="b lg"><td>TOTAL</td><td class="right">@money@Model.Total.ToString("N2")</td></tr>
+            </tbody>
+        </table>
+        <div style="margin-top:4px">Forma de pago: @Model.FormaPago</div>
+        @if (Model.EfectivoRecibido is decimal rec)
+        {
+            <table class="tot"><tbody>
+                <tr><td>Efectivo</td><td class="right">@money@rec.ToString("N2")</td></tr>
+                <tr><td>Cambio</td><td class="right">@money@((Model.Cambio ?? 0).ToString("N2"))</td></tr>
+            </tbody></table>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Nota)) { <hr /><div class="muted">@Model.Nota</div> }
+        <hr />
+        <div class="center b">@Model.PieTicket</div>
+        <div class="center muted" style="font-size:11px">Comprobante no fiscal</div>
+    </div>
+
+    @if (autoPrint)
+    {
+        <script>window.addEventListener('load', () => setTimeout(() => window.print(), 250));</script>
+    }
+</body>
+</html>

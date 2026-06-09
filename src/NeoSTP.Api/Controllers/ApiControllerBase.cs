@@ -42,12 +42,16 @@ public abstract class ApiControllerBase : ControllerBase
             or "APIKEY_NOT_FOUND" or "WEBHOOK_NOT_FOUND"
             or "GASTO_NOT_FOUND" or "COMPRA_NOT_FOUND" or "PAGO_NOT_FOUND" or "SCAN_NOT_FOUND"
             or "ALERTA_NOT_FOUND" or "DISPOSITIVO_NOT_FOUND" or "CUENTA_NOT_FOUND"
-            or "EMPLEADO_NOT_FOUND" or "PLANILLA_NOT_FOUND" or "DETALLE_NOT_FOUND" or "RECIBIDO_NOT_FOUND" => NotFound(payload),
+            or "EMPLEADO_NOT_FOUND" or "PLANILLA_NOT_FOUND" or "DETALLE_NOT_FOUND" or "RECIBIDO_NOT_FOUND"
+            or "CUENTA_TES_NOT_FOUND" or "MOVIMIENTO_NOT_FOUND"
+            or "PROVEEDOR_NOT_FOUND" or "FACTURA_COMPRA_NOT_FOUND" or "PAGO_PROVEEDOR_NOT_FOUND"
+            or "VENTA_POS_NOT_FOUND" or "IMPRESORA_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" => Conflict(payload),
         "IP_DUPLICATE" => Conflict(payload),
         "IP_INVALID" => BadRequest(payload),
         "FIRMA_FAILED" or "HACIENDA_AUTH_FAILED" or "EMAIL_FAILED"
-            or "LOTE_ENVIO_FAILED" or "LOTE_CONSULTA_FAILED" or "BACKUP_FAILED" => StatusCode(StatusCodes.Status502BadGateway, payload),
+            or "LOTE_ENVIO_FAILED" or "LOTE_CONSULTA_FAILED" or "BACKUP_FAILED"
+            or "PRINTER_FAILED" or "PRINTER_TIMEOUT" or "PRINTER_NO_IP" => StatusCode(StatusCodes.Status502BadGateway, payload),
         "DECRYPT_FAILED" => StatusCode(StatusCodes.Status500InternalServerError, payload),
         "USER_DUPLICATE" or "ROLE_DUPLICATE" or "ROLE_SYSTEM" or "EMPRESA_DUPLICATE"
             or "SUCURSAL_DUPLICATE" or "PV_DUPLICATE" or "LIMIT_EXCEEDED"

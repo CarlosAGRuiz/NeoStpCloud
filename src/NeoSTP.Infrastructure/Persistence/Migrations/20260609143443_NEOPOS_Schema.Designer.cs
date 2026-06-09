@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(NeoStpDbContext))]
-    partial class NeoStpDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260609143443_NEOPOS_Schema")]
+    partial class NEOPOS_Schema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -9414,71 +9417,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.HasIndex("EmpresaId", "EstadoCodigo");
 
                     b.ToTable("Compras_Proveedores", (string)null);
-                });
-
-            modelBuilder.Entity("NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Activo")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FromEmail")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("nvarchar(160)");
-
-                    b.Property<string>("FromNombre")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("Host")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("nvarchar(160)");
-
-                    b.Property<string>("PasswordProtegida")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
-                    b.Property<int>("Puerto")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<bool>("UsarStartTls")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Usuario")
-                        .HasMaxLength(160)
-                        .HasColumnType("nvarchar(160)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId")
-                        .IsUnique();
-
-                    b.ToTable("Com_ConfiguracionCorreo", (string)null);
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Connect.ConnectApiKey", b =>
@@ -20333,76 +20271,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.ToTable("Ops_BackupJobs", (string)null);
                 });
 
-            modelBuilder.Entity("NeoSTP.Domain.Core.Pos.ImpresoraPos", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AnchoMm")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Conexion")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<bool>("CorteAutomatico")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("EsPredeterminada")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("EstadoCodigo")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("Ip")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("Nombre")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<string>("Notas")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<int>("Puerto")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PuntoVentaId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpresaId", "EstadoCodigo");
-
-                    b.ToTable("Pos_Impresoras", (string)null);
-                });
-
             modelBuilder.Entity("NeoSTP.Domain.Core.Pos.VentaPos", b =>
                 {
                     b.Property<int>("Id")
@@ -21502,15 +21370,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
-                            Id = 316,
-                            Codigo = "Core.Correo.Configurar",
-                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = "SYSTEM",
-                            Descripcion = "Configurar el correo saliente (SMTP) de la empresa",
-                            Modulo = "CORE"
-                        },
-                        new
-                        {
                             Id = 320,
                             Codigo = "DTE.Configurar",
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -22215,12 +22074,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         new
                         {
                             RolId = 500,
-                            PermisoId = 316,
-                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            RolId = 500,
                             PermisoId = 320,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -22558,12 +22411,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         {
                             RolId = 501,
                             PermisoId = 315,
-                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            RolId = 501,
-                            PermisoId = 316,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
@@ -23531,17 +23378,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Empresa");
                 });
 
-            modelBuilder.Entity("NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo", b =>
-                {
-                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Empresa");
-                });
-
             modelBuilder.Entity("NeoSTP.Domain.Core.Connect.ConnectWebhook", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Connect.ConnectApiKey", "ApiKey")
@@ -23829,17 +23665,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Notificaciones.Alerta", b =>
-                {
-                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
-                        .WithMany()
-                        .HasForeignKey("EmpresaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Empresa");
-                });
-
-            modelBuilder.Entity("NeoSTP.Domain.Core.Pos.ImpresoraPos", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
                         .WithMany()

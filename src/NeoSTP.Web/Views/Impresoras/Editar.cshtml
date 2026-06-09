@@ -1,0 +1,60 @@
+@using NeoSTP.Application.Pos.Dtos
+@model GuardarImpresoraRequest
+@{
+    var id = ViewBag.ImpresoraId as int?;
+    ViewData["Title"] = id is null ? "Nueva impresora" : "Editar impresora";
+    var conexiones = ViewBag.Conexiones as string[] ?? Array.Empty<string>();
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Pos" asp-action="Index">POS</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Impresoras</a><span class="material-symbols-outlined">chevron_right</span><span>@(id is null ? "Nueva" : "Editar")</span></nav>
+        <h1 class="ns-page-title">@ViewData["Title"]</h1>
+    </div>
+</div>
+
+<div class="card"><div class="card-body">
+    <form asp-action="Editar" asp-route-id="@id" method="post" class="row g-3" style="max-width:720px">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="text-danger small"></div>
+        <div class="col-md-7"><label class="form-label">Nombre</label><input asp-for="Nombre" class="form-control" placeholder="Caja 1 / Cocina…" /></div>
+        <div class="col-md-5">
+            <label class="form-label">Conexión</label>
+            <select asp-for="Conexion" class="form-select" id="conexion" onchange="toggleRed()">
+                @foreach (var c in conexiones) { <option value="@c">@c</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Ancho de papel</label>
+            <select asp-for="AnchoMm" class="form-select"><option value="80">80 mm</option><option value="58">58 mm</option></select>
+        </div>
+        <div class="col-md-5" id="boxIp">
+            <label class="form-label">IP de la impresora</label>
+            <input asp-for="Ip" class="form-control ns-mono" placeholder="192.168.1.50" />
+        </div>
+        <div class="col-md-3" id="boxPuerto">
+            <label class="form-label">Puerto</label>
+            <input asp-for="Puerto" type="number" class="form-control ns-mono" value="9100" />
+        </div>
+        <div class="col-12">
+            <div class="form-check"><input asp-for="CorteAutomatico" class="form-check-input" type="checkbox" id="corte" /><label class="form-check-label" for="corte">Corte automático de papel</label></div>
+            <div class="form-check"><input asp-for="EsPredeterminada" class="form-check-input" type="checkbox" id="pred" /><label class="form-check-label" for="pred">Predeterminada</label></div>
+        </div>
+        <div class="col-12"><label class="form-label">Notas (opcional)</label><input asp-for="Notas" class="form-control" /></div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div></div>
+
+@section Scripts {
+<script>
+    function toggleRed() {
+        const esRed = document.getElementById('conexion').value === 'RED';
+        document.getElementById('boxIp').style.display = esRed ? '' : 'none';
+        document.getElementById('boxPuerto').style.display = esRed ? '' : 'none';
+    }
+    toggleRed();
+</script>
+}

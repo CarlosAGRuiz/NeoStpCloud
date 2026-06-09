@@ -130,6 +130,23 @@ public class NeoStpDbContext : DbContext
     public DbSet<PlanillaPeriodo> PlanillaPeriodos => Set<PlanillaPeriodo>();
     public DbSet<PlanillaDetalle> PlanillaDetalles => Set<PlanillaDetalle>();
 
+    // Tesorería (NEOTESORERIA — V2)
+    public DbSet<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria> CuentasTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria>();
+    public DbSet<NeoSTP.Domain.Core.Tesoreria.MovimientoTesoreria> MovimientosTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.MovimientoTesoreria>();
+
+    // Compras / Cuentas por pagar (NEOCOMPRAS — V2)
+    public DbSet<NeoSTP.Domain.Core.Compras.Proveedor> Proveedores => Set<NeoSTP.Domain.Core.Compras.Proveedor>();
+    public DbSet<NeoSTP.Domain.Core.Compras.FacturaCompra> FacturasCompra => Set<NeoSTP.Domain.Core.Compras.FacturaCompra>();
+    public DbSet<NeoSTP.Domain.Core.Compras.PagoProveedor> PagosProveedor => Set<NeoSTP.Domain.Core.Compras.PagoProveedor>();
+
+    // Punto de venta (NEOPOS — V2)
+    public DbSet<NeoSTP.Domain.Core.Pos.VentaPos> VentasPos => Set<NeoSTP.Domain.Core.Pos.VentaPos>();
+    public DbSet<NeoSTP.Domain.Core.Pos.VentaPosLinea> VentaPosLineas => Set<NeoSTP.Domain.Core.Pos.VentaPosLinea>();
+    public DbSet<NeoSTP.Domain.Core.Pos.ImpresoraPos> ImpresorasPos => Set<NeoSTP.Domain.Core.Pos.ImpresoraPos>();
+
+    // Comunicaciones (correo por empresa — V2)
+    public DbSet<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo> ConfiguracionesCorreo => Set<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo>();
+
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
 

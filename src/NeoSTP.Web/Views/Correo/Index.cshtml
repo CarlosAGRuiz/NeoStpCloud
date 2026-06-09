@@ -1,0 +1,73 @@
+@using NeoSTP.Application.Comunicaciones
+@model ConfiguracionCorreoDto
+@{ ViewData["Title"] = "Configuración de correo"; }
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Correo</span></nav>
+        <h1 class="ns-page-title">Correo saliente (SMTP)</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="alert alert-light border small">
+    <span class="material-symbols-outlined align-middle">info</span>
+    Configura el servidor SMTP de tu empresa para enviar tickets y facturas con tu propio remitente.
+    La contraseña se guarda <strong>cifrada</strong>. Si no configuras nada o lo dejas inactivo, se usa el correo global del sistema.
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card"><div class="card-body">
+            <form asp-action="Guardar" method="post" class="row g-3">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="All" class="text-danger small"></div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" name="Activo" value="true" id="activo" @(Model?.Activo == true ? "checked" : "") />
+                        <label class="form-check-label" for="activo">Usar este SMTP para enviar correos de la empresa</label>
+                    </div>
+                </div>
+                <div class="col-md-8"><label class="form-label">Host SMTP</label><input name="Host" value="@Model?.Host" class="form-control" placeholder="smtp.gmail.com" required /></div>
+                <div class="col-md-2"><label class="form-label">Puerto</label><input name="Puerto" type="number" value="@(Model?.Puerto ?? 587)" class="form-control ns-mono" /></div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" name="UsarStartTls" value="true" id="tls" @(Model?.UsarStartTls != false ? "checked" : "") /><label class="form-check-label" for="tls">STARTTLS</label></div>
+                </div>
+                <div class="col-md-6"><label class="form-label">Usuario</label><input name="Usuario" value="@Model?.Usuario" class="form-control" autocomplete="off" /></div>
+                <div class="col-md-6">
+                    <label class="form-label">Contraseña @(Model?.TienePassword == true ? "(guardada)" : "")</label>
+                    <input name="Password" type="password" class="form-control" autocomplete="new-password" placeholder="@(Model?.TienePassword == true ? "Dejar vacío para conservar" : "")" />
+                </div>
+                <div class="col-md-6"><label class="form-label">Nombre remitente</label><input name="FromNombre" value="@Model?.FromNombre" class="form-control" placeholder="Mi Empresa" required /></div>
+                <div class="col-md-6"><label class="form-label">Correo remitente</label><input name="FromEmail" type="email" value="@Model?.FromEmail" class="form-control" placeholder="ventas@miempresa.com" required /></div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+                </div>
+            </form>
+        </div></div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">outgoing_mail</span> Probar envío</div>
+            <div class="card-body">
+                @if (Model?.Configurado == true && Model.Activo)
+                {
+                    <form asp-action="Probar" method="post">
+                        @Html.AntiForgeryToken()
+                        <label class="form-label small">Correo de destino</label>
+                        <div class="d-flex gap-2">
+                            <input name="destino" type="email" required class="form-control form-control-sm" placeholder="tu@correo.com" />
+                            <button type="submit" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">send</span></button>
+                        </div>
+                    </form>
+                }
+                else
+                {
+                    <p class="text-muted small mb-0">Guarda y activa la configuración para enviar un correo de prueba.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

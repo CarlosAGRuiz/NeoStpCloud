@@ -210,6 +210,23 @@ public static class DependencyInjection
         services.AddScoped<NeoSTP.Application.Rrhh.IEmpleadosService, EmpleadosService>();
         services.AddScoped<NeoSTP.Application.Rrhh.IPlanillaService, PlanillaService>();
         services.AddScoped<NeoSTP.Application.Rrhh.INominaPdfService, NeoSTP.Infrastructure.Rrhh.NominaPdfService>();
+
+        // Tesorería (NEOTESORERIA — V2): cuentas banco/caja + movimientos.
+        services.AddScoped<NeoSTP.Application.Tesoreria.ITesoreriaService, TesoreriaService>();
+
+        // Compras / CxP (NEOCOMPRAS — V2): proveedores + facturas de compra + pagos.
+        services.AddScoped<NeoSTP.Application.Compras.ICompraService, CompraService>();
+
+        // Punto de venta (NEOPOS — V2): ventas + ticket PDF térmico + impresoras/ESC-POS.
+        services.Configure<NeoSTP.Application.Pos.PosOptions>(configuration.GetSection(NeoSTP.Application.Pos.PosOptions.SectionName));
+        services.AddScoped<NeoSTP.Application.Pos.IPosService, PosService>();
+        services.AddScoped<NeoSTP.Application.Pos.IPosConfigService, PosConfigService>();
+        services.AddSingleton<NeoSTP.Application.Pos.ITicketPdfService, NeoSTP.Infrastructure.Pos.TicketPdfService>();
+        services.AddSingleton<NeoSTP.Application.Pos.INetworkPrinter, NeoSTP.Infrastructure.Pos.TcpNetworkPrinter>();
+
+        // Comunicaciones (correo por empresa — V2): SMTP por tenant + configuración cifrada.
+        services.AddScoped<NeoSTP.Application.Comunicaciones.ITenantEmailSender, NeoSTP.Infrastructure.Comunicaciones.TenantEmailSender>();
+        services.AddScoped<NeoSTP.Application.Comunicaciones.IConfiguracionCorreoService, ConfiguracionCorreoService>();
         // Toggle del proveedor de extracción OCR/IA (Scan:Provider). Mock por defecto; Gemini real (M2.1).
         var scanProvider = configuration["Scan:Provider"];
         if (string.Equals(scanProvider, "Gemini", StringComparison.OrdinalIgnoreCase))

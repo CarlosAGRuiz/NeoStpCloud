@@ -1,0 +1,94 @@
+@using NeoSTP.Application.Pos.Dtos
+@model NeoSTP.Application.Common.PagedResult<VentaPosDto>
+@{
+    ViewData["Title"] = "Ventas POS";
+    var search = ViewBag.Search as string;
+    var puedeVender = ViewBag.PuedeVender is bool pv && pv;
+    var resumen = ViewBag.Resumen as PosResumenDiaDto;
+    string Badge(string e) => e == "ANULADA" ? "ns-badge--rejected" : "ns-badge--processed";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Ventas POS</span></nav>
+        <h1 class="ns-page-title">Ventas POS</h1>
+    </div>
+    @if (puedeVender)
+    {
+        <a asp-action="Nueva" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">point_of_sale</span> Nueva venta</a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Ventas hoy</div><div class="ns-mono fw-bold fs-4">@resumen.Ventas</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Total hoy</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-processed)">@resumen.Total.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Efectivo</div><div class="ns-mono fw-bold fs-4">@resumen.Efectivo.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Tarjeta / otros</div><div class="ns-mono fw-bold fs-4">@((resumen.Tarjeta + resumen.Otros).ToString("N2"))</div></div></div></div>
+    </div>
+}
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar nº ticket o cliente…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Ticket</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Pago</th>
+                    <th class="text-center">Ítems</th>
+                    <th class="text-end">Total</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="8"><div class="ns-empty"><span class="material-symbols-outlined">point_of_sale</span><p>Sin ventas registradas.</p></div></td></tr>
+                }
+                @foreach (var v in Model?.Items ?? Array.Empty<VentaPosDto>())
+                {
+                    <tr>
+                        <td><a asp-action="Detalle" asp-route-id="@v.Id"><strong class="ns-mono">@v.Numero</strong></a></td>
+                        <td class="ns-mono small">@v.Fecha.ToLocalTime().ToString("dd/MM/yy HH:mm")</td>
+                        <td>@v.ClienteNombre</td>
+                        <td><span class="ns-badge ns-badge--draft">@v.FormaPagoCodigo</span></td>
+                        <td class="text-center">@v.Items</td>
+                        <td class="text-end ns-mono fw-bold">@v.Total.ToString("N2")</td>
+                        <td>
+                            <span class="ns-badge @Badge(v.EstadoCodigo)">@v.EstadoCodigo</span>
+                            @if (v.EstadoFacturacion == "FACTURADA") { <span class="ns-badge ns-badge--processed" title="DTE @v.DteDocumentoId">facturada</span> }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Detalle" asp-route-id="@v.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                            <a asp-action="Ticket" asp-route-id="@v.Id" asp-route-print="true" target="_blank" class="btn btn-sm btn-outline-secondary" title="Imprimir ticket"><span class="material-symbols-outlined" style="font-size:16px">print</span></a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a></li>
+        }
+    </ul></nav>
+}

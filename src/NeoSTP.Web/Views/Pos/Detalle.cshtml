@@ -1,0 +1,96 @@
+@using NeoSTP.Application.Pos.Dtos
+@model VentaPosDetalleDto
+@{
+    ViewData["Title"] = $"Venta {Model.Numero}";
+    var puedeAnular = ViewBag.PuedeAnular is bool a && a;
+    var anulada = Model.EstadoCodigo == "ANULADA";
+    var impresorasRed = ViewBag.ImpresorasRed as List<ImpresoraPosDto> ?? new List<ImpresoraPosDto>();
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Ventas POS</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Numero</span></nav>
+        <h1 class="ns-page-title">@Model.Numero <span class="ns-badge @(anulada ? "ns-badge--rejected" : "ns-badge--processed")">@Model.EstadoCodigo</span></h1>
+        <p class="text-muted mb-0">@Model.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @Model.ClienteNombre</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Ticket" asp-route-id="@Model.Id" asp-route-print="true" target="_blank" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">print</span> Imprimir</a>
+        <a asp-action="TicketPdf" asp-route-id="@Model.Id" target="_blank" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">picture_as_pdf</span> PDF</a>
+        @if (impresorasRed.Any())
+        {
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><span class="material-symbols-outlined align-middle" style="font-size:18px">print_connect</span> Impresora de red</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    @foreach (var imp in impresorasRed)
+                    {
+                        <li>
+                            <form asp-controller="Impresoras" asp-action="ImprimirRed" method="post" class="px-2 py-1">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="ventaId" value="@Model.Id" />
+                                <input type="hidden" name="impresoraId" value="@imp.Id" />
+                                <button type="submit" class="dropdown-item">@imp.Nombre <span class="text-muted small ns-mono">@imp.Ip</span></button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+        @if (puedeAnular && !anulada)
+        {
+            <form asp-action="Anular" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular la venta?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm">Anular</button></form>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">shopping_cart</span> Detalle</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle m-0">
+                    <thead><tr><th>Código</th><th>Descripción</th><th class="text-center">Cant.</th><th class="text-end">Precio</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in Model.Lineas)
+                        {
+                            <tr>
+                                <td class="ns-mono small">@l.Codigo</td>
+                                <td>@l.Descripcion</td>
+                                <td class="text-center ns-mono">@l.Cantidad.ToString("0.##")</td>
+                                <td class="text-end ns-mono">@l.PrecioUnitario.ToString("N2")</td>
+                                <td class="text-end ns-mono">@l.Total.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">Subtotal</span><span class="ns-mono">@Model.Subtotal.ToString("N2")</span></div>
+                @if (Model.TotalDescuento > 0) { <div class="d-flex justify-content-between py-1"><span class="text-muted">Descuento</span><span class="ns-mono">@Model.TotalDescuento.ToString("N2")</span></div> }
+                <div class="d-flex justify-content-between py-1"><span class="text-muted">IVA</span><span class="ns-mono">@Model.IvaTotal.ToString("N2")</span></div>
+                <div class="d-flex justify-content-between py-2 border-top"><span class="fw-bold">Total</span><span class="ns-mono fw-bold fs-4" style="color:var(--ns-processed)">@Model.Total.ToString("N2")</span></div>
+                <hr />
+                <div class="small text-muted">Pago: <strong>@Model.FormaPagoCodigo</strong></div>
+                @if (Model.EfectivoRecibido is decimal ef) { <div class="small text-muted">Efectivo: @ef.ToString("N2") · Cambio: @((Model.Cambio ?? 0).ToString("N2"))</div> }
+                @if (!string.IsNullOrWhiteSpace(Model.Nota)) { <div class="small text-muted mt-1">@Model.Nota</div> }
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">mail</span> Enviar ticket por correo</div>
+            <div class="card-body">
+                <form asp-action="Enviar" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
+                    @Html.AntiForgeryToken()
+                    <input name="email" type="email" required class="form-control form-control-sm" placeholder="correo@cliente.com" />
+                    <button type="submit" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">send</span></button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

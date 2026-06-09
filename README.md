@@ -1,1030 +1,253 @@
-# NeoSTP Cloud Web
+# NeoSTP Cloud
 
-## Actualizacion - NeoCloud Mobile: B-6 + follow-ups
+**Suite SaaS de facturación electrónica (DTE) y ERP/CRM-mini para El Salvador.**
+Monolito modular en **.NET 10** con Web (MVC/Razor), API REST y un Worker de tareas en segundo plano.
+Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos y RBAC granular.
 
-Cierre del backend movil: verificacion de NIT, etiquetas de cliente, limite de escaneos y job de alertas.
+> La app móvil (Flutter, repo aparte `neocloud_mobile_android`) consume **esta misma API**.
+> Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-- **B-6 Verificacion NIT/DUI:** `GET /api/lookups/verificar-nit` valida el formato salvadoreño (NIT 14 / DUI 9 digitos) y autocompleta desde clientes/emisor locales (`INitVerificationService`). La verificacion en linea de MH no es publica -> hook pluggable. Tests `NitVerificationServiceTests`.
-- **Etiquetas de cliente:** `PATCH /api/clientes/{id}/etiqueta` (VIP/FRECUENTE; "moroso" se deriva de cobranza). Campo `Etiqueta` en Cliente; migracion `Followups_EtiquetaCliente`. Tests `ClienteEtiquetaTests`.
-- **Limite mensual de escaneos:** `ScanService` rechaza con `LIMIT_EXCEEDED` al superar `Scan:LimiteMensual` (0 = sin limite).
-- **Job de alertas:** `AlertaGeneracionWorker` en el Worker genera alertas periodicamente (cada `Worker:GeneracionAlertas:IntervaloMinutos`, 60 por defecto) para todas las empresas activas.
+---
 
-## Actualizacion - NeoCloud Mobile: QR de cobro (B-5)
+## Tabla de contenido
 
-Genera codigos QR / enlaces de pago para que la empresa cobre a sus clientes.
+- [Stack](#stack)
+- [Arquitectura](#arquitectura)
+- [Módulos](#módulos)
+- [Puesta en marcha](#puesta-en-marcha)
+- [Configuración y secretos](#configuración-y-secretos)
+- [Base de datos y migraciones](#base-de-datos-y-migraciones)
+- [Pruebas](#pruebas)
+- [API](#api)
+- [Roadmap](#roadmap)
+- [Convenciones](#convenciones)
 
-- **Dominio:** `CuentaCobro` (`Cobros_CuentasCobro`): cuentas/pasarelas de cobro de la empresa (transferencia/Wompi/Pagadito/ACH/otro) con plantilla de URL de pago (`{monto}`/`{referencia}`); migracion `B5_CuentasCobroQr`.
-- **`ICobroQrService` / `CobroQrService`:** CRUD de cuentas + generacion de QR (QRCoder). El monto se deriva del **saldo de la factura** (`dteDocumentoId`) o se pasa fijo; el payload es la URL de pago (sustituyendo marcadores) o un texto de transferencia; devuelve el PNG en base64.
-- **API:** `GET/POST/PUT /api/cobros/cuentas` (+ inactivar) y `POST /api/cobros/qr` (`Cobros.Ver`/`Cobros.Gestionar`).
-- **Tests** `CobroQrServiceTests` (crear/listar, QR de monto fijo, sustitucion de URL, monto desde saldo de factura, sin cuenta activa, validacion).
-
-## Actualizacion - NeoCloud Mobile: Alertas y push (B-4)
-
-Centro de alertas + notificaciones push para la app movil.
-
-- **Dominio:** `Alerta` (`Notif_Alertas`, con dedupe por clave), `DispositivoNotificacion` (`Notif_Dispositivos`, tokens FCM) y `PreferenciaNotificacion` (`Notif_Preferencias`); migracion `B4_AlertasNotificaciones`.
-- **`IAlertaService` / `AlertaService`:** centro de alertas (listar, resumen para badge, marcar leida/resuelta), registro/baja de dispositivos, preferencias (canal/no molestar/horario). Crear una alerta dispara push best-effort a los dispositivos activos del destinatario.
-- **`IAlertaGeneracionService`:** deriva alertas de datos reales — DTE rechazado (critica), certificado por vencer (<=30 dias), facturas vencidas (cuentas por cobrar); upsert por clave (idempotente).
-- **`IPushSender`** con `MockPushSender` por defecto (registra en logs); FCM real pluggable via `Push:Provider` sin cambiar el contrato.
-- **API `/api/alertas/*`** para usuario de empresa: alertas, resumen, leer/resolver, generar, dispositivos, preferencias.
-- **Tests** `AlertaServiceTests` (dedupe, push a dispositivos activos, resumen por severidad, resolver, upsert de dispositivo, generacion idempotente).
-
-## Actualizacion - NeoCloud Mobile: NeoScanAI (B-3 / Sprint 23)
-
-Captura/escaneo asistido por IA: bandeja de documentos y conversion a gasto/compra/DTE recibido.
-
-- **Dominio:** `ScanDocumento` (`Scan_Documentos`, bandeja con blob + campos extraidos denormalizados) y `DteDocumentoRecibido` (`Dte_DocumentosRecibidos`); migracion `B3_NeoScanAI`. Reusa el modulo `NEOSCANAI` (103) y permisos `ScanAI.Ver` (345) / `ScanAI.Confirmar` (346) ya existentes.
-- **Extraccion pluggable:** `IScanExtractionService` con `MockScanExtractionService` por defecto (deja el doc en REQUIERE_REVISION con confianza 0 para captura manual); proveedor OCR/IA real (Azure/Google/LLM) conectable sin cambiar el contrato.
-- **`IScanService` / `ScanService`:** subir (base64), listar bandeja, corregir campos, recibir resultado externo, **registrar-gasto/registrar-compra** (reusan NeoProfit -> alimentan Profit), **registrar-dte-recibido**, rechazar; estados RECIBIDO/PROCESANDO/PROCESADO/REQUIERE_REVISION/CONFIRMADO/RECHAZADO/ERROR.
-- **API `/api/scanai/documentos/*`** gated `RequireModule("NEOSCANAI")`; lectura/captura `ScanAI.Ver`, confirmaciones `ScanAI.Confirmar`.
-- **Tests** `ScanServiceTests` (subida+mock, confirmar a gasto/compra/dte-recibido, rechazo, estado invalido, aislamiento). Nota: consolida las 6 tablas del backlog en 2 para v1; pendiente OCR real, limite mensual y UI web.
-
-## Actualizacion - NeoCloud Mobile: Cobros / Cuentas por cobrar (B-2)
-
-Modulo de cobranza para la app movil: saldos por cliente/factura y registro de pagos.
-
-- **Saldos derivados** de DTE factura/CCF a credito (condicion 2/3) PROCESADO menos pagos CONFIRMADOS. `CobranzaCalculator` (puro): saldo, vencimiento, estado (PENDIENTE/VENCIDO/PAGADO), dias vencido.
-- **`ICobranzaService` / `CobranzaService`** + entidad `PagoCliente` (`Cobros_Pagos`); migracion `B2_CobranzaPagosCliente`; permisos `Cobros.Ver` (380) / `Cobros.Gestionar` (381).
-- **API `/api/cobros/*`**: `resumen` (dashboard), `pendientes` (paginado, filtros, soloVencidas), `clientes/{id}` (saldo), `dte/{id}/pagos` (historial), `POST dte/{id}/pagos` (registrar), `pagos/{id}/confirmar|anular`. Valida monto > 0 y <= saldo; pago en revision no reduce saldo hasta confirmarse.
-- **Tests** `CobranzaCalculatorTests` + `CobranzaServiceTests` (saldos, exclusion de contado/NC, aislamiento por empresa, resumen pendiente/vencido).
-- Docs `NeoCloud-Mobile-API.md` / `Plan.md` actualizados (B-2 core entregado; pendiente etiquetas de cliente + UI web).
-
-## Actualizacion - NeoCloud Mobile: emision en un paso (B-1)
-
-Primer endpoint de backend para la app movil: **emision de DTE en una sola llamada**.
-
-- `POST /api/dte/emitir` (+ atajos `/emitir/factura | credito-fiscal | nota-credito | nota-debito | sujeto-excluido`), JWT, permiso `DTE.Emitir`. Orquesta borrador -> generar -> validar -> firmar -> enviar y devuelve el `DteDocumentoDto` final (PROCESADO con sello, o el error del paso que fallo). Reutiliza `IConnectDteService.EmitirAsync`.
-- Tests `DteControllerEmitirTests` (delegacion, resolucion de tenant, mapeo de resultado, atajo por tipo, SuperAdmin con empresaId).
-- Docs `NeoCloud-Mobile-API.md` / `NeoCloud-Mobile-Plan.md` actualizados (B-1 entregado).
-
-## Actualizacion - NeoCloud Mobile (documentacion de API y plan)
-
-Documentacion para la app movil **NeoCloud Mobile** (Flutter, Android), que consume la misma API y base de datos.
-
-- **`docs/NeoCloud-Mobile-API.md`** — guia de integracion para el dev Flutter: auth JWT (login/refresh/me/MFA), `ApiResponse<T>` + codigos de error, configuracion de cuenta DTE (certificado en base64 + credenciales MH), pipeline de emision contra Hacienda, consulta/compartir, clientes/productos/lookups, permisos y referencia rapida de endpoints.
-- **`docs/NeoCloud-Mobile-Plan.md`** — cobertura propuesta-vs-API, brechas de backend (B-1 emision en 1 paso, B-2 Cobros/CxC, B-3 NeoScan/OCR, B-4 Alertas push, B-5 QR de cobro, B-6 verificacion NIT, B-7 DTE recibidos) y plan de 10 sprints (FE Flutter + BE).
-- Verificado en vivo: login, `/me`, `/empresas`, `/dashboard/empresa`, `/dte/configuracion` responden con el shape documentado. El nucleo (emision, consulta, CRM, catalogo, configuracion, compartir) ya esta soportado; las brechas son modulos nuevos del backend.
-
-## Actualizacion - Branding (logo y firma) en DTE y correo
-
-Cada empresa puede usar su logo y firma en la representacion grafica del DTE y en el correo.
-
-- **Subida por empresa** (`/branding`, "Logo y firma"): carga de logo y firma (PNG/JPG/WEBP, max 1 MB) + texto de firma. `IBrandingService` valida tipo/tamano y persiste como blobs en `Core_Empresas` (migracion `Branding_LogoFirmaEmpresa`); aislado por EmpresaId y auditado.
-- **Factura PDF:** el logo aparece en la banda superior y un bloque de **firma al pie** (imagen + texto "Firma autorizada ...").
-- **Correo:** el logo se incrusta como imagen embebida (CID) en el encabezado del cuerpo HTML; soporte de imagenes inline en `EmailMessage` / `SmtpEmailSender` / `MockEmailSender`.
-- **Tests:** `BrandingServiceTests` (validacion, guardado/lectura, texto, eliminacion, aislamiento) + muestras de PDF/correo con logo y firma.
-
-## Actualizacion - Correo y rediseno de factura
-
-Pruebas de envio de correo, configuracion SMTP y nueva representacion grafica del DTE.
-
-- **Factura PDF rediseñada** (`DtePdfService`, QuestPDF): identidad de marca (banda Deep Tech Blue, badge de estado por color, franja de identificadores con sello de Hacienda, tarjeta de receptor, tabla con encabezado de color + filas zebra, totales con "TOTAL A PAGAR" destacado, footer con QR). Corregido el recorte de datos al borde (causa: `AlignRight` de contenedor en QuestPDF no envuelve / colapsa el ancho; se usa alineacion de parrafo).
-- **Correo de envio de DTE rediseñado** (`BuildBody`): correo HTML responsive con **cuadro "DATOS DEL DOCUMENTO"** (tipo, N° control, codigo de generacion, fecha, badge de estado, sello) + **TOTAL A PAGAR** destacado; adjunta la **factura PDF y el JSON** oficial.
-- **Configuracion de correo:** seccion `Email` documentada en `appsettings.json` (Web + API) y ejemplo SMTP en `appsettings.Local.example.json`. `Provider`: `Mock` (guarda `.eml` en `logs/email-outbox/`) o `Smtp` (envio real via MailKit; STARTTLS 587 / SSL 465).
-- **Diagnostico de correo:** en *Operacion* (`/Hardening`) -> tarjeta "Diagnostico de correo": muestra el proveedor/remitente activo y permite **enviar un correo de prueba** para validar la configuracion sin emitir un DTE.
-- **Tests:** `DtePdfServiceTests` (PDF valido + muestra), `MockEmailSenderTests` / `SmtpEmailSenderTests` (persistencia, adjuntos, guard de destinatario), `DteEmailBodyTests` (cuadro de datos + total).
-
-## Actualizacion - NeoProfit (Sprint 22): inteligencia financiera
-
-Primer modulo financiero: calcula ventas, IVA, costos, ganancia y utilidad neta a partir de DTE emitidos.
-
-- **Reglas (ProfitCalculator, puro y testeado):** solo cuenta **PROCESADO**; Nota de Credito **resta**, Nota de Debito **suma**; Sujeto Excluido **sin IVA**; producto sin costo -> **"costo pendiente"**.
-- **Dominio:** `Profit_Gastos` y `Profit_Compras` (soft-delete, aislados por EmpresaId); migracion `Sprint22_NeoProfit`; permisos `Profit.Ver` (370) / `Profit.Gestionar` (371) del modulo NEOPROFIT.
-- **API `/api/profit/*`** (gated `RequireModule("NEOPROFIT")`): dashboard, productos, clientes, sucursales, tendencia, y CRUD de gastos/compras.
-- **Web empresarial:** dashboard `NeoProfit` (KPIs `ns-kpi` de venta neta / ganancia+margen / utilidad neta / IVA neto, charts de tendencia y por sucursal, rankings de productos y clientes, alerta de costo pendiente) + **grids con busqueda/paginacion y CRUD** de Gastos y Compras (`ns-formsection`).
-- **Tests:** `ProfitCalculatorTests` (9) + `ProfitServiceTests` (5: agregacion, costo pendiente, aislamiento por empresa, CRUD/soft-delete, validacion).
-
-## Actualizacion - NeoConnect API v1 (endpoints de negocio)
-
-API publica para integraciones externas (NeoBusiness, NeoScan, ERPs), autenticada por **API Key** (`X-Api-Key`).
-
-- **Endpoints `/api/v1`** (`ConnectApiV1Controller`, scope por endpoint): `GET /ping`, `POST /dte` (emision extremo-a-extremo: borrador -> generar -> validar -> firmar -> enviar via `IConnectDteService`), `GET /dte`, `GET /dte/{id}`, `GET /dte/{id}/pdf`, `GET /dte/{id}/json`, `GET|POST /clientes`, `GET|POST /productos`.
-- **Scopes**: `DTE:Read/Write`, `Clientes:Read/Write`, `Productos:Read/Write` (la UI `/Integraciones` los expone automaticamente). Sin scope -> 403 `APIKEY_SCOPE_MISSING`; sin key -> 401 `APIKEY_REQUIRED`.
-- **Sandbox**: el ambiente (PRUEBAS/PRODUCCION) lo define la config DTE de la empresa; el cliente no cambia codigo al pasar a produccion.
-- **Cuotas**: `/api/v1` cuenta contra el modulo NEOCONNECT por API Key (rate limit + `X-RateLimit-*`).
-- **Docs**: spec OpenAPI publico en `/openapi/v1.json` + guia `docs/NeoConnect-API-v1.md`.
-- Tests: `ConnectDteServiceTests` (pipeline + cortes), `ConnectApiKeyServiceTests` (hash/validacion/revocacion/expiracion/aislamiento), `ApiKeyAuthMiddlewareTests` (precedencia JWT, key valida/invalida), `ConnectWebhookDispatcherTests` (entregas a suscritos, backoff, fallido tras max).
-
-## Actualizacion - Onboarding self-service
-
-Asistente de activacion para llevar al cliente del registro al primer DTE en < 10 minutos, sin soporte.
-
-- **Servicio de estado** (`IOnboardingService` / `OnboardingService`): deriva 5 pasos de datos reales, aislado por `EmpresaId` y **sin persistir estado** — perfil de empresa (NIT/NRC/actividad/direccion), credenciales de Hacienda + establecimiento, certificado de firma, catalogo base (>=1 cliente y >=1 producto activos), primer DTE en estado `PROCESADO`.
-- **Checklist en el dashboard** (`Views/Shared/_OnboardingChecklist.cshtml`): barra de progreso "X/5 - %", tarjeta por paso con enlace directo a lo pendiente; **se oculta solo al llegar al 100%**.
-- **Asistente** `/onboarding` (`OnboardingController`): wizard guiado con el "siguiente paso" destacado; acceso manual (no fuerza redireccion post-login); entrada "Asistente" en el menu lateral.
-- Cubierto por 7 tests unitarios (`OnboardingServiceTests`). Sin migracion (solo lectura).
-
-## Actualizacion Sprint 27 - Alineacion total con los mockups Stitch
-
-Modernizacion visual de **todas las vistas MVC** al design system (mockups Stitch en `/design`), manteniendo el look para todo lo nuevo. Solo UI: sin cambios de logica, datos reales preservados, formularios/POST/antiforgery intactos.
-
-- **27.1 Libreria de componentes** (`wwwroot/css/neostp.css`, documentada en `design/design-system/DESIGN.md`): `ns-page-head`/`ns-breadcrumb`, `ns-kpi` (icon-chip + tendencia + sparkline), `ns-formsection`, `ns-row-actions`/`ns-action-btn`, `ns-ai-card`, `ns-ai-confidence`. Aditiva, no rompe pantallas existentes.
-- **27.2 Nuevo DTE** (`DteDocumentos/Create`): layout 2 columnas con secciones de formulario y panel de totales oscuro en vivo.
-- **27.3 Dashboard** (`Home/Index`): KPI cards con icon-chip y **sparkline de datos reales** (TendenciaDiaria).
-- **27.4 Lote de formularios** (12 vistas): Clientes/Productos/Usuarios/Empresas/Sucursales Create+Edit con `ns-page-head` + `ns-formsection` (bug fix: checkbox de terminos duplicado en alta de usuario).
-- **27.5 SuperAdmin + paneles DTE** (~20 vistas): SuperAdmin, Config DTE, Eventos (Index/Details/4 Create), Contingencia (Index/Lotes/DetalleLote), Diagnostico (Index/Documento/Evento), Catalogos, Planes, Soporte, Empresas/Licencia — KPIs, badges semanticos, iconos Material en vez de emojis, empty states.
-
-## Actualizacion Sprint 26 - Modernizacion de vistas + acciones CRUD
-
-- **26.1 - Inventario y matriz de acciones:** documento `docs/Sprint26-Inventario-Vistas.md` con las 71 vistas MVC clasificadas por modulo, criticidad y madurez visual, matriz de acciones CRUD por vista, riesgos de eliminacion (entidades fiscales/pagos/auditoria sin borrado fisico) y pantallas con datos quemados.
-- **26.3 - DTE con errores:** detalle de DTE modernizado a `ns-*` con **panel de error MH prominente** (parse de `descripcionMsg`/`codigoMsg`/`observaciones` + enlace a Diagnostico), **trazabilidad de reintentos** del Worker, **descarga del JWS** firmado y badges/filtros de estado completos (incluye CONTINGENCIA y tipos 04/11/15). Se anadio **nota interna** operativa por DTE (campo `NotaInterna`, no fiscal, no entra al JSON; migracion `Sprint26_NotaInternaDte`). Sin cambiar la maquina de estados fiscal.
-- **26.4 - Catalogos y datos maestros:** **restaurar** (reactivar) clientes y productos inactivados por error (`RestaurarAsync` + auditoria + 7 tests); catalogos normativos del sistema con **proteccion visible** (banner read-only, sin borrado fisico) y vistas Details/Import modernizadas a `ns-*`.
-- **26.5 - Billing y planes:** corregido el unico dato quemado restante — el selector "Cambiar plan" del portal ya no usa IDs/precios ficticios, ahora carga planes reales de `Core_Planes`. **Estados de plan completos** (Activo/Prueba/Pago pendiente/Incompleto/Suspendido/Vencido/Cancelado) via partial reutilizable `_SubStatusBadge`, con aviso de regularizacion de pago.
-
-## Actualizacion Sprint 25
-
-- **Sprint 25.5 - Pruebas asistidas de eventos DTE:** las filas de certificacion para invalidacion, contingencia, retorno y operaciones especiales pueden abrir una prueba desde la matriz, precargar datos base, transmitir el evento y asociarlo automaticamente al escenario. La matriz conserva la asociacion manual para eventos previos y queda sincronizada con el estado/sello real de Hacienda.
-- **Sprint 25.4 - Pruebas asistidas de documentos DTE:** los escenarios de certificacion de documentos abren un DTE de prueba con metadatos ocultos del escenario, lo asocian al crear el borrador y sincronizan el resultado despues de generar, validar, firmar o enviar.
-- **Sprint 25.3 - Seguridad:** hardening HTTP en Web/API con cabeceras `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y CSP base. Las cookies Web y de modo soporte quedan forzadas a `Secure`/`HttpOnly`/`SameSite=Lax`. CORS de API queda abierto solo en desarrollo cuando no hay `Cors:AllowedOrigins`; en produccion queda cerrado por defecto sin origenes configurados.
-- **Sprint 25.2 - Certificacion DTE:** la matriz explica el flujo operativo, compara escenarios contra DTE/eventos reales y permite asociar documentos o eventos ya transmitidos. El estado del escenario se sincroniza con la respuesta real de Hacienda y el sello recibido.
-- **Sprint 25.1 - Billing:** checkout basado en planes reales de base via `IPlanesService`; ya no usa nombres, precios ni IDs quemados del mockup.
-- **Higiene local:** `tmp/` queda ignorado para no versionar builds temporales usados durante validaciones locales.
-
-Plataforma SaaS multiempresa para emisión de Documentos Tributarios Electrónicos (DTE) en El Salvador y suite de módulos de negocio asociados.
-
-> **Versión actual: NeoCloud Mobile — backend COMPLETO (B-1…B-6 + follow-ups)** ✅ (sobre branding, correo, NeoProfit Sprint 22, NeoConnect API v1, Onboarding y Sprint 27)  
-> **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 370 unit + 2 integración pasando
-> El provisioning de la empresa de pruebas es automático e idempotente (`EmpresaPruebaSeeder`): crea empresa + plan + módulos + sucursal + punto de venta + usuario admin + configuración DTE base con un solo toggle. Los runbooks en `docs/` guían el paso de mocks a integraciones reales (Hacienda apitest, firma Pkcs12) y la matriz de pruebas.
->
-> 🎉 **Hito:** **5 tipos de DTE + 2 eventos PROCESADOS** por Hacienda en el flujo real **Validar → Firmar (RS512) → Enviar** contra `https://apitest.dtes.mh.gob.sv`:
-> DTE **01 Factura** · **11 Exportación** · **04 Nota de Remisión** · **14 Sujeto Excluido** · **15 Donación**; eventos **Contingencia** · **Invalidación**. Ver [§ Integración real con Hacienda](#integración-real-con-hacienda-lecciones-del-sprint-11b).
->
-> 🎨 El sistema de diseño y mockups de la suite viven versionados en [`/design`](design/README.md) (incorporación UI gradual, post-certificación).
->
-> 📥 **Carga masiva (clientes y productos):** `TabularParser` genérico (CSV/XLSX) + `BulkImportRequest/Result` + `IClientesService.ImportAsync` (upsert por tipo+número de documento) e `IProductosService.ImportAsync` (upsert por código interno). Validación por fila (reusa los validadores), reporte de errores con número de fila, **dry-run** (previsualización sin guardar) y dedup intra-archivo. UI `/Clientes/Importar` y `/Productos/Importar` con subida, simulación y reporte; botón "Carga masiva" en cada listado. Sin migración.
->
-> 🔎 **Lookups + limpieza de hardcodeos:** `ILookupService` unifica el acceso a catálogos y datos maestros para selects/cascadas/autocompletes (con caché por instancia): catálogos por código/padre, cascada territorial (departamentos→municipios→distritos), `ResolverMunicipio2024Async` (distrito→municipio división 2024 vía `ParentCodigo`), y búsqueda de clientes/productos/sucursales. API `GET /api/lookups/{catalogo|departamentos|municipios|distritos|clientes|productos|sucursales}`. Se eliminaron los literales `"23"`/`"03"` del `DteGeneratorService`: ahora salen de `TerritorialOptions` (sección `Dte:Territorial`) + distrito del emisor/documento, dejando lista la derivación por catálogo. Sin migración.
->
-> 💳 **Pagos LATAM (Wompi · PayPal · Transferencia):** Billing pasa a **multi-proveedor** — el cliente elige método en el checkout (`IPaymentProviderResolver` resuelve por nombre). Nuevos `IPaymentProvider`: **Wompi** (wompi.sv, checkout hospedado vía REST + OAuth2), **PayPal** (Orders v2 hospedado), **Transferencia** bancaria offline (instrucciones + comprobante + verificación manual del admin que activa la licencia). Webhooks Wompi/PayPal en `BillingWebhookHandler`. `BillingPayment` gana `Metodo`/`ComprobanteUrl`/`VerificadoPor`/`VerificadoAt`. UI: selección de método en `/billing/checkout`, página de transferencia, bandeja SuperAdmin `/billing/transferencias`. HttpClients resilientes (Polly). PCI: los datos de tarjeta los procesa la pasarela hospedada, nunca nuestros servidores. Migración `PagosLatam_MetodosPago`. Toggle `Billing:Provider` = default; cada proveedor con su sección de opciones.
->
-> 🎨 **Sprint 21 (UI/UX AppShell + design system):** Modernización de la interfaz con el design system de `/design` (Deep Tech Blue `#131b2e` + Modern Violet `#6b38d4`, Hanken Grotesk/Inter/JetBrains Mono, Material Symbols). Nuevo **AppShell** (`neostp.css`): sidebar oscura fija agrupada por permisos, navbar sticky con **indicador de ambiente** (Mock/Pruebas) + empresa actual + modo soporte, responsive con drawer móvil. Re-tematización global de Bootstrap (cards, botones, tablas, badges, forms) → todas las pantallas adoptan el look sin reescribirse. Pantallas clave restyling fiel a mockups: **Login**, **Dashboard** (metric cards), **StepperDTE** (`_StepperDte` Borrador→Validado→Firmado→Enviado→Procesado) en el detalle DTE, **Certificación** (progreso global violeta). Sin migración (solo UI).
->
-> 📦 **Sprint 20 (Hardening pre-producción):** Endurecimiento para operar con clientes reales. **Rate limiting / cuotas** (`ApiQuotaMiddleware` + `Core_ApiQuotas`/`Core_ApiUsageLog`): topes por ventana deslizante por empresa/usuario/plan/módulo, responde **429** con `Retry-After`/`X-RateLimit-*`. **MFA SuperAdmin (TOTP RFC 6238)**: enrolar/confirmar/verificar con códigos de recuperación, secreto cifrado con DataProtection (`POST /api/auth/mfa/{enroll|confirm|disable}`). **IP allowlist** del panel admin (`AdminIpAllowlistMiddleware` + `Core_AdminIpAllowlist`, soporta CIDR, fail-open). **Backups** (`BackupService` + `BackupWorker` + `IStorageService` toggle LOCAL/AZURE_BLOB/S3, `Ops_BackupJobs`, checksum SHA-256). Panel SuperAdmin `/Hardening` + API `/api/hardening`. k6 baseline (`ops/k6/`), GitHub Action OWASP ZAP, runbook Disaster Recovery (`docs/Sprint20-Disaster-Recovery.md`). Permisos `Ops.Hardening.Ver/.Administrar`. Migración `Sprint20_HardeningSchema`.
->
-> 📦 **Sprint 19 (Billing self-service):** Módulo de facturación completo — trial 14 días, checkout (Stripe / MercadoPago / Mock), portal de facturación, upgrade/downgrade de plan, cancelación, webhooks idempotentes (`Billing_WebhookEvents`), activación automática de licencias (`Core_EmpresaPlan`), emails transaccionales en cada transición de estado. Tablas: `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`. Toggle `Billing:Provider = Mock | Stripe | MercadoPago`. Migración `Sprint19_BillingSelfService`.
->
-> 📦 **Sprint 18 (Legal + consentimiento):** Módulo legal completo — páginas públicas `/legal/terms|privacy|cookies|dpa`, `LegalDocumentService` con reemplazo de placeholders desde `LegalOptions`, tabla `Core_UserConsents` con registro de IP/UserAgent/versión, checkbox obligatorio de aceptación en creación de usuario, enlace al footer en el layout, migración `Sprint18_LegalConsentimiento`.
+---
 
 ## Stack
 
-- **.NET 10** (LTS, soporte hasta nov-2028)
-- **ASP.NET Core MVC + Razor** (Web)
-- **ASP.NET Core Web API** + **OpenAPI nativo** (Api)
-- **SQL Server 2022** + **Entity Framework Core 10**
-- **Serilog** (logs estructurados a consola y archivo)
-- **.NET Worker Service** (procesos en segundo plano)
-- **xUnit + FluentAssertions** (179 pruebas, todas pasando)
-- **ClosedXML 0.104** (import/export Excel de catálogos)
-- **Polly v8 / Microsoft.Extensions.Http.Resilience 10.6** para resiliencia HTTP
-- **JWT** (Api) + **Cookies** (Web) para autenticación
-- **DataProtection** para cifrado de secretos DTE
-- **QuestPDF 2025.1** + **MailKit 4.17** para representación gráfica y correo
-- **BCrypt.Net-Next** (work factor 11) para hash de passwords
-- **Stripe.net 47** + **mercadopago-sdk 3.1** para pagos (toggle Mock / Stripe / MercadoPago)
+| Capa | Tecnología |
+|---|---|
+| Runtime | .NET 10 |
+| Web | ASP.NET Core MVC + Razor, design system propio `ns-*` (neostp.css), Bootstrap 5, Material Symbols |
+| API | ASP.NET Core Web API + OpenAPI/Scalar (`/scalar/v1`) |
+| Datos | EF Core 10 + SQL Server 2022 |
+| Worker | `BackgroundService` (generación de alertas, colas de trabajo) |
+| PDF | QuestPDF (Community) — facturas, recibos de nómina, **tickets térmicos** |
+| Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
+| Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
+| Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
+| Tests | xUnit + FluentAssertions + NSubstitute (**553 unitarias + integración**) |
+
+Solución: **`NeoSTP.slnx`**.
+
+---
 
 ## Arquitectura
 
-Modular monolith con separación por capas:
+Monolito modular con separación por capas (Clean Architecture pragmática):
 
 ```
-NeoSTP.slnx
-├── src/
-│   ├── NeoSTP.Web              # MVC/Razor (UI)
-│   ├── NeoSTP.Api              # Web API (REST + OpenAPI)
-│   ├── NeoSTP.Application      # Casos de uso, servicios, DTOs, abstracciones
-│   ├── NeoSTP.Domain           # Entidades, reglas, enums
-│   ├── NeoSTP.Infrastructure   # EF Core, SQL Server, integraciones, PDF, correo
-│   ├── NeoSTP.Worker           # Background jobs
-│   └── NeoSTP.Shared           # Utilidades, ApiResponse, constantes
-└── tests/
-    ├── NeoSTP.Tests.Unit
-    └── NeoSTP.Tests.Integration
+src/
+  NeoSTP.Domain           Entidades y reglas de dominio (sin dependencias de infraestructura)
+  NeoSTP.Application      Interfaces de servicios, DTOs, calculadoras puras, Result/PagedResult
+  NeoSTP.Infrastructure   Implementaciones (EF Core, servicios, integraciones, persistencia, seed)
+  NeoSTP.Api              Web API REST (controllers, autorización por módulo/permiso)
+  NeoSTP.Web              App web MVC/Razor (panel de administración y operación)
+  NeoSTP.Worker           Tareas en segundo plano (alertas, colas)
+  NeoSTP.Shared           Utilidades compartidas (ApiResponse, CsvExporter, etc.)
+tests/
+  NeoSTP.Tests.Unit         Pruebas unitarias
+  NeoSTP.Tests.Integration  Pruebas de integración (API)
 ```
 
-### Referencias
+**Patrones clave**
 
-| Proyecto         | Referencia a                          |
-| ---------------- | ------------------------------------- |
-| Web              | Application, Infrastructure, Shared   |
-| Api              | Application, Infrastructure, Shared   |
-| Application      | Domain, Shared                        |
-| Infrastructure   | Application, Domain, Shared           |
-| Worker           | Application, Infrastructure, Shared   |
-| Tests            | Application, Domain, Infrastructure   |
+- **Multi-tenant**: todo dato se aísla por `EmpresaId`. La Web usa `IEmpresaContext.CurrentEmpresaId`
+  (con "modo soporte" para SuperAdmin); la API resuelve `ICurrentUser.EmpresaId ?? empresaId` de la petición.
+- **Autorización**: `[RequireModule("X")]` (la licencia del plan habilita el módulo) + `[RequirePermiso("Y")]`.
+  La Web filtra por permiso y visibilidad de menú.
+- **Result pattern**: `Result` / `Result<T>` en servicios; la API los mapea a `ApiResponse<T>` y a códigos HTTP.
+- **Calculadoras puras y testeables** (`NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`,
+  `PosCalculator`, `EscPosTicketBuilder`): lógica de negocio sin dependencia de BD.
+- **Seed determinista** en `SeedData.cs` (`HasData`, capturado por migraciones) + provisioning idempotente
+  de la empresa de pruebas (`EmpresaPruebaSeeder`, con *backfill* de módulos del plan al arrancar).
 
-## Requisitos
+---
 
-- .NET SDK 10.0.x
-- SQL Server 2022 (local o remoto)
-- `dotnet ef` global tool (`dotnet tool install --global dotnet-ef`)
+## Módulos
 
-## Configuración
+Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo y estado actual:
 
-### Connection string
+| Cód | Módulo | Descripción | Estado |
+|---|---|---|---|
+| 100 | CORE | Empresas, sucursales, PV, usuarios, roles/permisos, catálogos, auditoría | ✅ |
+| 101 | NEODTE | Emisión DTE (8 tipos), certificación MH, eventos, contingencia, diagnóstico | ✅ |
+| 102 | **NEOPOS** | Punto de venta: ventas, tickets térmicos, impresión, correo | ✅ S1+S2 |
+| 103 | NEOSCANAI | Captura/OCR de documentos (backend; UI en la app) | ✅ backend |
+| 104 | NEOPROFIT | P&L: ventas, costos, gastos/compras, rankings | ✅ |
+| 105 | NEOBI | Reportes/BI | ⏳ |
+| 106 | NEOCONNECT | API pública (API keys, webhooks, `/api/v1`) | ✅ |
+| 107 | NEOPORTAL | Portal receptor | ⏳ |
+| 108 | CONTINGENCIA | Contingencia avanzada y lotes | ✅ |
+| 109 | EVENTOSDTE | Eventos DTE persistentes | ✅ |
+| 110 | INVENTARIO | Stock, kardex | ⏳ |
+| 111 | **COMPRAS** | Proveedores + cuentas por pagar (CxP) | ✅ |
+| 112 | GASTOS | Control de gastos (parte de NeoProfit) | ✅ |
+| 113 | **NEORRHH** | Recursos humanos + nómina (planilla quincenal ES) | ✅ |
+| 115 | **NEOTESORERIA** | Cuentas (banco/caja) + movimientos | ✅ |
 
-Cadena de conexión en `appsettings.Local.json` de los proyectos `Api`, `Web` y `Worker`
-(el archivo está en `.gitignore`):
+### Destacados de la suite
 
-```json
-{
-  "ConnectionStrings": {
-    "NeoStpDb": "Server=.;Database=NeoSTP_Cloud;User Id=sa;Password=jda;TrustServerCertificate=True;MultipleActiveResultSets=True"
-  },
-  "Jwt": { "Key": "dev-only-replace-me-with-a-strong-32-plus-char-secret-key" }
-}
-```
+- **Facturación electrónica (DTE)** — 8 tipos de documento, certificación MH, firma, contingencia,
+  eventos persistidos, diagnóstico de errores de Hacienda. Branding por empresa (logo/firma en PDF y correo).
+- **NeoPOS** — ventas con carrito, **tickets térmicos 58/80mm** en PDF, **vista imprimible** (`window.print()`),
+  **ESC/POS por red** (TCP 9100) a impresoras térmicas, **envío del ticket por correo**, resumen del día.
+  Ventas como comprobante no fiscal **promovibles a DTE** (campo enlazado).
+- **NeoRRHH** — empleados/contratos, **planilla quincenal** con tablas **ISSS/AFP/Renta 2026** parametrizables,
+  recibos PDF, exportes ISSS/AFP (CSV), cierre → gasto PLANILLA en NeoProfit.
+- **Tesorería** — cuentas de banco/caja con saldo corriente; movimientos de ingreso/egreso con origen
+  (planilla, gasto, compra, cobro) para conciliación.
+- **Compras / CxP** — proveedores, facturas de compra, pagos; saldos y vencimientos; integra NeoProfit
+  (gasto) y Tesorería (egreso al pagar).
+- **Cobros / CxC** — saldos por cliente/factura, registro de pagos, QR/enlaces de cobro.
+- **NeoProfit** — dashboard financiero (ventas, IVA, costos, ganancia, rankings, tendencia).
+- **NeoConnect** — API pública v1 con API keys por scope y webhooks.
+- **Alertas + push (FCM)**, **NeoScanAI** (OCR Gemini), **billing** multi-pasarela (Wompi/PayPal/Transferencia),
+  **carga masiva** (Excel/CSV de clientes y productos), **onboarding** self-service.
+- **Correo por empresa** — cada empresa configura su SMTP (contraseña cifrada); si no, usa el correo global.
 
-> Las credenciales en `appsettings.Local.json` son solo para desarrollo. En producción
-> usar User Secrets, variables de entorno o Azure Key Vault.
+---
 
-### Configuración del Worker
+## Puesta en marcha
 
-El proceso `NeoSTP.Worker` se configura en la sección `Worker` de `appsettings.json`:
+### Requisitos
 
-```json
-{
-  "Worker": {
-    "RetransmisionContingencia": {
-      "IntervaloMinutos": 5,
-      "CooldownMinutos": 30,
-      "MaxIntentos": 5,
-      "LoteMaximo": 50
-    },
-    "LimpiezaTokens": {
-      "IntervaloHoras": 24,
-      "RetentionDias": 30
-    }
-  }
-}
-```
+- SDK de **.NET 10**
+- **SQL Server 2022** (local, contenedor o LocalDB)
+- (Opcional) Docker + Docker Compose
 
-| Parámetro                                | Descripción                                                                      |
-| ---------------------------------------- | -------------------------------------------------------------------------------- |
-| `RetransmisionContingencia.IntervaloMinutos` | Cada cuántos minutos el Worker busca DTE en CONTINGENCIA (default 5)         |
-| `RetransmisionContingencia.CooldownMinutos`  | Tiempo de espera mínimo entre intentos para el mismo documento (default 30)  |
-| `RetransmisionContingencia.MaxIntentos`      | Intentos máximos antes de abandonar un documento (default 5)                 |
-| `RetransmisionContingencia.LoteMaximo`       | Máximo de documentos procesados por ciclo (default 50)                       |
-| `LimpiezaTokens.IntervaloHoras`              | Cada cuántas horas se ejecuta la limpieza de tokens (default 24)             |
-| `LimpiezaTokens.RetentionDias`               | Días de retención de tokens expirados/revocados antes de eliminarlos (default 30) |
+### Ejecutar localmente
 
-### Toggles de integraciones externas
+```bash
+# Restaurar y compilar
+dotnet build NeoSTP.slnx -c Debug
 
-Todas las integraciones externas tienen un toggle Mock/Real para poder desarrollar
-sin credenciales productivas. En `appsettings.Local.json`:
-
-```json
-{
-  "Hacienda": {
-    "Client": "Http",                              // Mock | Http
-    "PruebasBaseUrl": "https://apitest.dtes.mh.gob.sv",
-    "ProduccionBaseUrl": "https://api.dtes.mh.gob.sv",
-    "TimeoutSeconds": 30
-  },
-  "Dte": {
-    "Signer": "Mock"                               // Mock | Pkcs12
-  },
-  "Email": {
-    "Provider": "Mock",                            // Mock | Smtp
-    "MockOutbox": "logs/email-outbox",
-    "From": { "Address": "noreply@neostp.local", "DisplayName": "NeoSTP Cloud" },
-    "Smtp": {
-      "Host": "smtp.example.com",
-      "Port": 587,
-      "UseStartTls": true,
-      "Username": "user",
-      "Password": "pass"
-    }
-  }
-}
-```
-
-| Toggle           | Default | Implementación real                     |
-| ---------------- | ------- | --------------------------------------- |
-| `Hacienda:Client`| `Mock`  | `HttpHaciendaAuthClient` + `HttpHaciendaReceptionClient` (POST `/seguridad/auth` y `/fesv/recepciondte`) con Polly: 3 reintentos, circuit breaker, timeouts configurados |
-| `Dte:Signer`     | `Mock`  | `Pkcs12DteSignerService` (RS256 con PFX en `DteConfiguracion`)                     |
-| `Email:Provider` | `Mock`  | `SmtpEmailSender` (MailKit, STARTTLS/SSL)                                          |
-
-### Resiliencia Polly (Sprint 9)
-
-Los dos clientes HTTP de Hacienda (`auth` y `recepcion`) tienen una pipeline de resiliencia estándar de Polly v8:
-
-| Cliente           | Reintentos | Delay base | Timeout total | Timeout por intento |
-| ----------------- | ---------- | ---------- | ------------- | ------------------- |
-| Auth (token MH)   | 3          | 1 s        | 90 s          | 25 s                |
-| Recepción DTE     | 3          | 2 s        | 120 s         | 35 s                |
-
-La pipeline incluye automáticamente: **retry** (exponential backoff + jitter), **circuit breaker** (abre después de fallos consecutivos), **hedging** para peticiones lentas y **timeout** de total y por intento. Configurado con `AddStandardResilienceHandler` de `Microsoft.Extensions.Http.Resilience`.
-
-El `MockEmailSender` deja los correos como `.eml` en `logs/email-outbox/` para inspección
-sin SMTP real.
-
-## Cómo correr
-
-```powershell
-# Compilar todo
-dotnet build NeoSTP.slnx
-
-# Levantar la Web
-dotnet run --project src/NeoSTP.Web
-
-# Levantar la Api (OpenAPI en /openapi/v1.json en Development)
+# API (incluye OpenAPI en /openapi/v1.json y Scalar en /scalar/v1)
 dotnet run --project src/NeoSTP.Api
 
-# Levantar el Worker
-dotnet run --project src/NeoSTP.Worker
-
-# Correr pruebas (101 unit tests)
-dotnet test NeoSTP.slnx
-```
-
-También hay una skill local `.claude/skills/neostp/` con todos los comandos cotidianos.
-Invócala como `/neostp <subcomando>` dentro de Claude Code.
-
-## Quickstart — flujo E2E con mocks
-
-Con la configuración por defecto (todos los toggles en `Mock`) puedes ejercitar
-el ciclo completo de emisión DTE sin certificado, sin credenciales MH y sin
-servidor SMTP. En PowerShell, desde la raíz del repo:
-
-```powershell
-# 1. Crear la BD y aplicar las 22 migraciones
-dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
-
-# 2. Levantar la Web (en otra ventana)
+# Web (panel de administración/operación)
 dotnet run --project src/NeoSTP.Web
 
-# 3. En el navegador: https://localhost:7044
-#    Login: superadmin / ChangeMe!2026
-#    SuperAdmin → Soporte → seleccionar empresa demo
-#    → Empresas → crear "Demo S.A. de C.V." con plan PRO (si no existe)
-#    → Clientes → crear un cliente con correo
-#    → Productos → crear al menos un producto
-#    → DTE → "Nuevo DTE" → Factura (01) → agregar línea → Guardar
-#    → En Details: Validar → Firmar → Enviar a Hacienda
-#    → Descargar PDF · Descargar JSON · Reenviar por correo
-#    → El correo se guarda como .eml en logs/email-outbox/
+# Worker (alertas y colas)
+dotnet run --project src/NeoSTP.Worker
 ```
 
-Cada paso de la cadena `Validar → Firmar → Enviar` cambia el estado del
-documento y deja registro en `Core_Auditoria`. El sello recibido del mock
-se muestra en la sección "Respuesta de Hacienda" del detalle.
+La API aplica migraciones y siembra datos al arrancar (`DatabaseSeeder` + `EmpresaPruebaSeeder`).
 
-Para activar las integraciones reales basta con cambiar los toggles en
-`appsettings.Local.json` (ver sección anterior).
+### Docker
 
-## Base de datos
-
-Migraciones aplicadas en orden:
-
-1. `InitialCreate`
-2. `Sprint1_CoreCatalogosYSeguridad` — catálogos, usuarios, roles, permisos, refresh tokens
-3. `Sprint3_ClientesYProductos` — clientes, productos, departamentos ES
-4. `Sprint35_MunicipiosES` — 42 municipios post-reforma 2024
-5. `Sprint4_DteConfiguracion` — configuración DTE por empresa con cifrado
-6. `Sprint5_DteDocumentos` — documentos DTE, detalles y JSON
-7. `Sprint9_RetransmisionTracking` — columnas `IntentoRetransmision` y `UltimoIntentoRetransmisionAt` en `Dte_Documentos`
-8. `Sprint10_DteCorrelativos` — tabla `Dte_Correlativos` para contador atómico de `NumeroControl`
-9. `Sprint12_DistritoCAT008` — columnas `Distrito*Codigo` para la división territorial 2024
-10. `Sprint13_CatalogosExtendido` — `Catalogo.Version/MetadataJson`, `CatalogoItem.ParentCodigo` para cascadas
-11. `Sprint13_PermisosCatalogos` — permisos `Core.Catalogos.Ver/.Administrar/.Importar`
-12. `Sprint13_SeedCatalogosMH` — seed inicial de catálogos MH prioritarios (CAT-005/015/019/020/024 + CAT-008 placeholder)
-13. `Sprint13_CatalogosMhOficial` — paquete oficial Manual v1.4: 11 catálogos nuevos (CAT-006/018/021/023/025/026/027/029/030/031/032) + reemplazo de UNIDAD_MEDIDA/PAIS/TIPO_DOC_IDENTIDAD/MOTIVO_INVALIDACION con `Codigo=codigoMH` (275 países, 56 unidades, 45 recintos fiscales…)
-14. `Sprint14_CertificacionDte` — tablas `Dte_CertificacionMatriz/Escenarios/Pruebas/Errores` + matriz oficial seedeada (15 tipos × 625 escenarios numerados)
-15. `Sprint14_PermisosCertificacion` — permisos `Core.Certificacion.Ver/.Operar`
-16. `Sprint15_DteEventos` — tablas `Dte_Eventos/EventoJson/EventoRespuestasHacienda/EventoDocumentosRelacionados` (eventos persistentes)
-17. `Sprint15_PermisoEventos` — permiso `DTE.Eventos.Ver`
-18. `Sprint15_CertificacionPruebaEvento` — `CertificacionPrueba.EventoId` para asociar pruebas a eventos
-19. `Sprint16_ContingenciaLotes` — tablas `Dte_ContingenciaLotes`/`Dte_ContingenciaLoteDetalles` para recepción en lote
-20. `Sprint17_DiagnosticoErrores` — tablas `Dte_ErrorCatalogo`/`Dte_ErrorOcurrencias` + permiso `DTE.Diagnostico`
-21. `Sprint17_SeedErrorCatalogo` — seed de 11 códigos de error MH e internos en `Dte_ErrorCatalogo`
-22. `Sprint18_LegalConsentimiento` — tabla `Core_UserConsents` para registro de consentimientos legales
-23. `Sprint19_BillingSelfService` — tablas `Billing_Customers`, `Billing_Subscriptions`, `Billing_Payments`, `Billing_Invoices`, `Billing_WebhookEvents`, `Billing_PlanProviderMappings`
-24. `Sprint20_HardeningSchema` — tablas `Ops_BackupJobs`, `Core_ApiUsageLog`, `Core_ApiQuotas`, `Core_AdminIpAllowlist` + columnas MFA en `Core_Usuarios` (`MfaHabilitado`, `MfaSecretoCifrado`, `MfaConfirmadoAt`, `MfaRecoveryCodesJson`) + permisos `Ops.Hardening.Ver/.Administrar`
-25. `PagosLatam_MetodosPago` — columnas `Metodo`/`ComprobanteUrl`/`VerificadoPor`/`VerificadoAt` en `Billing_Payments` (multi-proveedor + transferencia)
-
-```powershell
-# Crear una nueva migración
-dotnet ef migrations add NombreMigracion `
-  --project src/NeoSTP.Infrastructure `
-  --startup-project src/NeoSTP.Api `
-  --output-dir Persistence/Migrations
-
-# Aplicar migraciones a la BD
-dotnet ef database update `
-  --project src/NeoSTP.Infrastructure `
-  --startup-project src/NeoSTP.Api
+```bash
+docker compose up --build
 ```
 
-## Endpoints disponibles
+Levanta Web, Api y Worker (ver `docker-compose.yml` y los `Dockerfile` de cada proyecto).
 
-Todos los endpoints viven bajo `/api`. Los autenticados requieren `Authorization: Bearer <jwt>`.
+---
 
-### Auth (anónimo + autenticado)
+## Configuración y secretos
 
-```
-POST  /api/auth/login              { usernameOrEmail, password }
-POST  /api/auth/refresh            { refreshToken }
-POST  /api/auth/logout             { refreshToken? }
-GET   /api/auth/me
-POST  /api/auth/change-password    { currentPassword, newPassword }
-```
+> **Los secretos viven solo en `appsettings.Local.json` (ignorado por git). Nunca se commitean.**
 
-### Usuarios (requiere permisos `Core.Usuarios.*`)
+Copia el ejemplo y complétalo:
 
-```
-GET    /api/usuarios?page=&pageSize=&search=
-GET    /api/usuarios/{id}
-POST   /api/usuarios
-PUT    /api/usuarios/{id}
-PATCH  /api/usuarios/{id}/bloquear
-PATCH  /api/usuarios/{id}/desbloquear
-POST   /api/usuarios/{id}/reset-password
+```bash
+cp src/NeoSTP.Api/appsettings.Local.example.json src/NeoSTP.Api/appsettings.Local.json
 ```
 
-### Roles (requiere `Core.Roles.Administrar`)
+Claves relevantes (todas con valores externos/propios):
 
-```
-GET   /api/roles
-GET   /api/roles/{id}
-POST  /api/roles
-PUT   /api/roles/{id}
-GET   /api/roles/permisos
-```
+| Sección | Para qué |
+|---|---|
+| `ConnectionStrings:Default` | Conexión a SQL Server |
+| `EmpresaPrueba` | Provisioning de la empresa de pruebas (`Enabled`, `Nit`, `PlanCodigo`, admin…) |
+| `Email` | Correo global (`Provider`: `Mock` \| `Smtp`, host/credenciales) |
+| `Scan:Gemini:ApiKey` | OCR real con Gemini Flash (NeoScanAI) |
+| `Push:Fcm` | Service account de Firebase Cloud Messaging |
+| `Pos` | Parámetros POS: `IvaTasa`, `AnchoTicketMm`, `MonedaSimbolo`, `PieTicket` |
+| `Nomina` | Tablas ISSS/AFP/Renta (por defecto 2026 en código, parametrizables) |
+| `Dte` | Ambiente, datos territoriales, credenciales MH (password/PFX se cargan por UI) |
 
-### Catálogos (Sprint 13)
+Las contraseñas SMTP por empresa y los secretos sensibles se cifran con `ISecretProtector` (DataProtection).
+Los tests que tocan SMTP leen credenciales de variables de entorno (`NEOSTP_SMTP_USER/PASS/TO`), nunca hardcodeadas.
 
-Módulo de mantenimiento completo: CRUD admin, import/export CSV/JSON/XLSX, versionado de catálogos, cascadas padre/hijo (`ParentCodigo`), `metadata.codigoMH` por ítem. 36 catálogos del sistema instalados (paquete oficial Manual de Estructuras CAT v1.4).
+---
 
-Permisos:
-- `Core.Catalogos.Ver` — lectura
-- `Core.Catalogos.Administrar` — CRUD
-- `Core.Catalogos.Importar` — bulk import/export
+## Base de datos y migraciones
 
-```
-GET    /api/catalogos
-GET    /api/catalogos/{codigo}
-GET    /api/catalogos/{codigo}/items?parent=                  # ?parent=SS para cascada Departamento→Municipio
-GET    /api/catalogos/{codigo}/items?parent=__ROOT__          # solo nivel raíz
-POST   /api/catalogos
-PUT    /api/catalogos/{codigo}
-POST   /api/catalogos/{codigo}/items
-PUT    /api/catalogos/{codigo}/items/{id}
-DELETE /api/catalogos/{codigo}/items/{id}
-POST   /api/catalogos/{codigo}/import?format=csv|json|xlsx&dryRun=true&mode=Upsert|InsertOnly
-GET    /api/catalogos/{codigo}/export?format=csv|json|xlsx
-```
+```bash
+# Crear una migración
+dotnet ef migrations add NombreMigracion \
+  --project src/NeoSTP.Infrastructure \
+  --startup-project src/NeoSTP.Api \
+  --output-dir Persistence/Migrations \
+  --context NeoStpDbContext
 
-**Reglas**: catálogos `EsSistema` no se inactivan; ítems `EsSistema` no se borran físicamente (solo se inactivan); padre debe existir o estar en el mismo lote de import; un ítem con hijos no se puede eliminar.
-
-**Catálogos oficiales MH** (con `Codigo = codigoMH`): CAT-001 Ambiente, CAT-002 Tipo Documento, CAT-005 Tipo Contingencia, CAT-006 Retención IVA, CAT-009 Tipo Establecimiento, CAT-012 Departamento (14), CAT-013 Municipio (44), CAT-014 Unidad Medida (56), CAT-016 Condición Operación, CAT-017 Forma Pago, CAT-018 Plazo, CAT-019 Actividad Económica, CAT-020 País (275), CAT-021 Otros Doc Asociados, CAT-022 Tipo Doc Identidad, CAT-023 Tipo Doc Contingencia, CAT-024 Motivo Invalidación, CAT-025 Título Remisión, CAT-026 Tipo Donación, CAT-027 Recinto Fiscal (45), CAT-029 Tipo Persona, CAT-030 Transporte, CAT-031 INCOTERMS (16), CAT-032 Domicilio Fiscal. Solo CAT-008 Distrito queda como placeholder vacío para import oficial.
-
-### Empresas y licenciamiento (Sprint 2)
-
-SuperAdmin ve todas las empresas; un usuario de empresa solo la suya.
-
-```
-GET   /api/empresas?page=&pageSize=&search=
-GET   /api/empresas/{id}
-POST  /api/empresas                            # solo SuperAdmin
-PUT   /api/empresas/{id}
-GET   /api/empresas/{id}/licencia              # plan vigente + módulos + consumo
-POST  /api/empresas/{id}/plan                  { planId, fechaInicio?, fechaFin? }
-POST  /api/empresas/{id}/modulos/{moduloId}/activar
-POST  /api/empresas/{id}/modulos/{moduloId}/desactivar
+# Aplicar (o se aplican solas al arrancar la API)
+dotnet ef database update \
+  --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 ```
 
-### Sucursales y Puntos de Venta (Sprint 2)
-
-```
-GET    /api/sucursales
-GET    /api/sucursales/{id}
-POST   /api/sucursales
-PUT    /api/sucursales/{id}
-PATCH  /api/sucursales/{id}/inactivar
-GET    /api/puntos-venta
-GET    /api/puntos-venta/{id}
-POST   /api/puntos-venta
-PUT    /api/puntos-venta/{id}
-PATCH  /api/puntos-venta/{id}/inactivar
-```
-
-Crear sucursales/PV consume los **límites del plan**: si el conteo actual
-ya está en el límite, retorna `409 LIMIT_EXCEEDED`.
-
-### Planes y módulos (lectura, Sprint 2)
-
-```
-GET  /api/planes                  # catálogo de planes con sus módulos
-GET  /api/planes/{id}
-GET  /api/modulos                 # catálogo de módulos del sistema
-```
-
-Para proteger endpoints según módulo contratado por la empresa, decora
-con `[RequireModule("NEODTE")]` — la policy resuelve dinámicamente y
-consulta `Core_EmpresaModulos`. SuperAdmin siempre pasa.
-
-### Clientes y productos (Sprint 3)
-
-```
-GET    /api/clientes?page=&pageSize=&search=
-GET    /api/clientes/{id}
-POST   /api/clientes                          # valida formato DUI/NIT, NRC para contribuyente
-PUT    /api/clientes/{id}
-PATCH  /api/clientes/{id}/inactivar
-
-GET    /api/productos?page=&pageSize=&search=
-GET    /api/productos/{id}
-POST   /api/productos                          # BIEN o SERVICIO con IVA configurable
-PUT    /api/productos/{id}
-PATCH  /api/productos/{id}/inactivar
-```
-
-**Validaciones fiscales** (en `NeoSTP.Application.Clientes.ClienteValidator`):
-- DUI: `########-#` (12345678-9)
-- NIT: `####-######-###-#` o 14 dígitos sin separadores
-- NRC: 1-7 dígitos, opcionalmente con guion (1234567 o 123456-7)
-- Contribuyentes requieren NRC + código de actividad económica
-- Correo se valida si está presente
-
-Catálogo `DEPARTAMENTO_ES` con los 14 departamentos de El Salvador.
-Catálogo `MUNICIPIO_ES` con 42 municipios/zonas post-reforma territorial 2024
-(Decreto 290). Cada item lleva metadata
-`{"departamento":"CODIGO","zona":"NORTE|SUR|ESTE|OESTE|CENTRO|COSTA"}`
-para permitir cascada UI.
-
-### Configuración DTE / Hacienda (Sprint 4)
-
-Configuración fiscal por empresa (1-a-1 con `Core_Empresas` en tabla `Dte_Configuracion`).
-Permisos requeridos: `DTE.Configurar`.
-
-```
-GET     /api/dte/configuracion              # password/cert nunca se devuelven
-PUT     /api/dte/configuracion               { ambienteCodigo, usuarioMh, passwordMh?, ... }
-POST    /api/dte/configuracion/certificado   { nombre, contenidoBase64, password?, emitido?, vence? }
-DELETE  /api/dte/configuracion/certificado
-POST    /api/dte/configuracion/probar-conexion
-```
-
-**Cifrado de secretos** — `ISecretProtector` (impl. `DataProtectionSecretProtector`)
-cifra password de Hacienda, password del certificado y token cacheado de MH con
-**ASP.NET Core DataProtection** (purpose `NeoSTP.DteSecrets.v1`). Las llaves se
-guardan en `%LOCALAPPDATA%\ASP.NET\DataProtection-Keys` (Windows) o
-`/var/aspnet/DataProtection-Keys` (Linux). Cambiar la llave invalida los passwords
-cifrados — habrá que reingresarlos.
-
-### Documentos DTE — generación (Sprint 5)
-
-Endpoints para emisión de documentos electrónicos. Estados:
-`BORRADOR → GENERADO → VALIDADO → FIRMADO → ENVIADO → PROCESADO / RECHAZADO / CONTINGENCIA / INVALIDADO / ERROR`
-
-```
-GET    /api/dte/documentos?page=&search=&tipoDteCodigo=&estadoCodigo=&desde=&hasta=
-GET    /api/dte/documentos/{id}
-
-POST   /api/dte/factura                      # 01 Factura Consumidor Final
-POST   /api/dte/credito-fiscal               # 03 CCF
-POST   /api/dte/nota-credito                 # 05 Nota de Crédito
-POST   /api/dte/nota-debito                  # 06 Nota de Débito
-POST   /api/dte/sujeto-excluido              # 14 Factura Sujeto Excluido
-POST   /api/dte/documentos                   # genérico (TipoDteCodigo en body)
-
-POST   /api/dte/documentos/{id}/generar      # construye JSON
-POST   /api/dte/documentos/{id}/validar      # valida campos obligatorios
-POST   /api/dte/documentos/{id}/invalidar    { motivo }
-```
-
-Permisos: `DTE.Emitir` para crear/generar/validar, `DTE.Invalidar` para invalidar.
-
-**Reglas de cálculo** (en `DteCalculator`):
-- Factura 01 → IVA **incluido** en gravada (`IVA = bruto × 0.13/1.13`, informativo).
-- CCF / NC / ND → IVA **separado** (`IVA = gravada × 0.13`, sumado al total).
-- Sujeto Excluido 14 → **sin IVA**, va como No Sujeta.
-- Total en letras estilo MH (`DOSCIENTOS CINCUENTA 35/100 DÓLARES`).
-- Número de control: `DTE-{tipo}-{estab(4)}{punto(4)}-{15 dígitos}`.
-- `CodigoGeneracion`: UUID v4 mayúsculas.
-
-El JSON sigue el esquema oficial MH v1 (factura/sujeto excluido) y v3 (CCF/NC/ND).
-
-### Documentos DTE — firma y transmisión (Sprint 6)
-
-```
-POST   /api/dte/documentos/{id}/firmar       # produce JWS (header.payload.signature)
-POST   /api/dte/documentos/{id}/enviar       # POST a Hacienda con Bearer token
-```
-
-- **Firma JWS RS256** desde el PFX guardado en `DteConfiguracion`.
-  Header incluye `x5t` (huella SHA-1 del certificado). Toggle `Dte:Signer = Mock | Pkcs12`.
-- **Transmisión** a `POST {base}/fesv/recepciondte` con token de Hacienda.
-  El token se refresca automáticamente con `IHaciendaAuthClient` cuando expira
-  (margen de 5 minutos).
-- Respuesta MH se mapea al estado interno:
-  - `PROCESADO` → guarda `SelloRecibido` y `ProcesadoAt`.
-  - `RECHAZADO` → estado `RECHAZADO` (permite re-emisión).
-  - `CONTINGENCIA` → estado `CONTINGENCIA` (permite reintento).
-- Errores externos: `FIRMA_FAILED` y `HACIENDA_AUTH_FAILED` → HTTP **502**.
-
-### Integración real con Hacienda (lecciones del Sprint 11b)
-
-Al ejecutar el flujo completo contra `https://apitest.dtes.mh.gob.sv` con un NIT y
-certificado de prueba reales, se corrigieron cuatro discrepancias entre nuestra
-implementación y el comportamiento real de MH hasta lograr `estado=PROCESADO`:
-
-| Problema (respuesta MH) | Causa | Solución |
-|---|---|---|
-| HTTP 401 en recepción | `body.token` de `/seguridad/auth` ya incluye el prefijo `"Bearer "`; lo duplicábamos | `HttpHaciendaAuthClient` recorta el prefijo antes de cachear/usar el token |
-| `802 Firma no válida` | Firmábamos con RS256/SHA-256 | Hacienda exige **RS512** (RSA + SHA-512) con header mínimo `{"alg":"RS512"}`, idéntico al `svfe-api-firmador` oficial |
-| `identificacion.numeroControl no cumple el formato requerido` | Asumíamos `[A-Z0-9]{8}` para el bloque de establecimiento | El formato oficial es `(M\|B\|S\|P)([0-9]{3})(P)([0-9]{3})` → `M001P001`. Construido por `BuildBloqueEstablecimiento()` con la letra de tipo de establecimiento (CAT-009) |
-| `emisor/codEstableMH no cumple el tamaño mínimo` | Enviábamos `codEstableMH`/`codPuntoVentaMH` con 3 dígitos | Los códigos asignados por MH requieren **exactamente 4 caracteres** (ej. `0001`) |
-
-> **Credenciales (dos passwords distintos):** el del **portal** (login web) ≠ el de la
-> **API de recepción** (`passwordMh`). Usar el de la API en la configuración DTE.
-> Los secretos de prueba viven en `appsettings.Local.json` (gitignored), nunca en el repo.
-
-Evidencia del primer DTE aceptado: `selloRecibido=202610EB9EA7841B405899A4D149D56AFF3CBWDE`,
-`numeroControl=DTE-01-M001P001-000000000000014`, `codigoMsg=001` (RECIBIDO), `observaciones=[]`.
-
-#### Matriz de certificación — Sprint 12 (5 tipos PROCESADOS)
-
-Hallazgo decisivo: **el ambiente apitest valida contra los esquemas v1/v3, NO v2/v4.**
-Los archivos `svfe-json-schemas` (v2/v4) son más nuevos que lo desplegado en apitest.
-Se envió una Factura v2 (con `distrito`, `ivaRete`, sin `extension`) y MH la rechazó
-exigiendo lo contrario; al volver a v1 → PROCESADO. **La certificación se hace contra
-v1/v3**, que es lo que el generador emite. La infraestructura de `distrito` (CAT-008)
-queda lista pero dormante para Factura v1 — aunque **sí se usa** en los tipos v2/v3.
-
-| Tipo DTE | Versión apitest | Estado | Aprendizaje clave |
-|---|---|---|---|
-| 01 Factura | v1 | ✅ PROCESADO | `extension`, `ivaRete1`+`reteRenta`, `codEstableMH`+`tipoEstablecimiento`, división territorial **vieja** (municipio `03`) |
-| 14 Sujeto Excluido | v1 | ✅ PROCESADO | emisor **sin** `tipoEstablecimiento`/`nombreComercial` |
-| 04 Nota de Remisión | v3 | ✅ PROCESADO | `extension` sin `placaVehiculo`; con línea **NO_SUJETA** se acepta receptor sin NRC (cod 002) |
-| 15 Donación | v2 | ✅ PROCESADO | emisor=Donatario (`tipoDocumento`), `pagos` requerido, división territorial **2024** (municipio `23` + distrito `03`) |
-| 11 Factura Exportación | v3 | ✅ PROCESADO | receptor extranjero `codPais` CAT-020 (`9539`=EUA, `9300`=El Salvador), tributo **`C3`** (IVA export 0%), división 2024 |
-
-**Patrón territorial por versión:** los DTE v1 usan la división vieja (Ayutuxtepeque = municipio `03`);
-los v2/v3 usan la división 2024 (San Salvador Centro `23` + distrito Ayutuxtepeque `03`).
-
-**Salvaguardas añadidas:** mapeo interno→CAT-022 en `receptor.tipoDocumento` (DUI→13, NIT→36…) y
-un **guardrail anti-mock** que bloquea enviar una firma `none/mock` al Hacienda real
-(`FIRMA_MOCK_NO_ENVIABLE`) — la Web firma con sus propios servicios, así que su
-`appsettings.Local.json` también debe fijar `Dte:Signer=HaciendaCert`.
-
-> ⏳ **Pendiente de matriz (DTE):** 03 CCF / 05 NC / 06 ND y 07/08/09 requieren receptor
-> **inscrito en IVA** (NIT + NRC reales). Migración a v2/v4 solo cuando apitest la adopte.
-
-#### Eventos DTE — Sprint 12
-
-Subsistema de eventos completo (generación + firma RS512 + transmisión). El Manual Técnico v2.0
-confirma que **solo Contingencia e Invalidación tienen endpoint propio**; Retorno y Operaciones
-Especiales (esquemas `fe-eret`/`fe-eop`, prefijo `fe-` como los DTE) se transmiten por
-`/fesv/recepciondte`.
-
-| Evento | Endpoint | Estado | Nota |
-|---|---|---|---|
-| **Contingencia** | `/fesv/contingencia` | ✅ PROCESADO | emisor `codEstableMH`+`codPuntoVenta` (asimétrico); DTE en contingencia con `tipoTransmision=2` |
-| **Invalidación** | `/fesv/anulardte` | ✅ PROCESADO | `fecAnula`/`horAnula` (no fecEmi); `nomEstablecimiento` requerido; tipo 2 = rescindir |
-| **Operaciones Especiales** | `/fesv/recepciondte` | 🟡 estructura OK | `tipoEvento=17`, `tipoDocumento=97` (Control Interno); bloqueado por `095` (cuenta no autorizada) |
-| **Retorno** | `/fesv/recepciondte` | 🟡 estructura OK | `tipoEvento=18`, referencia FE/FEXE/FSEE; bloqueado por `codEstableMH` (requiere código MH registrado real) |
-
-Endpoints API: `POST /api/dte/evento/{contingencia|invalidacion|operaciones-especiales|retorno}`.
-Clientes: `IHaciendaContingenciaClient` (dedicado) + `IHaciendaEventoClient` (genérico, endpoint parametrizable).
-
-> ⏳ **Bloqueos de cuenta (no de código):** Op-Especiales necesita autorización del contribuyente
-> para Factura Simplificada/Control Interno; Retorno necesita el `codEstableMH` real registrado.
-> Ambas estructuras ya pasan la validación de esquema de Hacienda.
-
-### Certificación DTE (Sprint 14)
-
-Módulo para controlar la matriz oficial Hacienda de 625 escenarios (15 tipos: 90 Factura, 75 CCF, 50 NR, 50 NC, 25 ND, 50 Retención, 75 Liquidación, 50 DCL, 90 Exportación, 25 SE, 25 Donación, 5 cada uno de Invalidación/Contingencia/Retorno/OpEspeciales). Permite visualizar progreso por tipo, asociar DTE emitidos a escenarios, reintentar, y saber cuándo solicitar autorización.
-
-Permisos:
-- `Core.Certificacion.Ver` — consulta resumen / matriz / escenarios / errores
-- `Core.Certificacion.Operar` — generar prueba / marcar completado / reintentar
-
-```
-GET   /api/certificacion/resumen                                # totales + % progreso + lista para autorización
-GET   /api/certificacion/matriz                                 # 15 tipos con conteos
-GET   /api/certificacion/tipos/{codigo}/escenarios              # estado actual de cada escenario para la empresa
-GET   /api/certificacion/errores?codigoMh=                      # últimos 500 errores Hacienda filtrables
-
-POST  /api/certificacion/tipos/{codigo}/generar-prueba          # abre prueba EN_PROGRESO para el siguiente escenario PENDIENTE
-POST  /api/certificacion/documentos/{id}/marcar-completado      { escenarioId, notas? }
-POST  /api/certificacion/documentos/{id}/reintentar             # marca prueba ERROR y abre nuevo intento PENDIENTE
-```
-
-**Reglas**:
-- `MarcarCompletado` promueve a `COMPLETADO` solo si el DTE tiene `SelloRecibido` y estado `PROCESADO`.
-- Valida cruzado tipo DTE ↔ matriz (no permite asociar un CCF a la matriz de Factura).
-- El cálculo de progreso considera solo el **último intento** por escenario, no la suma.
-- `Reintentar` abre intento `N+1` sin DTE asociado; el usuario emite uno nuevo y lo asocia con `marcar-completado`.
-
-### Eventos DTE persistentes (Sprint 15)
-
-Subsistema dedicado para invalidación, contingencia, retorno y operaciones especiales con persistencia completa (cabecera + JSON sin firmar + JWS + respuestas Hacienda + DTE relacionados). La transmisión real sigue siendo la lógica certificada de Sprint 12 — Sprint 15 agrega `PersistirEventoAsync` (best-effort) que captura el ciclo completo en `Dte_Eventos*`.
-
-Permisos:
-- `DTE.Eventos.Ver` — consultar listado, detalle, JSON y PDF
-- `DTE.Invalidar` / `DTE.Contingencia` / `DTE.Emitir` — crear cada tipo (reusados del Sprint 5)
-
-```
-GET   /api/dte/eventos?tipo=&estado=             # top 500 ordenado por fecha desc
-GET   /api/dte/eventos/{id}                       # cabecera + json/jws flags + relacionados + respuestas
-GET   /api/dte/eventos/{id}/json                  # JSON sin firmar
-GET   /api/dte/eventos/{id}/pdf                   # representación gráfica QuestPDF
-
-POST  /api/dte/eventos/invalidacion               # DTE.Invalidar
-POST  /api/dte/eventos/contingencia               # DTE.Contingencia
-POST  /api/dte/eventos/retorno                    # DTE.Emitir
-POST  /api/dte/eventos/operaciones-especiales     # DTE.Emitir
-
-# Legacy (Sprint 12) — siguen funcionando con adaptador interno
-POST  /api/dte/evento/{invalidacion|contingencia|retorno|operaciones-especiales}
-```
-
-**Reglas / decisiones**:
-- La lógica de transmisión NO se extrajo del `DteDocumentosService` (está certificada con Hacienda y refactorizarla era riesgoso). En su lugar, los 4 métodos persisten el evento con `PersistirEventoAsync` envuelto en try/catch: un fallo de persistencia nunca rompe el flujo de transmisión.
-- El `EventoId` retornado en el `CrearEventoResultadoDto` puede ser `null` si la persistencia falló (best-effort).
-- Estados del evento: `BORRADOR → FIRMADO → ENVIADO → PROCESADO | RECHAZADO | ERROR`.
-- Una `CertificacionPrueba` ahora puede asociarse a un `DteDocumento` **o** a un `DteEvento` (mutuamente excluyente). Endpoint `POST /api/certificacion/eventos/{id}/marcar-completado` permite contar eventos PROCESADO en las matrices CAT INVALIDACION/CONTINGENCIA/RETORNO/OPERACIONES_ESPECIALES.
-
-### Hardening / Operación (Sprint 20)
-
-Endurecimiento pre-producción. Permisos `Ops.Hardening.Ver` / `Ops.Hardening.Administrar` (SuperAdmin).
-
-```
-# MFA (TOTP) — segundo factor, cualquier usuario autenticado
-POST  /api/auth/mfa/enroll                 # genera secreto + otpauth URI (QR)
-POST  /api/auth/mfa/confirm    { code }    # activa MFA + devuelve 10 códigos de recuperación
-POST  /api/auth/mfa/disable    { code }    # deshabilita (TOTP o código de recuperación)
-# Login: si MfaHabilitado, LoginRequest exige { mfaCode }; SuperAdmin sin MFA → LoginResponse.mfaEnrollmentRequired=true
-
-# Panel Hardening (SuperAdmin)
-GET    /api/hardening/backups                      # últimos respaldos
-POST   /api/hardening/backups/ejecutar?empresaId=  # ejecuta respaldo lógico ahora
-GET    /api/hardening/cuotas                       # reglas de rate limit
-POST   /api/hardening/cuotas                       { ambito, ambitoRef?, empresaId?, limitePeticiones, ventanaSegundos }
-DELETE /api/hardening/cuotas/{id}
-GET    /api/hardening/ip-allowlist
-POST   /api/hardening/ip-allowlist                 { ipCidr, descripcion? }
-PATCH  /api/hardening/ip-allowlist/{id}            { activo }
-DELETE /api/hardening/ip-allowlist/{id}
-```
-
-**Rate limiting:** `ApiQuotaMiddleware` cuenta cada `/api/*` en `Core_ApiUsageLog` y evalúa las reglas
-de `Core_ApiQuotas` por ventana deslizante. Al exceder → **429** con `Retry-After` + `X-RateLimit-Limit/Remaining`.
-SuperAdmin exento. Toggle `Hardening:RateLimit:Enabled` (default true).
-
-**IP allowlist:** `AdminIpAllowlistMiddleware` restringe el acceso de SuperAdmin a las IP/CIDR de
-`Core_AdminIpAllowlist` (fail-open si la lista está vacía).
-
-**Backups:** `IStorageService` toggle `Hardening:Backup:StorageProvider` = `LOCAL | AZURE_BLOB | S3`;
-`BackupWorker` periódico (`Hardening:Backup:WorkerEnabled`, `IntervaloHoras`). UI `/Hardening`.
-Ops: `ops/k6/baseline.js`, `.github/workflows/zap-baseline.yml`, `docs/Sprint20-Disaster-Recovery.md`.
-
-### Documentos DTE — descarga y correo (Sprint 7)
-
-```
-GET    /api/dte/documentos/{id}/pdf          # representación gráfica QuestPDF
-GET    /api/dte/documentos/{id}/json         # JSON DTE sin firmar
-POST   /api/dte/documentos/{id}/reenviar     { destinatario? }    # PDF+JSON adjuntos
-```
-
-Permisos: `DTE.Consultar` para descargas, `DTE.Reenviar` para correo.
-Si no se pasa `destinatario`, se usa el correo del receptor. `EMAIL_FAILED` → HTTP **502**.
-
-### Dashboard (Sprint 8)
-
-```
-GET  /api/dashboard/empresa?empresaId=      # KPIs del mes para la empresa del token
-                                             # SuperAdmin: pasar ?empresaId=N
-GET  /api/dashboard/superadmin              # métricas globales (solo SUPERADMIN)
-```
-
-El endpoint de empresa devuelve:
-- `dteHoy`, `dteMes`, `totalPagarMes` (procesados)
-- `procesados`, `rechazados`, `contingencias`, `pendientes` (todos los estados no terminales)
-- `planNombre`, `limiteDteMensual`, `porcentajeUsoDte`
-- `porEstado` — array `{estado, cantidad, totalPagar}` del mes
-- `porTipo`   — array `{tipoCodigo, tipoNombre, cantidad, totalPagar}` del mes
-- `tendenciaDiaria` — array de 30 días `{fecha, cantidad, totalPagar}`
-
-El endpoint superadmin devuelve:
-- `empresasActivas`, `empresasTotal`, `usuariosActivos`
-- `dteTotalMes`, `facturacionTotalMes` (procesados)
-- `resumenPorPlan` — array `{planNombre, empresasCount, ingresosMensuales}`
-- `alertasPlanProximoVencer` — planes que vencen en los próximos 30 días
-- `topEmpresasDteMes` — top 10 empresas ordenadas por cantidad de DTE
-
-### Worker Jobs (Sprint 9)
-
-El proceso `NeoSTP.Worker` ejecuta dos `BackgroundService` de forma independiente:
-
-#### RetransmisionContingenciaWorker
-
-- Se ejecuta cada `IntervaloMinutos` (default 5 min).
-- Consulta documentos con `EstadoCodigo = CONTINGENCIA` que:
-  - No hayan superado `MaxIntentos` intentos.
-  - Cuyo último intento fue hace más de `CooldownMinutos` (o nunca intentados).
-- Toma hasta `LoteMaximo` documentos por ciclo (evita timeouts en BD muy cargada).
-- Llama a `IDteDocumentosService.EnviarAsync` para cada documento.
-- Incrementa `IntentoRetransmision` ANTES de enviar (evita loops infinitos si el proceso muere a mitad).
-- Resultado: `{ Procesados, Exitosos, Fallidos, Omitidos }` logueado con Serilog.
-
-#### LimpiezaTokensWorker
-
-- Se ejecuta cada `IntervaloHoras` (default 24 h).
-- Elimina de `Core_RefreshTokens` los tokens cuya `ExpiresAt < (ahora - RetentionDias)` o cuya `RevokedAt < (ahora - RetentionDias)`.
-- Previene crecimiento indefinido de la tabla de tokens.
-
-Ambos workers usan `IServiceScopeFactory` para resolver servicios scoped (EF Core `DbContext`) desde el contexto singleton del `BackgroundService`.
-
-### Diagnóstico
-
-```
-GET  /health
-GET  /openapi/v1.json     # solo en Development
-```
-
-## Vistas Web
-
-Bajo el dominio `/` con auth por cookie:
-
-| Ruta                          | Sprint | Notas                                                    |
-| ----------------------------- | ------ | -------------------------------------------------------- |
-| `/Account/Login`              | 1      | Login con username/password                              |
-| `/Home`                       | 1      | Dashboard básico con permisos del usuario                |
-| `/Usuarios`                   | 1      | CRUD de usuarios + bloqueo                               |
-| `/Empresas`                   | 2      | CRUD de empresas (SuperAdmin) + activar/desactivar módulos|
-| `/Soporte`                    | 2      | SuperAdmin: entrar en modo soporte de una empresa        |
-| `/Clientes`                   | 3      | CRUD clientes con cascada departamento → municipio       |
-| `/Productos`                  | 3      | CRUD productos                                           |
-| `/DteConfiguracion`           | 4      | Form ambiente + credenciales MH + carga PFX              |
-| `/DteDocumentos`              | 5–7    | Listado, alta, detalle con todas las acciones de estado  |
-| `/DteDocumentos/Create`       | 5      | Form con líneas dinámicas y recálculo en cliente         |
-| `/DteDocumentos/Details/{id}` | 5–7    | Totales, JSON, JWS firmado, sello MH, descargas y reenvío|
-| `/Planes`                     | 2      | Lectura del catálogo de planes y módulos                 |
-| `/Home` (empresa)             | 8      | Dashboard con KPIs, tendencia 30d, donut de estados y tabla por tipo |
-| `/Home` (SuperAdmin)          | 8      | Panel global: KPIs, alertas de planes, top empresas, resumen MRR |
-| `/Sucursales`                 | 10     | CRUD sucursales + botón directo a puntos de venta de cada sucursal |
-| `/Sucursales/PuntosVenta`     | 10     | CRUD puntos de venta con filtro por sucursal |
-| `/Catalogos`                  | 13     | Lista de catálogos con conteo de ítems, versión y badge Sistema/Empresa |
-| `/Catalogos/Details/{codigo}` | 13     | Ítems con filtro por padre y dropdown exportar CSV/JSON/XLSX |
-| `/Catalogos/Import/{codigo}`  | 13     | Upload con simulación, modos Upsert/InsertOnly, reporte de errores por fila |
-| `/Certificacion`              | 14     | Dashboard: 6 cards de resumen + barras por tipo + indicador "listo para autorización" |
-| `/Certificacion/Matriz`       | 14     | Matriz completa con totales y % por tipo |
-| `/Certificacion/Tipo/{codigo}`| 14     | Detalle por tipo con badges de estado, botón generar prueba y reintentar |
-| `/Certificacion/Errores`      | 14     | Listado de errores MH con respuesta cruda colapsable |
-| `/DteEventos`                 | 15     | Listado con filtros tipo/estado, badges semánticos, accesos rápidos a 4 tipos de evento |
-| `/DteEventos/Details/{id}`    | 15     | Cabecera + motivo + DTE relacionados + respuestas MH colapsables; descargas JSON/PDF |
-| `/DteEventos/CreateInvalidacion`     | 15 | Form con DTE PROCESADO + tipo anulación 1/2/3 (CAT-024) + responsable |
-| `/DteEventos/CreateContingencia`     | 15 | Form con DTE en CONTINGENCIA multi-select + tipo 1-5 (CAT-005) + responsable |
-| `/DteEventos/CreateRetorno`          | 15 | Form con DTE PROCESADO origen (FE/FEXE/FSEE) |
-| `/DteEventos/CreateOperacionesEspeciales` | 15 | Form libre con descripción + monto (IVA auto) |
-
-## SuperAdmin inicial
-
-Al primer arranque de la Api, `DatabaseSeeder` aplica migraciones pendientes y, si no hay
-ningún usuario, crea un SuperAdmin:
-
-| Username     | Password         |
-| ------------ | ---------------- |
-| `superadmin` | `ChangeMe!2026`  |
-
-**Cambia la contraseña en el primer login** vía `POST /api/auth/change-password`
-o desde el menú de usuario en la Web.
-
-### Modo soporte (SuperAdmin)
-
-El SuperAdmin no pertenece a ninguna empresa. Para operar pantallas
-multi-tenant (Clientes, Productos, DTE…) entra en **modo soporte** seleccionando
-una empresa en `/Soporte`. La selección se guarda en una cookie y
-`IEmpresaContext` la usa para scope los queries.
-
-## Empresa de pruebas (provisioning automático, Sprint 11)
-
-`EmpresaPruebaSeeder` corre al arrancar la **Api** y crea —de forma **idempotente**—
-una empresa completa lista para pruebas reales: empresa + plan + módulos + sucursal
-Casa Matriz + punto de venta Principal + usuario admin + configuración DTE base.
-
-Se activa con la sección `EmpresaPrueba` en `appsettings.Local.json` de la Api:
-
-```json
-{
-  "EmpresaPrueba": {
-    "Enabled": true,
-    "Nit": "06140000000000",
-    "RazonSocial": "NeoSTP Pruebas, S.A. de C.V.",
-    "PlanCodigo": "ENTERPRISE",
-    "Admin": { "Username": "admin.prueba", "Password": "ChangeMe!2026" },
-    "Sucursal": { "Codigo": "0001", "Nombre": "Casa Matriz" },
-    "PuntoVenta": { "Codigo": "0001", "Nombre": "Principal" },
-    "Dte": { "AmbienteCodigo": "PRUEBAS", "UsuarioMh": "06140000000000" }
-  }
-}
-```
-
-> Los **secretos** (password MH, certificado PFX) NO se siembran aquí: se cargan vía
-> `/DteConfiguracion` para quedar cifrados con DataProtection. Si la empresa ya existe
-> (por NIT) el seeder no hace nada. **Pon `Enabled: false` tras la primera creación.**
-
-Guías paso a paso en `docs/`:
-- **`Sprint11-Runbook-Mocks-a-Real.md`** — cambiar de Mock a Hacienda HTTP + firma Pkcs12.
-- **`Sprint11-Matriz-Pruebas-DTE.md`** — checklist E2E de los 5 tipos DTE (01/03/05/06/14).
-
-## Notas para pruebas manuales en PowerShell 5.1
-
-`Invoke-RestMethod` en PowerShell 5.1 **no codifica UTF-8** los `Body` con
-caracteres acentuados (`é`, `ñ`, etc.) — los envía como Latin-1 y el JSON
-parser de ASP.NET retorna 400. Para POST/PUT con texto en español usa raw
-`WebRequest` con `Encoding.UTF8`:
-
-```powershell
-function PostJson($url, $body, $headers) {
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
-    $req = [System.Net.WebRequest]::Create($url)
-    $req.Method = "POST"
-    $req.ContentType = "application/json; charset=utf-8"
-    $req.Headers.Add("Authorization", $headers.Authorization)
-    $req.ContentLength = $bytes.Length
-    $s = $req.GetRequestStream(); $s.Write($bytes, 0, $bytes.Length); $s.Close()
-    # ... GetResponse, ConvertFrom-Json
-}
-```
-
-PowerShell 7+ o la Web del proyecto no tienen este problema.
-
-## Skill Claude Code
-
-Hay una skill local en `.claude/skills/neostp/` que envuelve los comandos más usados del día a día. Invócala como `/neostp` dentro de Claude Code.
-
-## Roadmap
-
-| Sprint | Tema                                   | Estado |
-| ------ | -------------------------------------- | ------ |
-| 0      | Setup técnico                          | ✅     |
-| 1      | Seguridad y Core (login, RBAC, JWT)    | ✅     |
-| 2      | Empresa y licenciamiento               | ✅     |
-| 3      | Catálogos, clientes, productos         | ✅     |
-| 3.5    | Municipios El Salvador (post-reforma)  | ✅     |
-| 4      | Configuración DTE (cifrado + Hacienda) | ✅     |
-| 5      | Generación DTE (5 tipos)               | ✅     |
-| 6      | Firma JWS y transmisión a Hacienda     | ✅     |
-| 7      | PDF, correo y descarga del DTE         | ✅     |
-| 8      | Dashboard operativo y SuperAdmin avzdo | ✅     |
-| 9      | Worker jobs y resiliencia              | ✅     |
-| 10     | Backlog: Sucursales UI, QR PDF, AtomicCounter | ✅     |
-| 11     | Empresa de pruebas real + Ambiente Hacienda   | ✅     |
-| 12     | Certificación apitest 5 DTE + 2 eventos       | ✅     |
-| 13     | Catálogos MH (CRUD + import/export + 36 catálogos oficiales v1.4) | ✅     |
-| 14     | Certificación DTE (matriz, progreso, escenarios) | ✅     |
-| 15     | Eventos DTE persistentes + UI + PDF + integración certificación | ✅     |
-| 16     | Contingencia avanzada y recepción por lotes   | ✅     |
-| 17     | Diagnóstico de errores Hacienda               | ✅     |
-| 18     | Legal + consentimiento                        | ✅     |
-| 19     | Billing self-service (Stripe / MercadoPago)   | ✅     |
-| 20     | Hardening pre-producción                      | ✅     |
-| 21     | UI/UX AppShell + design system                | ✅     |
-| 21.5   | Pulido UI de todas las pantallas              | ✅     |
-| —      | Pagos LATAM (Wompi · PayPal · Transferencia)  | ✅     |
-| —      | Lookups + limpieza de hardcodeos territoriales| ✅     |
-| —      | Carga masiva (clientes y productos Excel/CSV) | ✅     |
-| 22     | NeoProfit básico                              | 🔜     |
-| 23     | NeoScanAI integrado                           | 🔜     |
-| 24     | NeoConnect API comercial (API keys, webhooks, worker, UI) | ✅     |
-| 25     | NeoPOS básico                                 | 🔜     |
-| 26     | Modernización de vistas + acciones CRUD       | ✅     |
-| —      | NeoPortal Clientes                            | 🔜     |
-| 27–28  | NeoSTP Mobile API + MVP                       | 🔜     |
-| 29     | SuperAdmin operativo avanzado                 | 🔜     |
-| 30     | Preparación comercial y documentación         | 🔜     |
+---
 
 ## Pruebas
 
-```powershell
-dotnet test NeoSTP.slnx                          # corre los 267 tests unit + 2 integration
-dotnet test tests/NeoSTP.Tests.Unit              # solo unit (rápido, ~10s)
+```bash
+dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
+dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-Cobertura por área:
+**553 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
+(`PosCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `EscPosTicketBuilder`).
 
-| Área                              | Tests | Ubicación                                                              |
-| --------------------------------- | ----- | ---------------------------------------------------------------------- |
-| Auth (BCrypt, login)              | 11    | `tests/NeoSTP.Tests.Unit/Auth/`                                        |
-| Empresas (límites)                | 5     | `tests/NeoSTP.Tests.Unit/Empresas/`                                    |
-| Clientes (validadores)            | 21    | `tests/NeoSTP.Tests.Unit/Clientes/`                                    |
-| DTE — DataProtection              | 4     | `tests/NeoSTP.Tests.Unit/Dte/`                                         |
-| DTE — Cálculo totales             | 8     | `tests/NeoSTP.Tests.Unit/Dte/DteCalculatorTests.cs`                    |
-| DTE — Generación JSON             | 5     | `tests/NeoSTP.Tests.Unit/Dte/DteGeneratorTests.cs`                     |
-| DTE — Firma JWS                   | 6     | `tests/NeoSTP.Tests.Unit/Dte/DteSignerTests.cs`                        |
-| DTE — Recepción MH                | 5     | `tests/NeoSTP.Tests.Unit/Dte/MockHaciendaReceptionTests.cs`            |
-| DTE — PDF                         | 3     | `tests/NeoSTP.Tests.Unit/Dte/DtePdfServiceTests.cs`                    |
-| DTE — Correo (Mock)               | 3     | `tests/NeoSTP.Tests.Unit/Dte/MockEmailSenderTests.cs`                  |
-| Dashboard (EF InMemory)           | 12    | `tests/NeoSTP.Tests.Unit/Dashboard/DashboardServiceTests.cs`           |
-| Worker — Retransmisión (EF + NSub)| 8     | `tests/NeoSTP.Tests.Unit/Workers/DteRetransmisionServiceTests.cs`      |
-| Worker — Limpieza tokens (EF)     | 6     | `tests/NeoSTP.Tests.Unit/Workers/LimpiezaTokensServiceTests.cs`        |
-| Provisioning empresa prueba (EF)  | 4     | `tests/NeoSTP.Tests.Unit/Provisioning/EmpresaPruebaSeederTests.cs`     |
-| Catálogos — esquema/CRUD/Import   | 31    | `tests/NeoSTP.Tests.Unit/Catalogos/*Tests.cs` (Sprint 13)              |
-| Certificación DTE — schema/servicio/eventos | 24 | `tests/NeoSTP.Tests.Unit/Dte/Certificacion/*Tests.cs` (Sprints 14, 15.5) |
-| Eventos DTE — schema/servicio/PDF | 18    | `tests/NeoSTP.Tests.Unit/Dte/Eventos/*Tests.cs` (Sprint 15)            |
-| Hardening — schema/quotas/TOTP/MFA/IP allowlist/backups | 43 | `tests/NeoSTP.Tests.Unit/Ops/*Tests.cs` (Sprint 20)        |
-| Hardening — smoke cross-service   | 2     | `tests/NeoSTP.Tests.Integration/HardeningSmokeTests.cs` (Sprint 20)   |
-| Restaurar maestros (clientes/productos, EF) | 7 | `tests/NeoSTP.Tests.Unit/Datos/RestaurarMaestrosTests.cs` (Sprint 26.4) |
+---
+
+## API
+
+- **OpenAPI**: `/openapi/v1.json` · **Scalar** (explorador interactivo): `/scalar/v1`.
+- **Autenticación**: JWT (Bearer) para usuarios; **API Key** por scope para NeoConnect (`/api/v1`).
+- **App móvil**: emisión de DTE en un paso (`POST /api/dte/emitir`), cobros, scan, alertas, RRHH, POS, etc.
+
+Endpoints por área (ejemplos): `api/dte/*`, `api/cobros/*`, `api/scanai/*`, `api/alertas/*`,
+`api/profit/*`, `api/rrhh/*`, `api/tesoreria/*`, `api/compras/*`, `api/pos/*`, `api/v1/*` (NeoConnect).
+
+Documentación adicional en `docs/` (`NeoConnect-API-v1.md`, `NeoCloud-Mobile-API.md`, planes y notas).
+
+---
+
+## Roadmap
+
+Plan vivo en **[`docs/Plan-V2-ERP-CRM.md`](docs/Plan-V2-ERP-CRM.md)** — NeoSTP como **ERP + CRM-mini**.
+
+- **Fase A — ERP interno ✅**: NeoRRHH (nómina quincenal), Tesorería.
+- **Fase B — Egresos/stock**: Compras/CxP ✅ · Inventario ⏳.
+- **Fase C — Comercial**: NeoPOS ✅ (S1+S2) · NEOCRM ⏳ · NeoPortal ⏳.
+- **Fase D — Cierre fiscal/contable**: Libro IVA/F-07, NEOCONTA ⏳.
+- **Fase E — Escala**: storage externo, Redis, observabilidad, cumplimiento ⏳.
+
+> Fuera de alcance de este repo: la app Flutter y la UI de NeoScan (viven en `neocloud_mobile_android`).
+
+---
+
+## Convenciones
+
+- **Diseño**: design system `ns-*` (`ns-page-head`, `ns-toolbar`, `ns-badge--*`, `ns-kpi`, `ns-empty`…),
+  sin emojis en la UI, íconos Material Symbols.
+- **Commits**: se crean/pushean solo cuando se solicita; en rama, no directo a `main` por defecto.
+- **Exportes CSV**: `CsvExporter` (RFC 4180 + BOM). **PDF**: QuestPDF.
+- **Seguridad**: secretos solo en `appsettings.Local.json`; `.codex/` y binarios grandes ignorados por git.
+
+---
+
+_NeoSTP Cloud — El Salvador-first. Construido para emitir DTE y operar el negocio (ventas, nómina, tesorería,
+compras) desde una sola plataforma._
