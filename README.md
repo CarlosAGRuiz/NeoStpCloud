@@ -37,7 +37,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
 | Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
 | Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
-| Tests | xUnit + FluentAssertions + NSubstitute (**553 unitarias + integración**) |
+| Tests | xUnit + FluentAssertions + NSubstitute (**570 unitarias + integración**) |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -91,7 +91,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 | 107 | NEOPORTAL | Portal receptor | ⏳ |
 | 108 | CONTINGENCIA | Contingencia avanzada y lotes | ✅ |
 | 109 | EVENTOSDTE | Eventos DTE persistentes | ✅ |
-| 110 | INVENTARIO | Stock, kardex | ⏳ |
+| 110 | **INVENTARIO** | Existencias, kardex, costo promedio ponderado | ✅ |
 | 111 | **COMPRAS** | Proveedores + cuentas por pagar (CxP) | ✅ |
 | 112 | GASTOS | Control de gastos (parte de NeoProfit) | ✅ |
 | 113 | **NEORRHH** | Recursos humanos + nómina (planilla quincenal ES) | ✅ |
@@ -103,7 +103,9 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
   eventos persistidos, diagnóstico de errores de Hacienda. Branding por empresa (logo/firma en PDF y correo).
 - **NeoPOS** — ventas con carrito, **tickets térmicos 58/80mm** en PDF, **vista imprimible** (`window.print()`),
   **ESC/POS por red** (TCP 9100) a impresoras térmicas, **envío del ticket por correo**, resumen del día.
-  Ventas como comprobante no fiscal **promovibles a DTE** (campo enlazado).
+  Ventas como comprobante no fiscal **promovibles a Factura/CCF electrónica** (DTE) en un clic.
+- **Inventario** — existencias por producto, **kardex** de movimientos y **costo promedio ponderado**
+  (actualiza el costo del producto para NeoProfit); entradas/salidas/ajustes y alerta de stock bajo.
 - **NeoRRHH** — empleados/contratos, **planilla quincenal** con tablas **ISSS/AFP/Renta 2026** parametrizables,
   recibos PDF, exportes ISSS/AFP (CSV), cierre → gasto PLANILLA en NeoProfit.
 - **Tesorería** — cuentas de banco/caja con saldo corriente; movimientos de ingreso/egreso con origen
@@ -207,7 +209,7 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-**553 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
+**570 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
 (`PosCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `EscPosTicketBuilder`).
 
 ---

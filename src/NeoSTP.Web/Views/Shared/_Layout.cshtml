@@ -20,6 +20,7 @@
     var puedeVerTesoreria = isSuperAdmin || User.HasClaim("permiso", "Tesoreria.Cuentas.Ver");
     var puedeVerProveedores = isSuperAdmin || User.HasClaim("permiso", "Compras.Proveedores.Ver");
     var puedeVerCompras = isSuperAdmin || User.HasClaim("permiso", "Compras.Ver");
+    var puedeVerInventario = isSuperAdmin || User.HasClaim("permiso", "Inventario.Ver");
     var puedeVerPos = isSuperAdmin || User.HasClaim("permiso", "Pos.Ver");
     var puedeConfigurarCorreo = isSuperAdmin || User.HasClaim("permiso", "Core.Correo.Configurar");
     var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
@@ -160,6 +161,12 @@ else
                     {
                         <a class="ns-nav-link @active("Compras")" asp-controller="Compras" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Cuentas por pagar</a>
                     }
+                }
+
+                @if (puedeVerInventario)
+                {
+                    <div class="ns-nav-group">Inventario</div>
+                    <a class="ns-nav-link @active("Inventario")" asp-controller="Inventario" asp-action="Index"><span class="material-symbols-outlined">inventory_2</span> Existencias</a>
                 }
 
                 <div class="ns-nav-group">Administración</div>

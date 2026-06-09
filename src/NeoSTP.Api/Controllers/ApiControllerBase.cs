@@ -46,7 +46,7 @@ public abstract class ApiControllerBase : ControllerBase
             or "CUENTA_TES_NOT_FOUND" or "MOVIMIENTO_NOT_FOUND"
             or "PROVEEDOR_NOT_FOUND" or "FACTURA_COMPRA_NOT_FOUND" or "PAGO_PROVEEDOR_NOT_FOUND"
             or "VENTA_POS_NOT_FOUND" or "IMPRESORA_NOT_FOUND" => NotFound(payload),
-        "INVALID_STATE" => Conflict(payload),
+        "INVALID_STATE" or "STOCK_INSUFICIENTE" => Conflict(payload),
         "IP_DUPLICATE" => Conflict(payload),
         "IP_INVALID" => BadRequest(payload),
         "FIRMA_FAILED" or "HACIENDA_AUTH_FAILED" or "EMAIL_FAILED"

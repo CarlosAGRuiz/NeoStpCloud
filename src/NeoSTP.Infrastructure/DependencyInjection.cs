@@ -227,6 +227,9 @@ public static class DependencyInjection
         // Comunicaciones (correo por empresa — V2): SMTP por tenant + configuración cifrada.
         services.AddScoped<NeoSTP.Application.Comunicaciones.ITenantEmailSender, NeoSTP.Infrastructure.Comunicaciones.TenantEmailSender>();
         services.AddScoped<NeoSTP.Application.Comunicaciones.IConfiguracionCorreoService, ConfiguracionCorreoService>();
+
+        // Inventario (INVENTARIO — V2): existencias + kardex + costo promedio.
+        services.AddScoped<NeoSTP.Application.Inventario.IInventarioService, InventarioService>();
         // Toggle del proveedor de extracción OCR/IA (Scan:Provider). Mock por defecto; Gemini real (M2.1).
         var scanProvider = configuration["Scan:Provider"];
         if (string.Equals(scanProvider, "Gemini", StringComparison.OrdinalIgnoreCase))

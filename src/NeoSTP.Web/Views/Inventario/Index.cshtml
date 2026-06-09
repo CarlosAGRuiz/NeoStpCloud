@@ -1,0 +1,85 @@
+@using NeoSTP.Application.Inventario.Dtos
+@model NeoSTP.Application.Common.PagedResult<ExistenciaDto>
+@{
+    ViewData["Title"] = "Inventario";
+    var search = ViewBag.Search as string;
+    var soloStockBajo = ViewBag.SoloStockBajo is bool sb && sb;
+    var resumen = ViewBag.Resumen as InventarioResumenDto;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Inventario</span></nav>
+        <h1 class="ns-page-title">Existencias</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Valor inventario</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-processed)">@resumen.ValorTotal.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Productos con stock</div><div class="ns-mono fw-bold fs-4">@resumen.Productos</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Bajo mínimo</div><div class="ns-mono fw-bold fs-4" style="color:#b45309">@resumen.ProductosBajoStock</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Sin stock</div><div class="ns-mono fw-bold fs-4 text-danger">@resumen.ProductosSinStock</div></div></div></div>
+    </div>
+}
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar código o nombre…" />
+        <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" name="soloStockBajo" value="true" id="sb" @(soloStockBajo ? "checked" : "") onchange="this.form.submit()" />
+            <label class="form-check-label small" for="sb">Solo bajo mínimo</label>
+        </div>
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th class="text-end">Existencia</th>
+                    <th class="text-end">Costo prom.</th>
+                    <th class="text-end">Valor</th>
+                    <th class="text-end">Mínimo</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">inventory_2</span><p>Sin productos.</p></div></td></tr>
+                }
+                @foreach (var e in Model?.Items ?? Array.Empty<ExistenciaDto>())
+                {
+                    <tr>
+                        <td class="ns-mono"><strong>@e.Codigo</strong></td>
+                        <td><a asp-action="Kardex" asp-route-productoId="@e.ProductoId">@e.Nombre</a></td>
+                        <td class="text-end ns-mono fw-bold @(e.StockBajo ? "text-danger" : "")">@e.Cantidad.ToString("N2") @if (e.StockBajo) { <span class="material-symbols-outlined align-middle" style="font-size:16px" title="Bajo mínimo">warning</span> }</td>
+                        <td class="text-end ns-mono">@e.CostoPromedio.ToString("N4")</td>
+                        <td class="text-end ns-mono">@e.Valor.ToString("N2")</td>
+                        <td class="text-end ns-mono small text-muted">@(e.StockMinimo > 0 ? e.StockMinimo.ToString("N2") : "—")</td>
+                        <td class="text-end"><a asp-action="Kardex" asp-route-productoId="@e.ProductoId" class="btn btn-sm btn-outline-primary">Kardex</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search" asp-route-soloStockBajo="@soloStockBajo">@i</a></li>
+        }
+    </ul></nav>
+}

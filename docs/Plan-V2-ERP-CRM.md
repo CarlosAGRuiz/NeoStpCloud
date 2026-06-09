@@ -89,12 +89,13 @@ Alertas+FCM · Billing+pasarelas.
 
 ### Fase B — Ciclo de egresos/stock
 4. ✅ **N3 Compras/CxP** (111): `Proveedor` + `FacturaCompra` (CxP, espejo de Cobros/CxC) + `PagoProveedor`, `CuentasPagarCalculator` puro (saldo/estado/vencimiento), `ICompraService`, `api/compras/*` + web `ns-*`. Integra **NeoProfit** (gasto categoría COMPRA al registrar) y **Tesorería** (egreso opcional al pagar). Tablas `Compras_Proveedores`/`Compras_Facturas`/`Compras_Pagos`, permisos 398-401. *Pendiente sprint 2:* integrar NeoScan (DTE recibido→compra) + órdenes de compra.
-5. **N2 Inventario** (110): existencias + kardex + costo promedio (mejora costo en NeoProfit) + stock bajo (Alertas).
+5. ✅ **N2 Inventario** (110): `ExistenciaProducto` + `MovimientoInventario` (kardex), `CostoPromedioCalculator` puro (promedio ponderado), `IInventarioService` (entradas/salidas/ajustes/stock mínimo), `api/inventario/*` + web `ns-*` (existencias + kardex con formularios inline). Actualiza `Producto.CostoUnitario` (mejora NeoProfit). Tablas `Inv_Existencias`/`Inv_Movimientos`, permisos 406-407. *Pendiente:* auto-integración compra→entrada / venta-POS→salida + stock bajo en Alertas.
 
 ### Fase C — Comercial
 6. **NEOCRM** (114): contactos + pipeline + actividades + cotización→DTE.
 7. **N1 NeoPOS** (102) — *Sprint 1 ✅*: `VentaPos`/`VentaPosLinea`, `PosCalculator` puro (IVA incluido), `IPosService`, ticket **PDF térmico 58/80mm** (QuestPDF), **vista imprimible** (`window.print()`), **envío por correo** (adjunta PDF), resumen del día, `api/pos/*` + web `ns-*` (pantalla de venta con carrito JS + búsqueda de productos). Tablas `Pos_Ventas`/`Pos_VentaLineas`, permisos 402-405, módulo NEOPOS (Pyme+). Campo `DteDocumentoId` listo para promover a DTE.
-   - *Sprint 2 ✅*: **impresoras** (`ImpresoraPos`, conexión NAVEGADOR/RED/APP, CRUD + UI) · **ESC/POS de red (IP)** (`EscPosTicketBuilder` puro + `TcpNetworkPrinter` TCP 9100, imprimir venta/prueba) · **correo por empresa (UI, cifrado)** (`ConfiguracionCorreo` + `ITenantEmailSender` con fallback global, password vía `ISecretProtector`, permiso `Core.Correo.Configurar` 316). Tablas `Pos_Impresoras`/`Com_ConfiguracionCorreo`. *Pendiente Sprint 3:* promoción venta→Factura/CCF. · **N5 NeoPortal** (107).
+   - *Sprint 2 ✅*: **impresoras** (`ImpresoraPos`, conexión NAVEGADOR/RED/APP, CRUD + UI) · **ESC/POS de red (IP)** (`EscPosTicketBuilder` puro + `TcpNetworkPrinter` TCP 9100, imprimir venta/prueba) · **correo por empresa (UI, cifrado)** (`ConfiguracionCorreo` + `ITenantEmailSender` con fallback global, password vía `ISecretProtector`, permiso `Core.Correo.Configurar` 316). Tablas `Pos_Impresoras`/`Com_ConfiguracionCorreo`.
+   - *Sprint 3 ✅*: **promoción venta→DTE** (`PromoverADteAsync` reusa `IConnectDteService.EmitirAsync`; FC/01 directo por precio IVA-incluido, CCF/03 con cliente NRC; enlaza `DteDocumentoId` y marca FACTURADA solo si se procesa). UI: botón "Facturar (DTE)" en el detalle de la venta. · **N5 NeoPortal** (107).
 
 ### Fase D — Cierre fiscal/contable
 8. **N4 NeoBI fiscal** (Libro IVA ventas/compras, F-07, retenciones) + **NEOCONTA** (116) asientos/balanza.

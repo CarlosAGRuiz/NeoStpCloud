@@ -147,6 +147,10 @@ public class NeoStpDbContext : DbContext
     // Comunicaciones (correo por empresa — V2)
     public DbSet<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo> ConfiguracionesCorreo => Set<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo>();
 
+    // Inventario (INVENTARIO — V2)
+    public DbSet<NeoSTP.Domain.Core.Inventario.ExistenciaProducto> ExistenciasProducto => Set<NeoSTP.Domain.Core.Inventario.ExistenciaProducto>();
+    public DbSet<NeoSTP.Domain.Core.Inventario.MovimientoInventario> MovimientosInventario => Set<NeoSTP.Domain.Core.Inventario.MovimientoInventario>();
+
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
 

@@ -515,6 +515,10 @@ internal static partial class SeedData
             Perm(400, "Compras.Ver",                   "COMPRAS", "Ver facturas de compra y cuentas por pagar"),
             Perm(401, "Compras.Gestionar",             "COMPRAS", "Registrar facturas y pagos a proveedores"),
 
+            // Inventario (INVENTARIO — V2)
+            Perm(406, "Inventario.Ver",       "INVENTARIO", "Ver existencias y kardex"),
+            Perm(407, "Inventario.Gestionar", "INVENTARIO", "Registrar entradas, salidas y ajustes"),
+
             // Punto de venta (NEOPOS — V2)
             Perm(402, "Pos.Ver",       "NEOPOS", "Ver ventas POS y resumen del día"),
             Perm(403, "Pos.Vender",    "NEOPOS", "Registrar ventas y emitir tickets"),
@@ -553,6 +557,7 @@ internal static partial class SeedData
             394, 395, 396, 397,
             398, 399, 400, 401,
             402, 403, 404, 405,
+            406, 407,
             360, 361, 362, 363, 364,
         };
 
@@ -568,6 +573,7 @@ internal static partial class SeedData
             394, 395, 396, 397,
             398, 399, 400, 401,
             402, 403, 404, 405,
+            406, 407,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -579,6 +585,7 @@ internal static partial class SeedData
             345, 346,
             380, 381,
             402, 403, 404,
+            406, 407,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -592,6 +599,7 @@ internal static partial class SeedData
             394, 396,
             398, 400,
             402,
+            406,
         };
 
         // READONLY (504) → solo ver
