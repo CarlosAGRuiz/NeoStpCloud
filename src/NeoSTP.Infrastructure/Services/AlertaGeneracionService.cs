@@ -94,7 +94,23 @@ public class AlertaGeneracionService : IAlertaGeneracionService
                 });
         }
 
-        // 4) Productos bajo stock mínimo (inventario)
+        // 4) Actividades CRM vencidas (pendientes con fecha programada pasada)
+        var ahora = DateTime.UtcNow;
+        var vencidasCrm = await _db.ActividadesCrm.AsNoTracking()
+            .Where(a => a.EmpresaId == empresaId && a.EstadoCodigo == Domain.Core.Crm.ActividadCrmEstados.Pendiente && a.FechaProgramada < ahora)
+            .OrderBy(a => a.FechaProgramada).Take(100)
+            .Select(a => new { a.Id, a.Tipo, a.Asunto, a.FechaProgramada })
+            .ToListAsync(ct);
+        foreach (var a in vencidasCrm)
+            await Crear($"{AlertaTipos.ActividadCrmVencida}:{a.Id}", new CrearAlertaRequest
+            {
+                TipoCodigo = AlertaTipos.ActividadCrmVencida, Severidad = AlertaSeveridades.Advertencia,
+                Titulo = "Actividad CRM vencida",
+                Mensaje = $"{a.Tipo}: \"{a.Asunto}\" estaba programada para el {a.FechaProgramada:dd/MM/yyyy HH:mm} y sigue pendiente.",
+                EntidadTipo = "ActividadCrm", EntidadId = a.Id,
+            });
+
+        // 5) Productos bajo stock mínimo (inventario)
         var bajoStock = await (from e in _db.ExistenciasProducto.AsNoTracking()
                                join p in _db.Productos.AsNoTracking() on new { e.EmpresaId, e.ProductoId } equals new { p.EmpresaId, ProductoId = p.Id }
                                where e.EmpresaId == empresaId && e.StockMinimo > 0 && e.Cantidad <= e.StockMinimo && p.EstadoCodigo == "ACTIVO"

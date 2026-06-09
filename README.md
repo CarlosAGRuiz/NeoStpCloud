@@ -37,7 +37,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
 | Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
 | Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
-| Tests | xUnit + FluentAssertions + NSubstitute (**586 unitarias + integración**) |
+| Tests | xUnit + FluentAssertions + NSubstitute (**617 unitarias + integración**) |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -95,6 +95,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 | 111 | **COMPRAS** | Proveedores + cuentas por pagar (CxP) | ✅ |
 | 112 | GASTOS | Control de gastos (parte de NeoProfit) | ✅ |
 | 113 | **NEORRHH** | Recursos humanos + nómina (planilla quincenal ES) | ✅ |
+| 114 | **NEOCRM** | Contactos, pipeline, actividades, cotizaciones → DTE | ✅ |
 | 115 | **NEOTESORERIA** | Cuentas (banco/caja) + movimientos | ✅ |
 
 ### Destacados de la suite
@@ -115,6 +116,9 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
   (planilla, gasto, compra, cobro) para conciliación.
 - **Compras / CxP** — proveedores, facturas de compra, pagos; saldos y vencimientos; integra NeoProfit
   (gasto) y Tesorería (egreso al pagar).
+- **NeoCRM** — contactos, **pipeline visual** por etapas (configurable, con probabilidad ponderada), actividades con
+  recordatorio (alerta si vencen) y **cotizaciones** con líneas que se **convierten en Factura/CCF electrónica** en un clic
+  (Lead → Oportunidad → Cotización → DTE → Cobro). API `/api/crm/*` + UI web.
 - **Cobros / CxC** — saldos por cliente/factura, registro de pagos, QR/enlaces de cobro.
 - **NeoProfit** — dashboard financiero (ventas, IVA, costos, ganancia, rankings, tendencia).
 - **NeoConnect** — API pública v1 con API keys por scope y webhooks.
@@ -213,7 +217,7 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-**586 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
+**617 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
 (`PosCalculator`, `CorteCajaCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `CostoPromedioCalculator`, `EscPosTicketBuilder`).
 
 ---
@@ -239,7 +243,7 @@ Plan vivo en **[`docs/Plan-V2-ERP-CRM.md`](docs/Plan-V2-ERP-CRM.md)** — NeoSTP
 
 - **Fase A — ERP interno ✅**: NeoRRHH (nómina quincenal), Tesorería.
 - **Fase B — Egresos/stock ✅**: Compras/CxP · Inventario · auto-integración (compra/venta) + stock bajo.
-- **Fase C — Comercial**: NeoPOS ✅ (S1–S3) · NEOCRM ⏳ · NeoPortal ⏳.
+- **Fase C — Comercial**: NeoPOS ✅ (S1–S4 con corte de caja) · NEOCRM ✅ (API + web + cotización→DTE) · NeoPortal ⏳.
 - **Fase D — Cierre fiscal/contable**: Libro IVA/F-07, NEOCONTA ⏳.
 - **Fase E — Escala**: storage externo, Redis, observabilidad, cumplimiento ⏳.
 

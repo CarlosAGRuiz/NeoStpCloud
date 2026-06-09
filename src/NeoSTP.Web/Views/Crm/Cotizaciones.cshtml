@@ -1,0 +1,74 @@
+@using NeoSTP.Application.Common
+@using NeoSTP.Application.Crm.Dtos
+@model PagedResult<CotizacionCrmDto>
+@{
+    ViewData["Title"] = "CRM · Cotizaciones";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var estado = ViewBag.Estado as string;
+    var search = ViewBag.Search as string;
+    var estados = new[] { "BORRADOR", "ENVIADA", "ACEPTADA", "RECHAZADA", "CONVERTIDA", "ANULADA" };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><span>Cotizaciones</span></nav>
+        <h1 class="ns-page-title">Cotizaciones</h1>
+    </div>
+    <div class="ns-toolbar">
+        @if (puedeGestionar)
+        {
+            <a asp-action="NuevaCotizacion" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva cotización</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="card"><div class="card-body">
+    <form method="get" class="ns-toolbar mb-3">
+        <input type="text" name="search" value="@search" class="form-control form-control-sm" style="max-width:260px" placeholder="Buscar número, título o cliente…" />
+        <select name="estado" class="form-select form-select-sm" style="max-width:170px">
+            <option value="">Todos los estados</option>
+            @foreach (var e in estados) { <option value="@e" selected="@(estado == e)">@e</option> }
+        </select>
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Filtrar</button>
+    </form>
+    @if (Model is null || Model.Items.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">request_quote</span><p>No hay cotizaciones.</p>
+            @if (puedeGestionar) { <a asp-action="NuevaCotizacion" class="btn btn-primary btn-sm">Nueva cotización</a> }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Número</th><th>Título</th><th>Cliente</th><th>Emisión</th><th>Validez</th><th class="text-end">Total</th><th>Estado</th><th>DTE</th></tr></thead>
+                <tbody>
+                    @foreach (var c in Model.Items)
+                    {
+                        <tr>
+                            <td><a asp-action="Cotizacion" asp-route-id="@c.Id" class="ns-mono">@c.Numero</a></td>
+                            <td>@c.Titulo</td>
+                            <td>@(c.ClienteNombre ?? "—")</td>
+                            <td>@c.FechaEmision.ToString("dd/MM/yyyy")</td>
+                            <td>@(c.FechaValidez?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td class="text-end ns-mono">$ @c.Total.ToString("N2")</td>
+                            <td>
+                                @switch (c.EstadoCodigo)
+                                {
+                                    case "CONVERTIDA": <span class="ns-badge ns-badge--processed">CONVERTIDA</span> break;
+                                    case "ACEPTADA": <span class="ns-badge ns-badge--processed">ACEPTADA</span> break;
+                                    case "RECHAZADA": case "ANULADA": <span class="ns-badge ns-badge--rejected">@c.EstadoCodigo</span> break;
+                                    default: <span class="ns-badge ns-badge--draft">@c.EstadoCodigo</span> break;
+                                }
+                            </td>
+                            <td>@(c.DteDocumentoId is int did ? Html.ActionLink($"#{did}", "Details", "DteDocumentos", new { id = did }) : Html.Raw("—"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div></div>

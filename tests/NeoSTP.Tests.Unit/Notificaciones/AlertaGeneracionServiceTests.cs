@@ -77,4 +77,29 @@ public class AlertaGeneracionServiceTests
         creadas.Should().Be(0);
         await alertas.DidNotReceive().CrearAsync(Arg.Any<CrearAlertaRequest>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Genera_AlertaDeActividadCrmVencida()
+    {
+        var db = NewDb(); var (svc, alertas) = NewSvc(db);
+        db.ActividadesCrm.AddRange(
+            new NeoSTP.Domain.Core.Crm.ActividadCrm
+            {
+                Id = 1, EmpresaId = Empresa, Tipo = "LLAMADA", Asunto = "Seguimiento propuesta",
+                FechaProgramada = DateTime.UtcNow.AddDays(-2), EstadoCodigo = "PENDIENTE",
+            },
+            new NeoSTP.Domain.Core.Crm.ActividadCrm
+            {
+                Id = 2, EmpresaId = Empresa, Tipo = "TAREA", Asunto = "Futura",
+                FechaProgramada = DateTime.UtcNow.AddDays(2), EstadoCodigo = "PENDIENTE", // no vencida
+            });
+        db.SaveChanges();
+
+        var creadas = await svc.GenerarAsync(Empresa);
+
+        creadas.Should().Be(1);
+        await alertas.Received(1).CrearAsync(
+            Arg.Is<CrearAlertaRequest>(r => r.TipoCodigo == AlertaTipos.ActividadCrmVencida && r.EntidadId == 1),
+            Arg.Any<CancellationToken>());
+    }
 }

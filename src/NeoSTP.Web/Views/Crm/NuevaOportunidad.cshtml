@@ -1,0 +1,53 @@
+@using NeoSTP.Application.Crm.Dtos
+@model CrearOportunidadCrmRequest
+@{
+    ViewData["Title"] = "Nueva oportunidad";
+    var clientes = ViewBag.Clientes as IEnumerable<NeoSTP.Application.Clientes.Dtos.ClienteDto> ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var contactos = ViewBag.Contactos as IEnumerable<ContactoCrmDto> ?? Array.Empty<ContactoCrmDto>();
+    var etapas = (ViewBag.Etapas as IReadOnlyList<EtapaPipelineCrmDto> ?? new List<EtapaPipelineCrmDto>())
+        .Where(e => e.Activa && !e.EsCierreGanado && !e.EsCierrePerdido).OrderBy(e => e.Orden).ToList();
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><span>Nueva oportunidad</span></nav>
+        <h1 class="ns-page-title">Nueva oportunidad</h1>
+    </div>
+</div>
+
+<div class="card"><div class="card-body">
+    <form asp-action="NuevaOportunidad" method="post" class="row g-3" style="max-width:860px">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="text-danger small"></div>
+        <div class="col-md-8"><label class="form-label">Título</label><input asp-for="Titulo" class="form-control" required /></div>
+        <div class="col-md-4"><label class="form-label">Monto estimado</label><input asp-for="MontoEstimado" type="number" step="0.01" min="0" class="form-control ns-mono" /></div>
+        <div class="col-md-6">
+            <label class="form-label">Cliente (opcional)</label>
+            <select asp-for="ClienteId" class="form-select">
+                <option value="">—</option>
+                @foreach (var c in clientes) { <option value="@c.Id">@c.Nombre</option> }
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Contacto (opcional)</label>
+            <select asp-for="ContactoCrmId" class="form-select">
+                <option value="">—</option>
+                @foreach (var c in contactos) { <option value="@c.Id">@c.Nombre</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Etapa inicial</label>
+            <select asp-for="EtapaPipelineCrmId" class="form-select">
+                <option value="">Primera del pipeline</option>
+                @foreach (var e in etapas) { <option value="@e.Id">@e.Nombre</option> }
+            </select>
+        </div>
+        <div class="col-md-4"><label class="form-label">Probabilidad % (opcional)</label><input asp-for="Probabilidad" type="number" min="0" max="100" class="form-control ns-mono" /></div>
+        <div class="col-md-4"><label class="form-label">Cierre estimado</label><input asp-for="FechaCierreEstimada" type="date" class="form-control" /></div>
+        <div class="col-12"><label class="form-label">Descripción (opcional)</label><textarea asp-for="Descripcion" class="form-control" rows="2"></textarea></div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Crear</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div></div>

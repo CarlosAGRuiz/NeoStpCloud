@@ -34,8 +34,8 @@ public class CrmServiceTests
         return db;
     }
 
-    private static CrmService NewSvc(NeoStpDbContext db)
-        => new(db, Substitute.For<IAuditoriaService>());
+    private static CrmService NewSvc(NeoStpDbContext db, NeoSTP.Application.Connect.IConnectDteService? dte = null)
+        => new(db, Substitute.For<IAuditoriaService>(), dte ?? Substitute.For<NeoSTP.Application.Connect.IConnectDteService>());
 
     [Fact]
     public async Task ListEtapas_CreaPipelineDefaultPorEmpresa()
@@ -164,5 +164,98 @@ public class CrmServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CRM_OPORTUNIDAD_NOT_FOUND");
+    }
+
+    // ── Cotizaciones ──────────────────────────────────────────────────────────
+
+    private static CrearCotizacionCrmRequest Cotizacion(decimal precio = 113m, decimal cant = 1m) => new()
+    {
+        ClienteId = 1,
+        Titulo = "Propuesta servicios",
+        Lineas = [new CrearCotizacionCrmLineaRequest { Descripcion = "Servicio", Cantidad = cant, PrecioUnitario = precio }],
+    };
+
+    [Fact]
+    public async Task CrearCotizacion_CalculaTotalesConIvaIncluido()
+    {
+        var db = NewDb();
+        var svc = NewSvc(db);
+
+        var r = await svc.CrearCotizacionAsync(Empresa, Cotizacion(precio: 113m), "tester");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.Numero.Should().Be("COT-000001");
+        r.Value.Total.Should().Be(113m);
+        r.Value.IvaTotal.Should().Be(13m);    // contenido: 113 * 13/113
+        r.Value.SubTotal.Should().Be(100m);   // total − IVA
+        r.Value.EstadoCodigo.Should().Be("BORRADOR");
+        r.Value.Lineas.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task CambiarEstadoCotizacion_FlujoEnviadaAceptada()
+    {
+        var db = NewDb();
+        var svc = NewSvc(db);
+        var cot = await svc.CrearCotizacionAsync(Empresa, Cotizacion(), "t");
+
+        var enviada = await svc.CambiarEstadoCotizacionAsync(Empresa, cot.Value!.Id, new CambiarEstadoCotizacionRequest { EstadoCodigo = "ENVIADA" }, "t");
+        var aceptada = await svc.CambiarEstadoCotizacionAsync(Empresa, cot.Value.Id, new CambiarEstadoCotizacionRequest { EstadoCodigo = "ACEPTADA" }, "t");
+
+        enviada.Value!.EstadoCodigo.Should().Be("ENVIADA");
+        aceptada.Value!.EstadoCodigo.Should().Be("ACEPTADA");
+    }
+
+    [Fact]
+    public async Task ConvertirCotizacion_Exito_EnlazaDteYMarcaConvertida()
+    {
+        var db = NewDb();
+        var dte = Substitute.For<NeoSTP.Application.Connect.IConnectDteService>();
+        dte.EmitirAsync(Empresa, Arg.Any<NeoSTP.Application.Dte.Dtos.CreateDteDocumentoRequest>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Result<NeoSTP.Application.Dte.Dtos.DteDocumentoDto>.Ok(new NeoSTP.Application.Dte.Dtos.DteDocumentoDto { Id = 888, EstadoCodigo = "PROCESADO" }));
+        var svc = NewSvc(db, dte);
+        var cot = await svc.CrearCotizacionAsync(Empresa, Cotizacion(), "t");
+
+        var r = await svc.ConvertirCotizacionADteAsync(Empresa, cot.Value!.Id, new ConvertirCotizacionRequest { TipoDteCodigo = "01" }, "t");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EstadoCodigo.Should().Be("CONVERTIDA");
+        r.Value.DteDocumentoId.Should().Be(888);
+        await dte.Received(1).EmitirAsync(Empresa,
+            Arg.Is<NeoSTP.Application.Dte.Dtos.CreateDteDocumentoRequest>(q => q.TipoDteCodigo == "01" && q.Lineas.Count == 1),
+            "t", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ConvertirCotizacion_FallaEmision_NoMarcaConvertida()
+    {
+        var db = NewDb();
+        var dte = Substitute.For<NeoSTP.Application.Connect.IConnectDteService>();
+        dte.EmitirAsync(Arg.Any<int>(), Arg.Any<NeoSTP.Application.Dte.Dtos.CreateDteDocumentoRequest>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Result<NeoSTP.Application.Dte.Dtos.DteDocumentoDto>.Fail("Certificado no cargado.", "VALIDATION"));
+        var svc = NewSvc(db, dte);
+        var cot = await svc.CrearCotizacionAsync(Empresa, Cotizacion(), "t");
+
+        var r = await svc.ConvertirCotizacionADteAsync(Empresa, cot.Value!.Id, new ConvertirCotizacionRequest(), "t");
+
+        r.IsFailure.Should().BeTrue();
+        (await db.CotizacionesCrm.FirstAsync()).EstadoCodigo.Should().Be("BORRADOR");
+    }
+
+    [Fact]
+    public async Task ConvertirCotizacion_YaConvertida_Falla()
+    {
+        var db = NewDb();
+        var dte = Substitute.For<NeoSTP.Application.Connect.IConnectDteService>();
+        dte.EmitirAsync(Arg.Any<int>(), Arg.Any<NeoSTP.Application.Dte.Dtos.CreateDteDocumentoRequest>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Result<NeoSTP.Application.Dte.Dtos.DteDocumentoDto>.Ok(new NeoSTP.Application.Dte.Dtos.DteDocumentoDto { Id = 1, EstadoCodigo = "PROCESADO" }));
+        var svc = NewSvc(db, dte);
+        var cot = await svc.CrearCotizacionAsync(Empresa, Cotizacion(), "t");
+        await svc.ConvertirCotizacionADteAsync(Empresa, cot.Value!.Id, new ConvertirCotizacionRequest(), "t");
+
+        var r = await svc.ConvertirCotizacionADteAsync(Empresa, cot.Value.Id, new ConvertirCotizacionRequest(), "t");
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("INVALID_STATE");
     }
 }

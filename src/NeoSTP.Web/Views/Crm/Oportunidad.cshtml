@@ -1,0 +1,170 @@
+@using NeoSTP.Application.Crm.Dtos
+@model OportunidadCrmDetalleDto
+@{
+    ViewData["Title"] = $"Oportunidad · {Model.Titulo}";
+    var etapas = (ViewBag.Etapas as IReadOnlyList<EtapaPipelineCrmDto> ?? new List<EtapaPipelineCrmDto>())
+        .Where(e => e.Activa).OrderBy(e => e.Orden).ToList();
+    var cotizaciones = ViewBag.Cotizaciones as IReadOnlyList<CotizacionCrmDto> ?? new List<CotizacionCrmDto>();
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var puedeActividades = ViewBag.PuedeActividades is bool pa && pa;
+    var abierta = Model.EstadoCodigo == "ABIERTA";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Titulo</span></nav>
+        <h1 class="ns-page-title">@Model.Titulo</h1>
+        <div class="d-flex gap-2 align-items-center mt-1">
+            @switch (Model.EstadoCodigo)
+            {
+                case "ABIERTA": <span class="ns-badge ns-badge--draft">ABIERTA · @Model.EtapaNombre</span> break;
+                case "GANADA": <span class="ns-badge ns-badge--processed">GANADA</span> break;
+                case "PERDIDA": <span class="ns-badge ns-badge--rejected">PERDIDA</span> break;
+                default: <span class="ns-badge">@Model.EstadoCodigo</span> break;
+            }
+            <span class="ns-mono">$ @Model.MontoEstimado.ToString("N2")</span>
+            <span class="text-muted small">@Model.Probabilidad.ToString("N0")% probabilidad</span>
+        </div>
+    </div>
+    <div class="ns-toolbar">
+        @if (puedeGestionar)
+        {
+            <a asp-action="NuevaCotizacion" asp-route-oportunidadId="@Model.Id" asp-route-clienteId="@Model.ClienteId" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">request_quote</span> Nueva cotización</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-4">
+    <div class="col-lg-8 d-flex flex-column gap-4">
+        <div class="card"><div class="card-body">
+            <h2 class="h6 mb-3">Datos</h2>
+            <div class="row g-3">
+                <div class="col-md-4"><div class="ns-metric-label">Cliente</div><div>@(Model.ClienteNombre ?? "—")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">Contacto</div><div>@(Model.ContactoNombre ?? "—")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">Apertura</div><div>@Model.FechaApertura.ToString("dd/MM/yyyy")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">Cierre estimado</div><div>@(Model.FechaCierreEstimada?.ToString("dd/MM/yyyy") ?? "—")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">Cierre real</div><div>@(Model.FechaCierreReal?.ToString("dd/MM/yyyy") ?? "—")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">DTE vinculado</div><div>@(Model.DteDocumentoId is int dteId ? Html.ActionLink($"#{dteId}", "Details", "DteDocumentos", new { id = dteId }) : Html.Raw("—"))</div></div>
+                @if (!string.IsNullOrEmpty(Model.Descripcion)) { <div class="col-12"><div class="ns-metric-label">Descripción</div><div>@Model.Descripcion</div></div> }
+                @if (!string.IsNullOrEmpty(Model.MotivoPerdida)) { <div class="col-12"><div class="ns-metric-label">Motivo de pérdida</div><div class="text-danger">@Model.MotivoPerdida</div></div> }
+            </div>
+        </div></div>
+
+        <div class="card"><div class="card-body">
+            <h2 class="h6 mb-3">Actividades</h2>
+            @if (puedeActividades && abierta)
+            {
+                <form asp-action="ActividadCrear" method="post" class="row g-2 align-items-end mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="OportunidadCrmId" value="@Model.Id" />
+                    <input type="hidden" name="volverA" value="oportunidad" />
+                    <div class="col-md-2">
+                        <label class="form-label small">Tipo</label>
+                        <select name="Tipo" class="form-select form-select-sm">
+                            <option>LLAMADA</option><option>CORREO</option><option>VISITA</option><option>TAREA</option><option>NOTA</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5"><label class="form-label small">Asunto</label><input name="Asunto" class="form-control form-control-sm" required /></div>
+                    <div class="col-md-3"><label class="form-label small">Programada</label><input name="FechaProgramada" type="datetime-local" class="form-control form-control-sm" /></div>
+                    <div class="col-md-2"><button type="submit" class="btn btn-outline-primary btn-sm w-100">Agregar</button></div>
+                </form>
+            }
+            @if (!Model.Actividades.Any())
+            {
+                <div class="ns-empty"><span class="material-symbols-outlined">checklist</span><p>Sin actividades registradas.</p></div>
+            }
+            else
+            {
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Tipo</th><th>Asunto</th><th>Programada</th><th>Estado</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var a in Model.Actividades)
+                        {
+                            var vencida = a.EstadoCodigo == "PENDIENTE" && a.FechaProgramada < DateTime.UtcNow;
+                            <tr>
+                                <td><span class="small">@a.Tipo</span></td>
+                                <td>@a.Asunto @if (!string.IsNullOrEmpty(a.Resultado)) { <span class="text-muted small">— @a.Resultado</span> }</td>
+                                <td class="@(vencida ? "text-danger" : "")">@a.FechaProgramada.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                <td>
+                                    @switch (a.EstadoCodigo)
+                                    {
+                                        case "PENDIENTE" when vencida: <span class="ns-badge ns-badge--rejected">VENCIDA</span> break;
+                                        case "PENDIENTE": <span class="ns-badge ns-badge--draft">PENDIENTE</span> break;
+                                        case "REALIZADA": <span class="ns-badge ns-badge--processed">REALIZADA</span> break;
+                                        default: <span class="ns-badge">@a.EstadoCodigo</span> break;
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (puedeActividades && a.EstadoCodigo == "PENDIENTE")
+                                    {
+                                        <form asp-action="ActividadCompletar" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@a.Id" /><input type="hidden" name="volverA" value="oportunidad" /><input type="hidden" name="oportunidadId" value="@Model.Id" /><button class="btn btn-outline-success btn-sm" title="Completar"><span class="material-symbols-outlined" style="font-size:16px">check</span></button></form>
+                                        <form asp-action="ActividadCancelar" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@a.Id" /><input type="hidden" name="volverA" value="oportunidad" /><input type="hidden" name="oportunidadId" value="@Model.Id" /><button class="btn btn-outline-danger btn-sm" title="Cancelar"><span class="material-symbols-outlined" style="font-size:16px">close</span></button></form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div></div>
+
+        <div class="card"><div class="card-body">
+            <h2 class="h6 mb-3">Cotizaciones</h2>
+            @if (!cotizaciones.Any())
+            {
+                <div class="ns-empty"><span class="material-symbols-outlined">request_quote</span><p>Sin cotizaciones para esta oportunidad.</p></div>
+            }
+            else
+            {
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Número</th><th>Título</th><th class="text-end">Total</th><th>Estado</th><th>DTE</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in cotizaciones)
+                        {
+                            <tr>
+                                <td><a asp-action="Cotizacion" asp-route-id="@c.Id" class="ns-mono">@c.Numero</a></td>
+                                <td>@c.Titulo</td>
+                                <td class="text-end ns-mono">$ @c.Total.ToString("N2")</td>
+                                <td><span class="ns-badge @(c.EstadoCodigo == "CONVERTIDA" ? "ns-badge--processed" : "ns-badge--draft")">@c.EstadoCodigo</span></td>
+                                <td>@(c.DteDocumentoId is int did ? Html.ActionLink($"#{did}", "Details", "DteDocumentos", new { id = did }) : Html.Raw("—"))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div></div>
+    </div>
+
+    <div class="col-lg-4">
+        @if (puedeGestionar && abierta)
+        {
+            <div class="card"><div class="card-body">
+                <h2 class="h6 mb-3">Mover etapa</h2>
+                <form asp-action="CambiarEtapa" method="post" class="d-flex flex-column gap-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <select name="etapaPipelineCrmId" class="form-select form-select-sm" id="selEtapa">
+                        @foreach (var e in etapas)
+                        {
+                            <option value="@e.Id" selected="@(e.Id == Model.EtapaPipelineCrmId)" data-perdida="@(e.EsCierrePerdido.ToString().ToLowerInvariant())">@e.Orden. @e.Nombre @(e.EsCierreGanado ? "✓" : e.EsCierrePerdido ? "✗" : "")</option>
+                        }
+                    </select>
+                    <input name="motivoPerdida" class="form-control form-control-sm" placeholder="Motivo (si se pierde)" id="inpMotivo" style="display:none" />
+                    <button type="submit" class="btn btn-primary btn-sm">Mover</button>
+                </form>
+                <script>
+                    (function () {
+                        var sel = document.getElementById('selEtapa'), inp = document.getElementById('inpMotivo');
+                        sel.addEventListener('change', function () {
+                            var opt = sel.options[sel.selectedIndex];
+                            inp.style.display = opt.getAttribute('data-perdida') === 'true' ? '' : 'none';
+                        });
+                    })();
+                </script>
+            </div></div>
+        }
+    </div>
+</div>

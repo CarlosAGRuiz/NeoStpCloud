@@ -24,6 +24,9 @@
     var puedeVerPos = isSuperAdmin || User.HasClaim("permiso", "Pos.Ver");
     var puedeConfigurarCorreo = isSuperAdmin || User.HasClaim("permiso", "Core.Correo.Configurar");
     var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
+    var puedeVerCrm = isSuperAdmin || User.HasClaim("permiso", "Crm.Oportunidades.Ver");
+    var puedeVerCrmContactos = isSuperAdmin || User.HasClaim("permiso", "Crm.Contactos.Ver");
+    var puedeVerCrmCotizaciones = isSuperAdmin || User.HasClaim("permiso", "Crm.Cotizaciones.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 
@@ -119,6 +122,24 @@ else
                     {
                         <a class="ns-nav-link @active("Scan")" asp-controller="Scan" asp-action="Index"><span class="material-symbols-outlined">document_scanner</span> NeoScan</a>
                         <a class="ns-nav-link @active("DteRecibidos")" asp-controller="DteRecibidos" asp-action="Index"><span class="material-symbols-outlined">inbox</span> DTE recibidos</a>
+                    }
+                }
+
+                @if (puedeVerCrm || puedeVerCrmContactos)
+                {
+                    <div class="ns-nav-group">CRM</div>
+                    @if (puedeVerCrm)
+                    {
+                        <a class="ns-nav-link @active("Crm")" asp-controller="Crm" asp-action="Index"><span class="material-symbols-outlined">handshake</span> Pipeline</a>
+                        <a class="ns-nav-link" asp-controller="Crm" asp-action="Actividades"><span class="material-symbols-outlined">checklist</span> Actividades</a>
+                    }
+                    @if (puedeVerCrmContactos)
+                    {
+                        <a class="ns-nav-link" asp-controller="Crm" asp-action="Contactos"><span class="material-symbols-outlined">group</span> Contactos</a>
+                    }
+                    @if (puedeVerCrmCotizaciones)
+                    {
+                        <a class="ns-nav-link" asp-controller="Crm" asp-action="Cotizaciones"><span class="material-symbols-outlined">request_quote</span> Cotizaciones</a>
                     }
                 }
 

@@ -26,5 +26,16 @@ public interface ICrmService
     Task<Result<ActividadCrmDto>> CompletarActividadAsync(int empresaId, int id, CompletarActividadCrmRequest request, string? actor, CancellationToken ct = default);
     Task<Result> CancelarActividadAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
 
+    Task<Result<PagedResult<CotizacionCrmDto>>> ListCotizacionesAsync(int empresaId, string? estado, int? oportunidadId, PagedQuery query, CancellationToken ct = default);
+    Task<Result<CotizacionCrmDetalleDto>> GetCotizacionAsync(int empresaId, int id, CancellationToken ct = default);
+    Task<Result<CotizacionCrmDetalleDto>> CrearCotizacionAsync(int empresaId, CrearCotizacionCrmRequest request, string? actor, CancellationToken ct = default);
+    Task<Result<CotizacionCrmDetalleDto>> CambiarEstadoCotizacionAsync(int empresaId, int id, CambiarEstadoCotizacionRequest request, string? actor, CancellationToken ct = default);
+
+    /// <summary>
+    /// Convierte la cotización en Factura/CCF electrónica (emite por el pipeline DTE).
+    /// Al procesarse enlaza DteDocumentoId (también en la oportunidad) y marca CONVERTIDA.
+    /// </summary>
+    Task<Result<CotizacionCrmDetalleDto>> ConvertirCotizacionADteAsync(int empresaId, int id, ConvertirCotizacionRequest request, string? actor, CancellationToken ct = default);
+
     Task<Result<CrmResumenDto>> ResumenAsync(int empresaId, CancellationToken ct = default);
 }

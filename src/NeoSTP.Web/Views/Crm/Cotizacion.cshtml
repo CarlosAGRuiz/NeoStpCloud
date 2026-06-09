@@ -1,0 +1,109 @@
+@using NeoSTP.Application.Crm.Dtos
+@model CotizacionCrmDetalleDto
+@{
+    ViewData["Title"] = $"Cotización {Model.Numero}";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var puedeEmitirDte = ViewBag.PuedeEmitirDte is bool pe && pe;
+    var editable = Model.EstadoCodigo is "BORRADOR" or "ENVIADA" or "ACEPTADA";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Cotizaciones">Cotizaciones</a><span class="material-symbols-outlined">chevron_right</span><span class="ns-mono">@Model.Numero</span></nav>
+        <h1 class="ns-page-title">@Model.Numero · @Model.Titulo</h1>
+        <div class="d-flex gap-2 align-items-center mt-1">
+            @switch (Model.EstadoCodigo)
+            {
+                case "CONVERTIDA": <span class="ns-badge ns-badge--processed">CONVERTIDA</span> break;
+                case "ACEPTADA": <span class="ns-badge ns-badge--processed">ACEPTADA</span> break;
+                case "RECHAZADA": case "ANULADA": <span class="ns-badge ns-badge--rejected">@Model.EstadoCodigo</span> break;
+                default: <span class="ns-badge ns-badge--draft">@Model.EstadoCodigo</span> break;
+            }
+            <span class="text-muted small">Emitida @Model.FechaEmision.ToString("dd/MM/yyyy")@(Model.FechaValidez is DateOnly fv ? $" · válida hasta {fv:dd/MM/yyyy}" : "")</span>
+        </div>
+    </div>
+    <div class="ns-toolbar">
+        @if (Model.OportunidadCrmId is int oid)
+        {
+            <a asp-action="Oportunidad" asp-route-id="@oid" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">handshake</span> Oportunidad</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-4">
+    <div class="col-lg-8 d-flex flex-column gap-4">
+        <div class="card"><div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4"><div class="ns-metric-label">Cliente</div><div>@(Model.ClienteNombre ?? "—")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">Contacto</div><div>@(Model.ContactoNombre ?? "—")</div></div>
+                <div class="col-md-4"><div class="ns-metric-label">DTE generado</div><div>@(Model.DteDocumentoId is int did ? Html.ActionLink($"#{did}", "Details", "DteDocumentos", new { id = did }) : Html.Raw("—"))</div></div>
+            </div>
+            <h2 class="h6 mb-2">Líneas</h2>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>#</th><th>Descripción</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">Desc.</th><th class="text-end">Total</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in Model.Lineas)
+                        {
+                            <tr>
+                                <td class="text-muted">@l.NumeroLinea</td>
+                                <td>@l.Descripcion @if (!string.IsNullOrEmpty(l.Codigo)) { <span class="text-muted small ns-mono">(@l.Codigo)</span> }</td>
+                                <td class="text-end ns-mono">@l.Cantidad.ToString("N2")</td>
+                                <td class="text-end ns-mono">@l.PrecioUnitario.ToString("N2")</td>
+                                <td class="text-end ns-mono">@l.MontoDescuento.ToString("N2")</td>
+                                <td class="text-end ns-mono">@l.TotalLinea.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="5" class="text-end ns-metric-label">Subtotal (sin IVA)</td><td class="text-end ns-mono">$ @Model.SubTotal.ToString("N2")</td></tr>
+                        <tr><td colspan="5" class="text-end ns-metric-label">IVA contenido</td><td class="text-end ns-mono">$ @Model.IvaTotal.ToString("N2")</td></tr>
+                        <tr><td colspan="5" class="text-end fw-bold">Total</td><td class="text-end ns-mono fw-bold">$ @Model.Total.ToString("N2")</td></tr>
+                    </tfoot>
+                </table>
+            </div>
+            @if (!string.IsNullOrEmpty(Model.Observaciones)) { <div class="mt-2"><div class="ns-metric-label">Observaciones</div><div>@Model.Observaciones</div></div> }
+            @if (!string.IsNullOrEmpty(Model.Terminos)) { <div class="mt-2"><div class="ns-metric-label">Términos</div><div>@Model.Terminos</div></div> }
+        </div></div>
+    </div>
+
+    <div class="col-lg-4 d-flex flex-column gap-4">
+        @if (puedeGestionar && editable)
+        {
+            <div class="card"><div class="card-body">
+                <h2 class="h6 mb-3">Estado</h2>
+                <div class="d-flex flex-wrap gap-2">
+                    @if (Model.EstadoCodigo == "BORRADOR")
+                    {
+                        <form asp-action="CotizacionEstado" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="estadoCodigo" value="ENVIADA" /><button class="btn btn-outline-primary btn-sm">Marcar enviada</button></form>
+                    }
+                    @if (Model.EstadoCodigo is "BORRADOR" or "ENVIADA")
+                    {
+                        <form asp-action="CotizacionEstado" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="estadoCodigo" value="ACEPTADA" /><button class="btn btn-outline-success btn-sm">Aceptada</button></form>
+                        <form asp-action="CotizacionEstado" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="estadoCodigo" value="RECHAZADA" /><button class="btn btn-outline-danger btn-sm">Rechazada</button></form>
+                    }
+                    <form asp-action="CotizacionEstado" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="estadoCodigo" value="ANULADA" /><button class="btn btn-outline-secondary btn-sm">Anular</button></form>
+                </div>
+            </div></div>
+        }
+
+        @if (puedeEmitirDte && editable)
+        {
+            <div class="card"><div class="card-body">
+                <h2 class="h6 mb-3">Convertir a DTE</h2>
+                <p class="form-text">Emite la Factura/CCF electrónica por el pipeline DTE (generar → validar → firmar → enviar).</p>
+                <div class="d-flex gap-2">
+                    <form asp-action="CotizacionConvertir" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="tipoDteCodigo" value="01" /><button class="btn btn-primary btn-sm">Factura (01)</button></form>
+                    <form asp-action="CotizacionConvertir" method="post">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="tipoDteCodigo" value="03" /><button class="btn btn-outline-primary btn-sm">CCF (03)</button></form>
+                </div>
+                @if (Model.ClienteId is null)
+                {
+                    <div class="form-text text-warning mt-2">Sin cliente asignado: el CCF (03) requiere un cliente con NRC.</div>
+                }
+            </div></div>
+        }
+    </div>
+</div>

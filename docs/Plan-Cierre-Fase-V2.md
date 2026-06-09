@@ -118,7 +118,7 @@ Resultado esperado:
 
 Objetivo: cerrar el ciclo comercial previo a la venta.
 
-Estado 2026-06-09: **cerrado backend/API-first**.
+Estado 2026-06-09: **cerrado completo (backend + API + web)**.
 
 Entregables:
 
@@ -132,11 +132,21 @@ Entregables:
 - Documento de esquema `docs/NEOCRM-Schema-V2-C1.md`.
 - Tests `CrmServiceTests` para etapas por defecto, aislamiento por empresa, cierre ganado y resumen de actividades.
 
-Fuera del primer cierre API-first:
+Segunda entrega (cerrada):
 
-- UI Web `Crm/*` con pipeline visual y ficha cliente.
-- Servicio/API de cotizacion formal -> DTE automatico.
-- Alertas push/email para actividades CRM vencidas.
+- ✅ UI Web `Crm/*`: pipeline visual kanban por etapas (`Crm/Index`), ficha de oportunidad con
+  actividades y cotizaciones (`Crm/Oportunidad`), contactos con edición inline (`Crm/Contactos`),
+  actividades con completar/cancelar (`Crm/Actividades`), cotizaciones con líneas dinámicas
+  (`Crm/NuevaCotizacion`) y detalle con cambio de estado + conversión (`Crm/Cotizacion`). Grupo "CRM" en el menú.
+- ✅ Servicio/API de cotización formal → DTE: `ICrmService.{List,Get,Crear,CambiarEstado}Cotizacion*` +
+  `ConvertirCotizacionADteAsync` (reusa `IConnectDteService.EmitirAsync`; precios IVA incluido → FC 01 directo,
+  CCF 03 con cliente NRC; al procesar enlaza `DteDocumentoId` en cotización y oportunidad, marca CONVERTIDA).
+  Endpoints `/api/crm/cotizaciones/*` (convertir exige `DTE.Emitir`). Permisos 414/415 `Crm.Cotizaciones.Ver/Gestionar`
+  (migración `V2_C1_NeoCrm_PermisosCotizaciones`). Numeración `COT-000001` por empresa.
+- ✅ Alertas para actividades CRM vencidas: derivación `ACTIVIDAD_CRM_VENCIDA` en `AlertaGeneracionService`
+  (upsert por clave, corre en el `AlertaGeneracionWorker`; entra al centro de notificaciones + push).
+- Tests: `CrmServiceTests` +5 (totales IVA incluido, flujo de estados, convertir éxito/fallo/duplicado),
+  `AlertaGeneracionServiceTests` +1.
 
 Reglas:
 

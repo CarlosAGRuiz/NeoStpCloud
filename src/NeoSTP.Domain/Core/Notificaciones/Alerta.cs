@@ -45,6 +45,7 @@ public static class AlertaTipos
     public const string FacturaVencida = "FACTURA_VENCIDA";
     public const string F07Proxima = "F07_PROXIMA";
     public const string StockBajo = "STOCK_BAJO";
+    public const string ActividadCrmVencida = "ACTIVIDAD_CRM_VENCIDA";
 }
 
 public static class AlertaSeveridades

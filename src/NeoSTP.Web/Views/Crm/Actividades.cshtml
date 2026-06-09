@@ -1,0 +1,89 @@
+@using NeoSTP.Application.Common
+@using NeoSTP.Application.Crm.Dtos
+@model PagedResult<ActividadCrmDto>
+@{
+    ViewData["Title"] = "CRM · Actividades";
+    var soloPendientes = ViewBag.SoloPendientes is bool sp && sp;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><span>Actividades</span></nav>
+        <h1 class="ns-page-title">Actividades</h1>
+    </div>
+    <div class="ns-toolbar">
+        <a asp-action="Actividades" asp-route-soloPendientes="true" class="btn btn-sm @(soloPendientes ? "btn-primary" : "btn-outline-secondary")">Pendientes</a>
+        <a asp-action="Actividades" asp-route-soloPendientes="false" class="btn btn-sm @(!soloPendientes ? "btn-primary" : "btn-outline-secondary")">Todas</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (puedeGestionar)
+{
+    <div class="card mb-3"><div class="card-body">
+        <h2 class="h6 mb-3">Nueva actividad</h2>
+        <form asp-action="ActividadCrear" method="post" class="row g-2 align-items-end">
+            @Html.AntiForgeryToken()
+            <div class="col-md-2">
+                <label class="form-label small">Tipo</label>
+                <select name="Tipo" class="form-select form-select-sm">
+                    <option>LLAMADA</option><option>CORREO</option><option>VISITA</option><option>TAREA</option><option>NOTA</option>
+                </select>
+            </div>
+            <div class="col-md-5"><label class="form-label small">Asunto</label><input name="Asunto" class="form-control form-control-sm" required /></div>
+            <div class="col-md-3"><label class="form-label small">Programada</label><input name="FechaProgramada" type="datetime-local" class="form-control form-control-sm" /></div>
+            <div class="col-md-2"><button type="submit" class="btn btn-primary btn-sm w-100">Crear</button></div>
+        </form>
+    </div></div>
+}
+
+<div class="card"><div class="card-body">
+    @if (Model is null || Model.Items.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">checklist</span><p>No hay actividades @(soloPendientes ? "pendientes" : "").</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Tipo</th><th>Asunto</th><th>Oportunidad</th><th>Programada</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Items)
+                    {
+                        var vencida = a.EstadoCodigo == "PENDIENTE" && a.FechaProgramada < DateTime.UtcNow;
+                        <tr>
+                            <td><span class="small">@a.Tipo</span></td>
+                            <td>@a.Asunto @if (!string.IsNullOrEmpty(a.Resultado)) { <span class="text-muted small">— @a.Resultado</span> }</td>
+                            <td>@(a.OportunidadCrmId is int oid ? Html.ActionLink($"#{oid}", "Oportunidad", new { id = oid }) : Html.Raw("—"))</td>
+                            <td class="@(vencida ? "text-danger" : "")">@a.FechaProgramada.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @switch (a.EstadoCodigo)
+                                {
+                                    case "PENDIENTE" when vencida: <span class="ns-badge ns-badge--rejected">VENCIDA</span> break;
+                                    case "PENDIENTE": <span class="ns-badge ns-badge--draft">PENDIENTE</span> break;
+                                    case "REALIZADA": <span class="ns-badge ns-badge--processed">REALIZADA</span> break;
+                                    default: <span class="ns-badge">@a.EstadoCodigo</span> break;
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (puedeGestionar && a.EstadoCodigo == "PENDIENTE")
+                                {
+                                    <form asp-action="ActividadCompletar" method="post" class="d-inline-flex gap-1 align-items-center">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@a.Id" />
+                                        <input name="resultado" class="form-control form-control-sm" placeholder="Resultado…" style="max-width:180px" />
+                                        <button class="btn btn-outline-success btn-sm" title="Completar"><span class="material-symbols-outlined" style="font-size:16px">check</span></button>
+                                    </form>
+                                    <form asp-action="ActividadCancelar" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@a.Id" /><button class="btn btn-outline-danger btn-sm" title="Cancelar"><span class="material-symbols-outlined" style="font-size:16px">close</span></button></form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div></div>

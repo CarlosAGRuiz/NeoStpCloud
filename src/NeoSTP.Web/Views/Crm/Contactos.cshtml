@@ -1,0 +1,89 @@
+@using NeoSTP.Application.Common
+@using NeoSTP.Application.Crm.Dtos
+@model PagedResult<ContactoCrmDto>
+@{
+    ViewData["Title"] = "CRM · Contactos";
+    var clientes = ViewBag.Clientes as IEnumerable<NeoSTP.Application.Clientes.Dtos.ClienteDto> ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var editar = ViewBag.Editar as ContactoCrmDto;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var search = ViewBag.Search as string;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><span>Contactos</span></nav>
+        <h1 class="ns-page-title">Contactos</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (puedeGestionar)
+{
+    <div class="card mb-3"><div class="card-body">
+        <h2 class="h6 mb-3">@(editar is null ? "Nuevo contacto" : $"Editar contacto · {editar.Nombre}")</h2>
+        <form asp-action="ContactoGuardar" method="post" class="row g-2 align-items-end">
+            @Html.AntiForgeryToken()
+            @if (editar is not null) { <input type="hidden" name="id" value="@editar.Id" /> }
+            <div class="col-md-3"><label class="form-label small">Nombre</label><input name="Nombre" value="@editar?.Nombre" class="form-control form-control-sm" required /></div>
+            <div class="col-md-2"><label class="form-label small">Cargo</label><input name="Cargo" value="@editar?.Cargo" class="form-control form-control-sm" /></div>
+            <div class="col-md-2"><label class="form-label small">Email</label><input name="Email" value="@editar?.Email" type="email" class="form-control form-control-sm" /></div>
+            <div class="col-md-2"><label class="form-label small">Teléfono</label><input name="Telefono" value="@editar?.Telefono" class="form-control form-control-sm" /></div>
+            <div class="col-md-2">
+                <label class="form-label small">Cliente</label>
+                <select name="ClienteId" class="form-select form-select-sm">
+                    <option value="">—</option>
+                    @foreach (var c in clientes) { <option value="@c.Id" selected="@(editar?.ClienteId == c.Id)">@c.Nombre</option> }
+                </select>
+            </div>
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100">@(editar is null ? "Crear" : "Guardar")</button>
+            </div>
+            @if (editar is not null) { <div class="col-12"><a asp-action="Contactos" class="small">Cancelar edición</a></div> }
+        </form>
+    </div></div>
+}
+
+<div class="card"><div class="card-body">
+    <form method="get" class="ns-toolbar mb-3">
+        <input type="text" name="search" value="@search" class="form-control form-control-sm" style="max-width:280px" placeholder="Buscar nombre, email o teléfono…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Buscar</button>
+    </form>
+    @if (Model is null || Model.Items.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">group</span><p>No hay contactos.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Nombre</th><th>Cargo</th><th>Email</th><th>Teléfono</th><th>Cliente</th><th>Origen</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var c in Model.Items)
+                    {
+                        <tr class="@(c.EstadoCodigo != "ACTIVO" ? "text-muted" : "")">
+                            <td>@c.Nombre</td>
+                            <td>@(c.Cargo ?? "—")</td>
+                            <td>@(c.Email ?? "—")</td>
+                            <td class="ns-mono">@(c.Telefono ?? "—")</td>
+                            <td>@(c.ClienteNombre ?? "—")</td>
+                            <td><span class="small">@c.Origen</span></td>
+                            <td><span class="ns-pill @(c.EstadoCodigo == "ACTIVO" ? "ns-pill--on" : "ns-pill--off")">@c.EstadoCodigo</span></td>
+                            <td class="text-end">
+                                @if (puedeGestionar)
+                                {
+                                    <a asp-action="Contactos" asp-route-editId="@c.Id" class="btn btn-outline-secondary btn-sm" title="Editar"><span class="material-symbols-outlined" style="font-size:16px">edit</span></a>
+                                    @if (c.EstadoCodigo == "ACTIVO")
+                                    {
+                                        <form asp-action="ContactoInactivar" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@c.Id" /><button class="btn btn-outline-danger btn-sm" title="Inactivar"><span class="material-symbols-outlined" style="font-size:16px">person_off</span></button></form>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div></div>

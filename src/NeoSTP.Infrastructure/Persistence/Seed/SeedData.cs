@@ -533,6 +533,8 @@ internal static partial class SeedData
             Perm(411, "Crm.Oportunidades.Gestionar","NEOCRM", "Crear oportunidades y mover etapas"),
             Perm(412, "Crm.Actividades.Ver",        "NEOCRM", "Ver actividades CRM"),
             Perm(413, "Crm.Actividades.Gestionar",  "NEOCRM", "Crear, completar y cancelar actividades CRM"),
+            Perm(414, "Crm.Cotizaciones.Ver",       "NEOCRM", "Ver cotizaciones CRM"),
+            Perm(415, "Crm.Cotizaciones.Gestionar", "NEOCRM", "Crear cotizaciones, cambiar estado y convertir a DTE"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -567,7 +569,7 @@ internal static partial class SeedData
             398, 399, 400, 401,
             402, 403, 404, 405,
             406, 407,
-            408, 409, 410, 411, 412, 413,
+            408, 409, 410, 411, 412, 413, 414, 415,
             360, 361, 362, 363, 364,
         };
 
@@ -584,7 +586,7 @@ internal static partial class SeedData
             398, 399, 400, 401,
             402, 403, 404, 405,
             406, 407,
-            408, 409, 410, 411, 412, 413,
+            408, 409, 410, 411, 412, 413, 414, 415,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -597,7 +599,7 @@ internal static partial class SeedData
             380, 381,
             402, 403, 404,
             406, 407,
-            408, 409, 410, 411, 412, 413,
+            408, 409, 410, 411, 412, 413, 414, 415,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -612,7 +614,7 @@ internal static partial class SeedData
             398, 400,
             402,
             406,
-            408, 410, 412,
+            408, 410, 412, 414,
         };
 
         // READONLY (504) → solo ver
@@ -622,7 +624,7 @@ internal static partial class SeedData
             322,
             330, 335,
             340,
-            408, 410, 412,
+            408, 410, 412, 414,
         };
 
         var rolPermisos = new List<object>();

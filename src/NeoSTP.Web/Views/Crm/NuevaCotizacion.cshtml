@@ -1,0 +1,154 @@
+@using System.Globalization
+@using NeoSTP.Application.Crm.Dtos
+@model CrearCotizacionCrmRequest
+@{
+    ViewData["Title"] = "Nueva cotización";
+    var clientes = ViewBag.Clientes as IEnumerable<NeoSTP.Application.Clientes.Dtos.ClienteDto> ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var productos = ViewBag.Productos as IEnumerable<NeoSTP.Application.Productos.Dtos.ProductoDto> ?? Array.Empty<NeoSTP.Application.Productos.Dtos.ProductoDto>();
+}
+
+<form asp-action="NuevaCotizacion" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="OportunidadCrmId" />
+
+    <div class="ns-page-head">
+        <div>
+            <nav class="ns-breadcrumb"><a asp-action="Index">CRM</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Cotizaciones">Cotizaciones</a><span class="material-symbols-outlined">chevron_right</span><span>Nueva</span></nav>
+            <h1 class="ns-page-title">Nueva cotización</h1>
+        </div>
+        <div class="ns-page-actions">
+            <a asp-action="Cotizaciones" class="btn btn-outline-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+        </div>
+    </div>
+
+    <div asp-validation-summary="All" class="alert alert-danger" style="@(ViewData.ModelState.IsValid ? "display:none" : "")"></div>
+
+    <div class="row g-4">
+        <div class="col-lg-8 d-flex flex-column gap-4">
+            <div class="card"><div class="card-body">
+                <h2 class="h6 mb-3">Datos generales</h2>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Título</label><input asp-for="Titulo" class="form-control" required /></div>
+                    <div class="col-md-3">
+                        <label class="form-label">Cliente</label>
+                        <select asp-for="ClienteId" class="form-select">
+                            <option value="">—</option>
+                            @foreach (var c in clientes) { <option value="@c.Id">@c.Nombre</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">Válida hasta</label><input asp-for="FechaValidez" type="date" class="form-control" /></div>
+                    <div class="col-md-6"><label class="form-label">Observaciones (opcional)</label><input asp-for="Observaciones" class="form-control" /></div>
+                    <div class="col-md-6"><label class="form-label">Términos (opcional)</label><input asp-for="Terminos" class="form-control" placeholder="Ej. 50% anticipo, entrega 15 días" /></div>
+                </div>
+            </div></div>
+
+            <div class="card"><div class="card-body">
+                <h2 class="h6 mb-3">Líneas <span class="text-muted small fw-normal">(precios con IVA incluido)</span></h2>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead><tr><th style="min-width:220px">Producto / descripción</th><th>Cantidad</th><th>Precio</th><th>Desc. $</th><th></th></tr></thead>
+                        <tbody id="cotBody">
+                            @for (var i = 0; i < Model.Lineas.Count; i++)
+                            {
+                                <tr>
+                                    <td>
+                                        <select name="Lineas[@i].ProductoId" class="form-select form-select-sm cot-prod">
+                                            <option value="">— Ítem libre —</option>
+                                            @foreach (var p in productos)
+                                            {
+                                                <option value="@p.Id" data-precio="@p.PrecioUnitario.ToString(CultureInfo.InvariantCulture)" selected="@(Model.Lineas[i].ProductoId == p.Id)">@p.CodigoInterno · @p.Nombre</option>
+                                            }
+                                        </select>
+                                        <input name="Lineas[@i].Descripcion" value="@Model.Lineas[i].Descripcion" class="form-control form-control-sm mt-1 cot-desc" placeholder="Descripción (si es ítem libre)" />
+                                    </td>
+                                    <td><input name="Lineas[@i].Cantidad" value="@Model.Lineas[i].Cantidad" type="number" step="0.01" min="0.01" class="form-control form-control-sm ns-mono cot-cant" /></td>
+                                    <td><input name="Lineas[@i].PrecioUnitario" value="@Model.Lineas[i].PrecioUnitario" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-precio" placeholder="del producto" /></td>
+                                    <td><input name="Lineas[@i].MontoDescuento" value="@Model.Lineas[i].MontoDescuento" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-desc-monto" /></td>
+                                    <td><button type="button" class="btn btn-outline-danger btn-sm cot-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="cotAdd"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Agregar línea</button>
+            </div></div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card"><div class="card-body">
+                <h2 class="h6 mb-3">Total estimado</h2>
+                <div class="d-flex justify-content-between"><span class="ns-metric-label">Total (IVA incluido)</span><span class="h5 ns-mono mb-0" id="cotTotal">$ 0.00</span></div>
+                <hr />
+                <p class="form-text mb-0">El sistema calcula subtotal e IVA contenido al guardar. La cotización podrá convertirse en Factura/CCF electrónica.</p>
+            </div></div>
+        </div>
+    </div>
+</form>
+
+<template id="cotRowTpl">
+    <tr>
+        <td>
+            <select class="form-select form-select-sm cot-prod">
+                <option value="">— Ítem libre —</option>
+                @foreach (var p in productos)
+                {
+                    <option value="@p.Id" data-precio="@p.PrecioUnitario.ToString(CultureInfo.InvariantCulture)">@p.CodigoInterno · @p.Nombre</option>
+                }
+            </select>
+            <input class="form-control form-control-sm mt-1 cot-desc" placeholder="Descripción (si es ítem libre)" />
+        </td>
+        <td><input type="number" step="0.01" min="0.01" value="1" class="form-control form-control-sm ns-mono cot-cant" /></td>
+        <td><input type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-precio" placeholder="del producto" /></td>
+        <td><input type="number" step="0.01" min="0" value="0" class="form-control form-control-sm ns-mono cot-desc-monto" /></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm cot-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+    </tr>
+</template>
+
+<script>
+    (function () {
+        var body = document.getElementById('cotBody');
+        var tpl = document.getElementById('cotRowTpl');
+
+        function reindex() {
+            Array.prototype.forEach.call(body.querySelectorAll('tr'), function (tr, i) {
+                tr.querySelector('.cot-prod').name = 'Lineas[' + i + '].ProductoId';
+                tr.querySelector('.cot-desc').name = 'Lineas[' + i + '].Descripcion';
+                tr.querySelector('.cot-cant').name = 'Lineas[' + i + '].Cantidad';
+                tr.querySelector('.cot-precio').name = 'Lineas[' + i + '].PrecioUnitario';
+                tr.querySelector('.cot-desc-monto').name = 'Lineas[' + i + '].MontoDescuento';
+            });
+        }
+        function recalc() {
+            var total = 0;
+            Array.prototype.forEach.call(body.querySelectorAll('tr'), function (tr) {
+                var cant = parseFloat(tr.querySelector('.cot-cant').value) || 0;
+                var precioInput = tr.querySelector('.cot-precio');
+                var precio = parseFloat(precioInput.value);
+                if (isNaN(precio)) {
+                    var sel = tr.querySelector('.cot-prod');
+                    var opt = sel.options[sel.selectedIndex];
+                    precio = parseFloat(opt ? opt.getAttribute('data-precio') : '') || 0;
+                }
+                var desc = parseFloat(tr.querySelector('.cot-desc-monto').value) || 0;
+                total += Math.max(cant * precio - desc, 0);
+            });
+            document.getElementById('cotTotal').textContent = '$ ' + total.toFixed(2);
+        }
+        function wire(tr) {
+            tr.querySelector('.cot-del').addEventListener('click', function () { tr.remove(); reindex(); recalc(); });
+            ['.cot-cant', '.cot-precio', '.cot-desc-monto'].forEach(function (s) {
+                tr.querySelector(s).addEventListener('input', recalc);
+            });
+            tr.querySelector('.cot-prod').addEventListener('change', recalc);
+        }
+        document.getElementById('cotAdd').addEventListener('click', function () {
+            var tr = tpl.content.cloneNode(true).querySelector('tr');
+            body.appendChild(tr);
+            wire(tr);
+            reindex();
+        });
+        Array.prototype.forEach.call(body.querySelectorAll('tr'), wire);
+        recalc();
+    })();
+</script>

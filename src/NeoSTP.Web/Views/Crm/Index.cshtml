@@ -1,0 +1,87 @@
+@using NeoSTP.Application.Crm.Dtos
+@model IReadOnlyList<OportunidadCrmDto>
+@{
+    ViewData["Title"] = "CRM · Pipeline";
+    var etapas = ViewBag.Etapas as IReadOnlyList<EtapaPipelineCrmDto> ?? new List<EtapaPipelineCrmDto>();
+    var resumen = ViewBag.Resumen as CrmResumenDto;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var abiertasPorEtapa = Model.GroupBy(o => o.EtapaPipelineCrmId).ToDictionary(g => g.Key, g => g.ToList());
+    var etapasAbiertas = etapas.Where(e => e.Activa && !e.EsCierreGanado && !e.EsCierrePerdido).OrderBy(e => e.Orden).ToList();
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>CRM</span></nav>
+        <h1 class="ns-page-title">Pipeline de ventas</h1>
+    </div>
+    <div class="ns-toolbar">
+        <a asp-action="Contactos" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">group</span> Contactos</a>
+        <a asp-action="Actividades" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">checklist</span> Actividades</a>
+        <a asp-action="Cotizaciones" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">request_quote</span> Cotizaciones</a>
+        @if (puedeGestionar)
+        {
+            <a asp-action="NuevaOportunidad" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva oportunidad</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Oportunidades</div><div class="h4 mb-0 ns-mono">@resumen.OportunidadesAbiertas</div></div></div></div>
+        <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Pipeline abierto</div><div class="h4 mb-0 ns-mono">$ @resumen.PipelineAbierto.ToString("N2")</div></div></div></div>
+        <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Ponderado (prob.)</div><div class="h4 mb-0 ns-mono">$ @resumen.PipelinePonderado.ToString("N2")</div></div></div></div>
+        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Actividades pend.</div><div class="h4 mb-0 ns-mono">@resumen.ActividadesPendientes</div></div></div></div>
+        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Vencidas</div><div class="h4 mb-0 ns-mono @(resumen.ActividadesVencidas > 0 ? "text-danger" : "")">@resumen.ActividadesVencidas</div></div></div></div>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="card"><div class="card-body">
+        <div class="ns-empty"><span class="material-symbols-outlined">handshake</span><p>No hay oportunidades abiertas. Crea la primera para empezar a llenar el pipeline.</p>
+            @if (puedeGestionar) { <a asp-action="NuevaOportunidad" class="btn btn-primary btn-sm">Nueva oportunidad</a> }
+        </div>
+    </div></div>
+}
+else
+{
+    <div class="d-flex gap-3 overflow-auto pb-3" style="align-items:flex-start">
+        @foreach (var etapa in etapasAbiertas)
+        {
+            var ops = abiertasPorEtapa.TryGetValue(etapa.Id, out var lista) ? lista : new List<OportunidadCrmDto>();
+            <div class="card flex-shrink-0" style="width:300px;background:var(--bs-tertiary-bg, #f8f9fa)">
+                <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                    <strong class="small text-uppercase">@etapa.Nombre</strong>
+                    <span class="ns-badge ns-badge--draft">@ops.Count · $@ops.Sum(o => o.MontoEstimado).ToString("N0")</span>
+                </div>
+                <div class="px-2 pb-2 d-flex flex-column gap-2">
+                    @foreach (var o in ops)
+                    {
+                        <div class="card shadow-sm">
+                            <div class="card-body p-2">
+                                <a asp-action="Oportunidad" asp-route-id="@o.Id" class="fw-semibold text-decoration-none d-block">@o.Titulo</a>
+                                <div class="small text-muted">@(o.ClienteNombre ?? o.ContactoNombre ?? "Sin cliente")</div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <span class="ns-mono small">$ @o.MontoEstimado.ToString("N2")</span>
+                                    <span class="small text-muted">@o.Probabilidad.ToString("N0")%</span>
+                                </div>
+                                @if (o.ActividadesPendientes > 0)
+                                {
+                                    <div class="small mt-1"><span class="material-symbols-outlined align-middle" style="font-size:14px">checklist</span> @o.ActividadesPendientes pendiente(s)</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (!ops.Any())
+                    {
+                        <div class="text-center text-muted small py-3">—</div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

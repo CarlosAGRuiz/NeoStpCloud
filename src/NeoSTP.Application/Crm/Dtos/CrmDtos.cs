@@ -149,4 +149,90 @@ public class CrmResumenDto
     public decimal PipelinePonderado { get; set; }
     public int ActividadesPendientes { get; set; }
     public int ActividadesVencidas { get; set; }
+    public int CotizacionesAbiertas { get; set; }
+}
+
+// ── Cotizaciones ──────────────────────────────────────────────────────────────
+
+public class CotizacionCrmDto
+{
+    public int Id { get; set; }
+    public string Numero { get; set; } = null!;
+    public string Titulo { get; set; } = null!;
+    public int? OportunidadCrmId { get; set; }
+    public int? ClienteId { get; set; }
+    public string? ClienteNombre { get; set; }
+    public int? ContactoCrmId { get; set; }
+    public string? ContactoNombre { get; set; }
+    public DateOnly FechaEmision { get; set; }
+    public DateOnly? FechaValidez { get; set; }
+    public string EstadoCodigo { get; set; } = null!;
+    public string MonedaCodigo { get; set; } = "USD";
+    public decimal SubTotal { get; set; }
+    public decimal DescuentoTotal { get; set; }
+    public decimal IvaTotal { get; set; }
+    public decimal Total { get; set; }
+    public int? DteDocumentoId { get; set; }
+    public int Items { get; set; }
+}
+
+public class CotizacionCrmDetalleDto : CotizacionCrmDto
+{
+    public string? Observaciones { get; set; }
+    public string? Terminos { get; set; }
+    public List<CotizacionCrmLineaDto> Lineas { get; set; } = [];
+}
+
+public class CotizacionCrmLineaDto
+{
+    public int Id { get; set; }
+    public int NumeroLinea { get; set; }
+    public int? ProductoId { get; set; }
+    public string? Codigo { get; set; }
+    public string Descripcion { get; set; } = null!;
+    public decimal Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal MontoDescuento { get; set; }
+    public decimal IvaItem { get; set; }
+    public decimal TotalLinea { get; set; }
+    public bool AplicaIva { get; set; }
+}
+
+public class CrearCotizacionCrmRequest
+{
+    public int? OportunidadCrmId { get; set; }
+    public int? ClienteId { get; set; }
+    public int? ContactoCrmId { get; set; }
+    [Required, StringLength(160)] public string Titulo { get; set; } = null!;
+    public DateOnly? FechaValidez { get; set; }
+    [StringLength(1000)] public string? Observaciones { get; set; }
+    [StringLength(1000)] public string? Terminos { get; set; }
+    public List<CrearCotizacionCrmLineaRequest> Lineas { get; set; } = new();
+}
+
+/// <summary>Línea de cotización. Precios CON IVA incluido (mapean directo a FC 01 al convertir).</summary>
+public class CrearCotizacionCrmLineaRequest
+{
+    public int? ProductoId { get; set; }
+    [StringLength(50)] public string? Codigo { get; set; }
+    [StringLength(250)] public string? Descripcion { get; set; }
+    [Range(0.0001, 9_999_999)] public decimal Cantidad { get; set; } = 1;
+    /// <summary>Si null y hay producto, usa el precio del producto.</summary>
+    public decimal? PrecioUnitario { get; set; }
+    [Range(0, 9_999_999)] public decimal MontoDescuento { get; set; }
+    public bool? AplicaIva { get; set; }
+}
+
+public class CambiarEstadoCotizacionRequest
+{
+    /// <summary>ENVIADA, ACEPTADA, RECHAZADA o ANULADA.</summary>
+    [Required, StringLength(20)] public string EstadoCodigo { get; set; } = null!;
+}
+
+public class ConvertirCotizacionRequest
+{
+    /// <summary>01 Factura (default) o 03 CCF.</summary>
+    public string TipoDteCodigo { get; set; } = "01";
+    /// <summary>Override del cliente receptor (si la cotización no tiene o se quiere otro).</summary>
+    public int? ClienteId { get; set; }
 }
