@@ -37,7 +37,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
 | Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
 | Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
-| Tests | xUnit + FluentAssertions + NSubstitute (**575 unitarias + integración**) |
+| Tests | xUnit + FluentAssertions + NSubstitute (**586 unitarias + integración**) |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -83,7 +83,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 |---|---|---|---|
 | 100 | CORE | Empresas, sucursales, PV, usuarios, roles/permisos, catálogos, auditoría | ✅ |
 | 101 | NEODTE | Emisión DTE (8 tipos), certificación MH, eventos, contingencia, diagnóstico | ✅ |
-| 102 | **NEOPOS** | Punto de venta: ventas, tickets térmicos, impresión, correo, promoción a DTE | ✅ S1–S3 |
+| 102 | **NEOPOS** | Punto de venta: ventas, tickets, impresión, correo, promoción a DTE, **corte de caja** | ✅ S1–S4 |
 | 103 | NEOSCANAI | Captura/OCR de documentos (backend; UI en la app) | ✅ backend |
 | 104 | NEOPROFIT | P&L: ventas, costos, gastos/compras, rankings | ✅ |
 | 105 | NEOBI | Reportes/BI | ⏳ |
@@ -104,6 +104,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 - **NeoPOS** — ventas con carrito, **tickets térmicos 58/80mm** en PDF, **vista imprimible** (`window.print()`),
   **ESC/POS por red** (TCP 9100) a impresoras térmicas, **envío del ticket por correo**, resumen del día.
   Ventas como comprobante no fiscal **promovibles a Factura/CCF electrónica** (DTE) en un clic.
+  **Corte de caja**: apertura con fondo, ventas del turno ligadas a la sesión y cierre con efectivo esperado vs contado (diferencia).
 - **Inventario** — existencias por producto, **kardex** de movimientos y **costo promedio ponderado**
   (actualiza el costo del producto para NeoProfit); entradas/salidas/ajustes manuales y **auto-integración**:
   compra→entrada, venta POS→salida (con devolución al anular) y **alerta de stock bajo** en el centro de notificaciones.
@@ -119,6 +120,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 - **Alertas + push (FCM)**, **NeoScanAI** (OCR Gemini), **billing** multi-pasarela (Wompi/PayPal/Transferencia),
   **carga masiva** (Excel/CSV de clientes y productos), **onboarding** self-service.
 - **Correo por empresa** — cada empresa configura su SMTP (contraseña cifrada); si no, usa el correo global.
+  Configurable desde la web (`/correo`) **y la API** (`/api/correo`); el envío de DTE/tickets usa el SMTP de la empresa.
 
 ---
 
@@ -210,8 +212,8 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-**575 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
-(`PosCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `CostoPromedioCalculator`, `EscPosTicketBuilder`).
+**586 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
+(`PosCalculator`, `CorteCajaCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `CostoPromedioCalculator`, `EscPosTicketBuilder`).
 
 ---
 
@@ -222,7 +224,8 @@ dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 - **App móvil**: emisión de DTE en un paso (`POST /api/dte/emitir`), cobros, scan, alertas, RRHH, POS, etc.
 
 Endpoints por área (ejemplos): `api/dte/*`, `api/cobros/*`, `api/scanai/*`, `api/alertas/*`,
-`api/profit/*`, `api/rrhh/*`, `api/tesoreria/*`, `api/compras/*`, `api/pos/*`, `api/v1/*` (NeoConnect).
+`api/profit/*`, `api/rrhh/*`, `api/tesoreria/*`, `api/compras/*`, `api/inventario/*`,
+`api/pos/*` (incl. `api/pos/caja/*`), `api/correo`, `api/v1/*` (NeoConnect).
 
 Documentación adicional en `docs/` (`NeoConnect-API-v1.md`, `NeoCloud-Mobile-API.md`, planes y notas).
 

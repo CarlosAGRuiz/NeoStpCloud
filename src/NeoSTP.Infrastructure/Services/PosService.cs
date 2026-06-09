@@ -142,6 +142,11 @@ public class PosService : IPosService
         venta.EfectivoRecibido = request.EfectivoRecibido;
         venta.Cambio = PosCalculator.Cambio(totales.Total, request.EfectivoRecibido);
 
+        // Liga la venta a la caja abierta (si hay una), para el corte de caja.
+        venta.SesionCajaId = await _db.SesionesCaja
+            .Where(s => s.EmpresaId == empresaId && s.EstadoCodigo == SesionCajaEstados.Abierta)
+            .Select(s => (int?)s.Id).FirstOrDefaultAsync(ct);
+
         venta.Numero = await SiguienteNumeroAsync(empresaId, ct);
         _db.VentasPos.Add(venta);
         await _db.SaveChangesAsync(ct);

@@ -1,0 +1,115 @@
+@using System.Globalization
+@using NeoSTP.Application.Common
+@using NeoSTP.Application.Pos.Dtos
+@model SesionCajaDto
+@{
+    ViewData["Title"] = "Caja";
+    var abierta = Model; // null si no hay caja abierta
+    var historial = ViewBag.Historial as PagedResult<SesionCajaDto>;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Caja</span></nav>
+        <h1 class="ns-page-title">Corte de caja</h1>
+    </div>
+    <div class="ns-toolbar">
+        <a asp-controller="Pos" asp-action="Index" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">point_of_sale</span> Punto de venta</a>
+    </div>
+</div>
+
+@if (abierta is not null)
+{
+    <div class="card mb-3"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <span class="ns-badge ns-badge--processed">CAJA ABIERTA</span>
+                <h2 class="h5 mt-2 mb-0 ns-mono">@abierta.Numero</h2>
+                <div class="ns-metric-label">Abierta @abierta.AbiertaAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @abierta.AbiertaPor</div>
+            </div>
+            <div class="text-end">
+                <div class="ns-metric-label">Efectivo esperado en caja</div>
+                <div class="h3 ns-mono mb-0">$ @abierta.EfectivoEsperado.ToString("N2")</div>
+            </div>
+        </div>
+        <hr />
+        <div class="row g-3">
+            <div class="col-6 col-md-3"><div class="ns-metric-label">Fondo inicial</div><div class="ns-mono">$ @abierta.MontoInicial.ToString("N2")</div></div>
+            <div class="col-6 col-md-3"><div class="ns-metric-label">Ventas</div><div class="ns-mono">@abierta.Ventas · $ @abierta.TotalVentas.ToString("N2")</div></div>
+            <div class="col-4 col-md-2"><div class="ns-metric-label">Efectivo</div><div class="ns-mono">$ @abierta.TotalEfectivo.ToString("N2")</div></div>
+            <div class="col-4 col-md-2"><div class="ns-metric-label">Tarjeta</div><div class="ns-mono">$ @abierta.TotalTarjeta.ToString("N2")</div></div>
+            <div class="col-4 col-md-2"><div class="ns-metric-label">Otros</div><div class="ns-mono">$ @abierta.TotalOtros.ToString("N2")</div></div>
+        </div>
+
+        @if (puedeGestionar)
+        {
+            <hr />
+            <form asp-action="Cerrar" method="post" class="row g-2 align-items-end" style="max-width:620px">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@abierta.Id" />
+                <div class="col-md-5"><label class="form-label">Efectivo contado</label><input name="MontoContado" type="number" step="0.01" min="0" class="form-control ns-mono" value="@abierta.EfectivoEsperado.ToString(CultureInfo.InvariantCulture)" required /></div>
+                <div class="col-md-5"><label class="form-label">Nota (opcional)</label><input name="Nota" class="form-control" /></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Cerrar caja</button></div>
+                <div class="col-12 form-text">La diferencia se calcula contra el efectivo esperado ($ @abierta.EfectivoEsperado.ToString("N2")).</div>
+            </form>
+        }
+    </div></div>
+}
+else
+{
+    <div class="card mb-3"><div class="card-body">
+        <span class="ns-badge ns-badge--draft">SIN CAJA ABIERTA</span>
+        <p class="mb-0 mt-2 text-muted">No hay una caja abierta. Abre una para registrar las ventas del turno y luego hacer el corte.</p>
+        @if (puedeGestionar)
+        {
+            <hr />
+            <form asp-action="Abrir" method="post" class="row g-2 align-items-end" style="max-width:620px">
+                @Html.AntiForgeryToken()
+                <div class="col-md-5"><label class="form-label">Fondo inicial</label><input name="MontoInicial" type="number" step="0.01" min="0" class="form-control ns-mono" value="0.00" required /></div>
+                <div class="col-md-5"><label class="form-label">Nota (opcional)</label><input name="Nota" class="form-control" /></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Abrir caja</button></div>
+            </form>
+        }
+    </div></div>
+}
+
+<div class="card"><div class="card-body">
+    <h2 class="h6 mb-3">Historial de cortes</h2>
+    @if (historial is null || historial.Items.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">point_of_sale</span><p>Aún no hay cortes de caja.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Caja</th><th>Abierta</th><th>Cerrada</th><th class="text-end">Fondo</th><th class="text-end">Esperado</th><th class="text-end">Contado</th><th class="text-end">Diferencia</th><th>Estado</th></tr></thead>
+                <tbody>
+                    @foreach (var s in historial.Items)
+                    {
+                        <tr>
+                            <td class="ns-mono">@s.Numero</td>
+                            <td>@s.AbiertaAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                            <td>@(s.CerradaAt?.ToLocalTime().ToString("dd/MM HH:mm") ?? "—")</td>
+                            <td class="text-end ns-mono">@s.MontoInicial.ToString("N2")</td>
+                            <td class="text-end ns-mono">@(s.MontoEsperado?.ToString("N2") ?? "—")</td>
+                            <td class="text-end ns-mono">@(s.MontoContado?.ToString("N2") ?? "—")</td>
+                            <td class="text-end ns-mono @(s.Diferencia is < 0 ? "text-danger" : (s.Diferencia is > 0 ? "text-warning" : ""))">@(s.Diferencia?.ToString("N2") ?? "—")</td>
+                            <td>
+                                @if (s.EstadoCodigo == "ABIERTA")
+                                {
+                                    <span class="ns-badge ns-badge--processed">ABIERTA</span>
+                                }
+                                else
+                                {
+                                    <span class="ns-badge ns-badge--draft">CERRADA</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div></div>

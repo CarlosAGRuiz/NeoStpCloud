@@ -143,6 +143,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<NeoSTP.Domain.Core.Pos.VentaPos> VentasPos => Set<NeoSTP.Domain.Core.Pos.VentaPos>();
     public DbSet<NeoSTP.Domain.Core.Pos.VentaPosLinea> VentaPosLineas => Set<NeoSTP.Domain.Core.Pos.VentaPosLinea>();
     public DbSet<NeoSTP.Domain.Core.Pos.ImpresoraPos> ImpresorasPos => Set<NeoSTP.Domain.Core.Pos.ImpresoraPos>();
+    public DbSet<NeoSTP.Domain.Core.Pos.SesionCaja> SesionesCaja => Set<NeoSTP.Domain.Core.Pos.SesionCaja>();
 
     // Comunicaciones (correo por empresa — V2)
     public DbSet<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo> ConfiguracionesCorreo => Set<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo>();

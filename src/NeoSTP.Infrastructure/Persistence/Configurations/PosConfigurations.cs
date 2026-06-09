@@ -29,6 +29,31 @@ public class VentaPosConfiguration : IEntityTypeConfiguration<VentaPos>
         b.HasIndex(x => new { x.EmpresaId, x.Numero }).IsUnique();
         b.HasIndex(x => new { x.EmpresaId, x.Fecha });
         b.HasIndex(x => new { x.EmpresaId, x.EstadoCodigo });
+        b.HasIndex(x => x.SesionCajaId);
+    }
+}
+
+public class SesionCajaConfiguration : IEntityTypeConfiguration<SesionCaja>
+{
+    public void Configure(EntityTypeBuilder<SesionCaja> b)
+    {
+        b.ToTable("Pos_SesionesCaja");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Numero).HasMaxLength(30).IsRequired();
+        b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
+        b.Property(x => x.MontoInicial).HasPrecision(18, 2);
+        b.Property(x => x.MontoEsperado).HasPrecision(18, 2);
+        b.Property(x => x.MontoContado).HasPrecision(18, 2);
+        b.Property(x => x.Diferencia).HasPrecision(18, 2);
+        b.Property(x => x.AbiertaPor).HasMaxLength(100);
+        b.Property(x => x.CerradaPor).HasMaxLength(100);
+        b.Property(x => x.Nota).HasMaxLength(250);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.EmpresaId, x.Numero }).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.EstadoCodigo });
     }
 }
 

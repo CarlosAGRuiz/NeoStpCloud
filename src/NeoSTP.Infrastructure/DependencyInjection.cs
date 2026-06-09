@@ -221,6 +221,7 @@ public static class DependencyInjection
         services.Configure<NeoSTP.Application.Pos.PosOptions>(configuration.GetSection(NeoSTP.Application.Pos.PosOptions.SectionName));
         services.AddScoped<NeoSTP.Application.Pos.IPosService, PosService>();
         services.AddScoped<NeoSTP.Application.Pos.IPosConfigService, PosConfigService>();
+        services.AddScoped<NeoSTP.Application.Pos.IPosCajaService, PosCajaService>();
         services.AddSingleton<NeoSTP.Application.Pos.ITicketPdfService, NeoSTP.Infrastructure.Pos.TicketPdfService>();
         services.AddSingleton<NeoSTP.Application.Pos.INetworkPrinter, NeoSTP.Infrastructure.Pos.TcpNetworkPrinter>();
 

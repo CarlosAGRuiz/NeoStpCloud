@@ -45,6 +45,9 @@ public class VentaPos : AuditableEntity
     /// <summary>DTE generado al promover la venta a Factura/CCF (Sprint 2), si aplica.</summary>
     public int? DteDocumentoId { get; set; }
 
+    /// <summary>Sesión / corte de caja a la que pertenece la venta (Sprint 4), si hay una abierta.</summary>
+    public int? SesionCajaId { get; set; }
+
     public ICollection<VentaPosLinea> Lineas { get; set; } = new List<VentaPosLinea>();
 }
 

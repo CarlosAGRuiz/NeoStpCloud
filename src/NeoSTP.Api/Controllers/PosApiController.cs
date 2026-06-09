@@ -20,13 +20,15 @@ public class PosApiController : ApiControllerBase
 {
     private readonly IPosService _pos;
     private readonly IPosConfigService _posConfig;
+    private readonly IPosCajaService _caja;
     private readonly ITicketPdfService _ticketPdf;
     private readonly ICurrentUser _currentUser;
 
-    public PosApiController(IPosService pos, IPosConfigService posConfig, ITicketPdfService ticketPdf, ICurrentUser currentUser)
+    public PosApiController(IPosService pos, IPosConfigService posConfig, IPosCajaService caja, ITicketPdfService ticketPdf, ICurrentUser currentUser)
     {
         _pos = pos;
         _posConfig = posConfig;
+        _caja = caja;
         _ticketPdf = ticketPdf;
         _currentUser = currentUser;
     }
@@ -140,6 +142,49 @@ public class PosApiController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _posConfig.ProbarImpresoraAsync(eid, impresoraId, _currentUser.Username, ct), "Ticket de prueba enviado.");
+    }
+
+    // ── Caja (corte) ──────────────────────────────────────────────────────────
+
+    /// <summary>Sesión de caja abierta con totales en vivo, o null si no hay ninguna.</summary>
+    [HttpGet("caja/estado")]
+    [RequirePermiso("Pos.Ver")]
+    public async Task<IActionResult> EstadoCaja([FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _caja.GetEstadoAsync(eid, ct));
+    }
+
+    [HttpGet("caja")]
+    [RequirePermiso("Pos.Ver")]
+    public async Task<IActionResult> ListCajas([FromQuery] PagedQuery query, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _caja.ListAsync(eid, query, ct));
+    }
+
+    [HttpGet("caja/{id:int}")]
+    [RequirePermiso("Pos.Ver")]
+    public async Task<IActionResult> GetCaja(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _caja.GetAsync(eid, id, ct));
+    }
+
+    [HttpPost("caja/abrir")]
+    [RequirePermiso("Pos.Vender")]
+    public async Task<IActionResult> AbrirCaja([FromBody] AbrirCajaRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _caja.AbrirAsync(eid, req, _currentUser.Username, ct));
+    }
+
+    [HttpPost("caja/{id:int}/cerrar")]
+    [RequirePermiso("Pos.Vender")]
+    public async Task<IActionResult> CerrarCaja(int id, [FromBody] CerrarCajaRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _caja.CerrarAsync(eid, id, req, _currentUser.Username, ct));
     }
 
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;
