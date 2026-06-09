@@ -52,6 +52,11 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Aplicar migraciones + seed al arrancar (idempotente). Garantiza que la Web tenga el
+// esquema al día aunque se ejecute sin la API; EF serializa con __EFMigrationsLock.
+await NeoSTP.Infrastructure.Persistence.Seed.DatabaseSeeder.SeedAsync(app.Services);
+await NeoSTP.Infrastructure.Persistence.Seed.EmpresaPruebaSeeder.SeedAsync(app.Services);
+
 app.UseSerilogRequestLogging();
 
 if (!app.Environment.IsDevelopment())
