@@ -39,10 +39,13 @@ public static class EmpresaPruebaSeeder
             return;
         }
 
-        var yaExiste = await db.Empresas.AnyAsync(e => e.Nit == options.Nit, ct);
-        if (yaExiste)
+        var existente = await db.Empresas.FirstOrDefaultAsync(e => e.Nit == options.Nit, ct);
+        if (existente is not null)
         {
-            logger.LogInformation("EmpresaPruebaSeeder: empresa con NIT {Nit} ya existe. Nada que hacer.", options.Nit);
+            // La empresa ya existe (no re-provisionamos), pero sí sincronizamos los módulos
+            // del plan que pudieron agregarse después (p. ej. NEORRHH en una versión nueva),
+            // para que los módulos recién liberados queden activos sin recrear la empresa.
+            await BackfillModulosDelPlanAsync(db, existente, logger, ct);
             return;
         }
 
@@ -182,5 +185,61 @@ public static class EmpresaPruebaSeeder
             "Carga el certificado PFX y el password MH desde /DteConfiguracion para completar la configuración.",
             empresa.RazonSocial, empresa.Nit, plan.Codigo, plan.Modulos.Count,
             sucursal.Nombre, options.PuntoVenta.Nombre, admin.Username, options.Admin.Password);
+    }
+
+    /// <summary>
+    /// Activa en <c>EmpresaModulos</c> los módulos del plan vigente de la empresa que aún
+    /// no estén presentes. Idempotente: si no falta ninguno, no hace nada. Permite que
+    /// módulos liberados después de provisionar (p. ej. NEORRHH) queden activos sin recrear
+    /// la empresa de pruebas.
+    /// </summary>
+    private static async Task BackfillModulosDelPlanAsync(
+        NeoStpDbContext db, Empresa empresa, ILogger logger, CancellationToken ct)
+    {
+        // Plan vigente de la empresa (cae al más reciente si no hay uno marcado ACTIVO).
+        var empresaPlan = await db.EmpresaPlanes
+            .Where(ep => ep.EmpresaId == empresa.Id)
+            .OrderByDescending(ep => ep.EstadoCodigo == "ACTIVO")
+            .ThenByDescending(ep => ep.FechaInicio)
+            .FirstOrDefaultAsync(ct);
+        if (empresaPlan is null)
+        {
+            logger.LogWarning("EmpresaPruebaSeeder: empresa {Nit} sin plan asignado; no se sincronizan módulos.", empresa.Nit);
+            return;
+        }
+
+        var modulosDelPlan = await db.PlanModulos
+            .Where(pm => pm.PlanId == empresaPlan.PlanId && pm.Activo)
+            .Select(pm => pm.ModuloId)
+            .ToListAsync(ct);
+
+        var yaActivos = await db.EmpresaModulos
+            .Where(em => em.EmpresaId == empresa.Id)
+            .Select(em => em.ModuloId)
+            .ToListAsync(ct);
+
+        var faltantes = modulosDelPlan.Except(yaActivos).ToList();
+        if (faltantes.Count == 0)
+        {
+            logger.LogInformation("EmpresaPruebaSeeder: empresa {Nit} ya tiene todos los módulos de su plan.", empresa.Nit);
+            return;
+        }
+
+        var ahora = DateTime.UtcNow;
+        foreach (var moduloId in faltantes)
+        {
+            db.EmpresaModulos.Add(new EmpresaModulo
+            {
+                EmpresaId       = empresa.Id,
+                ModuloId        = moduloId,
+                Activo          = true,
+                FechaActivacion = ahora,
+            });
+        }
+        await db.SaveChangesAsync(ct);
+
+        logger.LogWarning(
+            "EmpresaPruebaSeeder: empresa {Nit} — {Count} módulo(s) del plan activados: {Modulos}.",
+            empresa.Nit, faltantes.Count, string.Join(", ", faltantes));
     }
 }
