@@ -1,0 +1,33 @@
+@using NeoSTP.Application.Compras.Dtos
+@model UpdateProveedorRequest
+@{
+    ViewData["Title"] = "Editar proveedor";
+    var provId = (int)ViewBag.ProveedorId;
+    var codigo = ViewBag.Codigo as string;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Proveedores</a><span class="material-symbols-outlined">chevron_right</span><span>Editar</span></nav>
+        <h1 class="ns-page-title">Editar proveedor <span class="ns-mono text-muted">@codigo</span></h1>
+    </div>
+</div>
+
+<div class="card"><div class="card-body">
+    <form asp-action="Edit" asp-route-id="@provId" method="post" class="row g-3" style="max-width:820px">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="text-danger small"></div>
+        <div class="col-md-9"><label class="form-label">Nombre</label><input asp-for="Nombre" class="form-control" /></div>
+        <div class="col-md-3"><label class="form-label">Plazo crédito (días)</label><input asp-for="PlazoDiasDefault" type="number" min="0" max="365" class="form-control" /></div>
+        <div class="col-md-6"><label class="form-label">NIT</label><input asp-for="Nit" class="form-control ns-mono" /></div>
+        <div class="col-md-6"><label class="form-label">NRC</label><input asp-for="Nrc" class="form-control ns-mono" /></div>
+        <div class="col-md-6"><label class="form-label">Contacto</label><input asp-for="Contacto" class="form-control" /></div>
+        <div class="col-md-6"><label class="form-label">Teléfono</label><input asp-for="Telefono" class="form-control" /></div>
+        <div class="col-md-6"><label class="form-label">Email</label><input asp-for="Email" class="form-control" /></div>
+        <div class="col-md-6"><label class="form-label">Dirección</label><input asp-for="Direccion" class="form-control" /></div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+            <a asp-action="Detalle" asp-route-id="@provId" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div></div>

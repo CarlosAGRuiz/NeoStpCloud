@@ -1,0 +1,99 @@
+@using NeoSTP.Application.Compras.Dtos
+@model NeoSTP.Application.Common.PagedResult<FacturaCompraDto>
+@{
+    ViewData["Title"] = "Cuentas por pagar";
+    var search = ViewBag.Search as string;
+    var soloPendientes = ViewBag.SoloPendientes is bool sp && sp;
+    var proveedorId = ViewBag.ProveedorId as int?;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var resumen = ViewBag.Resumen as ComprasResumenDto;
+    string Badge(string e) => e switch
+    {
+        "PAGADA" => "ns-badge--processed",
+        "PARCIAL" => "ns-badge--contingency",
+        "ANULADA" => "ns-badge--rejected",
+        _ => "ns-badge--draft",
+    };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Cuentas por pagar</span></nav>
+        <h1 class="ns-page-title">Cuentas por pagar</h1>
+    </div>
+    @if (puedeGestionar)
+    {
+        <a asp-action="Crear" asp-route-proveedorId="@proveedorId" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva factura</a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Total por pagar</div><div class="ns-mono fw-bold fs-4 text-danger">@resumen.TotalPorPagar.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Vencido</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-rejected)">@resumen.TotalVencido.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Facturas pendientes</div><div class="ns-mono fw-bold fs-4">@resumen.FacturasPendientes</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Proveedores</div><div class="ns-mono fw-bold fs-4">@resumen.Proveedores</div></div></div></div>
+    </div>
+}
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input type="hidden" name="proveedorId" value="@proveedorId" />
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:240px" placeholder="Buscar documento o proveedor…" />
+        <div class="form-check ms-2">
+            <input class="form-check-input" type="checkbox" name="soloPendientes" value="true" id="sp" @(soloPendientes ? "checked" : "") onchange="this.form.submit()" />
+            <label class="form-check-label small" for="sp">Solo pendientes</label>
+        </div>
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Documento</th>
+                    <th>Proveedor</th>
+                    <th>Emisión</th>
+                    <th>Vence</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-end">Saldo</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">receipt_long</span><p>Sin facturas de compra.</p></div></td></tr>
+                }
+                @foreach (var f in Model?.Items ?? Array.Empty<FacturaCompraDto>())
+                {
+                    <tr>
+                        <td><a asp-action="Detalle" asp-route-id="@f.Id"><strong class="ns-mono">@f.NumeroDocumento</strong></a> <span class="ns-badge ns-badge--draft">@f.TipoDocumento</span></td>
+                        <td>@f.ProveedorNombre</td>
+                        <td class="ns-mono small">@f.FechaEmision.ToString("dd/MM/yy")</td>
+                        <td class="ns-mono small">@f.FechaVencimiento.ToString("dd/MM/yy") @if (f.Vencida) { <span class="ns-badge ns-badge--rejected" title="@f.DiasVencido días">vencida</span> }</td>
+                        <td class="text-end ns-mono">@f.Total.ToString("N2")</td>
+                        <td class="text-end ns-mono fw-bold @(f.Saldo > 0 ? "text-danger" : "")">@f.Saldo.ToString("N2")</td>
+                        <td><span class="ns-badge @Badge(f.EstadoCodigo)">@f.EstadoCodigo</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search" asp-route-proveedorId="@proveedorId" asp-route-soloPendientes="@soloPendientes">@i</a></li>
+        }
+    </ul></nav>
+}

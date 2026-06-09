@@ -1,0 +1,81 @@
+@using NeoSTP.Application.Compras.Dtos
+@model NeoSTP.Application.Common.PagedResult<ProveedorDto>
+@{
+    ViewData["Title"] = "Proveedores";
+    var search = ViewBag.Search as string;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Proveedores</span></nav>
+        <h1 class="ns-page-title">Proveedores</h1>
+    </div>
+    @if (puedeGestionar)
+    {
+        <a asp-action="Create" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo proveedor</a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar nombre, código o NIT…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>NIT</th>
+                    <th>Contacto</th>
+                    <th class="text-center">Plazo</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">local_shipping</span><p>Sin proveedores registrados.</p></div></td></tr>
+                }
+                @foreach (var p in Model?.Items ?? Array.Empty<ProveedorDto>())
+                {
+                    var badge = p.EstadoCodigo == "ACTIVO" ? "ns-pill ns-pill--on" : "ns-pill ns-pill--off";
+                    <tr>
+                        <td class="ns-mono"><strong>@p.Codigo</strong></td>
+                        <td><a asp-action="Detalle" asp-route-id="@p.Id">@p.Nombre</a></td>
+                        <td class="ns-mono small">@(p.Nit ?? "—")</td>
+                        <td class="small">@(p.Contacto ?? "—") @if (!string.IsNullOrWhiteSpace(p.Telefono)) { <span class="text-muted">· @p.Telefono</span> }</td>
+                        <td class="text-center">@(p.PlazoDiasDefault > 0 ? $"{p.PlazoDiasDefault} d" : "contado")</td>
+                        <td><span class="@badge">@p.EstadoCodigo</span></td>
+                        <td class="text-end">
+                            <a asp-action="Detalle" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                            @if (puedeGestionar)
+                            {
+                                <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a></li>
+        }
+    </ul></nav>
+}

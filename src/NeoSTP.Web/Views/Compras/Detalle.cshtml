@@ -1,0 +1,109 @@
+@using NeoSTP.Application.Compras.Dtos
+@using NeoSTP.Application.Tesoreria.Dtos
+@model FacturaCompraDetalleDto
+@{
+    ViewData["Title"] = $"Compra {Model.NumeroDocumento}";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var cuentas = ViewBag.Cuentas as List<CuentaTesoreriaDto> ?? new List<CuentaTesoreriaDto>();
+    var formasPago = new[] { "EFECTIVO", "TRANSFERENCIA", "CHEQUE", "TARJETA", "QR", "OTRO" };
+    var anulada = Model.EstadoCodigo == "ANULADA";
+    var pagada = Model.EstadoCodigo == "PAGADA";
+    string Badge(string e) => e switch { "PAGADA" => "ns-badge--processed", "PARCIAL" => "ns-badge--contingency", "ANULADA" => "ns-badge--rejected", _ => "ns-badge--draft" };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Cuentas por pagar</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.NumeroDocumento</span></nav>
+        <h1 class="ns-page-title">@Model.NumeroDocumento <span class="ns-badge @Badge(Model.EstadoCodigo)">@Model.EstadoCodigo</span></h1>
+        <p class="text-muted mb-0">@Model.ProveedorNombre · @Model.TipoDocumento · vence @Model.FechaVencimiento.ToString("dd/MM/yyyy") @if (Model.Vencida) { <span class="text-danger">(@Model.DiasVencido días vencida)</span> }</p>
+    </div>
+    <div class="d-flex gap-2">
+        @if (puedeGestionar && !anulada)
+        {
+            <form asp-action="Anular" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular la factura? Se revertirá el gasto en NeoProfit.');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm">Anular</button></form>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (Model.ProfitGastoId is int gid) { <div class="alert alert-info">Registrada como gasto de NeoProfit (#@gid, categoría COMPRA).</div> }
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">request_quote</span> Documento</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted small">Proveedor</dt><dd class="col-sm-7">@Model.ProveedorNombre</dd>
+                    <dt class="col-sm-5 text-muted small">Condición</dt><dd class="col-sm-7">@Model.CondicionPago</dd>
+                    <dt class="col-sm-5 text-muted small">Emisión</dt><dd class="col-sm-7 ns-mono">@Model.FechaEmision.ToString("dd/MM/yyyy")</dd>
+                    <dt class="col-sm-5 text-muted small">Subtotal</dt><dd class="col-sm-7 ns-mono">@Model.Subtotal.ToString("N2")</dd>
+                    <dt class="col-sm-5 text-muted small">IVA @(Model.IvaDeducible ? "(deducible)" : "")</dt><dd class="col-sm-7 ns-mono">@Model.Iva.ToString("N2")</dd>
+                    <dt class="col-sm-5 text-muted small">Total</dt><dd class="col-sm-7 ns-mono fw-bold">@Model.Total.ToString("N2")</dd>
+                    <dt class="col-sm-5 text-muted small">Pagado</dt><dd class="col-sm-7 ns-mono text-success">@Model.Pagado.ToString("N2")</dd>
+                    <dt class="col-sm-5 text-muted small">Saldo</dt><dd class="col-sm-7 ns-mono fw-bold fs-5 text-danger">@Model.Saldo.ToString("N2")</dd>
+                </dl>
+                @if (!string.IsNullOrWhiteSpace(Model.Descripcion)) { <p class="text-muted small mt-2 mb-0">@Model.Descripcion</p> }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        @if (puedeGestionar && !anulada && !pagada)
+        {
+            <div class="card mb-3">
+                <div class="card-header"><span class="material-symbols-outlined align-middle">payments</span> Registrar pago</div>
+                <div class="card-body">
+                    <form asp-action="RegistrarPago" method="post" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="FacturaCompraId" value="@Model.Id" />
+                        <div class="col-md-4"><label class="form-label small">Monto</label><input name="Monto" type="number" step="0.01" min="0.01" max="@Model.Saldo" value="@Model.Saldo.ToString("0.00")" class="form-control form-control-sm ns-mono" /></div>
+                        <div class="col-md-4"><label class="form-label small">Fecha</label><input name="Fecha" type="date" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+                        <div class="col-md-4"><label class="form-label small">Forma de pago</label><select name="FormaPagoCodigo" class="form-select form-select-sm">@foreach (var fp in formasPago) { <option value="@fp">@fp</option> }</select></div>
+                        <div class="col-md-6"><label class="form-label small">Referencia</label><input name="Referencia" class="form-control form-control-sm" placeholder="Nº cheque / transferencia" /></div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Egreso en tesorería (opcional)</label>
+                            <select name="CuentaTesoreriaId" class="form-select form-select-sm">
+                                <option value="">— No registrar egreso —</option>
+                                @foreach (var c in cuentas) { <option value="@c.Id">@c.Codigo · @c.Nombre (@c.SaldoActual.ToString("N2"))</option> }
+                            </select>
+                        </div>
+                        <div class="col-12"><button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Registrar pago</button></div>
+                    </form>
+                </div>
+            </div>
+        }
+        <div class="card">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">history</span> Pagos</div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover m-0 align-middle">
+                    <thead><tr><th>Fecha</th><th>Forma</th><th>Referencia</th><th class="text-end">Monto</th><th>Estado</th><th></th></tr></thead>
+                    <tbody>
+                        @if (!Model.Pagos.Any())
+                        {
+                            <tr><td colspan="6"><div class="ns-empty"><span class="material-symbols-outlined">payments</span><p>Sin pagos.</p></div></td></tr>
+                        }
+                        @foreach (var p in Model.Pagos)
+                        {
+                            var anuladoP = p.EstadoCodigo == "ANULADO";
+                            <tr class="@(anuladoP ? "text-muted text-decoration-line-through" : "")">
+                                <td class="ns-mono small">@p.Fecha.ToString("dd/MM/yy")</td>
+                                <td class="small">@p.FormaPagoCodigo</td>
+                                <td class="ns-mono small">@(p.Referencia ?? "—") @if (p.MovimientoTesoreriaId is not null) { <span class="ns-badge ns-badge--processed" title="Egreso en tesorería">tes</span> }</td>
+                                <td class="text-end ns-mono">@p.Monto.ToString("N2")</td>
+                                <td><span class="ns-badge @(anuladoP ? "ns-badge--rejected" : "ns-badge--processed")">@p.EstadoCodigo</span></td>
+                                <td class="text-end">
+                                    @if (puedeGestionar && !anuladoP)
+                                    {
+                                        <form asp-action="AnularPago" asp-route-pagoId="@p.Id" asp-route-facturaId="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular el pago? Se revertirá el saldo y el egreso de tesorería.');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Anular"><span class="material-symbols-outlined" style="font-size:16px">undo</span></button></form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
