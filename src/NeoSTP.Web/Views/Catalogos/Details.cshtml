@@ -3,51 +3,50 @@
     var catalogo = (NeoSTP.Application.Catalogos.Dtos.CatalogoDto)ViewBag.Catalogo;
     var parent = ViewBag.ParentFilter as string;
     var puedeImportar = ViewBag.PuedeImportar is bool pi && pi;
+    var activos = Model.Count(i => i.Activo);
+    var conPadre = Model.Count(i => !string.IsNullOrWhiteSpace(i.ParentCodigo));
     ViewData["Title"] = $"Catálogo: {catalogo.Codigo}";
 }
 
-<nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb small">
-        <li class="breadcrumb-item"><a asp-action="Index">Catálogos</a></li>
-        <li class="breadcrumb-item active" aria-current="page"><code>@catalogo.Codigo</code></li>
-    </ol>
-</nav>
-
-<div class="ns-toolbar">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <h2 class="mb-1 h4">@catalogo.Nombre <small class="text-muted ns-mono">v@(catalogo.Version)</small></h2>
+        <nav class="ns-breadcrumb">
+            <a asp-action="Index">Catálogos</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span class="ns-mono">@catalogo.Codigo</span>
+        </nav>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h1 class="ns-page-title">@catalogo.Nombre</h1>
+            <span class="ns-version">v@(catalogo.Version)</span>
+        </div>
         @if (!string.IsNullOrEmpty(catalogo.Descripcion))
         {
-            <p class="text-muted mb-0 small">@catalogo.Descripcion</p>
+            <p class="ns-page-subtitle">@catalogo.Descripcion</p>
         }
-        <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+        <div class="d-flex align-items-center gap-2 flex-wrap mt-3">
             @if (catalogo.EsSistema)
             {
-                <span class="ns-pill ns-pill--off">Sistema (normativo)</span>
+                <span class="ns-pill ns-pill--off"><span class="material-symbols-outlined" style="font-size:14px">cloud_done</span> Origen: Sistema</span>
             }
             else
             {
-                <span class="ns-pill ns-pill--on">Empresa</span>
+                <span class="ns-pill ns-pill--on"><span class="material-symbols-outlined" style="font-size:14px">domain</span> Origen: Empresa</span>
             }
-            <span class="@(catalogo.Activo ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--draft")">@(catalogo.Activo ? "ACTIVO" : "INACTIVO")</span>
+            <span class="@(catalogo.Activo ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--draft")">Estado: @(catalogo.Activo ? "Activo" : "Inactivo")</span>
         </div>
     </div>
-    <div class="d-flex gap-2">
-        @if (puedeImportar && !catalogo.EsSistema)
+    <div class="ns-page-actions">
+        @if (puedeImportar)
         {
-            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-primary btn-sm">
-                <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Importar
+            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn @(catalogo.EsSistema ? "btn-outline-secondary" : "btn-primary")">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span>
+                Importar
             </a>
         }
-        else if (puedeImportar && catalogo.EsSistema)
-        {
-            <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-secondary btn-sm" title="Catálogo normativo: importar con precaución (afecta datos oficiales MH)">
-                <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Importar
-            </a>
-        }
-        <div class="btn-group btn-group-sm">
+        <div class="btn-group">
             <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                <span class="material-symbols-outlined align-middle" style="font-size:18px">download</span> Exportar
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">download</span>
+                Exportar
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" asp-action="Export" asp-route-codigo="@catalogo.Codigo" asp-route-format="Csv">CSV</a></li>
@@ -65,57 +64,66 @@
 
 @if (catalogo.EsSistema)
 {
-    <div class="alert alert-info d-flex align-items-center gap-2 py-2">
-        <span class="material-symbols-outlined" style="font-size:20px">shield</span>
-        <span class="small">Catálogo <strong>normativo del sistema</strong> (datos oficiales MH). Los ítems son de solo lectura desde esta pantalla; no se eliminan físicamente y solo se actualizan mediante importación oficial.</span>
+    <div class="ns-info-banner mb-4">
+        <span class="material-symbols-outlined">info</span>
+        <div>
+            Este catálogo está marcado como <strong>normativo del sistema</strong>. Los ítems base se administran con importaciones oficiales y conservan trazabilidad por versión.
+        </div>
     </div>
 }
 
-<div class="ns-toolbar">
-    <form method="get" class="ns-toolbar-search">
-        <input type="text" name="parent" value="@parent" class="form-control form-control-sm" style="min-width:260px"
-               placeholder="Filtrar por código de padre (cascada)" />
-        <button type="submit" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span> Filtrar
-        </button>
-        @if (!string.IsNullOrEmpty(parent))
-        {
-            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-link btn-sm">Limpiar</a>
-        }
-        else
-        {
-            <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="__ROOT__" class="btn btn-link btn-sm" title="Sólo ítems de primer nivel">Solo raíz</a>
-        }
-    </form>
-    <span class="small text-muted">@Model.Count ítems</span>
-</div>
+<form method="get" class="ns-filter-card mb-4">
+    <label class="ns-search-field">
+        <span class="material-symbols-outlined">filter_list</span>
+        <input type="text" name="parent" value="@parent" class="form-control" placeholder="Filtrar por código de padre..." />
+    </label>
+    <button type="submit" class="btn btn-outline-secondary">
+        <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span>
+        Filtrar
+    </button>
+    @if (!string.IsNullOrEmpty(parent))
+    {
+        <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" class="btn btn-link">Limpiar</a>
+    }
+    else
+    {
+        <a asp-action="Details" asp-route-codigo="@catalogo.Codigo" asp-route-parent="__ROOT__" class="btn btn-link">Solo raíz</a>
+    }
+</form>
 
-<div class="card">
+<div class="card ns-data-card">
     <div class="table-responsive">
-        <table class="table table-hover m-0 align-middle">
+        <table class="table ns-table-modern m-0 align-middle">
             <thead>
                 <tr>
-                    <th style="width:10%">Código</th>
-                    <th>Valor</th>
+                    <th style="width:12%">Código</th>
+                    <th style="width:20%">Valor</th>
                     <th>Descripción</th>
-                    <th class="text-center" style="width:7%">Orden</th>
-                    <th style="width:10%">Padre</th>
-                    <th class="text-center" style="width:8%">Origen</th>
-                    <th class="text-center" style="width:8%">Estado</th>
+                    <th class="text-center" style="width:8%">Orden</th>
+                    <th style="width:12%">Padre</th>
+                    <th class="text-center" style="width:10%">Origen</th>
+                    <th class="text-center" style="width:9%">Estado</th>
                 </tr>
             </thead>
             <tbody>
                 @if (Model.Count == 0)
                 {
-                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">menu_book</span><p>Sin ítems para los criterios indicados.</p></div></td></tr>
+                    <tr>
+                        <td colspan="7">
+                            <div class="ns-empty">
+                                <span class="material-symbols-outlined">menu_book</span>
+                                <p>Sin ítems para los criterios indicados.</p>
+                            </div>
+                        </td>
+                    </tr>
                 }
                 @foreach (var i in Model)
                 {
                     <tr class="@(!i.Activo ? "text-muted" : "")">
-                        <td><code class="ns-mono">@i.Codigo</code></td>
-                        <td>@i.Valor</td>
-                        <td><small>@(i.Descripcion ?? "")</small></td>
-                        <td class="text-center"><small class="ns-mono">@i.Orden</small></td>
+                        <td><code class="ns-code-token">@i.Codigo</code></td>
+                        <td><strong>@i.Valor</strong></td>
+                        <td>@(i.Descripcion ?? "--")</td>
+                        <td class="text-center"><span class="ns-mono">@i.Orden</span></td>
                         <td>
                             @if (!string.IsNullOrEmpty(i.ParentCodigo))
                             {
@@ -125,25 +133,46 @@
                             }
                             else
                             {
-                                <span class="text-muted small">—</span>
+                                <span class="text-muted">---</span>
                             }
                         </td>
                         <td class="text-center">
                             @if (i.EsSistema)
                             {
-                                <span class="ns-pill ns-pill--off" title="Ítem normativo; no se elimina físicamente">Sistema</span>
+                                <span class="ns-badge ns-badge--draft">Sistema</span>
                             }
                             else
                             {
-                                <span class="ns-pill ns-pill--on">Empresa</span>
+                                <span class="ns-badge ns-badge--processed">Empresa</span>
                             }
                         </td>
                         <td class="text-center">
-                            <span class="@(i.Activo ? "ns-badge ns-badge--processed" : "ns-badge ns-badge--draft")">@(i.Activo ? "OK" : "INACT")</span>
+                            <span class="ns-status-dot @(i.Activo ? "ns-status-dot--on" : "")" title="@(i.Activo ? "Activo" : "Inactivo")"></span>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
+    <div class="ns-table-footer">
+        <span>Mostrando <strong>@Model.Count.ToString("N0")</strong> de <strong>@catalogo.TotalItems.ToString("N0")</strong> ítems</span>
+    </div>
+</div>
+
+<div class="ns-summary-grid mt-4">
+    <section class="ns-summary-card">
+        <p>Total ítems</p>
+        <strong>@catalogo.TotalItems.ToString("N0")</strong>
+        <div class="ns-progress-line ns-progress-line--blue"><span style="width:100%"></span></div>
+    </section>
+    <section class="ns-summary-card">
+        <p>Heredados visibles</p>
+        <strong>@conPadre.ToString("N0")</strong>
+        <span><span class="material-symbols-outlined">account_tree</span> Estructura jerárquica</span>
+    </section>
+    <section class="ns-summary-card ns-summary-card--dark">
+        <p>Estado de la vista</p>
+        <strong>@activos.ToString("N0") activos</strong>
+        <span>@(Model.Count - activos) inactivos con el filtro actual</span>
+    </section>
 </div>

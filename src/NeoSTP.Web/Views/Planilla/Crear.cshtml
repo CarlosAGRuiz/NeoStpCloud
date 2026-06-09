@@ -4,43 +4,102 @@
     var meses = new[] { "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
 }
 
-<div class="ns-page-head">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Planillas</a><span class="material-symbols-outlined">chevron_right</span><span>Nueva</span></nav>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Planillas</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Nueva</span>
+        </nav>
         <h1 class="ns-page-title">Nueva corrida de planilla</h1>
+        <p class="ns-page-subtitle">Calcula el período con empleados activos y contratos vigentes.</p>
     </div>
 </div>
 
-<div class="card" style="max-width:560px">
-    <div class="card-body">
-        <div asp-validation-summary="All" class="alert alert-danger @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
-        <form asp-action="Crear" method="post" class="row g-3">
-            @Html.AntiForgeryToken()
-            <div class="col-md-4">
-                <label class="form-label small">Año</label>
-                <input asp-for="Anio" type="number" min="2000" max="2100" class="form-control form-control-sm ns-mono" />
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card ns-data-card">
+            <div class="ns-card-titlebar">
+                <div>
+                    <h2>Parámetros de cálculo</h2>
+                    <p>Selecciona año, mes y período para generar la corrida.</p>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label class="form-label small">Mes</label>
-                <select asp-for="Mes" class="form-select form-select-sm">
-                    @for (int m = 1; m <= 12; m++) { <option value="@m">@m.ToString("00") · @meses[m]</option> }
-                </select>
+            <div class="card-body">
+                <div asp-validation-summary="All" class="alert alert-danger @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
+                <form asp-action="Crear" method="post" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-4">
+                        <label class="form-label small">Año</label>
+                        <input asp-for="Anio" type="number" min="2000" max="2100" class="form-control ns-mono" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Mes</label>
+                        <select asp-for="Mes" class="form-select">
+                            @for (int m = 1; m <= 12; m++) { <option value="@m">@m.ToString("00") · @meses[m]</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Período</label>
+                        <select asp-for="Quincena" class="form-select">
+                            <option value="1">1ª quincena (1-15)</option>
+                            <option value="2">2ª quincena (16-fin)</option>
+                            <option value="0">Mensual</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <div class="ns-info-banner mb-0">
+                            <span class="material-symbols-outlined">info</span>
+                            <span>La corrida usa salario mensual vigente, ISSS, AFP y renta configurados. Las quincenas prorratean el salario 50/50.</span>
+                        </div>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <a asp-action="Index" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                            <span class="material-symbols-outlined" style="font-size:20px">close</span>
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                            <span class="material-symbols-outlined" style="font-size:20px">calculate</span>
+                            Calcular planilla
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="col-md-4">
-                <label class="form-label small">Período</label>
-                <select asp-for="Quincena" class="form-select form-select-sm">
-                    <option value="1">1ª quincena (1–15)</option>
-                    <option value="2">2ª quincena (16–fin)</option>
-                    <option value="0">Mensual</option>
-                </select>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card ns-data-card h-100">
+            <div class="ns-card-titlebar">
+                <div>
+                    <h2>Flujo operativo</h2>
+                    <p>Estados esperados de una corrida.</p>
+                </div>
             </div>
-            <div class="col-12">
-                <p class="text-muted small mb-0">Se calculará para todos los empleados activos con contrato vigente, usando las tablas ES vigentes (ISSS/AFP/Renta). La quincena se prorratea 50/50 del mensual.</p>
+            <div class="card-body">
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <span class="ns-badge ns-badge--contingency">CALCULADA</span>
+                    <div>
+                        <strong>Revisión</strong>
+                        <p class="text-muted small mb-0">Permite recalcular y revisar recibos antes del cierre.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <span class="ns-badge ns-badge--processed">CERRADA</span>
+                    <div>
+                        <strong>Contabilizada</strong>
+                        <p class="text-muted small mb-0">Registra el gasto de planilla en NeoProfit.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3">
+                    <span class="ns-badge ns-badge--rejected">ANULADA</span>
+                    <div>
+                        <strong>Sin efecto</strong>
+                        <p class="text-muted small mb-0">Queda en historial, pero no se toma como corrida vigente.</p>
+                    </div>
+                </div>
             </div>
-            <div class="col-12 text-end">
-                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Cancelar</a>
-                <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">calculate</span> Calcular planilla</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>

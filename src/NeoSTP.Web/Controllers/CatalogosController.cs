@@ -24,16 +24,29 @@ public class CatalogosController : Controller
     // ----- Lista -----
 
     [HttpGet]
-    public async Task<IActionResult> Index(CancellationToken ct)
+    public async Task<IActionResult> Index([FromQuery] string? search, CancellationToken ct)
     {
         if (!Has("Core.Catalogos.Ver")) return Forbid();
 
         var empresaId = _empresaContext.CurrentEmpresaId;
         var result = await _catalogos.GetListAsync(empresaId, ct);
+        var items = result.Value ?? Array.Empty<CatalogoDto>();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            items = items
+                .Where(c =>
+                    c.Codigo.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    c.Nombre.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(c.Descripcion) && c.Descripcion.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
+        }
+
         ViewBag.EmpresaId = empresaId;
+        ViewBag.Search = search;
         ViewBag.PuedeAdministrar = Has("Core.Catalogos.Administrar");
         ViewBag.PuedeImportar = Has("Core.Catalogos.Importar");
-        return View(result.Value ?? Array.Empty<CatalogoDto>());
+        return View(items);
     }
 
     // ----- Detalle (ítems) -----

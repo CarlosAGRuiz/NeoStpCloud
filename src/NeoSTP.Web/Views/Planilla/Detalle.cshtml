@@ -8,48 +8,109 @@
     string Badge(string e) => e switch { "CERRADA" => "ns-badge--processed", "CALCULADA" => "ns-badge--contingency", "ANULADA" => "ns-badge--rejected", _ => "ns-badge--draft" };
 }
 
-<div class="ns-page-head">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Planillas</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Etiqueta</span></nav>
-        <h1 class="ns-page-title">Planilla @Model.Etiqueta <span class="ns-badge @Badge(Model.EstadoCodigo)">@Model.EstadoCodigo</span></h1>
-        <p class="text-muted mb-0">@Model.FechaInicio.ToString("dd/MM/yyyy") – @Model.FechaFin.ToString("dd/MM/yyyy") · @Model.Detalles.Count empleados</p>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Planillas</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>@Model.Etiqueta</span>
+        </nav>
+        <h1 class="ns-page-title">
+            Planilla @Model.Etiqueta
+            <span class="ns-badge @Badge(Model.EstadoCodigo)">@Model.EstadoCodigo</span>
+        </h1>
+        <p class="ns-page-subtitle">@Model.FechaInicio.ToString("dd/MM/yyyy") - @Model.FechaFin.ToString("dd/MM/yyyy") · @Model.Detalles.Count empleados</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <div class="dropdown">
-            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><span class="material-symbols-outlined align-middle" style="font-size:18px">download</span> Exportar</button>
+            <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 dropdown-toggle" data-bs-toggle="dropdown">
+                <span class="material-symbols-outlined" style="font-size:20px">download</span>
+                Exportar
+            </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" asp-action="ExportCsv" asp-route-id="@Model.Id">Planilla (CSV)</a></li>
-                <li><a class="dropdown-item" asp-action="ExportIsss" asp-route-id="@Model.Id">Planilla ISSS (CSV)</a></li>
-                <li><a class="dropdown-item" asp-action="ExportAfp" asp-route-id="@Model.Id">Planilla AFP (CSV)</a></li>
+                <li><a class="dropdown-item" asp-action="ExportCsv" asp-route-id="@Model.Id">Planilla CSV</a></li>
+                <li><a class="dropdown-item" asp-action="ExportIsss" asp-route-id="@Model.Id">Planilla ISSS CSV</a></li>
+                <li><a class="dropdown-item" asp-action="ExportAfp" asp-route-id="@Model.Id">Planilla AFP CSV</a></li>
             </ul>
         </div>
         @if (puedeGestionar && calculada)
         {
-            <form asp-action="Recalcular" asp-route-id="@Model.Id" method="post" class="m-0">@Html.AntiForgeryToken()<button class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">refresh</span> Recalcular</button></form>
-            <form asp-action="Cerrar" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Cerrar la planilla? Se registrará como gasto y no podrá recalcularse.');">@Html.AntiForgeryToken()<button class="btn btn-success btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">lock</span> Cerrar</button></form>
+            <form asp-action="Recalcular" asp-route-id="@Model.Id" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">refresh</span>
+                    Recalcular
+                </button>
+            </form>
+            <form asp-action="Cerrar" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Cerrar la planilla? Se registrará como gasto y no podrá recalcularse.');">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-success d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">lock</span>
+                    Cerrar
+                </button>
+            </form>
         }
         @if (puedeGestionar && !anulada)
         {
-            <form asp-action="Anular" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular la planilla?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm">Anular</button></form>
+            <form asp-action="Anular" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular la planilla?');">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-outline-danger d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">block</span>
+                    Anular
+                </button>
+            </form>
         }
-        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+        <a asp-action="Index" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:20px">arrow_back</span>
+            Volver
+        </a>
     </div>
 </div>
 
 @if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
-@if (cerrada && Model.ProfitGastoId is int gid) { <div class="alert alert-info">Cerrada · registrada como gasto de NeoProfit (#@gid, categoría PLANILLA).</div> }
+@if (cerrada && Model.ProfitGastoId is int gid)
+{
+    <div class="ns-info-banner mb-4">
+        <span class="material-symbols-outlined">info</span>
+        <span>Planilla cerrada y registrada como gasto NeoProfit #@gid, categoría PLANILLA.</span>
+    </div>
+}
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Devengado</div><div class="ns-mono fw-bold fs-4">@Model.TotalDevengado.ToString("N2")</div></div></div></div>
-    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Deducciones</div><div class="ns-mono fw-bold fs-4 text-danger">@Model.TotalDeducciones.ToString("N2")</div></div></div></div>
-    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Neto a pagar</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-processed)">@Model.TotalNeto.ToString("N2")</div></div></div></div>
-    <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Costo patronal</div><div class="ns-mono fw-bold fs-4">@Model.TotalCostoPatronal.ToString("N2")</div></div></div></div>
+<div class="ns-summary-grid mb-4">
+    <section class="ns-summary-card">
+        <p>Devengado</p>
+        <strong class="ns-mono">$ @Model.TotalDevengado.ToString("N2")</strong>
+        <span><span class="material-symbols-outlined">payments</span> Total bruto del período</span>
+    </section>
+    <section class="ns-summary-card">
+        <p>Deducciones</p>
+        <strong class="ns-mono text-danger">$ @Model.TotalDeducciones.ToString("N2")</strong>
+        <span>ISSS, AFP, renta y otros descuentos</span>
+    </section>
+    <section class="ns-summary-card">
+        <p>Neto a pagar</p>
+        <strong class="ns-mono" style="color:var(--ns-processed)">$ @Model.TotalNeto.ToString("N2")</strong>
+        <span>@Model.Detalles.Count recibos disponibles</span>
+    </section>
+    <section class="ns-summary-card ns-summary-card--dark">
+        <p>Costo patronal</p>
+        <strong class="ns-mono">$ @Model.TotalCostoPatronal.ToString("N2")</strong>
+        <span>Aportes de la empresa</span>
+    </section>
 </div>
 
-<div class="card">
+<div class="card ns-data-card">
+    <div class="ns-card-titlebar">
+        <div>
+            <h2>Detalle por empleado</h2>
+            <p>Cálculo individual de devengado, deducciones, neto y costo patronal.</p>
+        </div>
+    </div>
     <div class="table-responsive">
-        <table class="table table-sm table-hover m-0 align-middle">
+        <table class="table ns-table-modern m-0 align-middle">
             <thead>
                 <tr>
                     <th>Código</th>
@@ -58,40 +119,52 @@
                     <th class="text-end">ISSS</th>
                     <th class="text-end">AFP</th>
                     <th class="text-end">Renta</th>
-                    <th class="text-end">Deduc.</th>
+                    <th class="text-end">Deducciones</th>
                     <th class="text-end">Neto</th>
-                    <th class="text-end">Costo pat.</th>
-                    <th class="text-end"></th>
+                    <th class="text-end">Costo patronal</th>
+                    <th class="text-end">Recibo</th>
                 </tr>
             </thead>
             <tbody>
+                @if (!Model.Detalles.Any())
+                {
+                    <tr>
+                        <td colspan="10">
+                            <div class="ns-empty">
+                                <span class="material-symbols-outlined">receipt_long</span>
+                                <p>Esta corrida no tiene empleados calculados.</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
                 @foreach (var d in Model.Detalles)
                 {
                     <tr>
-                        <td class="ns-mono">@d.EmpleadoCodigo</td>
-                        <td>@d.EmpleadoNombre</td>
-                        <td class="text-end ns-mono">@d.Devengado.ToString("N2")</td>
-                        <td class="text-end ns-mono text-danger">@d.Isss.ToString("N2")</td>
-                        <td class="text-end ns-mono text-danger">@d.Afp.ToString("N2")</td>
-                        <td class="text-end ns-mono text-danger">@d.Renta.ToString("N2")</td>
-                        <td class="text-end ns-mono">@d.TotalDeducciones.ToString("N2")</td>
-                        <td class="text-end ns-mono fw-bold">@d.SalarioNeto.ToString("N2")</td>
-                        <td class="text-end ns-mono">@d.CostoPatronal.ToString("N2")</td>
+                        <td><span class="ns-code-token">@d.EmpleadoCodigo</span></td>
+                        <td><strong>@d.EmpleadoNombre</strong></td>
+                        <td class="text-end ns-mono">$ @d.Devengado.ToString("N2")</td>
+                        <td class="text-end ns-mono text-danger">- @d.Isss.ToString("N2")</td>
+                        <td class="text-end ns-mono text-danger">- @d.Afp.ToString("N2")</td>
+                        <td class="text-end ns-mono text-danger">- @d.Renta.ToString("N2")</td>
+                        <td class="text-end ns-mono">$ @d.TotalDeducciones.ToString("N2")</td>
+                        <td class="text-end ns-mono fw-bold">$ @d.SalarioNeto.ToString("N2")</td>
+                        <td class="text-end ns-mono">$ @d.CostoPatronal.ToString("N2")</td>
                         <td class="text-end">
-                            <a asp-action="Recibo" asp-route-id="@Model.Id" asp-route-empleadoId="@d.EmpleadoId" target="_blank" class="btn btn-sm btn-outline-primary" title="Recibo PDF"><span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span></a>
+                            <a asp-action="Recibo" asp-route-id="@Model.Id" asp-route-empleadoId="@d.EmpleadoId" target="_blank" class="btn btn-sm btn-outline-primary" title="Recibo PDF">
+                                <span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span>
+                            </a>
                         </td>
                     </tr>
                 }
             </tbody>
-            <tfoot class="table-light">
-                <tr class="fw-bold">
-                    <td colspan="2">Totales</td>
-                    <td class="text-end ns-mono">@Model.TotalDevengado.ToString("N2")</td>
-                    <td colspan="2"></td>
-                    <td></td>
-                    <td class="text-end ns-mono text-danger">@Model.TotalDeducciones.ToString("N2")</td>
-                    <td class="text-end ns-mono">@Model.TotalNeto.ToString("N2")</td>
-                    <td class="text-end ns-mono">@Model.TotalCostoPatronal.ToString("N2")</td>
+            <tfoot>
+                <tr>
+                    <td colspan="2"><strong>Totales</strong></td>
+                    <td class="text-end ns-mono fw-bold">$ @Model.TotalDevengado.ToString("N2")</td>
+                    <td colspan="3"></td>
+                    <td class="text-end ns-mono fw-bold text-danger">$ @Model.TotalDeducciones.ToString("N2")</td>
+                    <td class="text-end ns-mono fw-bold">$ @Model.TotalNeto.ToString("N2")</td>
+                    <td class="text-end ns-mono fw-bold">$ @Model.TotalCostoPatronal.ToString("N2")</td>
                     <td></td>
                 </tr>
             </tfoot>

@@ -4,21 +4,40 @@
     var id = (int)ViewBag.EmpleadoId;
 }
 
-<div class="ns-page-head">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Empleados</a><span class="material-symbols-outlined">chevron_right</span><span>Editar</span></nav>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Empleados</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Editar</span>
+        </nav>
         <h1 class="ns-page-title">Editar empleado</h1>
+        <p class="ns-page-subtitle">Actualiza la ficha laboral y el contrato vigente.</p>
     </div>
 </div>
 
-<div class="card">
+<div class="card ns-data-card">
+    <div class="ns-card-titlebar">
+        <div>
+            <h2>Ficha laboral</h2>
+            <p>Los cambios impactan la siguiente corrida de planilla.</p>
+        </div>
+    </div>
     <div class="card-body">
         <form asp-action="Edit" asp-route-id="@id" method="post">
             @Html.AntiForgeryToken()
             <partial name="_Fields" model="Model" />
-            <div class="text-end mt-3">
-                <a asp-action="Detalle" asp-route-id="@id" class="btn btn-outline-secondary btn-sm">Cancelar</a>
-                <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar cambios</button>
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a asp-action="Detalle" asp-route-id="@id" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">close</span>
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">save</span>
+                    Guardar cambios
+                </button>
             </div>
         </form>
     </div>

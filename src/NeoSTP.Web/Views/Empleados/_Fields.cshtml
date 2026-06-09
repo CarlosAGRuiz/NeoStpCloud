@@ -7,84 +7,106 @@
 
 <div asp-validation-summary="All" class="alert alert-danger @(ViewData.ModelState.IsValid ? "d-none" : "")"></div>
 
-<div class="row g-3">
-    <div class="col-md-3">
-        <label class="form-label small">Código</label>
-        <input asp-for="Codigo" class="form-control form-control-sm ns-mono" />
+<section class="mb-4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary">badge</span>
+        <h3 class="h6 mb-0">Identidad</h3>
     </div>
-    <div class="col-md-5">
-        <label class="form-label small">Nombres</label>
-        <input asp-for="Nombres" class="form-control form-control-sm" />
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label small">Código</label>
+            <input asp-for="Codigo" class="form-control ns-mono" autocomplete="off" />
+        </div>
+        <div class="col-md-5">
+            <label class="form-label small">Nombres</label>
+            <input asp-for="Nombres" class="form-control" autocomplete="given-name" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small">Apellidos</label>
+            <input asp-for="Apellidos" class="form-control" autocomplete="family-name" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Tipo documento</label>
+            <select asp-for="TipoDocumento" class="form-select">
+                @foreach (var t in tiposDoc) { <option value="@t">@t</option> }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Número documento</label>
+            <input asp-for="NumeroDocumento" class="form-control ns-mono" autocomplete="off" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">NIT</label>
+            <input asp-for="Nit" class="form-control ns-mono" autocomplete="off" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Fecha nacimiento</label>
+            <input asp-for="FechaNacimiento" type="date" class="form-control" />
+        </div>
     </div>
-    <div class="col-md-4">
-        <label class="form-label small">Apellidos</label>
-        <input asp-for="Apellidos" class="form-control form-control-sm" />
-    </div>
+</section>
 
-    <div class="col-md-3">
-        <label class="form-label small">Tipo documento</label>
-        <select asp-for="TipoDocumento" class="form-select form-select-sm">
-            @foreach (var t in tiposDoc) { <option value="@t">@t</option> }
-        </select>
+<section class="mb-4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary">health_and_safety</span>
+        <h3 class="h6 mb-0">Seguridad social y contacto</h3>
     </div>
-    <div class="col-md-3">
-        <label class="form-label small">Nº documento</label>
-        <input asp-for="NumeroDocumento" class="form-control form-control-sm ns-mono" />
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label small">Número ISSS</label>
+            <input asp-for="IsssNumero" class="form-control ns-mono" autocomplete="off" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">AFP institución</label>
+            <input asp-for="AfpInstitucion" class="form-control" placeholder="Crecer / Confía" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Número AFP</label>
+            <input asp-for="AfpNumero" class="form-control ns-mono" autocomplete="off" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Cargo</label>
+            <input asp-for="Cargo" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small">Email</label>
+            <input asp-for="Email" type="email" class="form-control" autocomplete="email" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Teléfono</label>
+            <input asp-for="Telefono" class="form-control ns-mono" autocomplete="tel" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Fecha ingreso</label>
+            <input asp-for="FechaIngreso" type="date" class="form-control" />
+        </div>
     </div>
-    <div class="col-md-3">
-        <label class="form-label small">NIT</label>
-        <input asp-for="Nit" class="form-control form-control-sm ns-mono" />
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small">Cargo</label>
-        <input asp-for="Cargo" class="form-control form-control-sm" />
-    </div>
+</section>
 
-    <div class="col-md-3">
-        <label class="form-label small">Nº ISSS</label>
-        <input asp-for="IsssNumero" class="form-control form-control-sm ns-mono" />
+<section>
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-primary">request_quote</span>
+        <h3 class="h6 mb-0">Contrato vigente</h3>
     </div>
-    <div class="col-md-3">
-        <label class="form-label small">AFP institución</label>
-        <input asp-for="AfpInstitucion" class="form-control form-control-sm" placeholder="Crecer / Confía" />
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label small">Tipo contrato</label>
+            <select asp-for="TipoContrato" class="form-select">
+                @foreach (var t in tiposContrato) { <option value="@t">@t</option> }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small">Salario mensual</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input asp-for="SalarioMensual" type="number" step="0.01" min="0" class="form-control ns-mono" />
+            </div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label small">Periodicidad de pago</label>
+            <select asp-for="PeriodicidadPago" class="form-select">
+                @foreach (var t in periodicidades) { <option value="@t">@t</option> }
+            </select>
+        </div>
     </div>
-    <div class="col-md-3">
-        <label class="form-label small">Nº AFP</label>
-        <input asp-for="AfpNumero" class="form-control form-control-sm ns-mono" />
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small">Fecha nacimiento</label>
-        <input asp-for="FechaNacimiento" type="date" class="form-control form-control-sm" />
-    </div>
-
-    <div class="col-md-3">
-        <label class="form-label small">Fecha ingreso</label>
-        <input asp-for="FechaIngreso" type="date" class="form-control form-control-sm" />
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small">Email</label>
-        <input asp-for="Email" class="form-control form-control-sm" />
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small">Teléfono</label>
-        <input asp-for="Telefono" class="form-control form-control-sm ns-mono" />
-    </div>
-
-    <div class="col-12"><hr class="my-1" /><span class="text-muted small">Contrato vigente</span></div>
-    <div class="col-md-3">
-        <label class="form-label small">Tipo contrato</label>
-        <select asp-for="TipoContrato" class="form-select form-select-sm">
-            @foreach (var t in tiposContrato) { <option value="@t">@t</option> }
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small">Salario mensual</label>
-        <input asp-for="SalarioMensual" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono" />
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small">Periodicidad de pago</label>
-        <select asp-for="PeriodicidadPago" class="form-select form-select-sm">
-            @foreach (var t in periodicidades) { <option value="@t">@t</option> }
-        </select>
-    </div>
-</div>
+</section>

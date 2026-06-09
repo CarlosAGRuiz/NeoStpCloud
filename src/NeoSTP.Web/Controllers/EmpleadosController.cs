@@ -56,6 +56,7 @@ public class EmpleadosController : Controller
     public IActionResult Create()
     {
         if (!Has("Rrhh.Empleados.Gestionar")) return Forbid();
+        if (RequireEmpresa() is not int) return RedirectToSoporte();
         Listas();
         return View(new CreateEmpleadoRequest { FechaIngreso = DateOnly.FromDateTime(DateTime.UtcNow) });
     }

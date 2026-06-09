@@ -3,36 +3,86 @@
     ViewData["Title"] = "Empleados";
     var search = ViewBag.Search as string;
     var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var items = Model?.Items ?? Array.Empty<NeoSTP.Application.Rrhh.Dtos.EmpleadoDto>();
+    var activosPagina = items.Count(e => e.EstadoCodigo == "ACTIVO");
+    var nominaMensualPagina = items.Where(e => e.EstadoCodigo == "ACTIVO").Sum(e => e.SalarioMensual);
+    var page = Model?.Page ?? 1;
+    var totalPages = Model?.TotalPages ?? 1;
 }
 
-<div class="ns-page-head">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Empleados</span></nav>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>NeoRRHH</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Empleados</span>
+        </nav>
         <h1 class="ns-page-title">Empleados</h1>
+        <p class="ns-page-subtitle">Expediente laboral, contrato vigente y base de cálculo para nómina.</p>
     </div>
     @if (puedeGestionar)
     {
-        <a asp-action="Create" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">person_add</span> Nuevo empleado</a>
+        <a asp-action="Create" class="btn btn-primary d-inline-flex align-items-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:20px">person_add</span>
+            Nuevo empleado
+        </a>
     }
 </div>
 
 @if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
 @if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
 
-<div class="ns-toolbar">
-    <form method="get" class="ns-toolbar-search">
-        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar nombre, código o documento…" />
-        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
-    </form>
+<div class="ns-dashboard-strip mb-4">
+    <section class="ns-hero-metric">
+        <div>
+            <span>Total empleados</span>
+            <strong>@(Model?.Total ?? 0).ToString("N0")</strong>
+            <small><span class="material-symbols-outlined" style="font-size:18px">badge</span> Gestión de personal activa</small>
+        </div>
+        <span class="material-symbols-outlined">groups</span>
+    </section>
+    <section class="ns-mini-metric">
+        <span>Activos en página</span>
+        <strong>@activosPagina.ToString("N0")</strong>
+        <div class="ns-progress-line"><span style="width:@(items.Count == 0 ? 0 : Math.Round((decimal)activosPagina / items.Count * 100))%"></span></div>
+    </section>
+    <section class="ns-mini-metric">
+        <span>Nómina mensual visible</span>
+        <strong>$ @nominaMensualPagina.ToString("N2")</strong>
+        <div class="ns-progress-line ns-progress-line--blue"><span style="width:72%"></span></div>
+    </section>
 </div>
 
-<div class="card">
+<form method="get" class="ns-filter-card mb-4">
+    <div class="ns-search-field">
+        <span class="material-symbols-outlined">search</span>
+        <input name="search" value="@search" class="form-control" placeholder="Buscar nombre, código o documento..." />
+    </div>
+    <button type="submit" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+        <span class="material-symbols-outlined" style="font-size:20px">filter_list</span>
+        Filtrar
+    </button>
+    <a asp-action="Index" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+        <span class="material-symbols-outlined" style="font-size:20px">restart_alt</span>
+        Limpiar
+    </a>
+</form>
+
+<div class="card ns-data-card">
+    <div class="ns-card-titlebar">
+        <div>
+            <h2>Personal registrado</h2>
+            <p>Mostrando @(items.Count == 0 ? 0 : ((page - 1) * (Model?.PageSize ?? 20)) + 1)-@(((page - 1) * (Model?.PageSize ?? 20)) + items.Count) de @(Model?.Total ?? 0).ToString("N0") empleados</p>
+        </div>
+    </div>
     <div class="table-responsive">
-        <table class="table table-hover m-0 align-middle">
+        <table class="table ns-table-modern m-0 align-middle">
             <thead>
                 <tr>
                     <th>Código</th>
-                    <th>Nombre</th>
+                    <th>Empleado</th>
                     <th>Documento</th>
                     <th>Cargo</th>
                     <th class="text-end">Salario</th>
@@ -42,59 +92,92 @@
                 </tr>
             </thead>
             <tbody>
-                @if (Model is null || !Model.Items.Any())
+                @if (!items.Any())
                 {
-                    <tr><td colspan="8"><div class="ns-empty"><span class="material-symbols-outlined">badge</span><p>Sin empleados registrados.</p></div></td></tr>
+                    <tr>
+                        <td colspan="8">
+                            <div class="ns-empty">
+                                <span class="material-symbols-outlined">badge</span>
+                                <p>Sin empleados registrados.</p>
+                            </div>
+                        </td>
+                    </tr>
                 }
-                @foreach (var e in Model?.Items ?? Array.Empty<NeoSTP.Application.Rrhh.Dtos.EmpleadoDto>())
+                @foreach (var e in items)
                 {
                     var badge = e.EstadoCodigo == "ACTIVO" ? "ns-pill ns-pill--on" : "ns-pill ns-pill--off";
                     <tr>
-                        <td class="ns-mono"><strong>@e.Codigo</strong></td>
-                        <td><a asp-action="Detalle" asp-route-id="@e.Id">@e.NombreCompleto</a></td>
+                        <td><span class="ns-code-token">@e.Codigo</span></td>
+                        <td>
+                            <a asp-action="Detalle" asp-route-id="@e.Id" class="text-decoration-none"><strong>@e.NombreCompleto</strong></a>
+                            <div class="text-muted small">Expediente NeoRRHH</div>
+                        </td>
                         <td class="ns-mono small">@e.NumeroDocumento</td>
-                        <td>@(e.Cargo ?? "—")</td>
-                        <td class="text-end ns-mono">@e.SalarioMensual.ToString("N2")</td>
+                        <td>@(e.Cargo ?? "Sin cargo")</td>
+                        <td class="text-end ns-mono">$ @e.SalarioMensual.ToString("N2")</td>
                         <td><span class="ns-badge ns-badge--draft">@e.PeriodicidadPago</span></td>
                         <td><span class="@badge">@e.EstadoCodigo</span></td>
                         <td class="text-end">
-                            <a asp-action="Detalle" asp-route-id="@e.Id" class="btn btn-sm btn-outline-primary">Ver</a>
-                            @if (puedeGestionar)
-                            {
-                                <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
-                                @if (e.EstadoCodigo == "ACTIVO")
+                            <div class="d-inline-flex gap-1">
+                                <a asp-action="Detalle" asp-route-id="@e.Id" class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                                    <span class="material-symbols-outlined" style="font-size:18px">visibility</span>
+                                </a>
+                                @if (puedeGestionar)
                                 {
-                                    <form asp-action="Inactivar" asp-route-id="@e.Id" method="post" class="d-inline">
-                                        @Html.AntiForgeryToken()
-                                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Inactivar este empleado?');">Inactivar</button>
-                                    </form>
+                                    <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-sm btn-outline-secondary" title="Editar">
+                                        <span class="material-symbols-outlined" style="font-size:18px">edit</span>
+                                    </a>
+                                    @if (e.EstadoCodigo == "ACTIVO")
+                                    {
+                                        <form asp-action="Inactivar" asp-route-id="@e.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button class="btn btn-sm btn-outline-danger" title="Inactivar" onclick="return confirm('¿Inactivar este empleado?');">
+                                                <span class="material-symbols-outlined" style="font-size:18px">block</span>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="Restaurar" asp-route-id="@e.Id" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button class="btn btn-sm btn-outline-success" title="Restaurar">
+                                                <span class="material-symbols-outlined" style="font-size:18px">settings_backup_restore</span>
+                                            </button>
+                                        </form>
+                                    }
                                 }
-                                else
-                                {
-                                    <form asp-action="Restaurar" asp-route-id="@e.Id" method="post" class="d-inline">
-                                        @Html.AntiForgeryToken()
-                                        <button class="btn btn-sm btn-outline-success">Restaurar</button>
-                                    </form>
-                                }
-                            }
+                            </div>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
-</div>
 
-@if (Model is not null && Model.TotalPages > 1)
-{
-    <nav class="mt-3"><ul class="pagination pagination-sm">
-        @for (int i = 1; i <= Model.TotalPages; i++)
+    <div class="ns-table-footer">
+        <span>Mostrando @items.Count de @(Model?.Total ?? 0).ToString("N0") empleados</span>
+        @if (totalPages > 1)
         {
-            <li class="page-item @(i == Model.Page ? "active" : "")">
-                <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a>
-            </li>
+            <nav aria-label="Paginación de empleados">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(page <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(page - 1)" asp-route-search="@search">
+                            <span class="material-symbols-outlined" style="font-size:18px">chevron_left</span>
+                        </a>
+                    </li>
+                    @for (int i = Math.Max(1, page - 2); i <= Math.Min(totalPages, page + 2); i++)
+                    {
+                        <li class="page-item @(i == page ? "active" : "")">
+                            <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a>
+                        </li>
+                    }
+                    <li class="page-item @(page >= totalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(page + 1)" asp-route-search="@search">
+                            <span class="material-symbols-outlined" style="font-size:18px">chevron_right</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         }
-    </ul></nav>
-}
-
-<p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) empleados.</p>
+    </div>
+</div>

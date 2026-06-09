@@ -2,38 +2,83 @@
 @{
     ViewData["Title"] = "Clientes";
     var search = ViewBag.Search as string;
+    var items = Model?.Items ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var total = Model?.Total ?? 0;
+    var activosPagina = items.Count(c => c.EstadoCodigo == "ACTIVO");
+    var nuevosPagina = items.Count(c => c.CreatedAt >= DateTime.UtcNow.AddDays(-30));
+    var first = total == 0 || Model is null ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var last = Model is null ? 0 : Math.Min(Model.Page * Model.PageSize, total);
 }
 
-<div class="ns-page-head">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Clientes</span></nav>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Clientes</span>
+        </nav>
         <h1 class="ns-page-title">Clientes</h1>
     </div>
-    <div class="d-flex gap-2">
-        <a asp-action="Importar" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span> Carga masiva
+    <div class="ns-page-actions">
+        <a asp-action="Importar" class="btn btn-outline-secondary">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">upload_file</span>
+            Carga masiva
         </a>
-        <a asp-action="Create" class="btn btn-primary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo cliente
+        <a asp-action="Create" class="btn btn-primary">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">person_add</span>
+            Nuevo cliente
         </a>
     </div>
 </div>
 
-@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
-@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
 
-<div class="ns-toolbar">
-    <form method="get" class="ns-toolbar-search">
-        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar nombre, documento o NRC…" />
-        <button type="submit" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
-        </button>
-    </form>
+<div class="ns-dashboard-strip mb-4">
+    <section class="ns-hero-metric ns-hero-metric--blue">
+        <div>
+            <p class="ns-metric-label text-white-50">Total clientes</p>
+            <strong>@total.ToString("N0")</strong>
+            <span>Registros que coinciden con la búsqueda actual</span>
+        </div>
+        <span class="material-symbols-outlined">groups</span>
+    </section>
+    <section class="ns-mini-metric">
+        <p>Activos en página</p>
+        <strong>@activosPagina.ToString("N0")</strong>
+        <div class="ns-progress-line"><span style="width:@(items.Count == 0 ? 0 : Math.Round(activosPagina * 100m / items.Count))%"></span></div>
+    </section>
+    <section class="ns-mini-metric">
+        <p>Nuevos en página (30d)</p>
+        <strong>@nuevosPagina.ToString("N0")</strong>
+        <div class="ns-progress-line ns-progress-line--blue"><span style="width:@(items.Count == 0 ? 0 : Math.Round(nuevosPagina * 100m / items.Count))%"></span></div>
+    </section>
 </div>
 
-<div class="card">
+<form method="get" class="ns-filter-card mb-4">
+    <label class="ns-search-field">
+        <span class="material-symbols-outlined">search</span>
+        <input name="search" value="@search" class="form-control" placeholder="Buscar nombre, documento o NRC..." />
+    </label>
+    <button type="submit" class="btn btn-outline-secondary">
+        <span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span>
+        Filtrar
+    </button>
+    @if (!string.IsNullOrWhiteSpace(search))
+    {
+        <a asp-action="Index" class="btn btn-link">Limpiar</a>
+    }
+</form>
+
+<div class="card ns-data-card">
     <div class="table-responsive">
-        <table class="table table-hover m-0 align-middle">
+        <table class="table ns-table-modern m-0 align-middle">
             <thead>
                 <tr>
                     <th>Documento</th>
@@ -46,55 +91,101 @@
                 </tr>
             </thead>
             <tbody>
-                @if (Model is null || !Model.Items.Any())
+                @if (!items.Any())
                 {
-                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">groups</span><p>Sin clientes registrados.</p></div></td></tr>
+                    <tr>
+                        <td colspan="7">
+                            <div class="ns-empty">
+                                <span class="material-symbols-outlined">groups</span>
+                                <p>Sin clientes registrados para los criterios indicados.</p>
+                            </div>
+                        </td>
+                    </tr>
                 }
-                @foreach (var c in Model?.Items ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>())
+                @foreach (var c in items)
                 {
                     var badge = c.EstadoCodigo == "ACTIVO" ? "ns-pill ns-pill--on" : "ns-pill ns-pill--off";
-                    var tipoBadge = c.EsContribuyente ? "bg-info" : "bg-light text-dark border";
-                    <tr>
-                        <td><strong>@c.TipoDocumentoCodigo</strong> @c.NumeroDocumento</td>
-                        <td>@c.Nombre<br /><small class="text-muted">@c.NombreComercial</small></td>
-                        <td>@(c.Nrc ?? "—")</td>
-                        <td><span class="badge @tipoBadge">@c.TipoContribuyenteCodigo</span></td>
-                        <td><small class="text-muted">@c.Correo</small></td>
+                    <tr class="@(!string.Equals(c.EstadoCodigo, "ACTIVO", StringComparison.OrdinalIgnoreCase) ? "text-muted" : "")">
+                        <td>
+                            <strong>@c.TipoDocumentoCodigo</strong>
+                            <div class="ns-mono text-muted">@c.NumeroDocumento</div>
+                        </td>
+                        <td>
+                            <strong>@c.Nombre</strong>
+                            @if (!string.IsNullOrWhiteSpace(c.NombreComercial))
+                            {
+                                <div class="text-muted small">@c.NombreComercial</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(c.Etiqueta))
+                            {
+                                <span class="ns-badge ns-badge--draft mt-1">@c.Etiqueta</span>
+                            }
+                        </td>
+                        <td><span class="ns-mono">@(c.Nrc ?? "--")</span></td>
+                        <td>@(c.EsContribuyente ? "Contribuyente" : c.TipoContribuyenteCodigo)</td>
+                        <td><span class="text-muted">@(c.Correo ?? "--")</span></td>
                         <td><span class="@badge">@c.EstadoCodigo</span></td>
                         <td class="text-end">
-                            <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Editar</a>
-                            @if (c.EstadoCodigo == "ACTIVO")
-                            {
-                                <form asp-action="Inactivar" asp-route-id="@c.Id" method="post" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <button class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Inactivar este cliente?');">Inactivar</button>
-                                </form>
-                            }
-                            else
-                            {
-                                <form asp-action="Restaurar" asp-route-id="@c.Id" method="post" class="d-inline">
-                                    @Html.AntiForgeryToken()
-                                    <button class="btn btn-sm btn-outline-success" onclick="return confirm('¿Restaurar (reactivar) este cliente?');">Restaurar</button>
-                                </form>
-                            }
+                            <span class="ns-row-actions">
+                                <a asp-action="Edit" asp-route-id="@c.Id" class="ns-action-btn" title="Editar cliente">
+                                    <span class="material-symbols-outlined">edit</span>
+                                </a>
+                                @if (c.EstadoCodigo == "ACTIVO")
+                                {
+                                    <form asp-action="Inactivar" asp-route-id="@c.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="ns-action-btn ns-action-btn--danger" title="Inactivar cliente" onclick="return confirm('¿Inactivar este cliente?');">
+                                            <span class="material-symbols-outlined">block</span>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form asp-action="Restaurar" asp-route-id="@c.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button class="ns-action-btn" title="Restaurar cliente" onclick="return confirm('¿Restaurar (reactivar) este cliente?');">
+                                            <span class="material-symbols-outlined">restart_alt</span>
+                                        </button>
+                                    </form>
+                                }
+                            </span>
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
-</div>
-
-@if (Model is not null && Model.TotalPages > 1)
-{
-    <nav class="mt-3"><ul class="pagination pagination-sm">
-        @for (int i = 1; i <= Model.TotalPages; i++)
+    <div class="ns-table-footer">
+        <span>Mostrando <strong>@first-@last</strong> de <strong>@total.ToString("N0")</strong> clientes</span>
+        @if (Model is not null && Model.TotalPages > 1)
         {
-            <li class="page-item @(i == Model.Page ? "active" : "")">
-                <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a>
-            </li>
+            <nav aria-label="Paginación de clientes">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(Model.Page - 1)" asp-route-search="@search" aria-label="Anterior">
+                            <span class="material-symbols-outlined" style="font-size:16px">chevron_left</span>
+                        </a>
+                    </li>
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        if (i == 1 || i == Model.TotalPages || Math.Abs(i - Model.Page) <= 1)
+                        {
+                            <li class="page-item @(i == Model.Page ? "active" : "")">
+                                <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a>
+                            </li>
+                        }
+                        else if (i == Model.Page - 2 || i == Model.Page + 2)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }
+                    }
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@(Model.Page + 1)" asp-route-search="@search" aria-label="Siguiente">
+                            <span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
         }
-    </ul></nav>
-}
-
-<p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) clientes.</p>
+    </div>
+</div>

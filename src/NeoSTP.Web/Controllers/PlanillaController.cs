@@ -53,6 +53,7 @@ public class PlanillaController : Controller
     public IActionResult Crear()
     {
         if (!Has("Rrhh.Nomina.Gestionar")) return Forbid();
+        if (RequireEmpresa() is not int) return RedirectToSoporte();
         var hoy = DateTime.UtcNow;
         return View(new CrearPlanillaRequest { Anio = hoy.Year, Mes = hoy.Month, Quincena = hoy.Day <= 15 ? 1 : 2 });
     }

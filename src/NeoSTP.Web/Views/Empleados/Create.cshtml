@@ -3,21 +3,40 @@
     ViewData["Title"] = "Nuevo empleado";
 }
 
-<div class="ns-page-head">
+<div class="ns-page-head ns-page-head--hero">
     <div>
-        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Empleados</a><span class="material-symbols-outlined">chevron_right</span><span>Nuevo</span></nav>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Empleados</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Nuevo</span>
+        </nav>
         <h1 class="ns-page-title">Nuevo empleado</h1>
+        <p class="ns-page-subtitle">Alta de expediente laboral y contrato vigente para nómina.</p>
     </div>
 </div>
 
-<div class="card">
+<div class="card ns-data-card">
+    <div class="ns-card-titlebar">
+        <div>
+            <h2>Ficha de alta</h2>
+            <p>Completa identidad, seguridad social, contacto y salario base.</p>
+        </div>
+    </div>
     <div class="card-body">
         <form asp-action="Create" method="post">
             @Html.AntiForgeryToken()
             <partial name="_Fields" model="Model" />
-            <div class="text-end mt-3">
-                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Cancelar</a>
-                <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a asp-action="Index" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">close</span>
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size:20px">save</span>
+                    Guardar
+                </button>
             </div>
         </form>
     </div>
