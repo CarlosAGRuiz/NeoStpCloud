@@ -1,0 +1,78 @@
+@using NeoSTP.Application.Tesoreria.Dtos
+@model NeoSTP.Application.Common.PagedResult<MovimientoTesoreriaDto>
+@{
+    ViewData["Title"] = "Movimientos";
+    var search = ViewBag.Search as string;
+    var cuentaId = ViewBag.CuentaId as int?;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Tesorería</a><span class="material-symbols-outlined">chevron_right</span><span>Movimientos</span></nav>
+        <h1 class="ns-page-title">Movimientos</h1>
+    </div>
+    @if (puedeGestionar)
+    {
+        <a asp-action="RegistrarMovimiento" asp-route-cuentaId="@cuentaId" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo movimiento</a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input type="hidden" name="cuentaId" value="@cuentaId" />
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar concepto o referencia…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Cuenta</th>
+                    <th>Concepto</th>
+                    <th>Origen</th>
+                    <th class="text-end">Monto</th>
+                    <th class="text-end">Saldo</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">sync_alt</span><p>Sin movimientos.</p></div></td></tr>
+                }
+                @foreach (var mv in Model?.Items ?? Array.Empty<MovimientoTesoreriaDto>())
+                {
+                    var ingreso = mv.Tipo == "INGRESO";
+                    var anulado = mv.EstadoCodigo == "ANULADO";
+                    <tr class="@(anulado ? "text-muted" : "")">
+                        <td class="ns-mono small">@mv.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td><a asp-action="Detalle" asp-route-id="@mv.CuentaId">@mv.CuentaNombre</a></td>
+                        <td>@mv.Concepto @if (!string.IsNullOrWhiteSpace(mv.Referencia)) { <span class="ns-mono text-muted small">· @mv.Referencia</span> }</td>
+                        <td><span class="ns-badge ns-badge--draft">@mv.Origen</span></td>
+                        <td class="text-end ns-mono @(ingreso ? "text-success" : "text-danger")">@(ingreso ? "+" : "−")@mv.Monto.ToString("N2")</td>
+                        <td class="text-end ns-mono">@mv.SaldoResultante.ToString("N2")</td>
+                        <td><span class="ns-badge @(anulado ? "ns-badge--rejected" : "ns-badge--processed")">@mv.EstadoCodigo</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Movimientos" asp-route-page="@i" asp-route-cuentaId="@cuentaId" asp-route-search="@search">@i</a></li>
+        }
+    </ul></nav>
+}

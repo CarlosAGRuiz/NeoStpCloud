@@ -1,0 +1,93 @@
+@using NeoSTP.Application.Tesoreria.Dtos
+@model NeoSTP.Application.Common.PagedResult<CuentaTesoreriaDto>
+@{
+    ViewData["Title"] = "Tesorería";
+    var search = ViewBag.Search as string;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var resumen = ViewBag.Resumen as TesoreriaResumenDto;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Tesorería</span></nav>
+        <h1 class="ns-page-title">Cuentas de tesorería</h1>
+    </div>
+    @if (puedeGestionar)
+    {
+        <a asp-action="Create" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nueva cuenta</a>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (resumen is not null)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Saldo total</div><div class="ns-mono fw-bold fs-4" style="color:var(--ns-processed)">@resumen.SaldoTotal.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Bancos</div><div class="ns-mono fw-bold fs-4">@resumen.SaldoBancos.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Caja</div><div class="ns-mono fw-bold fs-4">@resumen.SaldoCaja.ToString("N2")</div></div></div></div>
+        <div class="col-md-3 col-6"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Cuentas activas</div><div class="ns-mono fw-bold fs-4">@resumen.CuentasActivas</div></div></div></div>
+    </div>
+}
+
+<div class="ns-toolbar">
+    <form method="get" class="ns-toolbar-search">
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar código, nombre o banco…" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
+    </form>
+    <a asp-action="Movimientos" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">sync_alt</span> Ver movimientos</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Banco</th>
+                    <th class="text-end">Saldo</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || !Model.Items.Any())
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">account_balance</span><p>Sin cuentas registradas.</p></div></td></tr>
+                }
+                @foreach (var c in Model?.Items ?? Array.Empty<CuentaTesoreriaDto>())
+                {
+                    var badge = c.EstadoCodigo == "ACTIVA" ? "ns-pill ns-pill--on" : "ns-pill ns-pill--off";
+                    <tr>
+                        <td class="ns-mono"><strong>@c.Codigo</strong></td>
+                        <td><a asp-action="Detalle" asp-route-id="@c.Id">@c.Nombre</a></td>
+                        <td><span class="ns-badge ns-badge--draft">@c.TipoCuenta</span></td>
+                        <td class="small">@(c.Banco ?? "—") <span class="ns-mono text-muted">@c.NumeroCuenta</span></td>
+                        <td class="text-end ns-mono fw-bold">@c.SaldoActual.ToString("N2")</td>
+                        <td><span class="@badge">@c.EstadoCodigo</span></td>
+                        <td class="text-end">
+                            <a asp-action="Detalle" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Ver</a>
+                            @if (puedeGestionar)
+                            {
+                                <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model is not null && Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination pagination-sm">
+        @for (int i = 1; i <= Model.TotalPages; i++)
+        {
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a></li>
+        }
+    </ul></nav>
+}

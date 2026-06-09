@@ -1,0 +1,103 @@
+@using NeoSTP.Application.Tesoreria.Dtos
+@model CuentaTesoreriaDetalleDto
+@{
+    ViewData["Title"] = $"Cuenta · {Model.Nombre}";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var puedeMover = ViewBag.PuedeMover is bool m && m;
+    var activa = Model.EstadoCodigo == "ACTIVA";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Tesorería</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Codigo</span>
+        </nav>
+        <h1 class="ns-page-title">@Model.Nombre <span class="ns-pill @(activa ? "ns-pill--on" : "ns-pill--off")">@Model.EstadoCodigo</span></h1>
+    </div>
+    <div class="d-flex gap-2">
+        @if (puedeMover && activa)
+        {
+            <a asp-action="RegistrarMovimiento" asp-route-cuentaId="@Model.Id" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Movimiento</a>
+        }
+        @if (puedeGestionar)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">edit</span> Editar</a>
+            @if (activa)
+            {
+                <form asp-action="Inactivar" asp-route-id="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Inactivar la cuenta?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm">Inactivar</button></form>
+            }
+            else
+            {
+                <form asp-action="Reactivar" asp-route-id="@Model.Id" method="post" class="m-0">@Html.AntiForgeryToken()<button class="btn btn-outline-success btn-sm">Reactivar</button></form>
+            }
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Volver</a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header"><span class="material-symbols-outlined align-middle">account_balance</span> Datos de la cuenta</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted small">Código</dt><dd class="col-sm-7 ns-mono">@Model.Codigo</dd>
+                    <dt class="col-sm-5 text-muted small">Tipo</dt><dd class="col-sm-7">@Model.TipoCuenta</dd>
+                    <dt class="col-sm-5 text-muted small">Banco</dt><dd class="col-sm-7">@(Model.Banco ?? "—")</dd>
+                    <dt class="col-sm-5 text-muted small">Nº cuenta</dt><dd class="col-sm-7 ns-mono">@(Model.NumeroCuenta ?? "—")</dd>
+                    <dt class="col-sm-5 text-muted small">Moneda</dt><dd class="col-sm-7">@Model.MonedaCodigo</dd>
+                    <dt class="col-sm-5 text-muted small">Saldo inicial</dt><dd class="col-sm-7 ns-mono">@Model.SaldoInicial.ToString("N2")</dd>
+                    <dt class="col-sm-5 text-muted small">Saldo actual</dt><dd class="col-sm-7 ns-mono fw-bold fs-5" style="color:var(--ns-processed)">@Model.SaldoActual.ToString("N2")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="material-symbols-outlined align-middle">sync_alt</span> Últimos movimientos</span>
+                <a asp-action="Movimientos" asp-route-cuentaId="@Model.Id" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover m-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Concepto</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-end">Saldo</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Movimientos.Any())
+                        {
+                            <tr><td colspan="5"><div class="ns-empty"><span class="material-symbols-outlined">receipt_long</span><p>Sin movimientos.</p></div></td></tr>
+                        }
+                        @foreach (var mv in Model.Movimientos)
+                        {
+                            var ingreso = mv.Tipo == "INGRESO";
+                            var anulado = mv.EstadoCodigo == "ANULADO";
+                            <tr class="@(anulado ? "text-muted text-decoration-line-through" : "")">
+                                <td class="ns-mono small">@mv.Fecha.ToString("dd/MM/yy")</td>
+                                <td>@mv.Concepto @if (mv.Origen != "MANUAL") { <span class="ns-badge ns-badge--draft">@mv.Origen</span> }</td>
+                                <td class="text-end ns-mono @(ingreso ? "text-success" : "text-danger")">@(ingreso ? "+" : "−")@mv.Monto.ToString("N2")</td>
+                                <td class="text-end ns-mono">@mv.SaldoResultante.ToString("N2")</td>
+                                <td class="text-end">
+                                    @if (puedeMover && !anulado)
+                                    {
+                                        <form asp-action="AnularMovimiento" asp-route-id="@mv.Id" asp-route-cuentaId="@Model.Id" method="post" class="m-0" onsubmit="return confirm('¿Anular el movimiento? Se revertirá el saldo.');">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-danger" title="Anular"><span class="material-symbols-outlined" style="font-size:16px">undo</span></button></form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

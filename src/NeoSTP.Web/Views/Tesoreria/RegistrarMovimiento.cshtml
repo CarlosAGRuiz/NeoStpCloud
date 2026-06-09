@@ -1,0 +1,71 @@
+@using NeoSTP.Application.Tesoreria.Dtos
+@model RegistrarMovimientoRequest
+@{
+    ViewData["Title"] = "Registrar movimiento";
+    var cuentas = ViewBag.Cuentas as List<CuentaTesoreriaDto> ?? new List<CuentaTesoreriaDto>();
+    var tipos = ViewBag.TiposMovimiento as string[] ?? Array.Empty<string>();
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Tesorería</a><span class="material-symbols-outlined">chevron_right</span><span>Movimiento</span></nav>
+        <h1 class="ns-page-title">Registrar movimiento</h1>
+    </div>
+</div>
+
+<div class="card"><div class="card-body">
+    @if (!cuentas.Any())
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">account_balance</span><p>No hay cuentas activas. Crea una cuenta primero.</p><a asp-action="Create" class="btn btn-primary btn-sm">Nueva cuenta</a></div>
+    }
+    else
+    {
+        <form asp-action="RegistrarMovimiento" method="post" class="row g-3" style="max-width:720px">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger small"></div>
+            <div class="col-md-6">
+                <label class="form-label">Cuenta</label>
+                <select asp-for="CuentaId" class="form-select">
+                    <option value="">— Selecciona —</option>
+                    @foreach (var c in cuentas) { <option value="@c.Id">@c.Codigo · @c.Nombre (saldo @c.SaldoActual.ToString("N2"))</option> }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo</label>
+                <select asp-for="Tipo" class="form-select">
+                    @foreach (var t in tipos) { <option value="@t">@t</option> }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Fecha</label>
+                <input asp-for="Fecha" type="date" class="form-control" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Monto</label>
+                <input asp-for="Monto" type="number" step="0.01" min="0.01" class="form-control ns-mono" />
+            </div>
+            <div class="col-md-8">
+                <label class="form-label">Concepto</label>
+                <input asp-for="Concepto" class="form-control" placeholder="Pago de planilla 06/2026 Q1…" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Referencia (opcional)</label>
+                <input asp-for="Referencia" class="form-control" placeholder="Nº cheque / transferencia" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Origen</label>
+                <select asp-for="Origen" class="form-select">
+                    <option value="MANUAL">MANUAL</option>
+                    <option value="PLANILLA">PLANILLA</option>
+                    <option value="GASTO">GASTO</option>
+                    <option value="COMPRA">COMPRA</option>
+                    <option value="COBRO">COBRO</option>
+                </select>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Registrar</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    }
+</div></div>

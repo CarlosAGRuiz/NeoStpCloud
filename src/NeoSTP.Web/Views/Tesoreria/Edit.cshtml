@@ -1,0 +1,44 @@
+@using NeoSTP.Application.Tesoreria.Dtos
+@model UpdateCuentaTesoreriaRequest
+@{
+    ViewData["Title"] = "Editar cuenta";
+    var tipos = ViewBag.TiposCuenta as string[] ?? Array.Empty<string>();
+    var cuentaId = (int)ViewBag.CuentaId;
+    var codigo = ViewBag.Codigo as string;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Index">Tesorería</a><span class="material-symbols-outlined">chevron_right</span><span>Editar</span></nav>
+        <h1 class="ns-page-title">Editar cuenta <span class="ns-mono text-muted">@codigo</span></h1>
+    </div>
+</div>
+
+<div class="card"><div class="card-body">
+    <form asp-action="Edit" asp-route-id="@cuentaId" method="post" class="row g-3" style="max-width:720px">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="All" class="text-danger small"></div>
+        <div class="col-md-8">
+            <label class="form-label">Nombre</label>
+            <input asp-for="Nombre" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Tipo</label>
+            <select asp-for="TipoCuenta" class="form-select">
+                @foreach (var t in tipos) { <option value="@t">@t</option> }
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Banco (opcional)</label>
+            <input asp-for="Banco" class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Nº de cuenta (opcional)</label>
+            <input asp-for="NumeroCuenta" class="form-control ns-mono" />
+        </div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+            <a asp-action="Detalle" asp-route-id="@cuentaId" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </form>
+</div></div>
