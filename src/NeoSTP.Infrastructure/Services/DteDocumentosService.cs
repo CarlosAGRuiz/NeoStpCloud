@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Comunicaciones;
 using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte;
 using NeoSTP.Domain.Core.Connect;
@@ -38,7 +39,7 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly IHaciendaAuthClient _haciendaAuth;
     private readonly ISecretProtector _protector;
     private readonly IDtePdfService _pdf;
-    private readonly IEmailSender _email;
+    private readonly ITenantEmailSender _email;
     private readonly IAuditoriaService _auditoria;
     private readonly IConnectWebhookDispatcher _webhookDispatcher;
 
@@ -53,7 +54,7 @@ public class DteDocumentosService : IDteDocumentosService
         IHaciendaAuthClient haciendaAuth,
         ISecretProtector protector,
         IDtePdfService pdf,
-        IEmailSender email,
+        ITenantEmailSender email,
         IAuditoriaService auditoria,
         IConnectWebhookDispatcher webhookDispatcher)
     {
@@ -659,7 +660,7 @@ public class DteDocumentosService : IDteDocumentosService
                 MediaType = doc.Empresa!.LogoContentType ?? "image/png",
                 Content = doc.Empresa!.LogoBlob!,
             });
-        var result = await _email.EnviarAsync(message, ct);
+        var result = await _email.EnviarAsync(empresaId, message, ct);
 
         var dto = new DteReenvioResultDto
         {
