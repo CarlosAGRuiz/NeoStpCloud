@@ -37,7 +37,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
 | Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
 | Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
-| Tests | xUnit + FluentAssertions + NSubstitute (**570 unitarias + integración**) |
+| Tests | xUnit + FluentAssertions + NSubstitute (**575 unitarias + integración**) |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -83,7 +83,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 |---|---|---|---|
 | 100 | CORE | Empresas, sucursales, PV, usuarios, roles/permisos, catálogos, auditoría | ✅ |
 | 101 | NEODTE | Emisión DTE (8 tipos), certificación MH, eventos, contingencia, diagnóstico | ✅ |
-| 102 | **NEOPOS** | Punto de venta: ventas, tickets térmicos, impresión, correo | ✅ S1+S2 |
+| 102 | **NEOPOS** | Punto de venta: ventas, tickets térmicos, impresión, correo, promoción a DTE | ✅ S1–S3 |
 | 103 | NEOSCANAI | Captura/OCR de documentos (backend; UI en la app) | ✅ backend |
 | 104 | NEOPROFIT | P&L: ventas, costos, gastos/compras, rankings | ✅ |
 | 105 | NEOBI | Reportes/BI | ⏳ |
@@ -105,7 +105,8 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
   **ESC/POS por red** (TCP 9100) a impresoras térmicas, **envío del ticket por correo**, resumen del día.
   Ventas como comprobante no fiscal **promovibles a Factura/CCF electrónica** (DTE) en un clic.
 - **Inventario** — existencias por producto, **kardex** de movimientos y **costo promedio ponderado**
-  (actualiza el costo del producto para NeoProfit); entradas/salidas/ajustes y alerta de stock bajo.
+  (actualiza el costo del producto para NeoProfit); entradas/salidas/ajustes manuales y **auto-integración**:
+  compra→entrada, venta POS→salida (con devolución al anular) y **alerta de stock bajo** en el centro de notificaciones.
 - **NeoRRHH** — empleados/contratos, **planilla quincenal** con tablas **ISSS/AFP/Renta 2026** parametrizables,
   recibos PDF, exportes ISSS/AFP (CSV), cierre → gasto PLANILLA en NeoProfit.
 - **Tesorería** — cuentas de banco/caja con saldo corriente; movimientos de ingreso/egreso con origen
@@ -209,8 +210,8 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-**570 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
-(`PosCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `EscPosTicketBuilder`).
+**575 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
+(`PosCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `CostoPromedioCalculator`, `EscPosTicketBuilder`).
 
 ---
 
@@ -232,8 +233,8 @@ Documentación adicional en `docs/` (`NeoConnect-API-v1.md`, `NeoCloud-Mobile-AP
 Plan vivo en **[`docs/Plan-V2-ERP-CRM.md`](docs/Plan-V2-ERP-CRM.md)** — NeoSTP como **ERP + CRM-mini**.
 
 - **Fase A — ERP interno ✅**: NeoRRHH (nómina quincenal), Tesorería.
-- **Fase B — Egresos/stock**: Compras/CxP ✅ · Inventario ⏳.
-- **Fase C — Comercial**: NeoPOS ✅ (S1+S2) · NEOCRM ⏳ · NeoPortal ⏳.
+- **Fase B — Egresos/stock ✅**: Compras/CxP · Inventario · auto-integración (compra/venta) + stock bajo.
+- **Fase C — Comercial**: NeoPOS ✅ (S1–S3) · NEOCRM ⏳ · NeoPortal ⏳.
 - **Fase D — Cierre fiscal/contable**: Libro IVA/F-07, NEOCONTA ⏳.
 - **Fase E — Escala**: storage externo, Redis, observabilidad, cumplimiento ⏳.
 

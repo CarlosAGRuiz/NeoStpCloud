@@ -7,6 +7,7 @@ using NeoSTP.Application.Comunicaciones;
 using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
+using NeoSTP.Application.Inventario.Dtos;
 using NeoSTP.Application.Pos;
 using NeoSTP.Application.Pos.Dtos;
 using NeoSTP.Domain.Core.Empresas;
@@ -45,7 +46,8 @@ public class PosServiceTests
         email.EnviarAsync(Arg.Any<int>(), Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>())
             .Returns(new EmailSendResult { Success = true, MessageId = "ok" });
         var dte = Substitute.For<IConnectDteService>();
-        var svc = new PosService(db, Substitute.For<IAuditoriaService>(), new TicketPdfService(), email, dte, Options.Create(new PosOptions()));
+        var inventario = new InventarioService(db, Substitute.For<IAuditoriaService>());
+        var svc = new PosService(db, Substitute.For<IAuditoriaService>(), new TicketPdfService(), email, dte, inventario, Options.Create(new PosOptions()));
         return (svc, email, dte);
     }
 
@@ -222,5 +224,30 @@ public class PosServiceTests
         pdf.Should().NotBeNullOrEmpty();
         pdf.Length.Should().BeGreaterThan(500);
         System.Text.Encoding.ASCII.GetString(pdf, 0, 4).Should().Be("%PDF");
+    }
+
+    [Fact]
+    public async Task CrearVenta_DescuentaStockDeBien()
+    {
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
+        var inv = new InventarioService(db, Substitute.For<IAuditoriaService>());
+        await inv.RegistrarEntradaAsync(Empresa, new RegistrarMovimientoInventarioRequest { ProductoId = 1, Cantidad = 10m, CostoUnitario = 5m }, "t");
+
+        await svc.CrearVentaAsync(Empresa, VentaConProducto(2m), "c"); // vende 2
+
+        (await db.ExistenciasProducto.FirstAsync(e => e.ProductoId == 1)).Cantidad.Should().Be(8m);
+    }
+
+    [Fact]
+    public async Task Anular_ReingresaStockDeBien()
+    {
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
+        var inv = new InventarioService(db, Substitute.For<IAuditoriaService>());
+        await inv.RegistrarEntradaAsync(Empresa, new RegistrarMovimientoInventarioRequest { ProductoId = 1, Cantidad = 10m, CostoUnitario = 5m }, "t");
+        var v = await svc.CrearVentaAsync(Empresa, VentaConProducto(2m), "c"); // 10 → 8
+
+        await svc.AnularAsync(Empresa, v.Value!.Id, "c"); // 8 → 10 (devolución)
+
+        (await db.ExistenciasProducto.FirstAsync(e => e.ProductoId == 1)).Cantidad.Should().Be(10m);
     }
 }

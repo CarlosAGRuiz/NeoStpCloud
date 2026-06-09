@@ -1,8 +1,10 @@
 @using NeoSTP.Application.Compras.Dtos
+@using NeoSTP.Application.Productos.Dtos
 @model CrearFacturaCompraRequest
 @{
     ViewData["Title"] = "Nueva factura de compra";
     var proveedores = ViewBag.Proveedores as List<ProveedorDto> ?? new List<ProveedorDto>();
+    var productos = ViewBag.Productos as List<ProductoDto> ?? new List<ProductoDto>();
     var tipos = ViewBag.TiposDocumento as string[] ?? Array.Empty<string>();
     var condiciones = ViewBag.CondicionesPago as string[] ?? Array.Empty<string>();
 }
@@ -57,6 +59,43 @@
                 </div>
             </div>
             <div class="col-12"><label class="form-label">Descripción (opcional)</label><input asp-for="Descripcion" class="form-control" /></div>
+
+            <div class="col-12">
+                <details class="border rounded p-3">
+                    <summary class="fw-semibold">Recepción a inventario (opcional)</summary>
+                    <p class="form-text mt-2 mb-2">Si esta compra ingresa productos al inventario, agrégalos aquí. Cada línea genera una entrada con su costo (kardex + costo promedio + NeoProfit).</p>
+                    @if (!productos.Any())
+                    {
+                        <div class="ns-empty"><span class="material-symbols-outlined">inventory_2</span><p>No hay productos (bienes) activos para recibir.</p></div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm align-middle mb-2">
+                            <thead><tr><th style="width:55%">Producto</th><th>Cantidad</th><th>Costo unit.</th><th></th></tr></thead>
+                            <tbody id="invBody"></tbody>
+                        </table>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="invAdd"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Agregar producto</button>
+
+                        <template id="invRow">
+                            <tr>
+                                <td>
+                                    <select class="form-select form-select-sm inv-prod">
+                                        <option value="">— Selecciona —</option>
+                                        @foreach (var p in productos)
+                                        {
+                                            <option value="@p.Id" data-costo="@((p.CostoUnitario ?? 0m).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.CodigoInterno · @p.Nombre</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td><input type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono inv-cant" value="1" /></td>
+                                <td><input type="number" step="0.0001" min="0" class="form-control form-control-sm ns-mono inv-costo" placeholder="actual" /></td>
+                                <td><button type="button" class="btn btn-outline-danger btn-sm inv-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+                            </tr>
+                        </template>
+                    }
+                </details>
+            </div>
+
             <div class="col-12 d-flex gap-2">
                 <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
                 <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
@@ -64,3 +103,36 @@
         </form>
     }
 </div></div>
+
+<script>
+    (function () {
+        var body = document.getElementById('invBody');
+        var tpl = document.getElementById('invRow');
+        var add = document.getElementById('invAdd');
+        if (!body || !tpl || !add) return;
+
+        function reindex() {
+            Array.prototype.forEach.call(body.querySelectorAll('tr'), function (tr, i) {
+                tr.querySelector('.inv-prod').name = 'LineasInventario[' + i + '].ProductoId';
+                tr.querySelector('.inv-cant').name = 'LineasInventario[' + i + '].Cantidad';
+                tr.querySelector('.inv-costo').name = 'LineasInventario[' + i + '].CostoUnitario';
+            });
+        }
+        function wire(tr) {
+            tr.querySelector('.inv-del').addEventListener('click', function () { tr.remove(); reindex(); });
+            var prod = tr.querySelector('.inv-prod');
+            prod.addEventListener('change', function () {
+                var opt = prod.options[prod.selectedIndex];
+                var costo = opt ? opt.getAttribute('data-costo') : null;
+                var ci = tr.querySelector('.inv-costo');
+                if (costo && Number(costo) > 0 && !ci.value) ci.value = costo;
+            });
+        }
+        add.addEventListener('click', function () {
+            var tr = tpl.content.cloneNode(true).querySelector('tr');
+            body.appendChild(tr);
+            wire(tr);
+            reindex();
+        });
+    })();
+</script>

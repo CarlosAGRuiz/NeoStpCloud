@@ -5,6 +5,8 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Compras;
 using NeoSTP.Application.Compras.Dtos;
 using NeoSTP.Application.Empresas;
+using NeoSTP.Application.Productos;
+using NeoSTP.Application.Productos.Dtos;
 using NeoSTP.Application.Tesoreria;
 using NeoSTP.Domain.Core.Compras;
 using NeoSTP.Domain.Core.Tesoreria;
@@ -21,13 +23,15 @@ public class ComprasController : Controller
 
     private readonly ICompraService _compras;
     private readonly ITesoreriaService _tesoreria;
+    private readonly IProductosService _productos;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
 
-    public ComprasController(ICompraService compras, ITesoreriaService tesoreria, ICurrentUser currentUser, IEmpresaContext empresaContext)
+    public ComprasController(ICompraService compras, ITesoreriaService tesoreria, IProductosService productos, ICurrentUser currentUser, IEmpresaContext empresaContext)
     {
         _compras = compras;
         _tesoreria = tesoreria;
+        _productos = productos;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
     }
@@ -68,6 +72,7 @@ public class ComprasController : Controller
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         await CargarProveedoresAsync(eid, ct);
+        await CargarProductosInventarioAsync(eid, ct);
         ViewBag.TiposDocumento = TiposDocumento;
         ViewBag.CondicionesPago = CondicionesPago;
         return View(new CrearFacturaCompraRequest
@@ -89,6 +94,7 @@ public class ComprasController : Controller
         {
             foreach (var e in result.ValidationErrors ?? new[] { result.Error ?? "Error." }) ModelState.AddModelError(string.Empty, e);
             await CargarProveedoresAsync(eid, ct);
+            await CargarProductosInventarioAsync(eid, ct);
             ViewBag.TiposDocumento = TiposDocumento;
             ViewBag.CondicionesPago = CondicionesPago;
             return View(model);
@@ -135,6 +141,13 @@ public class ComprasController : Controller
     {
         var provs = await _compras.ListProveedoresAsync(eid, new PagedQuery { Page = 1, PageSize = 500 }, ct);
         ViewBag.Proveedores = provs.Value?.Items.Where(p => p.EstadoCodigo == ProveedorEstados.Activo).ToList() ?? new List<ProveedorDto>();
+    }
+
+    private async Task CargarProductosInventarioAsync(int eid, CancellationToken ct)
+    {
+        var prods = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct);
+        ViewBag.Productos = prods.Value?.Items
+            .Where(p => p.EstadoCodigo == "ACTIVO" && !p.EsServicio).ToList() ?? new List<ProductoDto>();
     }
 
     private async Task CargarCuentasAsync(int eid, CancellationToken ct)

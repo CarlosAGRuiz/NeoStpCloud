@@ -6,8 +6,11 @@ using NeoSTP.Application.Comunicaciones;
 using NeoSTP.Application.Connect;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
+using NeoSTP.Application.Inventario;
+using NeoSTP.Application.Inventario.Dtos;
 using NeoSTP.Application.Pos;
 using NeoSTP.Application.Pos.Dtos;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Pos;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -27,15 +30,17 @@ public class PosService : IPosService
     private readonly ITicketPdfService _ticketPdf;
     private readonly ITenantEmailSender _email;
     private readonly IConnectDteService _dte;
+    private readonly IInventarioService _inventario;
     private readonly PosOptions _opts;
 
-    public PosService(NeoStpDbContext db, IAuditoriaService auditoria, ITicketPdfService ticketPdf, ITenantEmailSender email, IConnectDteService dte, IOptions<PosOptions> opts)
+    public PosService(NeoStpDbContext db, IAuditoriaService auditoria, ITicketPdfService ticketPdf, ITenantEmailSender email, IConnectDteService dte, IInventarioService inventario, IOptions<PosOptions> opts)
     {
         _db = db;
         _auditoria = auditoria;
         _ticketPdf = ticketPdf;
         _email = email;
         _dte = dte;
+        _inventario = inventario;
         _opts = opts.Value;
     }
 
@@ -81,15 +86,15 @@ public class PosService : IPosService
 
         // Resolver productos referenciados.
         var idsProd = request.Lineas.Where(l => l.ProductoId is int).Select(l => l.ProductoId!.Value).Distinct().ToList();
-        var productos = new Dictionary<int, (string codigo, string nombre, decimal precio, bool iva)>();
+        var productos = new Dictionary<int, (string codigo, string nombre, decimal precio, bool iva, bool bien)>();
         if (idsProd.Count > 0)
         {
             var filas = await _db.Productos.AsNoTracking()
                 .Where(p => p.EmpresaId == empresaId && idsProd.Contains(p.Id))
-                .Select(p => new { p.Id, p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.AplicaIva })
+                .Select(p => new { p.Id, p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.AplicaIva, p.TipoItem })
                 .ToListAsync(ct);
             foreach (var p in filas)
-                productos[p.Id] = (p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.AplicaIva);
+                productos[p.Id] = (p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.AplicaIva, p.TipoItem != "SERVICIO");
         }
 
         var venta = new VentaPos
@@ -141,6 +146,18 @@ public class PosService : IPosService
         _db.VentasPos.Add(venta);
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "CREAR_VENTA", $"{venta.Numero} · {venta.Total:N2} · {venta.Lineas.Count} ítems", venta.Id);
+
+        // Descuento de inventario (best-effort, solo BIEN). No bloquea la venta si falta stock.
+        foreach (var l in venta.Lineas)
+        {
+            if (l.ProductoId is int pid && productos.TryGetValue(pid, out var p) && p.bien)
+                await _inventario.RegistrarSalidaAsync(empresaId, new RegistrarMovimientoInventarioRequest
+                {
+                    ProductoId = pid, Cantidad = l.Cantidad,
+                    Origen = OrigenesMovimientoInventario.Venta, OrigenId = venta.Id, Referencia = venta.Numero,
+                }, actor, ct);
+        }
+
         return Result<VentaPosDetalleDto>.Ok(ToDetalle(venta));
     }
 
@@ -156,6 +173,19 @@ public class PosService : IPosService
         v.UpdatedAt = DateTime.UtcNow; v.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "ANULAR_VENTA", v.Numero, v.Id);
+
+        // Reingreso de inventario por las salidas que generó esta venta (best-effort), al mismo costo.
+        var salidas = await _db.MovimientosInventario.AsNoTracking()
+            .Where(m => m.EmpresaId == empresaId && m.Origen == OrigenesMovimientoInventario.Venta
+                && m.OrigenId == v.Id && m.Tipo == TiposMovimientoInventario.Salida)
+            .Select(m => new { m.ProductoId, m.Cantidad, m.CostoUnitario }).ToListAsync(ct);
+        foreach (var m in salidas)
+            await _inventario.RegistrarEntradaAsync(empresaId, new RegistrarMovimientoInventarioRequest
+            {
+                ProductoId = m.ProductoId, Cantidad = m.Cantidad, CostoUnitario = m.CostoUnitario,
+                Origen = OrigenesMovimientoInventario.Devolucion, OrigenId = v.Id, Referencia = v.Numero,
+            }, actor, ct);
+
         return Result.Ok();
     }
 

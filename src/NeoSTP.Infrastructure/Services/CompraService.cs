@@ -3,11 +3,14 @@ using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Compras;
 using NeoSTP.Application.Compras.Dtos;
+using NeoSTP.Application.Inventario;
+using NeoSTP.Application.Inventario.Dtos;
 using NeoSTP.Application.Profit;
 using NeoSTP.Application.Profit.Dtos;
 using NeoSTP.Application.Tesoreria;
 using NeoSTP.Application.Tesoreria.Dtos;
 using NeoSTP.Domain.Core.Compras;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Tesoreria;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -26,13 +29,15 @@ public class CompraService : ICompraService
     private readonly IAuditoriaService _auditoria;
     private readonly IProfitService _profit;
     private readonly ITesoreriaService _tesoreria;
+    private readonly IInventarioService _inventario;
 
-    public CompraService(NeoStpDbContext db, IAuditoriaService auditoria, IProfitService profit, ITesoreriaService tesoreria)
+    public CompraService(NeoStpDbContext db, IAuditoriaService auditoria, IProfitService profit, ITesoreriaService tesoreria, IInventarioService inventario)
     {
         _db = db;
         _auditoria = auditoria;
         _profit = profit;
         _tesoreria = tesoreria;
+        _inventario = inventario;
     }
 
     // ── Proveedores ──────────────────────────────────────────────────────────
@@ -208,6 +213,22 @@ public class CompraService : ICompraService
         _db.FacturasCompra.Add(factura);
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "CREAR_FACTURA_COMPRA", $"{prov.Nombre} · {factura.NumeroDocumento} · {factura.Total:N2}", "FacturaCompra", factura.Id);
+
+        // Entrada a inventario por los productos recibidos con la compra (best-effort).
+        if (request.LineasInventario is { Count: > 0 })
+        {
+            foreach (var li in request.LineasInventario)
+            {
+                if (li.ProductoId <= 0 || li.Cantidad <= 0) continue;
+                await _inventario.RegistrarEntradaAsync(empresaId, new RegistrarMovimientoInventarioRequest
+                {
+                    ProductoId = li.ProductoId, Cantidad = li.Cantidad,
+                    CostoUnitario = li.CostoUnitario is > 0 ? li.CostoUnitario : null,
+                    Origen = OrigenesMovimientoInventario.Compra, OrigenId = factura.Id,
+                    Referencia = factura.NumeroDocumento,
+                }, actor, ct);
+            }
+        }
 
         factura.Proveedor = prov;
         return Result<FacturaCompraDetalleDto>.Ok(ToFacturaDetalle(factura));

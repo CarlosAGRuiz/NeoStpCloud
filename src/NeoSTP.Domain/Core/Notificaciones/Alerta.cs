@@ -44,6 +44,7 @@ public static class AlertaTipos
     public const string CertPorVencer = "CERT_POR_VENCER";
     public const string FacturaVencida = "FACTURA_VENCIDA";
     public const string F07Proxima = "F07_PROXIMA";
+    public const string StockBajo = "STOCK_BAJO";
 }
 
 public static class AlertaSeveridades

@@ -11,7 +11,8 @@ namespace NeoSTP.Infrastructure.Services;
 
 /// <summary>
 /// Genera alertas a partir de datos reales: DTE rechazados sin resolver, certificado de firma
-/// próximo a vencer y facturas vencidas (cuentas por cobrar). Usa upsert por clave (dedupe).
+/// próximo a vencer, facturas vencidas (cuentas por cobrar) y productos bajo stock mínimo.
+/// Usa upsert por clave (dedupe).
 /// </summary>
 public class AlertaGeneracionService : IAlertaGeneracionService
 {
@@ -92,6 +93,22 @@ public class AlertaGeneracionService : IAlertaGeneracionService
                     EntidadTipo = "DteDocumento", EntidadId = f.DteDocumentoId,
                 });
         }
+
+        // 4) Productos bajo stock mínimo (inventario)
+        var bajoStock = await (from e in _db.ExistenciasProducto.AsNoTracking()
+                               join p in _db.Productos.AsNoTracking() on new { e.EmpresaId, e.ProductoId } equals new { p.EmpresaId, ProductoId = p.Id }
+                               where e.EmpresaId == empresaId && e.StockMinimo > 0 && e.Cantidad <= e.StockMinimo && p.EstadoCodigo == "ACTIVO"
+                               orderby e.Cantidad
+                               select new { p.Id, p.CodigoInterno, p.Nombre, e.Cantidad, e.StockMinimo })
+                              .Take(100).ToListAsync(ct);
+        foreach (var s in bajoStock)
+            await Crear($"{AlertaTipos.StockBajo}:{s.Id}", new CrearAlertaRequest
+            {
+                TipoCodigo = AlertaTipos.StockBajo, Severidad = AlertaSeveridades.Advertencia,
+                Titulo = "Producto bajo stock mínimo",
+                Mensaje = $"{s.CodigoInterno} · {s.Nombre}: quedan {s.Cantidad:N2} (mínimo {s.StockMinimo:N2}). Considera reabastecer.",
+                EntidadTipo = "Producto", EntidadId = s.Id,
+            });
 
         return creadas;
     }

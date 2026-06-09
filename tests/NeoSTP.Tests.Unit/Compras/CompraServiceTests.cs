@@ -42,7 +42,8 @@ public class CompraServiceTests
             .Returns(Result<MovimientoTesoreriaDto>.Ok(new MovimientoTesoreriaDto { Id = 321 }));
         tes.AnularMovimientoAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Ok());
-        var svc = new CompraService(db, Substitute.For<IAuditoriaService>(), profit, tes);
+        var svc = new CompraService(db, Substitute.For<IAuditoriaService>(), profit, tes,
+            new InventarioService(db, Substitute.For<IAuditoriaService>()));
         return (svc, profit, tes);
     }
 
@@ -59,6 +60,28 @@ public class CompraServiceTests
         ProveedorId = provId, NumeroDocumento = "F-001", TipoDocumento = "CCF", CondicionPago = "CREDITO",
         FechaEmision = new DateOnly(2026, 6, 1), Subtotal = sub, Iva = iva, IvaDeducible = true,
     };
+
+    [Fact]
+    public async Task CrearFactura_ConLineasInventario_GeneraEntrada()
+    {
+        var db = NewDb(); var (svc, _, _) = NewSvc(db);
+        db.Productos.Add(new NeoSTP.Domain.Core.Productos.Producto
+        {
+            Id = 1, EmpresaId = Empresa, CodigoInterno = "P1", Nombre = "Insumo", PrecioUnitario = 10m,
+            EstadoCodigo = "ACTIVO", UnidadMedidaCodigo = "59", TipoItem = "BIEN",
+        });
+        db.SaveChanges();
+        var prov = await NuevoProveedor(svc);
+        var req = Factura(prov);
+        req.LineasInventario = [new CompraInventarioLineaRequest { ProductoId = 1, Cantidad = 5m, CostoUnitario = 4m }];
+
+        var r = await svc.CrearFacturaAsync(Empresa, req, "t");
+
+        r.IsSuccess.Should().BeTrue();
+        var ex = await db.ExistenciasProducto.FirstAsync(e => e.ProductoId == 1);
+        ex.Cantidad.Should().Be(5m);
+        ex.CostoPromedio.Should().Be(4m);
+    }
 
     [Fact]
     public async Task CrearProveedor_CodigoDuplicado_Falla()

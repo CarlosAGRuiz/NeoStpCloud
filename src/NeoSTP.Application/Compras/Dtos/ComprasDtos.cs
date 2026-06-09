@@ -116,6 +116,17 @@ public class CrearFacturaCompraRequest
     [StringLength(250)] public string? Descripcion { get; set; }
     /// <summary>Si es true, registra un gasto en NeoProfit para el P&amp;L.</summary>
     public bool RegistrarGastoProfit { get; set; } = true;
+    /// <summary>Productos que ingresan a inventario con esta compra (opcional). Generan entradas con costo.</summary>
+    public List<CompraInventarioLineaRequest>? LineasInventario { get; set; }
+}
+
+/// <summary>Línea opcional de recepción a inventario al registrar una factura de compra.</summary>
+public class CompraInventarioLineaRequest
+{
+    public int ProductoId { get; set; }
+    [Range(0, 9_999_999)] public decimal Cantidad { get; set; }
+    /// <summary>Costo unitario de entrada (si null/0 usa el costo actual del producto).</summary>
+    public decimal? CostoUnitario { get; set; }
 }
 
 public class RegistrarPagoProveedorRequest
