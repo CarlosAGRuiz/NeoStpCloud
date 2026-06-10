@@ -19,11 +19,13 @@ namespace NeoSTP.Api.Controllers;
 public class TesoreriaApiController : ApiControllerBase
 {
     private readonly ITesoreriaService _tesoreria;
+    private readonly IConciliacionBancariaService _conciliacion;
     private readonly ICurrentUser _currentUser;
 
-    public TesoreriaApiController(ITesoreriaService tesoreria, ICurrentUser currentUser)
+    public TesoreriaApiController(ITesoreriaService tesoreria, IConciliacionBancariaService conciliacion, ICurrentUser currentUser)
     {
         _tesoreria = tesoreria;
+        _conciliacion = conciliacion;
         _currentUser = currentUser;
     }
 
@@ -109,6 +111,74 @@ public class TesoreriaApiController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _tesoreria.ResumenAsync(eid, ct));
+    }
+
+    // ── Conciliación bancaria (V2-D4) ────────────────────────────────────────
+
+    /// <summary>Importa el estado de cuenta del banco (multipart: archivo CSV/XLSX).</summary>
+    [HttpPost("conciliacion/{cuentaId:int}/importar")]
+    [RequirePermiso("Tesoreria.Movimientos.Gestionar")]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> ImportarEstadoCuenta(int cuentaId, IFormFile? archivo, [FromQuery] bool dryRun, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        if (archivo is null || archivo.Length == 0)
+            return BadRequest(ApiResponse.Fail("Adjunta el archivo CSV o Excel en el campo 'archivo'.", null, HttpContext.TraceIdentifier));
+
+        var fmt = archivo.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? BulkFileFormat.Csv : BulkFileFormat.Xlsx;
+        using var ms = new MemoryStream();
+        await archivo.CopyToAsync(ms, ct);
+        ms.Position = 0;
+        return Respond(await _conciliacion.ImportarAsync(eid, cuentaId, new BulkImportRequest { Format = fmt, Content = ms, DryRun = dryRun }, _currentUser.Username, ct));
+    }
+
+    [HttpGet("conciliacion/{cuentaId:int}/movimientos")]
+    [RequirePermiso("Tesoreria.Movimientos.Ver")]
+    public async Task<IActionResult> ListMovimientosBanco(int cuentaId, [FromQuery] PagedQuery query, [FromQuery] string? estado, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.ListAsync(eid, cuentaId, estado, query, ct));
+    }
+
+    [HttpGet("conciliacion/{cuentaId:int}/sugerencias")]
+    [RequirePermiso("Tesoreria.Movimientos.Ver")]
+    public async Task<IActionResult> Sugerencias(int cuentaId, [FromQuery] int toleranciaDias = 3, [FromQuery] int? empresaId = null, CancellationToken ct = default)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.SugerenciasAsync(eid, cuentaId, toleranciaDias, ct));
+    }
+
+    [HttpGet("conciliacion/{cuentaId:int}/resumen")]
+    [RequirePermiso("Tesoreria.Movimientos.Ver")]
+    public async Task<IActionResult> ResumenConciliacion(int cuentaId, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.ResumenAsync(eid, cuentaId, ct));
+    }
+
+    [HttpPost("conciliacion/movimientos/{id:int}/conciliar/{movimientoTesoreriaId:int}")]
+    [RequirePermiso("Tesoreria.Movimientos.Gestionar")]
+    public async Task<IActionResult> Conciliar(int id, int movimientoTesoreriaId, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.ConciliarAsync(eid, id, movimientoTesoreriaId, _currentUser.Username, ct), "Línea conciliada.");
+    }
+
+    /// <summary>Aplica todas las sugerencias de confianza ALTA de la cuenta.</summary>
+    [HttpPost("conciliacion/{cuentaId:int}/conciliar-sugeridos")]
+    [RequirePermiso("Tesoreria.Movimientos.Gestionar")]
+    public async Task<IActionResult> ConciliarSugeridos(int cuentaId, [FromQuery] int toleranciaDias = 3, [FromQuery] int? empresaId = null, CancellationToken ct = default)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.ConciliarSugeridosAsync(eid, cuentaId, toleranciaDias, _currentUser.Username, ct));
+    }
+
+    [HttpPost("conciliacion/movimientos/{id:int}/desconciliar")]
+    [RequirePermiso("Tesoreria.Movimientos.Gestionar")]
+    public async Task<IActionResult> Desconciliar(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.DesconciliarAsync(eid, id, _currentUser.Username, ct), "Línea desconciliada.");
     }
 
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;

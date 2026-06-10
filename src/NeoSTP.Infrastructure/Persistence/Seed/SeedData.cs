@@ -374,6 +374,7 @@ internal static partial class SeedData
             Mod(114, "NEOCRM",       "NeoCRM",            "Contactos, oportunidades, pipeline y actividades",    "handshake",      16),
             Mod(113, "NEORRHH",      "NeoRRHH",           "Recursos humanos y nómina",                          "users",          14),
             Mod(115, "NEOTESORERIA", "Tesorería",         "Cuentas de banco/caja y movimientos",                "account_balance", 15),
+            Mod(116, "NEOCONTA",     "NeoConta",          "Asientos contables básicos y balanza",               "book_open",      18),
         };
 
         modelBuilder.Entity<Modulo>().HasData(modulos);
@@ -417,10 +418,10 @@ internal static partial class SeedData
             Pm(202, 100), Pm(202, 101), Pm(202, 102), Pm(202, 103), Pm(202, 108), Pm(202, 110), Pm(202, 114),
             // BusinessFull
             Pm(203, 100), Pm(203, 101), Pm(203, 102), Pm(203, 103), Pm(203, 104), Pm(203, 105),
-            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 114), Pm(203, 115),
+            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 114), Pm(203, 115), Pm(203, 116),
             // Enterprise (todos)
             Pm(204, 100), Pm(204, 101), Pm(204, 102), Pm(204, 103), Pm(204, 104), Pm(204, 105),
-            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 114), Pm(204, 115),
+            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 114), Pm(204, 115), Pm(204, 116),
             // IntegradorAPI
             Pm(205, 100), Pm(205, 101), Pm(205, 106),
             // Contador
@@ -535,6 +536,14 @@ internal static partial class SeedData
             Perm(413, "Crm.Actividades.Gestionar",  "NEOCRM", "Crear, completar y cancelar actividades CRM"),
             Perm(414, "Crm.Cotizaciones.Ver",       "NEOCRM", "Ver cotizaciones CRM"),
             Perm(415, "Crm.Cotizaciones.Gestionar", "NEOCRM", "Crear cotizaciones, cambiar estado y convertir a DTE"),
+
+            // NEOPORTAL (V2-C2)
+            Perm(416, "Portal.Enlaces.Ver",       "NEOPORTAL", "Ver enlaces del portal de receptor"),
+            Perm(417, "Portal.Enlaces.Gestionar", "NEOPORTAL", "Generar y revocar enlaces del portal de receptor"),
+
+            // NEOCONTA (V2-D2)
+            Perm(418, "Conta.Ver",       "NEOCONTA", "Ver asientos contables y balanza"),
+            Perm(419, "Conta.Gestionar", "NEOCONTA", "Generar asientos automáticos y reversar"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -570,6 +579,7 @@ internal static partial class SeedData
             402, 403, 404, 405,
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
+            416, 417, 418, 419,
             360, 361, 362, 363, 364,
         };
 
@@ -587,6 +597,7 @@ internal static partial class SeedData
             402, 403, 404, 405,
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
+            416, 417, 418, 419,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -600,6 +611,7 @@ internal static partial class SeedData
             402, 403, 404,
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
+            416, 417, 418, 419,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -614,7 +626,7 @@ internal static partial class SeedData
             398, 400,
             402,
             406,
-            408, 410, 412, 414,
+            408, 410, 412, 414, 416, 418,
         };
 
         // READONLY (504) → solo ver
@@ -624,7 +636,7 @@ internal static partial class SeedData
             322,
             330, 335,
             340,
-            408, 410, 412, 414,
+            408, 410, 412, 414, 416, 418,
         };
 
         var rolPermisos = new List<object>();

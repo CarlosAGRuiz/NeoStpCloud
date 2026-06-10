@@ -43,11 +43,13 @@ public abstract class ApiControllerBase : ControllerBase
             or "GASTO_NOT_FOUND" or "COMPRA_NOT_FOUND" or "PAGO_NOT_FOUND" or "SCAN_NOT_FOUND"
             or "ALERTA_NOT_FOUND" or "DISPOSITIVO_NOT_FOUND" or "CUENTA_NOT_FOUND"
             or "EMPLEADO_NOT_FOUND" or "PLANILLA_NOT_FOUND" or "DETALLE_NOT_FOUND" or "RECIBIDO_NOT_FOUND"
-            or "CUENTA_TES_NOT_FOUND" or "MOVIMIENTO_NOT_FOUND"
+            or "CUENTA_TES_NOT_FOUND" or "MOVIMIENTO_NOT_FOUND" or "MOV_BANCO_NOT_FOUND"
             or "PROVEEDOR_NOT_FOUND" or "FACTURA_COMPRA_NOT_FOUND" or "PAGO_PROVEEDOR_NOT_FOUND"
             or "VENTA_POS_NOT_FOUND" or "IMPRESORA_NOT_FOUND" or "SESION_CAJA_NOT_FOUND"
             or "CRM_CONTACTO_NOT_FOUND" or "CRM_ETAPA_NOT_FOUND" or "CRM_OPORTUNIDAD_NOT_FOUND"
-            or "CRM_ACTIVIDAD_NOT_FOUND" or "CRM_COTIZACION_NOT_FOUND" => NotFound(payload),
+            or "CRM_ACTIVIDAD_NOT_FOUND" or "CRM_COTIZACION_NOT_FOUND"
+            or "PORTAL_ENLACE_NOT_FOUND" or "TOKEN_INVALIDO" or "TOKEN_EXPIRADO" or "TOKEN_REVOCADO"
+            or "ASIENTO_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" or "STOCK_INSUFICIENTE" or "CAJA_ABIERTA" => Conflict(payload),
         "IP_DUPLICATE" => Conflict(payload),
         "IP_INVALID" => BadRequest(payload),

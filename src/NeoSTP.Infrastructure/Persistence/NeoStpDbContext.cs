@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using NeoSTP.Domain.Core.Auditoria;
 using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Clientes;
@@ -31,7 +31,7 @@ public class NeoStpDbContext : DbContext
     {
     }
 
-    // Catálogos
+    // CatÃ¡logos
     public DbSet<Catalogo> Catalogos => Set<Catalogo>();
     public DbSet<CatalogoItem> CatalogoItems => Set<CatalogoItem>();
 
@@ -55,7 +55,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<EmpresaPlan> EmpresaPlanes => Set<EmpresaPlan>();
     public DbSet<EmpresaModulo> EmpresaModulos => Set<EmpresaModulo>();
 
-    // DTE - Clientes, Productos y Configuración
+    // DTE - Clientes, Productos y ConfiguraciÃ³n
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<DteConfiguracion> DteConfiguracion => Set<DteConfiguracion>();
@@ -66,7 +66,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<DteDocumentoDetalle> DteDocumentoDetalles => Set<DteDocumentoDetalle>();
     public DbSet<DteDocumentoJson> DteDocumentoJson => Set<DteDocumentoJson>();
 
-    // DTE - Certificación (Sprint 14)
+    // DTE - CertificaciÃ³n (Sprint 14)
     public DbSet<CertificacionMatriz> CertificacionMatriz => Set<CertificacionMatriz>();
     public DbSet<CertificacionEscenario> CertificacionEscenarios => Set<CertificacionEscenario>();
     public DbSet<CertificacionPrueba> CertificacionPruebas => Set<CertificacionPrueba>();
@@ -82,14 +82,14 @@ public class NeoStpDbContext : DbContext
     public DbSet<DteContingenciaLote> DteContingenciaLotes => Set<DteContingenciaLote>();
     public DbSet<DteContingenciaLoteDetalle> DteContingenciaLoteDetalles => Set<DteContingenciaLoteDetalle>();
 
-    // DTE - Diagnóstico de errores (Sprint 17)
+    // DTE - DiagnÃ³stico de errores (Sprint 17)
     public DbSet<DteErrorCatalogo> DteErrorCatalogo => Set<DteErrorCatalogo>();
     public DbSet<DteErrorOcurrencia> DteErrorOcurrencias => Set<DteErrorOcurrencia>();
 
-    // Legal — consentimiento (Sprint 18)
+    // Legal â€” consentimiento (Sprint 18)
     public DbSet<UserConsent> UserConsents => Set<UserConsent>();
 
-    // Billing — self-service (Sprint 19)
+    // Billing â€” self-service (Sprint 19)
     public DbSet<BillingCustomer> BillingCustomers => Set<BillingCustomer>();
     public DbSet<BillingSubscription> BillingSubscriptions => Set<BillingSubscription>();
     public DbSet<BillingPayment> BillingPayments => Set<BillingPayment>();
@@ -97,7 +97,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
     public DbSet<BillingPlanProviderMapping> BillingPlanProviderMappings => Set<BillingPlanProviderMapping>();
 
-    // Hardening / Operación (Sprint 20)
+    // Hardening / OperaciÃ³n (Sprint 20)
     public DbSet<BackupJob> BackupJobs => Set<BackupJob>();
     public DbSet<ApiUsageLog> ApiUsageLogs => Set<ApiUsageLog>();
     public DbSet<ApiQuota> ApiQuotas => Set<ApiQuota>();
@@ -116,6 +116,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<PagoCliente> PagosCliente => Set<PagoCliente>();
     public DbSet<CuentaCobro> CuentasCobro => Set<CuentaCobro>();
     public DbSet<RecordatorioCobro> RecordatoriosCobro => Set<RecordatorioCobro>();
+    public DbSet<ConfigRecordatorioCobro> ConfigRecordatoriosCobro => Set<ConfigRecordatorioCobro>();
 
     // NEOCRM (V2-C1)
     public DbSet<ContactoCrm> ContactosCrm => Set<ContactoCrm>();
@@ -129,40 +130,49 @@ public class NeoStpDbContext : DbContext
     public DbSet<ScanDocumento> ScanDocumentos => Set<ScanDocumento>();
     public DbSet<DteDocumentoRecibido> DteDocumentosRecibidos => Set<DteDocumentoRecibido>();
 
+    // NeoPortal receptor (V2-C2)
+    public DbSet<NeoSTP.Domain.Core.Portal.PortalAcceso> PortalAccesos => Set<NeoSTP.Domain.Core.Portal.PortalAcceso>();
+
+    // NEOCONTA (V2-D2)
+    public DbSet<NeoSTP.Domain.Core.Conta.CuentaContable> CuentasContables => Set<NeoSTP.Domain.Core.Conta.CuentaContable>();
+    public DbSet<NeoSTP.Domain.Core.Conta.AsientoContable> AsientosContables => Set<NeoSTP.Domain.Core.Conta.AsientoContable>();
+    public DbSet<NeoSTP.Domain.Core.Conta.AsientoContableLinea> AsientoContableLineas => Set<NeoSTP.Domain.Core.Conta.AsientoContableLinea>();
+
     // Alertas y notificaciones (B-4 NeoCloud Mobile)
     public DbSet<Alerta> Alertas => Set<Alerta>();
     public DbSet<DispositivoNotificacion> DispositivosNotificacion => Set<DispositivoNotificacion>();
     public DbSet<PreferenciaNotificacion> PreferenciasNotificacion => Set<PreferenciaNotificacion>();
 
-    // RRHH / Nómina (NEORRHH — V2)
+    // RRHH / NÃ³mina (NEORRHH â€” V2)
     public DbSet<Empleado> Empleados => Set<Empleado>();
     public DbSet<ContratoLaboral> ContratosLaborales => Set<ContratoLaboral>();
     public DbSet<PlanillaPeriodo> PlanillaPeriodos => Set<PlanillaPeriodo>();
     public DbSet<PlanillaDetalle> PlanillaDetalles => Set<PlanillaDetalle>();
 
-    // Tesorería (NEOTESORERIA — V2)
+    // TesorerÃ­a (NEOTESORERIA â€” V2)
     public DbSet<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria> CuentasTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria>();
     public DbSet<NeoSTP.Domain.Core.Tesoreria.MovimientoTesoreria> MovimientosTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.MovimientoTesoreria>();
+    public DbSet<NeoSTP.Domain.Core.Tesoreria.MovimientoBancario> MovimientosBancarios => Set<NeoSTP.Domain.Core.Tesoreria.MovimientoBancario>();
 
-    // Compras / Cuentas por pagar (NEOCOMPRAS — V2)
+    // Compras / Cuentas por pagar (NEOCOMPRAS â€” V2)
     public DbSet<NeoSTP.Domain.Core.Compras.Proveedor> Proveedores => Set<NeoSTP.Domain.Core.Compras.Proveedor>();
     public DbSet<NeoSTP.Domain.Core.Compras.FacturaCompra> FacturasCompra => Set<NeoSTP.Domain.Core.Compras.FacturaCompra>();
     public DbSet<NeoSTP.Domain.Core.Compras.PagoProveedor> PagosProveedor => Set<NeoSTP.Domain.Core.Compras.PagoProveedor>();
 
-    // Punto de venta (NEOPOS — V2)
+    // Punto de venta (NEOPOS â€” V2)
     public DbSet<NeoSTP.Domain.Core.Pos.VentaPos> VentasPos => Set<NeoSTP.Domain.Core.Pos.VentaPos>();
     public DbSet<NeoSTP.Domain.Core.Pos.VentaPosLinea> VentaPosLineas => Set<NeoSTP.Domain.Core.Pos.VentaPosLinea>();
     public DbSet<NeoSTP.Domain.Core.Pos.ImpresoraPos> ImpresorasPos => Set<NeoSTP.Domain.Core.Pos.ImpresoraPos>();
     public DbSet<NeoSTP.Domain.Core.Pos.SesionCaja> SesionesCaja => Set<NeoSTP.Domain.Core.Pos.SesionCaja>();
 
-    // Comunicaciones (correo por empresa — V2)
+    // Comunicaciones (correo por empresa â€” V2)
     public DbSet<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo> ConfiguracionesCorreo => Set<NeoSTP.Domain.Core.Comunicaciones.ConfiguracionCorreo>();
 
-    // Inventario (INVENTARIO — V2)
+    // Inventario (INVENTARIO â€” V2)
     public DbSet<NeoSTP.Domain.Core.Inventario.ExistenciaProducto> ExistenciasProducto => Set<NeoSTP.Domain.Core.Inventario.ExistenciaProducto>();
     public DbSet<NeoSTP.Domain.Core.Inventario.MovimientoInventario> MovimientosInventario => Set<NeoSTP.Domain.Core.Inventario.MovimientoInventario>();
 
-    // Auditoría
+    // AuditorÃ­a
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

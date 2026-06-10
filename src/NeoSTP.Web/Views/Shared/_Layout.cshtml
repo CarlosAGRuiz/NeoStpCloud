@@ -25,6 +25,9 @@
     var puedeConfigurarCorreo = isSuperAdmin || User.HasClaim("permiso", "Core.Correo.Configurar");
     var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
     var puedeVerCrm = isSuperAdmin || User.HasClaim("permiso", "Crm.Oportunidades.Ver");
+    var puedeVerPortal = isSuperAdmin || User.HasClaim("permiso", "Portal.Enlaces.Ver");
+    var puedeVerReportes = isSuperAdmin || User.HasClaim("permiso", "Reportes.Ver");
+    var puedeVerConta = isSuperAdmin || User.HasClaim("permiso", "Conta.Ver");
     var puedeVerCrmContactos = isSuperAdmin || User.HasClaim("permiso", "Crm.Contactos.Ver");
     var puedeVerCrmCotizaciones = isSuperAdmin || User.HasClaim("permiso", "Crm.Cotizaciones.Ver");
     var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
@@ -83,6 +86,7 @@ else
                 @if (puedeVerCobros)
                 {
                     <a class="ns-nav-link @active("Cobros")" asp-controller="Cobros" asp-action="Index"><span class="material-symbols-outlined">paid</span> Cobros</a>
+                    <a class="ns-nav-link" asp-controller="Cobros" asp-action="Recordatorios"><span class="material-symbols-outlined">notifications_active</span> Recordatorios</a>
                 }
                 @if (puedeVerEventos)
                 {
@@ -109,9 +113,17 @@ else
                     <a class="ns-nav-link @active("Catalogos")" asp-controller="Catalogos" asp-action="Index"><span class="material-symbols-outlined">menu_book</span> Catálogos</a>
                 }
 
-                @if (puedeVerProfit || puedeVerScan)
+                @if (puedeVerProfit || puedeVerScan || puedeVerReportes || puedeVerConta)
                 {
                     <div class="ns-nav-group">Inteligencia</div>
+                    @if (puedeVerReportes)
+                    {
+                        <a class="ns-nav-link @active("NeoBi")" asp-controller="NeoBi" asp-action="Index"><span class="material-symbols-outlined">summarize</span> NeoBI fiscal</a>
+                    }
+                    @if (puedeVerConta)
+                    {
+                        <a class="ns-nav-link @active("Conta")" asp-controller="Conta" asp-action="Index"><span class="material-symbols-outlined">menu_book</span> NeoConta</a>
+                    }
                     @if (puedeVerProfit)
                     {
                         <a class="ns-nav-link @active("Profit")" asp-controller="Profit" asp-action="Index"><span class="material-symbols-outlined">trending_up</span> NeoProfit</a>
@@ -140,6 +152,10 @@ else
                     @if (puedeVerCrmCotizaciones)
                     {
                         <a class="ns-nav-link" asp-controller="Crm" asp-action="Cotizaciones"><span class="material-symbols-outlined">request_quote</span> Cotizaciones</a>
+                    }
+                    @if (puedeVerPortal)
+                    {
+                        <a class="ns-nav-link @active("PortalEnlaces")" asp-controller="PortalEnlaces" asp-action="Index"><span class="material-symbols-outlined">public</span> Portal del cliente</a>
                     }
                 }
 
@@ -170,6 +186,7 @@ else
                     <div class="ns-nav-group">Tesorería</div>
                     <a class="ns-nav-link @active("Tesoreria")" asp-controller="Tesoreria" asp-action="Index"><span class="material-symbols-outlined">account_balance</span> Cuentas</a>
                     <a class="ns-nav-link @active("Movimientos")" asp-controller="Tesoreria" asp-action="Movimientos"><span class="material-symbols-outlined">sync_alt</span> Movimientos</a>
+                    <a class="ns-nav-link @active("Conciliacion")" asp-controller="Tesoreria" asp-action="Conciliacion"><span class="material-symbols-outlined">join_inner</span> Conciliación</a>
                 }
 
                 @if (puedeVerProveedores || puedeVerCompras)
