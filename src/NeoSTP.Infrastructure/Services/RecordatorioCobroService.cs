@@ -72,9 +72,9 @@ public class RecordatorioCobroService : IRecordatorioCobroService
         {
             var contacto = await CargarContactoAsync(empresaId, f.DteDocumentoId, ct);
             if (request.EnviarEmail)
-                await ProcesarCanalAsync(empresaId, f, contacto.Email, RecordatorioCanales.Email, hoy, request.Forzar, actor, resumen, ct);
+                await ProcesarCanalAsync(empresaId, f, contacto.Email, RecordatorioCanales.Email, hoy, request, actor, resumen, ct);
             if (request.EnviarWhatsApp)
-                await ProcesarCanalAsync(empresaId, f, contacto.Telefono, RecordatorioCanales.WhatsApp, hoy, request.Forzar, actor, resumen, ct);
+                await ProcesarCanalAsync(empresaId, f, contacto.Telefono, RecordatorioCanales.WhatsApp, hoy, request, actor, resumen, ct);
         }
 
         await _auditoria.RegistrarAsync(new AuditoriaEvent
@@ -97,23 +97,26 @@ public class RecordatorioCobroService : IRecordatorioCobroService
         string? destinatario,
         string canal,
         DateOnly fecha,
-        bool forzar,
+        EjecutarRecordatoriosCobroRequest request,
         string? actor,
         RecordatorioCobroResumenDto resumen,
         CancellationToken ct)
     {
-        if (!forzar)
+        if (!request.Forzar)
         {
+            // Ventana de frecuencia: omite si ya se envió dentro de los últimos N días.
+            var frecuencia = Math.Clamp(request.FrecuenciaDias, 1, 60);
+            var desde = fecha.AddDays(-(frecuencia - 1));
             var yaExiste = await _db.RecordatoriosCobro.AsNoTracking()
                 .AnyAsync(r => r.EmpresaId == empresaId
                             && r.DteDocumentoId == factura.DteDocumentoId
                             && r.Canal == canal
-                            && r.FechaRecordatorio == fecha
+                            && r.FechaRecordatorio >= desde
                             && r.EstadoCodigo == RecordatorioEstados.Enviado, ct);
             if (yaExiste)
             {
                 resumen.Omitidos++;
-                resumen.Detalles.Add(Detalle(factura, canal, RecordatorioEstados.Omitido, destinatario, "Ya enviado hoy."));
+                resumen.Detalles.Add(Detalle(factura, canal, RecordatorioEstados.Omitido, destinatario, "Ya enviado dentro de la frecuencia configurada."));
                 return;
             }
         }
@@ -126,7 +129,12 @@ public class RecordatorioCobroService : IRecordatorioCobroService
             return;
         }
 
-        var body = BuildTexto(factura);
+        var body = string.IsNullOrWhiteSpace(request.MensajePlantilla)
+            ? BuildTexto(factura)
+            : AplicarPlantilla(request.MensajePlantilla, factura);
+        var subject = string.IsNullOrWhiteSpace(request.AsuntoPlantilla)
+            ? $"Recordatorio de pago {factura.NumeroControl}"
+            : AplicarPlantilla(request.AsuntoPlantilla, factura);
         string estado;
         string? motivo;
         string? messageId;
@@ -136,8 +144,10 @@ public class RecordatorioCobroService : IRecordatorioCobroService
             var result = await _email.EnviarAsync(empresaId, new EmailMessage
             {
                 To = destinatario.Trim(),
-                Subject = $"Recordatorio de pago {factura.NumeroControl}",
-                HtmlBody = BuildHtml(factura),
+                Subject = subject,
+                HtmlBody = string.IsNullOrWhiteSpace(request.MensajePlantilla)
+                    ? BuildHtml(factura)
+                    : $"<p>{System.Net.WebUtility.HtmlEncode(body).Replace("\n", "<br/>")}</p>",
                 TextBody = body,
             }, ct);
             estado = result.Success ? RecordatorioEstados.Enviado : RecordatorioEstados.Fallido;
@@ -235,6 +245,87 @@ public class RecordatorioCobroService : IRecordatorioCobroService
         Destinatario = destinatario,
         Motivo = motivo,
     };
+
+    // ── Configuración por empresa (V2-D3) ────────────────────────────────────
+
+    public async Task<Result<RecordatorioCobroResumenDto>> EjecutarSegunConfiguracionAsync(int empresaId, string? actor, CancellationToken ct = default)
+    {
+        var config = await _db.ConfigRecordatoriosCobro.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config is null || !config.Activo)
+            return Result<RecordatorioCobroResumenDto>.Fail(
+                "Los recordatorios automáticos no están activos para esta empresa.", "RECORDATORIOS_DESHABILITADOS");
+
+        return await EjecutarAsync(empresaId, new EjecutarRecordatoriosCobroRequest
+        {
+            DiasVencidoMinimo = config.DiasVencidoMinimo,
+            Maximo = config.MaximoPorEjecucion,
+            EnviarEmail = config.EnviarEmail,
+            EnviarWhatsApp = config.EnviarWhatsApp,
+            FrecuenciaDias = config.FrecuenciaDias,
+            AsuntoPlantilla = config.AsuntoPlantilla,
+            MensajePlantilla = config.MensajePlantilla,
+        }, actor, ct);
+    }
+
+    public async Task<Result<ConfigRecordatorioCobroDto>> GetConfiguracionAsync(int empresaId, CancellationToken ct = default)
+    {
+        var config = await _db.ConfigRecordatoriosCobro.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        return Result<ConfigRecordatorioCobroDto>.Ok(config is null ? new ConfigRecordatorioCobroDto() : ToConfigDto(config));
+    }
+
+    public async Task<Result<ConfigRecordatorioCobroDto>> GuardarConfiguracionAsync(int empresaId, GuardarConfigRecordatorioRequest request, string? actor, CancellationToken ct = default)
+    {
+        if (request.Activo && !request.EnviarEmail && !request.EnviarWhatsApp)
+            return Result<ConfigRecordatorioCobroDto>.Fail("Habilita al menos un canal (email o WhatsApp).", "VALIDATION");
+
+        var config = await _db.ConfigRecordatoriosCobro.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        if (config is null)
+        {
+            config = new ConfigRecordatorioCobro { EmpresaId = empresaId, CreatedBy = actor };
+            _db.ConfigRecordatoriosCobro.Add(config);
+        }
+        config.Activo = request.Activo;
+        config.DiasVencidoMinimo = Math.Clamp(request.DiasVencidoMinimo, 0, 365);
+        config.FrecuenciaDias = Math.Clamp(request.FrecuenciaDias, 1, 60);
+        config.MaximoPorEjecucion = Math.Clamp(request.MaximoPorEjecucion, 1, 500);
+        config.EnviarEmail = request.EnviarEmail;
+        config.EnviarWhatsApp = request.EnviarWhatsApp;
+        config.AsuntoPlantilla = request.AsuntoPlantilla?.Trim();
+        config.MensajePlantilla = request.MensajePlantilla?.Trim();
+        config.UpdatedAt = DateTime.UtcNow; config.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+
+        await _auditoria.RegistrarAsync(new AuditoriaEvent
+        {
+            EmpresaId = empresaId, Username = actor, Modulo = AuditModule, Accion = "CONFIG_RECORDATORIOS",
+            Entidad = "ConfigRecordatorioCobro", EntidadId = config.Id.ToString(), Resultado = "OK",
+            Detalle = $"Activo={config.Activo}; Email={config.EnviarEmail}; WhatsApp={config.EnviarWhatsApp}; Frecuencia={config.FrecuenciaDias}d",
+        });
+        return Result<ConfigRecordatorioCobroDto>.Ok(ToConfigDto(config));
+    }
+
+    private static ConfigRecordatorioCobroDto ToConfigDto(ConfigRecordatorioCobro c) => new()
+    {
+        Activo = c.Activo,
+        DiasVencidoMinimo = c.DiasVencidoMinimo,
+        FrecuenciaDias = c.FrecuenciaDias,
+        MaximoPorEjecucion = c.MaximoPorEjecucion,
+        EnviarEmail = c.EnviarEmail,
+        EnviarWhatsApp = c.EnviarWhatsApp,
+        AsuntoPlantilla = c.AsuntoPlantilla,
+        MensajePlantilla = c.MensajePlantilla,
+    };
+
+    /// <summary>Sustituye los placeholders de la plantilla con los datos de la factura.</summary>
+    internal static string AplicarPlantilla(string plantilla, CobroPendienteDto f)
+        => plantilla
+            .Replace("{numeroControl}", f.NumeroControl, StringComparison.OrdinalIgnoreCase)
+            .Replace("{cliente}", f.ClienteNombre, StringComparison.OrdinalIgnoreCase)
+            .Replace("{saldo}", f.Saldo.ToString("N2", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+            .Replace("{diasVencido}", f.DiasVencido.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+            .Replace("{vencimiento}", f.Vencimiento.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
 
     private static string BuildTexto(CobroPendienteDto f)
         => $"Estimado cliente, le recordamos que el documento {f.NumeroControl} tiene saldo pendiente de $ {f.Saldo:N2} y vencio hace {f.DiasVencido} dia(s).";

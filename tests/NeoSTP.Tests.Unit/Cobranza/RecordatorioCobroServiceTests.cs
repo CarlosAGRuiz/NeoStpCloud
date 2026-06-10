@@ -115,7 +115,7 @@ public class RecordatorioCobroServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Omitidos.Should().Be(1);
-        result.Value.Detalles.Should().ContainSingle(d => d.Motivo == "Ya enviado hoy.");
+        result.Value.Detalles.Should().ContainSingle(d => d.Motivo == "Ya enviado dentro de la frecuencia configurada.");
         await email.DidNotReceive().EnviarAsync(Arg.Any<int>(), Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>());
     }
 
@@ -135,5 +135,84 @@ public class RecordatorioCobroServiceTests
             r.EstadoCodigo == RecordatorioEstados.Omitido &&
             r.Motivo == "Sin destinatario.");
         await email.DidNotReceive().EnviarAsync(Arg.Any<int>(), Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>());
+    }
+
+    // ── Configuración por empresa (V2-D3) ────────────────────────────────────
+
+    [Fact]
+    public async Task Configuracion_UpsertYLectura()
+    {
+        var db = NewDb(); var svc = NewSvc(db);
+
+        var guardada = await svc.GuardarConfiguracionAsync(Empresa, new NeoSTP.Application.Cobranza.GuardarConfigRecordatorioRequest
+        {
+            Activo = true, DiasVencidoMinimo = 5, FrecuenciaDias = 7, MaximoPorEjecucion = 25,
+            EnviarEmail = true, AsuntoPlantilla = "Pago pendiente {numeroControl}",
+        }, "admin");
+        var leida = await svc.GetConfiguracionAsync(Empresa);
+
+        guardada.IsSuccess.Should().BeTrue();
+        leida.Value!.Activo.Should().BeTrue();
+        leida.Value.FrecuenciaDias.Should().Be(7);
+        leida.Value.AsuntoPlantilla.Should().Be("Pago pendiente {numeroControl}");
+    }
+
+    [Fact]
+    public async Task Configuracion_ActivaSinCanales_Falla()
+    {
+        var db = NewDb(); var svc = NewSvc(db);
+
+        var r = await svc.GuardarConfiguracionAsync(Empresa, new NeoSTP.Application.Cobranza.GuardarConfigRecordatorioRequest
+        { Activo = true, EnviarEmail = false, EnviarWhatsApp = false }, "admin");
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("VALIDATION");
+    }
+
+    [Fact]
+    public async Task EjecutarSegunConfiguracion_SinConfigActiva_Falla()
+    {
+        var db = NewDb(); var svc = NewSvc(db);
+
+        var r = await svc.EjecutarSegunConfiguracionAsync(Empresa, "worker");
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("RECORDATORIOS_DESHABILITADOS");
+    }
+
+    [Fact]
+    public async Task EjecutarSegunConfiguracion_UsaPlantillaEnAsunto()
+    {
+        var db = NewDb();
+        var email = Substitute.For<ITenantEmailSender>();
+        email.EnviarAsync(Arg.Any<int>(), Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>())
+            .Returns(new EmailSendResult { Success = true, MessageId = "ok" });
+        var svc = NewSvc(db, email);
+        AddFacturaVencida(db);
+        await svc.GuardarConfiguracionAsync(Empresa, new NeoSTP.Application.Cobranza.GuardarConfigRecordatorioRequest
+        { Activo = true, EnviarEmail = true, DiasVencidoMinimo = 0, AsuntoPlantilla = "Pago pendiente {numeroControl}" }, "admin");
+
+        var r = await svc.EjecutarSegunConfiguracionAsync(Empresa, "worker");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EnviadosEmail.Should().Be(1);
+        await email.Received(1).EnviarAsync(Empresa,
+            Arg.Is<EmailMessage>(m => m.Subject.StartsWith("Pago pendiente DTE-01-")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void AplicarPlantilla_SustituyePlaceholders()
+    {
+        var f = new CobroPendienteDto
+        {
+            NumeroControl = "DTE-01-000001", ClienteNombre = "ACME", Saldo = 150.5m,
+            DiasVencido = 4, Vencimiento = new DateOnly(2026, 6, 1),
+        };
+
+        var texto = RecordatorioCobroService.AplicarPlantilla(
+            "Hola {cliente}: {numeroControl} debe ${saldo} ({diasVencido} días, venció {vencimiento}).", f);
+
+        texto.Should().Be("Hola ACME: DTE-01-000001 debe $150.50 (4 días, venció 01/06/2026).");
     }
 }

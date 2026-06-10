@@ -82,6 +82,12 @@ public sealed class EjecutarRecordatoriosCobroRequest
     public bool EnviarWhatsApp { get; set; }
     /// <summary>Si true, ignora el log de hoy y reintenta el envio.</summary>
     public bool Forzar { get; set; }
+    /// <summary>Cada cuántos días se repite el recordatorio por factura/canal (1 = diario).</summary>
+    public int FrecuenciaDias { get; set; } = 1;
+    /// <summary>Plantilla del asunto. Placeholders: {numeroControl} {cliente} {saldo} {diasVencido} {vencimiento}.</summary>
+    public string? AsuntoPlantilla { get; set; }
+    /// <summary>Plantilla del cuerpo (texto). Mismos placeholders; null = mensaje por defecto.</summary>
+    public string? MensajePlantilla { get; set; }
 }
 
 public sealed class RecordatorioCobroResumenDto

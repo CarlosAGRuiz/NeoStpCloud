@@ -145,6 +145,23 @@ public class CobranzaController : ApiControllerBase
         return Respond(await _recordatorios.EjecutarAsync(eid, req, _currentUser.Username, ct));
     }
 
+    /// <summary>Configuración de recordatorios automáticos de la empresa (reglas, canales, plantilla).</summary>
+    [HttpGet("recordatorios/configuracion")]
+    [RequirePermiso("Cobros.Ver")]
+    public async Task<IActionResult> GetConfigRecordatorios([FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _recordatorios.GetConfiguracionAsync(eid, ct));
+    }
+
+    [HttpPut("recordatorios/configuracion")]
+    [RequirePermiso("Cobros.Gestionar")]
+    public async Task<IActionResult> GuardarConfigRecordatorios([FromBody] GuardarConfigRecordatorioRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _recordatorios.GuardarConfiguracionAsync(eid, req, _currentUser.Username, ct));
+    }
+
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;
 
     private object NoTenant() => Shared.ApiResponse.Fail(

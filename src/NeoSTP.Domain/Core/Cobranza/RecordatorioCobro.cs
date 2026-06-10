@@ -30,6 +30,36 @@ public class RecordatorioCobro : AuditableEntity
     public int DiasVencido { get; set; }
 }
 
+/// <summary>
+/// Configuración por empresa de los recordatorios automáticos de cobro (V2-D3):
+/// reglas (días vencidos, frecuencia, máximo), canales y plantilla del mensaje.
+/// El worker solo procesa empresas con configuración activa.
+/// </summary>
+public class ConfigRecordatorioCobro : AuditableEntity
+{
+    public int EmpresaId { get; set; }
+    public Empresa Empresa { get; set; } = null!;
+
+    public bool Activo { get; set; }
+
+    /// <summary>Días de vencimiento mínimos para recordar (0 = desde el primer día vencida).</summary>
+    public int DiasVencidoMinimo { get; set; } = 1;
+
+    /// <summary>Cada cuántos días se repite el recordatorio de una misma factura (1 = diario).</summary>
+    public int FrecuenciaDias { get; set; } = 3;
+
+    public int MaximoPorEjecucion { get; set; } = 50;
+
+    public bool EnviarEmail { get; set; } = true;
+    public bool EnviarWhatsApp { get; set; }
+
+    /// <summary>Plantilla del asunto. Placeholders: {numeroControl} {cliente} {saldo} {diasVencido} {vencimiento}.</summary>
+    public string? AsuntoPlantilla { get; set; }
+
+    /// <summary>Plantilla del cuerpo (texto). Mismos placeholders; null = mensaje por defecto.</summary>
+    public string? MensajePlantilla { get; set; }
+}
+
 public static class RecordatorioCanales
 {
     public const string Email = "EMAIL";

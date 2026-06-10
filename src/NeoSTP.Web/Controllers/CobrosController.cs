@@ -21,19 +21,58 @@ public class CobrosController : Controller
 
     private readonly ICobranzaService _cobranza;
     private readonly ICobroQrService _qr;
+    private readonly IRecordatorioCobroService _recordatorios;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
 
     public CobrosController(
         ICobranzaService cobranza,
         ICobroQrService qr,
+        IRecordatorioCobroService recordatorios,
         ICurrentUser currentUser,
         IEmpresaContext empresaContext)
     {
         _cobranza = cobranza;
         _qr = qr;
+        _recordatorios = recordatorios;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
+    }
+
+    // ── Recordatorios automáticos (V2-D3) ────────────────────────────────────
+
+    [HttpGet("recordatorios")]
+    public async Task<IActionResult> Recordatorios(CancellationToken ct)
+    {
+        if (!Has("Cobros.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var config = await _recordatorios.GetConfiguracionAsync(eid, ct);
+        ViewBag.PuedeGestionar = Has("Cobros.Gestionar");
+        return View(config.Value);
+    }
+
+    [HttpPost("recordatorios")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Recordatorios(GuardarConfigRecordatorioRequest model, CancellationToken ct)
+    {
+        if (!Has("Cobros.Gestionar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var r = await _recordatorios.GuardarConfiguracionAsync(eid, model, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Configuración guardada." : r.Error;
+        return RedirectToAction(nameof(Recordatorios));
+    }
+
+    [HttpPost("recordatorios/ejecutar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecordatoriosEjecutar(CancellationToken ct)
+    {
+        if (!Has("Cobros.Gestionar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var r = await _recordatorios.EjecutarSegunConfiguracionAsync(eid, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess
+            ? $"Recordatorios ejecutados: {r.Value!.EnviadosEmail} email, {r.Value.EnviadosWhatsApp} WhatsApp, {r.Value.Omitidos} omitidos, {r.Value.Fallidos} fallidos."
+            : r.Error;
+        return RedirectToAction(nameof(Recordatorios));
     }
 
     [HttpGet("")]

@@ -1,0 +1,55 @@
+@using NeoSTP.Application.Cobranza
+@model ConfigRecordatorioCobroDto
+@{
+    ViewData["Title"] = "Recordatorios de cobro";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-controller="Cobros" asp-action="Index">Cobros</a><span class="material-symbols-outlined">chevron_right</span><span>Recordatorios</span></nav>
+        <h1 class="ns-page-title">Recordatorios automáticos de cobro</h1>
+    </div>
+    @if (puedeGestionar && Model.Activo)
+    {
+        <form asp-action="RecordatoriosEjecutar" method="post" class="ns-toolbar">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">send</span> Ejecutar ahora</button>
+        </form>
+    }
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="card"><div class="card-body">
+    <form asp-action="Recordatorios" method="post" class="row g-3" style="max-width:860px">
+        @Html.AntiForgeryToken()
+        <div class="col-12">
+            <div class="form-check form-switch">
+                <input asp-for="Activo" class="form-check-input" type="checkbox" role="switch" id="chkActivo" />
+                <label class="form-check-label" for="chkActivo"><strong>Recordatorios automáticos activos</strong> (el Worker los envía periódicamente)</label>
+            </div>
+        </div>
+        <div class="col-md-3"><label class="form-label">Días vencidos mínimos</label><input asp-for="DiasVencidoMinimo" type="number" min="0" max="365" class="form-control ns-mono" /><div class="form-text">0 = desde el primer día vencida.</div></div>
+        <div class="col-md-3"><label class="form-label">Frecuencia (días)</label><input asp-for="FrecuenciaDias" type="number" min="1" max="60" class="form-control ns-mono" /><div class="form-text">Cada cuántos días se repite por factura.</div></div>
+        <div class="col-md-3"><label class="form-label">Máx. por ejecución</label><input asp-for="MaximoPorEjecucion" type="number" min="1" max="500" class="form-control ns-mono" /></div>
+        <div class="col-md-3">
+            <label class="form-label d-block">Canales</label>
+            <div class="form-check form-check-inline"><input asp-for="EnviarEmail" class="form-check-input" type="checkbox" id="chkEmail" /><label class="form-check-label" for="chkEmail">Email</label></div>
+            <div class="form-check form-check-inline"><input asp-for="EnviarWhatsApp" class="form-check-input" type="checkbox" id="chkWa" /><label class="form-check-label" for="chkWa">WhatsApp</label></div>
+        </div>
+        <div class="col-12"><label class="form-label">Asunto (opcional)</label><input asp-for="AsuntoPlantilla" class="form-control" placeholder="Recordatorio de pago {numeroControl}" /></div>
+        <div class="col-12">
+            <label class="form-label">Mensaje (opcional)</label>
+            <textarea asp-for="MensajePlantilla" class="form-control" rows="3" placeholder="Estimado {cliente}, el documento {numeroControl} tiene saldo de ${saldo} y venció hace {diasVencido} día(s)."></textarea>
+            <div class="form-text">Placeholders: <code>{numeroControl}</code> <code>{cliente}</code> <code>{saldo}</code> <code>{diasVencido}</code> <code>{vencimiento}</code>. Vacío = mensaje por defecto.</div>
+        </div>
+        @if (puedeGestionar)
+        {
+            <div class="col-12"><button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button></div>
+        }
+    </form>
+    <hr />
+    <p class="form-text mb-0">WhatsApp usa un proveedor conectable (<code>IWhatsAppSender</code>); mientras no haya credenciales de WhatsApp Business API configuradas, se usa el proveedor simulado. El correo sale por el SMTP de la empresa.</p>
+</div></div>

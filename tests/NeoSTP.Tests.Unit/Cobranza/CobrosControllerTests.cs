@@ -30,7 +30,7 @@ public class CobrosControllerTests
         empresaContext.CurrentEmpresaId.Returns(empresaId);
 
         var http = new DefaultHttpContext();
-        var ctrl = new CobrosController(cobranza, qr, user, empresaContext)
+        var ctrl = new CobrosController(cobranza, qr, Substitute.For<IRecordatorioCobroService>(), user, empresaContext)
         {
             ControllerContext = new ControllerContext { HttpContext = http },
             TempData = new TempDataDictionary(http, Substitute.For<ITempDataProvider>()),

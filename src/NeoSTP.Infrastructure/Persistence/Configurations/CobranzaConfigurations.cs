@@ -73,3 +73,19 @@ public class RecordatorioCobroConfiguration : IEntityTypeConfiguration<Recordato
         b.HasIndex(x => new { x.EmpresaId, x.FechaRecordatorio, x.EstadoCodigo });
     }
 }
+
+public class ConfigRecordatorioCobroConfiguration : IEntityTypeConfiguration<ConfigRecordatorioCobro>
+{
+    public void Configure(EntityTypeBuilder<ConfigRecordatorioCobro> b)
+    {
+        b.ToTable("Cobros_ConfigRecordatorios");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.AsuntoPlantilla).HasMaxLength(160);
+        b.Property(x => x.MensajePlantilla).HasMaxLength(1000);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => x.EmpresaId).IsUnique();
+    }
+}

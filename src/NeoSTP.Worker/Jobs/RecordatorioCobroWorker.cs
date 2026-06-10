@@ -66,9 +66,10 @@ public class RecordatorioCobroWorker : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<NeoStpDbContext>();
         var service = scope.ServiceProvider.GetRequiredService<IRecordatorioCobroService>();
 
-        var empresas = await db.Empresas.AsNoTracking()
-            .Where(e => e.EstadoCodigo == "ACTIVA")
-            .Select(e => e.Id)
+        // Solo empresas activas CON configuración de recordatorios activa (V2-D3).
+        var empresas = await db.ConfigRecordatoriosCobro.AsNoTracking()
+            .Where(c => c.Activo && c.Empresa.EstadoCodigo == "ACTIVA")
+            .Select(c => c.EmpresaId)
             .ToListAsync(ct);
 
         var totalEmail = 0;
@@ -76,17 +77,12 @@ public class RecordatorioCobroWorker : BackgroundService
         var totalFallidos = 0;
         foreach (var empresaId in empresas)
         {
-            var result = await service.EjecutarAsync(empresaId, new EjecutarRecordatoriosCobroRequest
-            {
-                DiasVencidoMinimo = _options.DiasVencidoMinimo,
-                Maximo = _options.MaximoPorEmpresa,
-                EnviarEmail = _options.EnviarEmail,
-                EnviarWhatsApp = _options.EnviarWhatsApp,
-            }, "worker:recordatorios-cobro", ct);
+            var result = await service.EjecutarSegunConfiguracionAsync(empresaId, "worker:recordatorios-cobro", ct);
 
             if (!result.IsSuccess)
             {
-                _logger.LogWarning("RecordatorioCobroWorker: empresa {EmpresaId} fallo. {Error}", empresaId, result.Error);
+                if (result.ErrorCode != "RECORDATORIOS_DESHABILITADOS")
+                    _logger.LogWarning("RecordatorioCobroWorker: empresa {EmpresaId} fallo. {Error}", empresaId, result.Error);
                 continue;
             }
 
