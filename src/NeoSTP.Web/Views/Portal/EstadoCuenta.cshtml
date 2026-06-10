@@ -1,0 +1,61 @@
+@using NeoSTP.Application.Portal
+@model PortalEstadoCuentaDto
+@{
+    Layout = "_PortalLayout";
+    ViewData["Title"] = $"Estado de cuenta · {Model.Saldo.ClienteNombre}";
+    var token = ViewBag.Token as string;
+}
+
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <div class="text-muted small">@Model.EmpresaNombre</div>
+        <h1 class="h5 mb-1">Estado de cuenta</h1>
+        <div class="mb-3">@Model.Saldo.ClienteNombre</div>
+        <div class="row g-3">
+            <div class="col-6">
+                <div class="text-muted small">Saldo pendiente</div>
+                <div class="h4 mono">$ @Model.Saldo.TotalPendiente.ToString("N2")</div>
+            </div>
+            <div class="col-6">
+                <div class="text-muted small">Vencido</div>
+                <div class="h4 mono @(Model.Saldo.TotalVencido > 0 ? "text-danger" : "")">$ @Model.Saldo.TotalVencido.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mt-3">
+    <div class="card-body p-4">
+        <h2 class="h6 mb-3">Facturas pendientes</h2>
+        @if (!Model.Saldo.Facturas.Any())
+        {
+            <div class="text-center text-muted py-4">No tienes facturas pendientes. ¡Gracias por estar al día!</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Documento</th><th>Emisión</th><th>Vence</th><th class="text-end">Total</th><th class="text-end">Saldo</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var f in Model.Saldo.Facturas)
+                        {
+                            <tr>
+                                <td class="mono small">@f.NumeroControl</td>
+                                <td>@f.FechaEmision.ToString("dd/MM/yyyy")</td>
+                                <td class="@(f.EstadoCobro == "VENCIDO" ? "text-danger" : "")">@f.Vencimiento.ToString("dd/MM/yyyy")@(f.DiasVencido > 0 ? $" ({f.DiasVencido} d)" : "")</td>
+                                <td class="text-end mono">@f.Total.ToString("N2")</td>
+                                <td class="text-end mono fw-bold">@f.Saldo.ToString("N2")</td>
+                                <td class="text-end">
+                                    @if (Model.PagoDisponible)
+                                    {
+                                        <a href="/portal/@token/qr?dteId=@f.DteDocumentoId" class="btn btn-outline-success btn-sm">Pagar</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,100 @@
+@using NeoSTP.Application.Common
+@using NeoSTP.Application.Portal
+@model PagedResult<PortalEnlaceDto>
+@{
+    ViewData["Title"] = "Portal del cliente · Enlaces";
+    var clientes = ViewBag.Clientes as IEnumerable<NeoSTP.Application.Clientes.Dtos.ClienteDto> ?? Array.Empty<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Portal del cliente</span></nav>
+        <h1 class="ns-page-title">Enlaces del portal</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["EnlaceGenerado"] is string enlace)
+{
+    <div class="alert alert-info d-flex align-items-center gap-2 flex-wrap">
+        <span class="material-symbols-outlined">link</span>
+        <code class="ns-mono flex-grow-1 text-break" id="enlaceNuevo">@enlace</code>
+        <button class="btn btn-outline-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('enlaceNuevo').textContent)">Copiar</button>
+    </div>
+}
+
+@if (puedeGestionar)
+{
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h6 mb-3">Enlace de documento (DTE)</h2>
+                <form asp-action="GenerarDocumento" method="post" class="row g-2 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <div class="col-5"><label class="form-label small"># interno del DTE</label><input name="dteDocumentoId" type="number" min="1" class="form-control form-control-sm ns-mono" required /></div>
+                    <div class="col-4"><label class="form-label small">Validez (días)</label><input name="diasValidez" type="number" min="1" max="365" value="30" class="form-control form-control-sm ns-mono" /></div>
+                    <div class="col-3"><button type="submit" class="btn btn-primary btn-sm w-100">Generar</button></div>
+                    <div class="col-12 form-text">El # interno aparece en el detalle del documento (Documentos DTE).</div>
+                </form>
+            </div></div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body">
+                <h2 class="h6 mb-3">Enlace de estado de cuenta (cliente)</h2>
+                <form asp-action="GenerarEstadoCuenta" method="post" class="row g-2 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <div class="col-5">
+                        <label class="form-label small">Cliente</label>
+                        <select name="clienteId" class="form-select form-select-sm" required>
+                            <option value="">— Selecciona —</option>
+                            @foreach (var c in clientes) { <option value="@c.Id">@c.Nombre</option> }
+                        </select>
+                    </div>
+                    <div class="col-4"><label class="form-label small">Validez (días)</label><input name="diasValidez" type="number" min="1" max="365" value="30" class="form-control form-control-sm ns-mono" /></div>
+                    <div class="col-3"><button type="submit" class="btn btn-primary btn-sm w-100">Generar</button></div>
+                </form>
+            </div></div>
+        </div>
+    </div>
+}
+
+<div class="card"><div class="card-body">
+    <h2 class="h6 mb-3">Enlaces emitidos</h2>
+    @if (Model is null || Model.Items.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">globe</span><p>Aún no hay enlaces. Genera uno para compartir un documento o estado de cuenta con tu cliente.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Tipo</th><th>Referencia</th><th>Expira</th><th class="text-end">Accesos</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var e in Model.Items)
+                    {
+                        <tr>
+                            <td><span class="small">@(e.Tipo == "DOCUMENTO" ? "Documento" : "Estado de cuenta")</span></td>
+                            <td>@(e.NumeroControl is not null ? Html.Raw($"<span class=\"ns-mono small\">{e.NumeroControl}</span>") : (object?)e.ClienteNombre ?? "—")</td>
+                            <td>@e.ExpiraAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td class="text-end ns-mono">@e.Accesos</td>
+                            <td>@(e.UltimoAccesoAt?.ToLocalTime().ToString("dd/MM HH:mm") ?? "—")</td>
+                            <td>
+                                @if (e.RevocadoAt is not null) { <span class="ns-badge ns-badge--rejected">REVOCADO</span> }
+                                else if (!e.Activo) { <span class="ns-badge ns-badge--draft">EXPIRADO</span> }
+                                else { <span class="ns-badge ns-badge--processed">ACTIVO</span> }
+                            </td>
+                            <td class="text-end">
+                                @if (puedeGestionar && e.Activo)
+                                {
+                                    <form asp-action="Revocar" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@e.Id" /><button class="btn btn-outline-danger btn-sm" title="Revocar"><span class="material-symbols-outlined" style="font-size:16px">link_off</span></button></form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div></div>
