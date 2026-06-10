@@ -37,7 +37,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
 | Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
 | Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
-| Tests | xUnit + FluentAssertions + NSubstitute (**617 unitarias + integración**) |
+| Tests | xUnit + FluentAssertions + NSubstitute (**653 unitarias + 7 integración**) |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -86,9 +86,9 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 | 102 | **NEOPOS** | Punto de venta: ventas, tickets, impresión, correo, promoción a DTE, **corte de caja** | ✅ S1–S4 |
 | 103 | NEOSCANAI | Captura/OCR de documentos (backend; UI en la app) | ✅ backend |
 | 104 | NEOPROFIT | P&L: ventas, costos, gastos/compras, rankings | ✅ |
-| 105 | NEOBI | Reportes/BI | ⏳ |
+| 105 | **NEOBI** | Reportes fiscales: libros IVA ventas/compras + resumen F-07 (+CSV) | ✅ |
 | 106 | NEOCONNECT | API pública (API keys, webhooks, `/api/v1`) | ✅ |
-| 107 | NEOPORTAL | Portal receptor | ⏳ |
+| 107 | **NEOPORTAL** | Portal del receptor: enlaces públicos a DTE y estado de cuenta | ✅ |
 | 108 | CONTINGENCIA | Contingencia avanzada y lotes | ✅ |
 | 109 | EVENTOSDTE | Eventos DTE persistentes | ✅ |
 | 110 | **INVENTARIO** | Existencias, kardex, costo promedio ponderado | ✅ |
@@ -96,7 +96,8 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 | 112 | GASTOS | Control de gastos (parte de NeoProfit) | ✅ |
 | 113 | **NEORRHH** | Recursos humanos + nómina (planilla quincenal ES) | ✅ |
 | 114 | **NEOCRM** | Contactos, pipeline, actividades, cotizaciones → DTE | ✅ |
-| 115 | **NEOTESORERIA** | Cuentas (banco/caja) + movimientos | ✅ |
+| 115 | **NEOTESORERIA** | Cuentas (banco/caja) + movimientos + **conciliación bancaria** | ✅ |
+| 116 | **NEOCONTA** | Contabilidad mínima: catálogo base, asientos automáticos, balanza | ✅ |
 
 ### Destacados de la suite
 
@@ -113,7 +114,16 @@ Los módulos se habilitan por plan (Starter → Enterprise). Códigos de módulo
 - **NeoRRHH** — empleados/contratos, **planilla quincenal** con tablas **ISSS/AFP/Renta 2026** parametrizables,
   recibos PDF, exportes ISSS/AFP (CSV), cierre → gasto PLANILLA en NeoProfit.
 - **Tesorería** — cuentas de banco/caja con saldo corriente; movimientos de ingreso/egreso con origen
-  (planilla, gasto, compra, cobro) para conciliación.
+  (planilla, gasto, compra, cobro) y **conciliación bancaria**: importa el estado de cuenta (CSV/Excel),
+  sugiere matches por monto/fecha/referencia (confianza ALTA/MEDIA) y concilia en bloque o manual.
+- **NeoPortal** — el receptor consulta su DTE (HTML/JSON/PDF) y su **estado de cuenta** con un enlace
+  público con token expirable/revocable, sin usuario ni contraseña; incluye QR de pago y reenvío de correo.
+- **NeoBI fiscal** — libros IVA (consumidor final por día, contribuyentes, compras) y **resumen F-07**
+  del periodo, en pantalla, API y CSV.
+- **NeoConta** — contabilidad mínima auditable: catálogo base por empresa, **asientos automáticos** de
+  ventas/cobros/compras/pagos/gastos (idempotentes, con reversa espejo) y **balanza de comprobación**.
+- **Recordatorios de cobro** — configurables por empresa (umbral de vencimiento, frecuencia, canales,
+  plantillas con placeholders); el Worker los envía por correo (WhatsApp pluggable).
 - **Compras / CxP** — proveedores, facturas de compra, pagos; saldos y vencimientos; integra NeoProfit
   (gasto) y Tesorería (egreso al pagar).
 - **NeoCRM** — contactos, **pipeline visual** por etapas (configurable, con probabilidad ponderada), actividades con
@@ -217,8 +227,9 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-**617 pruebas unitarias** + integración. Las calculadoras puras tienen cobertura específica
-(`PosCalculator`, `CorteCajaCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`, `CostoPromedioCalculator`, `EscPosTicketBuilder`).
+**653 pruebas unitarias + 7 de integración**. Las calculadoras puras tienen cobertura específica
+(`PosCalculator`, `CorteCajaCalculator`, `NominaCalculator`, `CobranzaCalculator`, `CuentasPagarCalculator`,
+`CostoPromedioCalculator`, `EscPosTicketBuilder`, `LibroIvaCalculator`, `ConciliacionCalculator`).
 
 ---
 
@@ -239,13 +250,17 @@ Documentación adicional en `docs/` (`NeoConnect-API-v1.md`, `NeoCloud-Mobile-AP
 
 ## Roadmap
 
-Plan vivo en **[`docs/Plan-V2-ERP-CRM.md`](docs/Plan-V2-ERP-CRM.md)** — NeoSTP como **ERP + CRM-mini**.
+Plan de fase en **[`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md)** — **Fase V2 cerrada (2026-06-10)**.
+Pruebas de cierre en [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md);
+operación en [`docs/Runbook-V2.md`](docs/Runbook-V2.md).
 
 - **Fase A — ERP interno ✅**: NeoRRHH (nómina quincenal), Tesorería.
 - **Fase B — Egresos/stock ✅**: Compras/CxP · Inventario · auto-integración (compra/venta) + stock bajo.
-- **Fase C — Comercial**: NeoPOS ✅ (S1–S4 con corte de caja) · NEOCRM ✅ (API + web + cotización→DTE) · NeoPortal ⏳.
-- **Fase D — Cierre fiscal/contable**: Libro IVA/F-07, NEOCONTA ⏳.
-- **Fase E — Escala**: storage externo, Redis, observabilidad, cumplimiento ⏳.
+- **Fase C — Comercial ✅**: NeoPOS (S1–S4 con corte de caja) · NEOCRM (API + web + cotización→DTE) · NeoPortal.
+- **Fase D — Cierre fiscal/contable ✅**: NeoBI fiscal (libros IVA/F-07) · NeoConta mínima ·
+  recordatorios de cobro configurables · conciliación bancaria.
+- **Fase E — Escala**: runbook de despliegue/backup/rotación ✅ documental; OpenTelemetry, storage
+  externo/Redis y a11y/i18n → **V2.5**.
 
 > Fuera de alcance de este repo: la app Flutter y la UI de NeoScan (viven en `neocloud_mobile_android`).
 

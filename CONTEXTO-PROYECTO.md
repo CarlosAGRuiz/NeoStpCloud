@@ -10,7 +10,23 @@
 
 ---
 
-## Actualizacion reciente - 2026-06-09
+## Actualizacion reciente - 2026-06-10 — **FASE V2 CERRADA**
+
+La Fase V2 quedo cerrada en lo funcional (`docs/Plan-Cierre-Fase-V2.md`). Sprints entregados en este cierre:
+
+- **V2-C2 NeoPortal 107**: enlaces publicos con token (solo hash en BD, expira/revoca), portal `/portal/{token}` (DTE HTML/JSON/PDF, estado de cuenta, QR pago, reenvio), gestion `/PortalEnlaces` + `/api/portal/*`, permisos 416/417, migracion `V2_C2_NeoPortal`, 9 tests.
+- **V2-D1 NEOBI fiscal 105**: `LibroIvaCalculator` + `IReporteFiscalService`, libros IVA (consumidor/contribuyentes/compras) + resumen F-07 con CSV, `/NeoBi` + `/api/reportes/fiscal/*`, 6 tests.
+- **V2-D2 NEOCONTA 116**: catalogo minimo 8 cuentas por empresa, asientos automaticos idempotentes (ventas/cobros/compras/pagos/gastos) con reversa espejo, balanza + CSV, `/Conta` + `/api/conta/*`, permisos 418/419, migracion `V2_D2_NeoConta`, 6 tests.
+- **V2-D3 Recordatorios configurables**: `ConfigRecordatorioCobro` por empresa (umbral, frecuencia con dedupe por ventana, maximo, canales, plantillas con placeholders), `/Cobros/Recordatorios` + GET/PUT `/api/cobros/recordatorios/configuracion`, worker filtra empresas activas, migracion `V2_D3_ConfigRecordatorios`, 15 tests del servicio.
+- **V2-D4 Conciliacion bancaria**: `MovimientoBancario` (`Tes_MovimientosBanco`), import CSV/XLSX con dedupe (`TabularParser`), `ConciliacionCalculator` (monto exacto + signo + ventana fecha + referencia; confianza ALTA/MEDIA), conciliar/desconciliar/conciliar-sugeridos, `/Tesoreria/Conciliacion` + `/api/tesoreria/conciliacion/*`, migracion `V2_D4_ConciliacionBancaria`, 10 tests.
+- **V2-E**: `docs/Runbook-V2.md` (despliegue, backup/restore, rotacion JWT/cert DTE, retencion, checklists secretos/release, incidentes comunes). E1/E2/E5 movidos a V2.5.
+- **Pruebas tipo cliente**: API+Web reales contra SQL local, todos los flujos verdes — `docs/Analisis-Pruebas-Cliente-V2.md`. Suites: **653 unit + 7 integracion, 0 fallos**.
+
+Siguiente fase: **V2.5** (OpenTelemetry, storage externo/Redis, WhatsApp/OCR/FCM/NIT-MH reales, conciliacion N:1, a11y/i18n) o arranque de la app Flutter.
+
+---
+
+## Actualizacion previa - 2026-06-09
 
 Ultimos commits revisados para este contexto:
 
@@ -677,10 +693,10 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 10 | **NeoProfit / NeoBI** | ✅ Sprint 22 — `ProfitCalculator` puro + `IProfitService` + `/api/profit/*` + dashboard Web + grids/CRUD gastos/compras (permisos 370/371) | Snapshots mensuales + alertas de margen | Alta |
 | 11 | **NeoScanAI** | ✅ Backend Mobile B-3 + **UI Web** (`ScanController` `/Scan`: bandeja, preview, corrección de campos, conversión a gasto/compra/DTE recibido, rechazo; permisos `ScanAI.Ver/.Confirmar`) + **DTE recibidos** (`IDteRecibidoService` + `DteRecibidosController` `/DteRecibidos`) + **OCR real Gemini** (`GeminiScanExtractionService`, M2.1, toggle `Scan:Provider=Gemini`) | — | Alta |
 | 12 | **NeoConnect API** | ✅ Sprint 24 COMPLETO — API keys (hash SHA-256 + scopes), `X-Api-Key` middleware, webhooks firmados HMAC + worker, rate limit por ApiKey, UI `/Integraciones`, **endpoints de negocio v1** (`/api/v1`) + OpenAPI público + tests | Sandbox dedicado + más eventos | Media-alta |
-| 13 | **NeoPOS** | ❌ | Caja, venta rápida, conversión a DTE | Media-alta |
-| 14 | **NeoPortal Clientes** | ❌ | Consulta pública, estado de cuenta | Media |
+| 13 | **NeoPOS** | ✅ S1–S4 — ventas, tickets térmicos (PDF/ESC-POS red/correo), promoción a DTE, **sesión/corte de caja** | Modo offline | Media-alta |
+| 14 | **NeoPortal Clientes** | ✅ V2-C2 — enlaces públicos con token (hash SHA-256, expira/revoca), DTE HTML/JSON/PDF, estado de cuenta, QR pago, reenvío correo; `/portal/{token}` + `/PortalEnlaces` + `/api/portal/*` | Branding del portal por empresa | Media |
 | 15 | **NeoCloud Mobile** | ✅ backend (B-1…B-6) — emisión 1-paso, Cobros/CxC, ScanAI, Alertas/push, QR cobro, verificación NIT; docs `NeoCloud-Mobile-API.md` + `NeoCloud-Mobile-Plan.md` | App Flutter (cliente) por desarrollar; integraciones externas OCR/FCM/NIT-MH | Media |
-| 16 | **Cobranza / CxC** | ✅ Backend Mobile B-2/B-5 — `ICobranzaService`/`ICobroQrService`, pagos + cuentas de cobro + QR, `/api/cobros/*` | UI Web (solo API hoy) | Media-alta |
+| 16 | **Cobranza / CxC** | ✅ B-2/B-5 + UI Web `/Cobros` + **recordatorios configurables por empresa** (V2-D3: umbral/frecuencia/canales/plantillas, worker `RecordatorioCobroWorker`, `/Cobros/Recordatorios`) | Proveedor real WhatsApp Business (V2.5) | Media-alta |
 | 17 | **Alertas / Notificaciones** | ✅ Backend Mobile B-4 + **UI Web** (`AlertasController` `/Alertas`: centro de notificaciones, recalcular, marcar leídas/resolver, preferencias; campana con badge en topbar vía `AlertasBadgeViewComponent`) + **Push FCM real** (`FcmPushSender` + `ServiceAccountTokenProvider`, M2.2, toggle `Push:Provider=Fcm`, desactiva tokens inválidos) — solo autenticado | — | Media |
 | 18 | **SuperAdmin** | ✅ parcial | Billing, salud sistema, incidentes, churn, soporte | Alta |
 | 19 | **Billing SaaS** | ✅ Sprint 19 + **Pagos LATAM** | Multi-proveedor (Wompi/PayPal/Transferencia/Stripe/MercadoPago), transferencia con verificación manual; falta cargar credenciales reales + monto por plan | Crítico (venta) |
@@ -690,6 +706,12 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 23 | **Lookups / Datos** | ✅ | `ILookupService` + `/api/lookups`; carga masiva Excel/CSV de clientes y productos | Media |
 | 24 | **Onboarding self-service** | ✅ | `IOnboardingService` (5 pasos derivados de datos reales) + checklist dashboard + asistente `/onboarding` | Alta (conversión) |
 | 25 | **Branding** | ✅ | Logo + firma por empresa (`/branding`), usados en PDF (banda+pie) y correo (logo CID) | Media |
+| 26 | **NEOCRM 114** | ✅ V2-C1 — contactos, pipeline kanban, actividades (alerta si vencen), cotizaciones → DTE (`ConvertirCotizacionADteAsync`); `/Crm` + `/api/crm/*` | Email tracking / embudos avanzados (V3) | Alta |
+| 27 | **NEORRHH 113** | ✅ — empleados/contratos, planilla quincenal ISSS/AFP/Renta 2026, recibos PDF, exportes CSV, cierre → gasto | Vacaciones/aguinaldo automatizados | Media |
+| 28 | **NEOTESORERIA 115** | ✅ + **conciliación bancaria** (V2-D4: import CSV/XLSX, `ConciliacionCalculator` ALTA/MEDIA, conciliar/desconciliar, `/Tesoreria/Conciliacion` + `/api/tesoreria/conciliacion/*`) | Conciliación parcial N:1 (V2.5) | Media-alta |
+| 29 | **COMPRAS 111 / INVENTARIO 110** | ✅ — proveedores, facturas, pagos, CxP; existencias, kardex, costo promedio; auto-integración compra/venta + alerta stock bajo | Órdenes de compra | Media |
+| 30 | **NEOBI fiscal 105** | ✅ V2-D1 — `LibroIvaCalculator`, libros IVA consumidor/contribuyentes/compras + F-07, CSV; `/NeoBi` + `/api/reportes/fiscal/*` | Retenciones cuando haya volumen DTE 07; PDF | Alta |
+| 31 | **NEOCONTA 116** | ✅ V2-D2 — catálogo mínimo (8 cuentas), asientos automáticos idempotentes con reversa espejo, balanza + CSV; `/Conta` + `/api/conta/*` | Catálogo personalizable, cierre anual (V3) | Media-alta |
 
 ---
 

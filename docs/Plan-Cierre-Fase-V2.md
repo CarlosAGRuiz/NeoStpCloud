@@ -1,8 +1,12 @@
 # Plan de cierre Fase V2 - NeoSTP Cloud
 
-> Fecha de corte: 2026-06-09.
+> Fecha de corte: 2026-06-09. **Cierre funcional: 2026-06-10.**
 > Base revisada contra los ultimos commits hasta `dadba1e docs(api): documentar superficie REST`.
 > Objetivo: cerrar V2 como ERP/CRM-mini vendible, API-first y listo para operar clientes reales en El Salvador.
+>
+> **Estado final (2026-06-10): V2 CERRADA en lo funcional.** C0-C2 y D1-D4 entregados con tests;
+> del bloque E quedan cubiertos E3/E4 en su corte documental (`docs/Runbook-V2.md`) y
+> E1/E2/E5 se mueven a V2.5 segun la regla del apartado 6 (en cada uno se anota lo ya entregado).
 
 ---
 
@@ -36,20 +40,20 @@ Razon: V2-C0 quedo cerrado como contrato API-first documentado y V2-C1 quedo cer
 
 ### Pendientes reales para cierre V2
 
-| Bloque | Pendiente | Prioridad |
+| Bloque | Pendiente | Estado 2026-06-10 |
 |---|---|---|
 | C0 | Contratos API, pruebas de cobertura y documentacion API | Cerrado |
-| C1 | NEOCRM 114 API-first: contactos, oportunidades, etapas y actividades | Cerrado backend/API |
-| C2 | NeoPortal Clientes 107: consulta/descarga DTE y estado de cuenta | Alta |
-| D1 | NEOBI fiscal 105: libro IVA ventas/compras, F-07, retenciones | Alta |
-| D2 | NEOCONTA 116 minima: asientos base, balanza simple, enlace fiscal | Media-Alta |
-| D3 | Recordatorios automaticos de cobro y WhatsApp/email | Media - primer corte implementado |
-| D4 | Conciliacion bancaria basica | Media |
-| E1 | Observabilidad: OpenTelemetry + panel SaaS de metricas | Media |
-| E2 | Escala: storage externo para blobs + Redis cache | Media |
-| E3 | Seguridad/cumplimiento: rotacion claves, backups restaurables, retencion/borrado | Alta |
-| E4 | DevEx: pipeline despliegue por entorno + seed demo reproducible | Media |
-| E5 | UX: a11y/i18n y cierre de vistas legacy | Media |
+| C1 | NEOCRM 114 API-first: contactos, oportunidades, etapas y actividades | Cerrado completo |
+| C2 | NeoPortal Clientes 107: consulta/descarga DTE y estado de cuenta | **Cerrado** |
+| D1 | NEOBI fiscal 105: libro IVA ventas/compras, F-07, retenciones | **Cerrado** |
+| D2 | NEOCONTA 116 minima: asientos base, balanza simple, enlace fiscal | **Cerrado** |
+| D3 | Recordatorios automaticos de cobro y WhatsApp/email | **Cerrado** (WhatsApp real queda pluggable) |
+| D4 | Conciliacion bancaria basica | **Cerrado** |
+| E1 | Observabilidad: OpenTelemetry + panel SaaS de metricas | Movido a V2.5 (health live/ready entregado) |
+| E2 | Escala: storage externo para blobs + Redis cache | Movido a V2.5 (cache local lookups entregado) |
+| E3 | Seguridad/cumplimiento: rotacion claves, backups restaurables, retencion/borrado | Cerrado corte documental (`docs/Runbook-V2.md`) |
+| E4 | DevEx: pipeline despliegue por entorno + seed demo reproducible | Cerrado corte documental (`docs/Runbook-V2.md`) |
+| E5 | UX: a11y/i18n y cierre de vistas legacy | Movido a V2.5 (design system ns-* ya aplicado) |
 
 ---
 
@@ -169,6 +173,20 @@ Validado:
 
 Objetivo: permitir al receptor consultar documentos y estado de cuenta sin soporte manual.
 
+Estado 2026-06-10: **cerrado**.
+
+Entregado:
+
+- Modulo `NEOPORTAL` 107 + permisos 416/417 (`Portal.Enlaces.Ver/Gestionar`) + migracion `V2_C2_NeoPortal`.
+- `PortalAcceso` (tokens 256-bit aleatorios, en BD solo hash SHA-256, expirables y revocables;
+  tipos Documento/EstadoCuenta, contador de accesos).
+- `IPortalService`/`PortalService`: generar/listar/revocar enlaces + resolucion publica de
+  documento (PDF/JSON), estado de cuenta del cliente, QR de pago y reenvio de correo.
+- Web publica `/portal/{token}` (layout standalone, noindex) + gestion interna `/PortalEnlaces`.
+- API interna `/api/portal/enlaces*` (`RequireModule("NEOPORTAL")`).
+- Tests `PortalServiceTests` (9): token valido/expirado/revocado, hash no reversible,
+  aislamiento por empresa, QR de factura ajena rechazado.
+
 Entregables:
 
 - Modulo `NEOPORTAL` 107 + permisos/planes.
@@ -193,6 +211,19 @@ Validacion:
 ### V2-D1 - NEOBI fiscal 105
 
 Objetivo: cerrar reportes fiscales mensuales basicos.
+
+Estado 2026-06-10: **cerrado**.
+
+Entregado:
+
+- `LibroIvaCalculator` puro (ventas consumidor por dia con neta = conIVA/1.13, ventas a
+  contribuyentes con NC en negativo, compras, resumen F-07).
+- `IReporteFiscalService`/`ReporteFiscalService`: fuentes DTE PROCESADO 01/03/05/06 del mes +
+  facturas de compra no anuladas; export CSV con `CsvExporter`.
+- API `/api/reportes/fiscal/{libro-ventas-consumidor|libro-ventas-contribuyentes|libro-compras|f07}` (+`/csv`).
+- Web `/NeoBi` con selector de periodo, KPIs F-07 y tablas con totales + CSV.
+- Tests `LibroIvaCalculatorTests` (6): NC resta, ND suma, INVALIDADO excluido, agrupacion diaria.
+- Retenciones/percepciones quedan para cuando existan datos de DTE 07 en volumen (no bloquea).
 
 Entregables:
 
@@ -220,6 +251,18 @@ Validacion:
 ### V2-D2 - NEOCONTA 116 minima
 
 Objetivo: no construir un ERP contable completo, sino dejar base contable auditable.
+
+Estado 2026-06-10: **cerrado**.
+
+Entregado:
+
+- Modulo `NEOCONTA` 116 + permisos 418/419 (`Conta.Ver/Gestionar`) + migracion `V2_D2_NeoConta`.
+- Catalogo minimo de 8 cuentas sembrado on-demand por empresa (`EnsureCatalogoAsync`).
+- `IContabilidadService`/`ContabilidadService`: generacion idempotente de asientos del periodo
+  (ventas con NC espejo, cobros confirmados, compras, pagos a proveedor, gastos sin doble conteo
+  de compras), reversa espejo (sin borrado) y balanza por periodo + CSV.
+- API `/api/conta/*` y web `/Conta`.
+- Tests `ContabilidadServiceTests` (6): doble partida, idempotencia, reversa, balanza cuadrada.
 
 Entregables:
 
@@ -275,15 +318,39 @@ Primer corte implementado:
 - Correo via `ITenantEmailSender`; WhatsApp queda pluggable con `IWhatsAppSender` y proveedor mock.
 - Tests unitarios de envio, omision por destinatario faltante e idempotencia diaria.
 
-Pendiente para cerrar D3:
+Cierre (2026-06-10): **cerrado**.
 
-- Pantalla/configuracion por empresa de reglas, plantilla y frecuencia.
-- Proveedor real WhatsApp Business API.
-- Tests de integracion API/Worker con base relacional.
+- Configuracion por empresa (`ConfigRecordatorioCobro`, migracion `V2_D3_ConfigRecordatorios`):
+  activo, dias vencidos minimos, frecuencia en dias (dedupe por ventana), maximo por ejecucion,
+  canales y plantillas de asunto/mensaje con placeholders (`{numeroControl}`, `{cliente}`,
+  `{saldo}`, `{diasVencido}`, `{vencimiento}`).
+- Pantalla web `/Cobros/Recordatorios` + API GET/PUT `/api/cobros/recordatorios/configuracion`.
+- `RecordatorioCobroWorker` ahora itera solo empresas con configuracion activa
+  (`EjecutarSegunConfiguracionAsync`).
+- Tests +5 en `RecordatorioCobroServiceTests` (15 totales).
+- Proveedor real WhatsApp Business API queda pluggable (`IWhatsAppSender`) — dependencia externa,
+  no bloquea el cierre.
 
 ### V2-D4 - Conciliacion bancaria basica
 
 Objetivo: conciliar movimientos de banco contra cobros, pagos y tesoreria.
+
+Estado 2026-06-10: **cerrado**.
+
+Entregado:
+
+- `MovimientoBancario` (`Tes_MovimientosBanco`, estado NO_CONCILIADO/CONCILIADO, enlace a
+  `MovimientoTesoreria`) + migracion `V2_D4_ConciliacionBancaria`.
+- Import CSV/XLSX del estado de cuenta (reusa `TabularParser`): columnas fecha, monto con signo o
+  cargo/abono, descripcion, referencia; deduplica reimportes y reporta errores por fila.
+- `ConciliacionCalculator` puro: matching por monto exacto + signo (abono↔INGRESO, cargo↔EGRESO),
+  ventana de fecha configurable y referencia; confianza ALTA/MEDIA, asignacion uno a uno.
+- `IConciliacionBancariaService`: importar, listar, sugerencias, conciliar (valida cuenta, estado,
+  monto y no-reuso del movimiento interno), conciliar sugeridos (solo ALTA), desconciliar, resumen.
+- API `/api/tesoreria/conciliacion/*` y pantalla web `/Tesoreria/Conciliacion`.
+- Tests `ConciliacionBancariaServiceTests` (10): matcher, import con dedupe, validaciones, resumen.
+- Nota de alcance: una linea bancaria concilia contra un movimiento interno (1:1); el estado
+  "parcial" (N:1) queda para V2.5 si la operacion real lo pide.
 
 Entregables:
 
@@ -303,6 +370,11 @@ Validacion:
 
 Objetivo: operar clientes reales con visibilidad.
 
+Estado 2026-06-10: **movido a V2.5** (apartado 6). Ya entregado en V2: health checks
+`/health/live` y `/health/ready` (BD), logging estructurado Serilog con TraceId y rotacion diaria,
+panel de soporte SuperAdmin y diagnostico `/Hardening`. Pendiente V2.5: OpenTelemetry/OTLP y
+metricas por empresa.
+
 Entregables:
 
 - OpenTelemetry tracing/metrics con export OTLP.
@@ -318,6 +390,10 @@ Validacion:
 ### V2-E2 - Escala: storage externo y Redis
 
 Objetivo: preparar despliegue multiinstancia.
+
+Estado 2026-06-10: **movido a V2.5** (apartado 6). Ya entregado en V2: cache local por instancia
+para lookups/catalogos (`ILookupService`) e `IStorageService` como abstraccion. Pendiente V2.5:
+blobs a storage externo y cache distribuida Redis con invalidacion.
 
 Entregables:
 
@@ -335,6 +411,11 @@ Validacion:
 ### V2-E3 - Seguridad, cumplimiento y restore
 
 Objetivo: reducir riesgo de produccion.
+
+Estado 2026-06-10: **cerrado en su corte documental** — `docs/Runbook-V2.md` cubre rotacion JWT,
+rotacion de certificado DTE por empresa, backup/restore SQL probado por checklist, retencion y
+borrado por empresa, y checklist de secretos. La automatizacion (job de backup verificado,
+purga programada de auditoria) queda para V2.5.
 
 Entregables:
 
@@ -354,6 +435,11 @@ Validacion:
 
 Objetivo: pasar de desarrollo local a releases repetibles.
 
+Estado 2026-06-10: **cerrado en su corte documental** — `docs/Runbook-V2.md` documenta publish por
+proceso, migraciones por entorno, smoke post-despliegue, rollback y checklist de release. El seed
+demo ya es reproducible (empresa de pruebas con modulos activos). El pipeline CI/CD automatizado
+queda para V2.5.
+
 Entregables:
 
 - Pipeline de despliegue dev/staging/prod.
@@ -371,6 +457,10 @@ Validacion:
 ### V2-E5 - UX final, a11y e i18n base
 
 Objetivo: cerrar deuda visual/operativa antes de V2 release.
+
+Estado 2026-06-10: **movido a V2.5** (apartado 6). Ya entregado en V2: design system `ns-*`
+aplicado a las vistas operativas (sprints 26-27 + modulos nuevos), AppShell y stepper DTE.
+Pendiente V2.5: auditoria a11y formal e i18n es/en.
 
 Entregables:
 
@@ -404,6 +494,11 @@ Validacion:
 ---
 
 ## 6. Backlog que no bloquea cierre V2
+
+> Decision 2026-06-10: se aplica esta regla. E1 (OpenTelemetry/metricas), E2 (storage
+> externo + Redis) y E5 (a11y/i18n formal) pasan a V2.5; E3/E4 quedan cubiertos en su corte
+> documental por `docs/Runbook-V2.md`. Tambien pasan a V2.5: proveedor real WhatsApp Business,
+> OCR real NeoScan, FCM push real y conciliacion parcial N:1.
 
 Estos puntos pueden moverse a V2.5/V3 si el objetivo es cerrar V2 con disciplina:
 
