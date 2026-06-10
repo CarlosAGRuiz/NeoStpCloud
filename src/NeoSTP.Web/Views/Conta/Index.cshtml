@@ -1,0 +1,129 @@
+@using NeoSTP.Application.Common
+@using NeoSTP.Application.Conta
+@model BalanzaDto
+@{
+    ViewData["Title"] = "NeoConta · Balanza";
+    int anio = ViewBag.Anio, mes = ViewBag.Mes;
+    var asientos = ViewBag.Asientos as PagedResult<AsientoDto>;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var meses = new[] { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>NeoConta</span></nav>
+        <h1 class="ns-page-title">Contabilidad · @meses[mes - 1] @anio</h1>
+    </div>
+    <form method="get" class="ns-toolbar">
+        <select name="mes" class="form-select form-select-sm" style="max-width:140px">
+            @for (var i = 1; i <= 12; i++) { <option value="@i" selected="@(i == mes)">@meses[i - 1]</option> }
+        </select>
+        <input name="anio" type="number" value="@anio" min="2020" max="2100" class="form-control form-control-sm ns-mono" style="max-width:100px" />
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Ver período</button>
+    </form>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (puedeGestionar)
+{
+    <div class="card mb-3"><div class="card-body d-flex align-items-center gap-3 flex-wrap">
+        <div>
+            <h2 class="h6 mb-1">Asientos automáticos del período</h2>
+            <p class="form-text mb-0">Deriva asientos de ventas DTE, cobros, compras, pagos a proveedor y gastos (incluida planilla). Idempotente: lo ya asentado no se duplica.</p>
+        </div>
+        <form asp-action="Generar" method="post" class="ms-auto">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="anio" value="@anio" />
+            <input type="hidden" name="mes" value="@mes" />
+            <button type="submit" class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">auto_fix_high</span> Generar asientos</button>
+        </form>
+    </div></div>
+}
+
+<div class="card mb-4"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h6 mb-0">Balanza de comprobación
+            @if (Model is not null)
+            {
+                if (Model.Cuadrada) { <span class="ns-badge ns-badge--processed ms-2">CUADRADA</span> }
+                else { <span class="ns-badge ns-badge--rejected ms-2">DESCUADRE</span> }
+            }
+        </h2>
+        <a asp-action="BalanzaCsv" asp-route-anio="@anio" asp-route-mes="@mes" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:16px">download</span> CSV</a>
+    </div>
+    @if (Model is null || Model.Cuentas.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">menu_book</span><p>Sin movimientos contables en el período. Genera los asientos automáticos.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Código</th><th>Cuenta</th><th>Tipo</th><th class="text-end">Debe</th><th class="text-end">Haber</th><th class="text-end">Saldo deudor</th><th class="text-end">Saldo acreedor</th></tr></thead>
+                <tbody>
+                    @foreach (var c in Model.Cuentas)
+                    {
+                        <tr><td class="ns-mono">@c.Codigo</td><td>@c.Nombre</td><td><span class="small text-muted">@c.Tipo</span></td><td class="text-end ns-mono">@c.Debe.ToString("N2")</td><td class="text-end ns-mono">@c.Haber.ToString("N2")</td><td class="text-end ns-mono">@c.SaldoDeudor.ToString("N2")</td><td class="text-end ns-mono">@c.SaldoAcreedor.ToString("N2")</td></tr>
+                    }
+                </tbody>
+                <tfoot><tr class="fw-bold"><td colspan="3">TOTAL</td><td class="text-end ns-mono">@Model.TotalDebe.ToString("N2")</td><td class="text-end ns-mono">@Model.TotalHaber.ToString("N2")</td><td colspan="2"></td></tr></tfoot>
+            </table>
+        </div>
+    }
+</div></div>
+
+<div class="card"><div class="card-body">
+    <h2 class="h6 mb-3">Asientos del período</h2>
+    @if (asientos is null || asientos.Items.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">receipt_long</span><p>Sin asientos en el período.</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Número</th><th>Fecha</th><th>Concepto</th><th>Origen</th><th class="text-end">Debe</th><th class="text-end">Haber</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var a in asientos.Items)
+                    {
+                        <tr class="@(a.EstadoCodigo == "REVERSADO" ? "text-muted" : "")">
+                            <td class="ns-mono">@a.Numero</td>
+                            <td>@a.Fecha.ToString("dd/MM")</td>
+                            <td>
+                                @a.Concepto
+                                <div class="small text-muted">
+                                    @foreach (var l in a.Lineas)
+                                    {
+                                        <span class="me-2 ns-mono">@l.CuentaCodigo @(l.Debe > 0 ? $"D {l.Debe:N2}" : $"H {l.Haber:N2}")</span>
+                                    }
+                                </div>
+                            </td>
+                            <td><span class="small">@a.Origen</span></td>
+                            <td class="text-end ns-mono">@a.TotalDebe.ToString("N2")</td>
+                            <td class="text-end ns-mono">@a.TotalHaber.ToString("N2")</td>
+                            <td>
+                                @if (a.EstadoCodigo == "REVERSADO") { <span class="ns-badge ns-badge--rejected">REVERSADO</span> }
+                                else { <span class="ns-badge ns-badge--processed">ACTIVO</span> }
+                            </td>
+                            <td class="text-end">
+                                @if (puedeGestionar && a.EstadoCodigo == "ACTIVO" && a.Origen != "REVERSA")
+                                {
+                                    <form asp-action="Reversar" method="post" class="d-inline-flex gap-1 align-items-center">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@a.Id" />
+                                        <input type="hidden" name="anio" value="@anio" />
+                                        <input type="hidden" name="mes" value="@mes" />
+                                        <input name="motivo" class="form-control form-control-sm" placeholder="Motivo…" style="max-width:150px" />
+                                        <button class="btn btn-outline-danger btn-sm" title="Reversar"><span class="material-symbols-outlined" style="font-size:16px">undo</span></button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div></div>
