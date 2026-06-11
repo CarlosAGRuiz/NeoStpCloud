@@ -24,6 +24,29 @@ public class ClienteValidatorTests
         else hasDuiError.Should().BeTrue($"DUI '{dui}' debería ser inválido");
     }
 
+    // Los selects de la web (lookups CAT-022) envían el código MH; el validador debe aceptarlo.
+    [Theory]
+    [InlineData("13", "DUI")]
+    [InlineData("36", "NIT")]
+    [InlineData("03", "PASAPORTE")]
+    [InlineData("02", "CARNET_RESIDENTE")]
+    [InlineData("37", "OTRO")]
+    [InlineData("DUI", "DUI")]
+    [InlineData(" nit ", "NIT")]
+    public void NormalizarTipoDocumento_AceptaCodigosMhYTexto(string entrada, string esperado)
+        => ClienteValidator.NormalizarTipoDocumento(entrada).Should().Be(esperado);
+
+    [Fact]
+    public void Validate_ConCodigoMhDelSelect_PasaConDuiValido()
+    {
+        var req = ConsumidorFinal(tipo: "13", numero: "12345678-9");
+
+        var errors = ClienteValidator.Validate(req);
+
+        errors.Should().NotContain(e => e.Contains("desconocido"));
+        errors.Should().NotContain(e => e.Contains("DUI inválido"));
+    }
+
     [Fact]
     public void EmptyNumeroDocumento_ReportsObligatorio()
     {

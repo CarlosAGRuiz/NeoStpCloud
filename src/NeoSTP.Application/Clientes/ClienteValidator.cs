@@ -29,7 +29,7 @@ public static class ClienteValidator
         else
         {
             var doc = request.NumeroDocumento.Trim();
-            var tipo = (request.TipoDocumentoCodigo ?? "").Trim().ToUpperInvariant();
+            var tipo = NormalizarTipoDocumento(request.TipoDocumentoCodigo);
             switch (tipo)
             {
                 case "DUI":
@@ -75,6 +75,22 @@ public static class ClienteValidator
 
         return errors;
     }
+
+    /// <summary>
+    /// Acepta tanto los códigos internos (DUI/NIT/…) como los códigos MH del CAT-022
+    /// (13/36/03/02/37) que envían los selects poblados por lookups, y devuelve siempre
+    /// el código interno. Sin esto, crear clientes desde la web fallaba con
+    /// "Tipo de documento desconocido: 13".
+    /// </summary>
+    public static string NormalizarTipoDocumento(string? codigo) => (codigo ?? string.Empty).Trim().ToUpperInvariant() switch
+    {
+        "36" => "NIT",
+        "13" => "DUI",
+        "03" => "PASAPORTE",
+        "02" => "CARNET_RESIDENTE",
+        "37" => "OTRO",
+        var t => t,
+    };
 
     public static string NormalizeNit(string? input)
     {

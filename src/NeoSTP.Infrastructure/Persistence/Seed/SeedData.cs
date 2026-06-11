@@ -544,6 +544,10 @@ internal static partial class SeedData
             // NEOCONTA (V2-D2)
             Perm(418, "Conta.Ver",       "NEOCONTA", "Ver asientos contables y balanza"),
             Perm(419, "Conta.Gestionar", "NEOCONTA", "Generar asientos automáticos y reversar"),
+
+            // Diagnóstico de errores Hacienda (Sprint 17): la UI y el controller ya exigían
+            // este código, pero el permiso nunca se sembró — solo SUPERADMIN podía entrar.
+            Perm(420, "DTE.Diagnostico", "NEODTE", "Ver y resolver el diagnóstico de errores de Hacienda"),
         };
 
         modelBuilder.Entity<Permiso>().HasData(permisos);
@@ -579,17 +583,18 @@ internal static partial class SeedData
             402, 403, 404, 405,
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
-            416, 417, 418, 419,
+            416, 417, 418, 419, 420,
             360, 361, 362, 363, 364,
         };
 
-        // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin
+        // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin.
+        // 351/352: el ADMIN gestiona las API keys NeoConnect de su propia empresa.
         var admin = new[]
         {
             300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
-            340, 345, 346, 350,
+            340, 345, 346, 350, 351, 352,
             370, 371, 380, 381,
             390, 391, 392, 393,
             394, 395, 396, 397,
@@ -597,7 +602,7 @@ internal static partial class SeedData
             402, 403, 404, 405,
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
-            416, 417, 418, 419,
+            416, 417, 418, 419, 420,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos
@@ -611,7 +616,7 @@ internal static partial class SeedData
             402, 403, 404,
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
-            416, 417, 418, 419,
+            416, 417, 418, 419, 420,
         };
 
         // CONTADOR (503) → consulta y reportes + lectura de catálogos + ver certificación + ver eventos
@@ -626,7 +631,7 @@ internal static partial class SeedData
             398, 400,
             402,
             406,
-            408, 410, 412, 414, 416, 418,
+            408, 410, 412, 414, 416, 418, 420,
         };
 
         // READONLY (504) → solo ver

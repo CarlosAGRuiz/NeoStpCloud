@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
@@ -27,12 +27,12 @@ public class SucursalesController : Controller
         _empresaContext = empresaContext;
     }
 
-    // ── Sucursales ────────────────────────────────────────────────────────
+    // â”€â”€ Sucursales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] int page = 1, CancellationToken ct = default)
     {
-        if (!Has("Empresas.Ver")) return Forbid();
+        if (!Has("Core.Empresa.Ver")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         var result = await _sucursales.GetListAsync(eid, new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
@@ -43,7 +43,7 @@ public class SucursalesController : Controller
     [HttpGet]
     public IActionResult Create()
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is null) return RedirectToSoporte();
         return View(new CreateSucursalRequest());
     }
@@ -52,7 +52,7 @@ public class SucursalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateSucursalRequest model, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         if (!ModelState.IsValid) return View(model);
@@ -72,7 +72,7 @@ public class SucursalesController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(int id, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         var result = await _sucursales.GetByIdAsync(eid, id, ct);
@@ -96,7 +96,7 @@ public class SucursalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, UpdateSucursalRequest model, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         if (!ModelState.IsValid) return View(model);
@@ -116,7 +116,7 @@ public class SucursalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Inactivar(int id, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         var result = await _sucursales.InactivarAsync(eid, id, _currentUser.Username, ct);
@@ -124,12 +124,12 @@ public class SucursalesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // ── Puntos de Venta ───────────────────────────────────────────────────
+    // â”€â”€ Puntos de Venta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> PuntosVenta([FromQuery] int? sucursalId, [FromQuery] string? search, [FromQuery] int page = 1, CancellationToken ct = default)
     {
-        if (!Has("Empresas.Ver")) return Forbid();
+        if (!Has("Core.Empresa.Ver")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         var result = await _puntosVenta.GetListAsync(eid, sucursalId, new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
@@ -144,7 +144,7 @@ public class SucursalesController : Controller
     [HttpGet]
     public async Task<IActionResult> CreatePuntoVenta(int? sucursalId, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         var sucursalesList = await _sucursales.GetListAsync(eid, new PagedQuery { PageSize = 100 }, ct);
@@ -156,7 +156,7 @@ public class SucursalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreatePuntoVenta(CreatePuntoVentaRequest model, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         if (!ModelState.IsValid)
@@ -183,7 +183,7 @@ public class SucursalesController : Controller
     [HttpGet]
     public async Task<IActionResult> EditPuntoVenta(int id, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         var result = await _puntosVenta.GetByIdAsync(eid, id, ct);
@@ -203,7 +203,7 @@ public class SucursalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EditPuntoVenta(int id, UpdatePuntoVentaRequest model, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         if (!ModelState.IsValid) return View(model);
@@ -223,7 +223,7 @@ public class SucursalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> InactivarPuntoVenta(int id, CancellationToken ct)
     {
-        if (!Has("Empresas.Administrar")) return Forbid();
+        if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
         var result = await _puntosVenta.InactivarAsync(eid, id, _currentUser.Username, ct);
@@ -231,7 +231,7 @@ public class SucursalesController : Controller
         return RedirectToAction(nameof(PuntosVenta));
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────
+    // â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private bool Has(string codigo)
         => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);

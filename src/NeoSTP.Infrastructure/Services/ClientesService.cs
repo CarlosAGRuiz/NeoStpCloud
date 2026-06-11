@@ -63,7 +63,8 @@ public class ClientesService : IClientesService
         if (errors.Count > 0)
             return Result<ClienteDto>.Fail("Datos del cliente inválidos.", "VALIDATION", errors);
 
-        var tipoDoc = request.TipoDocumentoCodigo.Trim().ToUpperInvariant();
+        // Normaliza códigos MH del CAT-022 (13/36/…) al código interno (DUI/NIT/…).
+        var tipoDoc = ClienteValidator.NormalizarTipoDocumento(request.TipoDocumentoCodigo);
         var numero = tipoDoc == "NIT"
             ? ClienteValidator.NormalizeNit(request.NumeroDocumento)
             : request.NumeroDocumento.Trim();
