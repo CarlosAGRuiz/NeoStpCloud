@@ -61,4 +61,12 @@ public class SoporteController : Controller
         TempData["Success"] = "Modo soporte desactivado.";
         return RedirectToAction("Index", "Home");
     }
+
+    /// <summary>V2.5-S3 — panel operativo del SaaS (métricas cross-tenant desde la BD).</summary>
+    [HttpGet]
+    public async Task<IActionResult> Operacion([FromServices] NeoSTP.Application.Ops.IOperacionPanelService panel, CancellationToken ct)
+    {
+        if (_currentUser.TipoUsuarioCodigo != "SUPERADMIN") return Forbid();
+        return View(await panel.GetPanelAsync(ct));
+    }
 }

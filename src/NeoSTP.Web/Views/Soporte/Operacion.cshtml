@@ -1,0 +1,67 @@
+@using NeoSTP.Application.Ops
+@model PanelOperacionDto
+@{
+    ViewData["Title"] = "Operación del servicio";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-controller="Soporte" asp-action="Index">Soporte</a><span class="material-symbols-outlined">chevron_right</span><span>Operación</span></nav>
+        <h1 class="ns-page-title">Operación del servicio</h1>
+    </div>
+    <div class="ns-toolbar">
+        <a class="btn btn-outline-secondary btn-sm" href="/health/ready" target="_blank" rel="noopener"><span class="material-symbols-outlined align-middle" style="font-size:18px">monitor_heart</span> health/ready</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="Hardening" asp-action="Index"><span class="material-symbols-outlined align-middle" style="font-size:18px">security</span> Diagnóstico</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Empresas activas</div><div class="fs-4 ns-mono">@Model.EmpresasActivas <small class="text-muted fs-6">/ @Model.EmpresasTotal</small></div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Alertas sin resolver</div><div class="fs-4 ns-mono @(Model.AlertasActivas > 0 ? "text-warning" : "")">@Model.AlertasActivas</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">API keys activas</div><div class="fs-4 ns-mono">@Model.ApiKeysActivas</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Recordatorios (7d)</div><div class="fs-4 ns-mono">@Model.Recordatorios7d</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="fs-6 ns-metric-label mb-3">Transmisión DTE</h2>
+            <table class="table table-sm mb-0">
+                <thead><tr><th></th><th class="text-end">Total</th><th class="text-end">Procesados</th><th class="text-end">Rechazados</th><th class="text-end">Contingencia</th></tr></thead>
+                <tbody>
+                    <tr><td>Últimas 24 h</td><td class="text-end ns-mono">@Model.Dte24h.Total</td><td class="text-end ns-mono text-success">@Model.Dte24h.Procesados</td><td class="text-end ns-mono @(Model.Dte24h.Rechazados > 0 ? "text-danger" : "")">@Model.Dte24h.Rechazados</td><td class="text-end ns-mono">@Model.Dte24h.Contingencia</td></tr>
+                    <tr><td>Últimos 7 días</td><td class="text-end ns-mono">@Model.Dte7d.Total</td><td class="text-end ns-mono text-success">@Model.Dte7d.Procesados</td><td class="text-end ns-mono @(Model.Dte7d.Rechazados > 0 ? "text-danger" : "")">@Model.Dte7d.Rechazados</td><td class="text-end ns-mono">@Model.Dte7d.Contingencia</td></tr>
+                </tbody>
+            </table>
+        </div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="fs-6 ns-metric-label mb-3">Rechazos de Hacienda por empresa (7d)</h2>
+            @if (Model.TopRechazos7d.Count == 0)
+            {
+                <p class="text-muted mb-0">Sin rechazos en la semana.</p>
+            }
+            else
+            {
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    @foreach (var e in Model.TopRechazos7d)
+                    {
+                        <tr><td>@e.Empresa</td><td class="text-end ns-mono text-danger">@e.Conteo</td></tr>
+                    }
+                    </tbody>
+                </table>
+            }
+        </div></div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Enlaces portal activos</div><div class="fs-4 ns-mono">@Model.PortalEnlacesActivos</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Accesos portal (7d)</div><div class="fs-4 ns-mono">@Model.PortalAccesos7d</div></div></div></div>
+    <div class="col-12 col-md-6"><div class="card"><div class="card-body py-2">
+        <div class="ns-metric-label">Telemetría OTLP</div>
+        <p class="form-text mb-0">Con <code>Observability:Otlp:Endpoint</code> configurado, API/Web/Worker exportan trazas y métricas OpenTelemetry (ASP.NET Core, HttpClient, runtime y el Meter <code>NeoSTP</code>: DTE emitidos, errores MH, recordatorios, accesos al portal).</p>
+    </div></div></div>
+</div>

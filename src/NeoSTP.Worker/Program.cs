@@ -1,6 +1,7 @@
 using NeoSTP.Application.Workers;
 using NeoSTP.Infrastructure;
 using NeoSTP.Infrastructure.BackgroundTasks;
+using NeoSTP.Infrastructure.Diagnostics;
 using NeoSTP.Worker;
 using NeoSTP.Worker.Jobs;
 using Serilog;
@@ -17,6 +18,7 @@ builder.Services.AddSerilog((services, configuration) => configuration
 
 // ── Infraestructura (EF Core, servicios DTE, etc.) ────────────────
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddNeoStpObservability(builder.Configuration, "neostp-worker");
 
 // ── Configuración del Worker ──────────────────────────────────────
 builder.Services.Configure<WorkerOptions>(
@@ -33,6 +35,7 @@ builder.Services.AddHostedService<BackupWorker>();
 builder.Services.AddHostedService<ConnectWebhookDeliveryWorker>();
 builder.Services.AddHostedService<AlertaGeneracionWorker>();
 builder.Services.AddHostedService<RecordatorioCobroWorker>();
+builder.Services.AddHostedService<LimpiezaAuditoriaWorker>();
 
 // ── Cola de trabajo en proceso (M4.4): descarga de tareas pesadas ─
 builder.Services.AddBackgroundTaskQueue();

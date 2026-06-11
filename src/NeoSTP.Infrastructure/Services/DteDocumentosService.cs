@@ -43,6 +43,7 @@ public class DteDocumentosService : IDteDocumentosService
     private readonly ITenantEmailSender _email;
     private readonly IAuditoriaService _auditoria;
     private readonly IConnectWebhookDispatcher _webhookDispatcher;
+    private readonly NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? _metrics;
 
     public DteDocumentosService(
         NeoStpDbContext db,
@@ -57,8 +58,10 @@ public class DteDocumentosService : IDteDocumentosService
         IDtePdfService pdf,
         ITenantEmailSender email,
         IAuditoriaService auditoria,
-        IConnectWebhookDispatcher webhookDispatcher)
+        IConnectWebhookDispatcher webhookDispatcher,
+        NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null)
     {
+        _metrics = metrics;
         _db = db;
         _calculator = calculator;
         _generator = generator;
@@ -547,6 +550,7 @@ public class DteDocumentosService : IDteDocumentosService
             _ => resp.Success ? DteEstadoCodigos.Enviado : DteEstadoCodigos.Error,
         };
         doc.EstadoCodigo = nuevoEstado;
+        _metrics?.DteEmitido(empresaId, doc.TipoDteCodigo, nuevoEstado);
         if (nuevoEstado == DteEstadoCodigos.Procesado)
         {
             doc.SelloRecibido = resp.SelloRecibido;

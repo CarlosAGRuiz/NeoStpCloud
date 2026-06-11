@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NeoSTP.Domain.Core.Scan;
 
@@ -13,6 +13,7 @@ public class ScanDocumentoConfiguration : IEntityTypeConfiguration<ScanDocumento
         b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
         b.Property(x => x.TipoClasificacion).HasMaxLength(20);
         b.Property(x => x.Origen).HasMaxLength(20).IsRequired();
+        b.Property(x => x.ArchivoPath).HasMaxLength(400);
         b.Property(x => x.ArchivoContentType).HasMaxLength(100);
         b.Property(x => x.ArchivoNombre).HasMaxLength(200);
         b.Property(x => x.EmisorNombre).HasMaxLength(250);

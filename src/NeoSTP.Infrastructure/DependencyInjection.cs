@@ -60,7 +60,30 @@ public static class DependencyInjection
         services.AddScoped<IUsuariosService, UsuariosService>();
         services.AddScoped<IRolesService, RolesService>();
         services.AddScoped<ICatalogosService, CatalogosService>();
+        // V2.5-S4: caché distribuida para lookups/catálogos. Memory por defecto (una instancia);
+        // Redis para multi-instancia: Cache:Provider=Redis + Cache:Redis:ConnectionString.
+        var cacheProvider = configuration["Cache:Provider"];
+        if (string.Equals(cacheProvider, "Redis", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddStackExchangeRedisCache(o =>
+            {
+                o.Configuration = configuration["Cache:Redis:ConnectionString"];
+                o.InstanceName = configuration["Cache:Redis:InstanceName"] ?? "neostp:";
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+        services.AddScoped<NeoSTP.Application.Lookups.ILookupCacheInvalidator, LookupCacheInvalidator>();
         services.AddScoped<NeoSTP.Application.Lookups.ILookupService, LookupService>();
+
+        // V2.5-S4: storage externo para archivos de NeoScan (default: blob en BD).
+        if (string.Equals(configuration["Scan:Storage:Provider"], "FileSystem", StringComparison.OrdinalIgnoreCase))
+        {
+            var scanRoot = configuration["Scan:Storage:Root"] ?? "scan-blobs";
+            services.AddSingleton<NeoSTP.Infrastructure.Scan.IScanBlobStorage>(new NeoSTP.Infrastructure.Scan.FileSystemScanBlobStorage(scanRoot));
+        }
         services.AddScoped<NeoSTP.Application.Lookups.INitVerificationService, NitVerificationService>();
         services.AddScoped<ICertificacionDteService, CertificacionDteService>();
         services.AddScoped<IDteEventoService, DteEventoService>();
@@ -215,6 +238,8 @@ public static class DependencyInjection
         // TesorerÃ­a (NEOTESORERIA â€” V2): cuentas banco/caja + movimientos.
         services.AddScoped<NeoSTP.Application.Tesoreria.ITesoreriaService, TesoreriaService>();
         services.AddScoped<NeoSTP.Application.Tesoreria.IConciliacionBancariaService, ConciliacionBancariaService>();
+        services.AddScoped<NeoSTP.Application.Ops.IOperacionPanelService, OperacionPanelService>();
+        services.AddScoped<NeoSTP.Application.Ops.ILimpiezaAuditoriaService, LimpiezaAuditoriaService>();
 
         // Compras / CxP (NEOCOMPRAS â€” V2): proveedores + facturas de compra + pagos.
         services.AddScoped<NeoSTP.Application.Compras.ICompraService, CompraService>();
@@ -286,7 +311,25 @@ public static class DependencyInjection
         {
             services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.MockPushSender>();
         }
-        services.AddScoped<IWhatsAppSender, NeoSTP.Infrastructure.Notificaciones.MockWhatsAppSender>();
+        // Toggle del proveedor de WhatsApp (WhatsApp:Provider). Mock por defecto; Meta Cloud API (V2.5-S2).
+        var whatsAppProvider = configuration["WhatsApp:Provider"];
+        if (string.Equals(whatsAppProvider, "Meta", StringComparison.OrdinalIgnoreCase))
+        {
+            services.Configure<NeoSTP.Infrastructure.Notificaciones.MetaWhatsAppOptions>(configuration.GetSection("WhatsApp:Meta"));
+            services.AddHttpClient(NeoSTP.Infrastructure.Notificaciones.MetaWhatsAppSender.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    opts.Retry.MaxRetryAttempts = 2;
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(40);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(40);
+                });
+            services.AddScoped<IWhatsAppSender, NeoSTP.Infrastructure.Notificaciones.MetaWhatsAppSender>();
+        }
+        else
+        {
+            services.AddScoped<IWhatsAppSender, NeoSTP.Infrastructure.Notificaciones.MockWhatsAppSender>();
+        }
 
         // Sprint 9: Worker jobs
         services.AddScoped<IDteRetransmisionService, DteRetransmisionService>();

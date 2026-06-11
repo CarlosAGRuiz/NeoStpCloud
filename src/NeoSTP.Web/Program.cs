@@ -16,12 +16,25 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Services(services)
     .Enrich.FromLogContext());
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews()
+    .AddViewLocalization();
 builder.Services.AddHttpContextAccessor();
+
+// V2.5-S6: i18n base es/en. Español por defecto; el idioma se persiste en la cookie
+// estándar de cultura (acción Home/CambiarIdioma).
+builder.Services.AddLocalization(o => o.ResourcesPath = "Resources");
+builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>(o =>
+{
+    var cultures = new[] { "es", "en" };
+    o.SetDefaultCulture("es");
+    o.AddSupportedCultures(cultures);
+    o.AddSupportedUICultures(cultures);
+});
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddNeoStpHealthChecks();
+builder.Services.AddNeoStpObservability(builder.Configuration, "neostp-web");
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -68,6 +81,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();
 app.UseCookiePolicy();
+app.UseRequestLocalization();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -14,6 +14,22 @@ public class WorkerOptions
     public WebhookDeliveryOptions WebhookDelivery { get; set; } = new();
     public GeneracionAlertasOptions GeneracionAlertas { get; set; } = new();
     public RecordatoriosCobroOptions RecordatoriosCobro { get; set; } = new();
+    public LimpiezaAuditoriaOptions LimpiezaAuditoria { get; set; } = new();
+}
+
+/// <summary>V2.5-S5 — purga programada de auditoría por retención.</summary>
+public class LimpiezaAuditoriaOptions
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>Eventos de auditoría más viejos que esto se purgan. Default: 365 días.</summary>
+    public int RetencionDias { get; set; } = 365;
+
+    /// <summary>Intervalo entre ejecuciones del job (horas). Default: 24.</summary>
+    public int IntervaloHoras { get; set; } = 24;
+
+    /// <summary>Filas por lote de borrado (evita bloqueos largos). Default: 5000.</summary>
+    public int BatchSize { get; set; } = 5000;
 }
 
 public class GeneracionAlertasOptions

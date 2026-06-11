@@ -153,6 +153,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria> CuentasTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria>();
     public DbSet<NeoSTP.Domain.Core.Tesoreria.MovimientoTesoreria> MovimientosTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.MovimientoTesoreria>();
     public DbSet<NeoSTP.Domain.Core.Tesoreria.MovimientoBancario> MovimientosBancarios => Set<NeoSTP.Domain.Core.Tesoreria.MovimientoBancario>();
+    public DbSet<NeoSTP.Domain.Core.Tesoreria.ConciliacionDetalle> ConciliacionDetalles => Set<NeoSTP.Domain.Core.Tesoreria.ConciliacionDetalle>();
 
     // Compras / Cuentas por pagar (NEOCOMPRAS â€” V2)
     public DbSet<NeoSTP.Domain.Core.Compras.Proveedor> Proveedores => Set<NeoSTP.Domain.Core.Compras.Proveedor>();

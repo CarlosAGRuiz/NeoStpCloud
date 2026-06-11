@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Lookups;
 using NeoSTP.Domain.Common;
@@ -8,30 +10,48 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Services;
 
 /// <summary>
-/// Implementación de <see cref="ILookupService"/>. Catálogos vía <see cref="ICatalogosService"/>
-/// (con caché en memoria de 5 min) y datos maestros vía EF Core.
+/// Implementación de <see cref="ILookupService"/>. Catálogos en dos niveles de caché:
+/// L1 por instancia scoped (varias lecturas dentro de la misma petición) y L2 distribuida
+/// (V2.5-S4: memoria o Redis según Cache:Provider, TTL 5 min, claves versionadas — al mutar
+/// catálogos se publica una versión nueva y todas las instancias dejan de ver la anterior).
+/// Datos maestros (clientes/productos/sucursales) siempre vía EF, sin caché.
 /// </summary>
 public sealed class LookupService : ILookupService
 {
+    internal const string VersionKey = "neostp:lookup:ver";
+    private const string KeyPrefix = "neostp:lookup:";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
-    // Caché por instancia (servicio scoped): evita relecturas dentro de una misma petición
-    // (p. ej. resolver territorial + varios catálogos al generar un DTE) sin riesgo de staleness.
+
     private readonly ConcurrentDictionary<string, (DateTime Expira, IReadOnlyList<LookupItem> Items)> _cache = new();
 
     private readonly NeoStpDbContext _db;
     private readonly ICatalogosService _catalogos;
+    private readonly IDistributedCache? _distributed;
 
-    public LookupService(NeoStpDbContext db, ICatalogosService catalogos)
+    public LookupService(NeoStpDbContext db, ICatalogosService catalogos, IDistributedCache? distributed = null)
     {
         _db = db;
         _catalogos = catalogos;
+        _distributed = distributed;
     }
 
     public async Task<IReadOnlyList<LookupItem>> GetCatalogoAsync(string codigo, int? empresaId, string? parent = null, CancellationToken ct = default)
     {
-        var key = $"{codigo}|{empresaId}|{parent}";
+        var version = _distributed is null ? "0" : await _distributed.GetStringAsync(VersionKey, ct) ?? "0";
+        var key = $"{version}:{codigo}|{empresaId}|{parent}";
         if (_cache.TryGetValue(key, out var hit) && hit.Expira > DateTime.UtcNow)
             return hit.Items;
+
+        if (_distributed is not null)
+        {
+            var json = await _distributed.GetStringAsync(KeyPrefix + key, ct);
+            if (json is not null)
+            {
+                var cached = JsonSerializer.Deserialize<List<LookupItem>>(json) ?? [];
+                _cache[key] = (DateTime.UtcNow.Add(CacheTtl), cached);
+                return cached;
+            }
+        }
 
         var result = await _catalogos.GetItemsAsync(codigo, empresaId, parent, ct);
         var items = (result.Value ?? Array.Empty<Application.Catalogos.Dtos.CatalogoItemDto>())
@@ -41,6 +61,11 @@ public sealed class LookupService : ILookupService
             .ToList();
 
         _cache[key] = (DateTime.UtcNow.Add(CacheTtl), items);
+        if (_distributed is not null)
+        {
+            await _distributed.SetStringAsync(KeyPrefix + key, JsonSerializer.Serialize(items),
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheTtl }, ct);
+        }
         return items;
     }
 
@@ -92,4 +117,18 @@ public sealed class LookupService : ILookupService
             .OrderBy(s => s.Nombre)
             .Select(s => new LookupItem(s.Id.ToString(), s.Nombre, null, s.Codigo))
             .ToListAsync(ct);
+}
+
+/// <summary>
+/// V2.5-S4 — publica una versión nueva de la caché de lookups; las claves anteriores
+/// quedan huérfanas y expiran solas por TTL (no hay borrado por comodín en IDistributedCache).
+/// </summary>
+public sealed class LookupCacheInvalidator : ILookupCacheInvalidator
+{
+    private readonly IDistributedCache _distributed;
+
+    public LookupCacheInvalidator(IDistributedCache distributed) => _distributed = distributed;
+
+    public Task InvalidarCatalogosAsync(CancellationToken ct = default)
+        => _distributed.SetStringAsync(LookupService.VersionKey, DateTime.UtcNow.Ticks.ToString(), ct);
 }

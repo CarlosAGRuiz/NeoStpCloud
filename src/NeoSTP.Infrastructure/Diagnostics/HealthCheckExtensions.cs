@@ -20,7 +20,9 @@ public static class HealthCheckExtensions
     public static IServiceCollection AddNeoStpHealthChecks(this IServiceCollection services)
     {
         services.AddHealthChecks()
-            .AddCheck<DbHealthCheck>("database", tags: new[] { ReadyTag });
+            .AddCheck<DbHealthCheck>("database", tags: new[] { ReadyTag })
+            .AddCheck<EmailConfigHealthCheck>("correo", tags: new[] { ReadyTag })
+            .AddCheck<StorageHealthCheck>("storage", tags: new[] { ReadyTag });
         return services;
     }
 

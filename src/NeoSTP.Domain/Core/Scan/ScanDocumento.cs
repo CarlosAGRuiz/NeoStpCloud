@@ -24,6 +24,13 @@ public class ScanDocumento : AuditableEntity
 
     // ── Archivo capturado ──
     public byte[]? ArchivoBlob { get; set; }
+
+    /// <summary>
+    /// V2.5-S4: ruta/clave del archivo cuando se externaliza a storage
+    /// (Scan:Storage:Provider=FileSystem). Excluyente con <see cref="ArchivoBlob"/>.
+    /// </summary>
+    public string? ArchivoPath { get; set; }
+
     public string? ArchivoContentType { get; set; }
     public string? ArchivoNombre { get; set; }
 

@@ -26,13 +26,17 @@ public class ScanService : IScanService
     private readonly IAuditoriaService _auditoria;
     private readonly int _limiteMensual;
 
+    private readonly NeoSTP.Infrastructure.Scan.IScanBlobStorage? _blobStorage;
+
     public ScanService(NeoStpDbContext db, IScanExtractionService extraction, IProfitService profit,
-        IAuditoriaService auditoria, IConfiguration? configuration = null)
+        IAuditoriaService auditoria, IConfiguration? configuration = null,
+        NeoSTP.Infrastructure.Scan.IScanBlobStorage? blobStorage = null)
     {
         _db = db;
         _extraction = extraction;
         _profit = profit;
         _auditoria = auditoria;
+        _blobStorage = blobStorage;
         // Límite mensual de escaneos por empresa (0/ausente = sin límite). Configurable: Scan:LimiteMensual.
         _limiteMensual = configuration?.GetValue("Scan:LimiteMensual", 0) ?? 0;
     }
@@ -69,11 +73,17 @@ public class ScanService : IScanService
     public async Task<ScanArchivo?> GetArchivoAsync(int empresaId, int id, CancellationToken ct = default)
     {
         var s = await _db.ScanDocumentos.AsNoTracking()
-            .Where(x => x.Id == id && x.EmpresaId == empresaId && x.ArchivoBlob != null)
-            .Select(x => new { x.ArchivoBlob, x.ArchivoContentType, x.ArchivoNombre })
+            .Where(x => x.Id == id && x.EmpresaId == empresaId && (x.ArchivoBlob != null || x.ArchivoPath != null))
+            .Select(x => new { x.ArchivoBlob, x.ArchivoPath, x.ArchivoContentType, x.ArchivoNombre })
             .FirstOrDefaultAsync(ct);
-        return s?.ArchivoBlob is { Length: > 0 }
-            ? new ScanArchivo(s.ArchivoBlob, s.ArchivoContentType ?? "application/octet-stream", s.ArchivoNombre ?? "captura")
+        if (s is null) return null;
+
+        var bytes = s.ArchivoBlob;
+        if (bytes is not { Length: > 0 } && s.ArchivoPath is not null && _blobStorage is not null)
+            bytes = await _blobStorage.LeerAsync(s.ArchivoPath, ct);
+
+        return bytes is { Length: > 0 }
+            ? new ScanArchivo(bytes, s.ArchivoContentType ?? "application/octet-stream", s.ArchivoNombre ?? "captura")
             : null;
     }
 
@@ -98,11 +108,16 @@ public class ScanService : IScanService
             EmpresaId = empresaId,
             EstadoCodigo = ScanEstados.Procesando,
             Origen = string.IsNullOrWhiteSpace(request.Origen) ? "MOBILE" : request.Origen.Trim().ToUpperInvariant(),
-            ArchivoBlob = bytes,
             ArchivoContentType = request.ContentType,
             ArchivoNombre = request.Nombre,
             CreatedBy = actor,
         };
+
+        // V2.5-S4: con storage externo configurado los bytes no entran a la BD.
+        if (_blobStorage is not null)
+            entity.ArchivoPath = await _blobStorage.GuardarAsync(empresaId, request.Nombre, bytes, ct);
+        else
+            entity.ArchivoBlob = bytes;
 
         var ext = await _extraction.ExtraerAsync(bytes, request.ContentType ?? "image/jpeg", ct);
         Aplicar(entity, ext);
@@ -254,7 +269,8 @@ public class ScanService : IScanService
     private static ScanDocumentoDto ToDto(ScanDocumento s) => new()
     {
         Id = s.Id, EstadoCodigo = s.EstadoCodigo, TipoClasificacion = s.TipoClasificacion, Origen = s.Origen,
-        ArchivoNombre = s.ArchivoNombre, ArchivoContentType = s.ArchivoContentType, TieneArchivo = s.ArchivoBlob != null && s.ArchivoBlob.Length > 0,
+        ArchivoNombre = s.ArchivoNombre, ArchivoContentType = s.ArchivoContentType,
+        TieneArchivo = (s.ArchivoBlob != null && s.ArchivoBlob.Length > 0) || s.ArchivoPath != null,
         EmisorNombre = s.EmisorNombre, EmisorNit = s.EmisorNit, EmisorNrc = s.EmisorNrc, Fecha = s.Fecha,
         TipoDocumento = s.TipoDocumento, NumeroControl = s.NumeroControl, SelloRecibido = s.SelloRecibido,
         Subtotal = s.Subtotal, Iva = s.Iva, Total = s.Total, Confianza = s.Confianza, Notas = s.Notas,

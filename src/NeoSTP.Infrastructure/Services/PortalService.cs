@@ -26,14 +26,17 @@ public class PortalService : IPortalService
     private readonly ICobranzaService _cobranza;
     private readonly ICobroQrService _cobroQr;
     private readonly IAuditoriaService _auditoria;
+    private readonly NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? _metrics;
 
-    public PortalService(NeoStpDbContext db, IDteDocumentosService dteDocs, ICobranzaService cobranza, ICobroQrService cobroQr, IAuditoriaService auditoria)
+    public PortalService(NeoStpDbContext db, IDteDocumentosService dteDocs, ICobranzaService cobranza, ICobroQrService cobroQr, IAuditoriaService auditoria,
+        NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null)
     {
         _db = db;
         _dteDocs = dteDocs;
         _cobranza = cobranza;
         _cobroQr = cobroQr;
         _auditoria = auditoria;
+        _metrics = metrics;
     }
 
     // ── Gestión interna ───────────────────────────────────────────────────────
@@ -243,6 +246,7 @@ public class PortalService : IPortalService
             acceso.Accesos++;
             acceso.UltimoAccesoAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
+            _metrics?.PortalAcceso(acceso.EmpresaId, acceso.Tipo);
         }
         return Result<PortalAcceso>.Ok(acceso);
     }
