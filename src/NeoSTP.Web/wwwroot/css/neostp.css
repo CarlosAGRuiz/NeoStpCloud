@@ -252,7 +252,13 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
 .ns-content .btn-primary { background: var(--ns-primary); border-color: var(--ns-primary); }
 .ns-content .btn-primary:hover { background: var(--ns-primary-hover); border-color: var(--ns-primary-hover); }
 .ns-content .btn-outline-primary { color: var(--ns-primary); border-color: var(--ns-primary); }
-.ns-content .btn-outline-primary:hover { background: var(--ns-primary); border-color: var(--ns-primary); }
+/* El fondo del hover es casi negro (--ns-primary): el texto debe pasar a blanco o desaparece. */
+.ns-content .btn-outline-primary:hover,
+.ns-content .btn-outline-primary:active,
+.ns-content .btn-outline-primary.active,
+.ns-content a.btn-outline-primary:hover {
+  background: var(--ns-primary); border-color: var(--ns-primary); color: #fff;
+}
 .ns-content .btn-success { background: var(--ns-processed); border-color: var(--ns-processed); }
 .ns-content .btn-danger { background: var(--ns-rejected); border-color: var(--ns-rejected); }
 .ns-content .btn-secondary { background: var(--ns-secondary); border-color: var(--ns-secondary); }

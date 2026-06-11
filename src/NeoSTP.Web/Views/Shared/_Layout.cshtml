@@ -358,6 +358,22 @@ else
             </div>
         </div>
         <script>
+        // Menú lateral: conserva la posición de scroll entre navegaciones y,
+        // si no hay posición guardada, lleva el módulo activo a la vista.
+        (function () {
+            var nav = document.querySelector('.ns-nav');
+            if (!nav) return;
+            var guardado = sessionStorage.getItem('ns-nav-scroll');
+            if (guardado !== null) {
+                nav.scrollTop = parseInt(guardado, 10) || 0;
+            } else {
+                var activo = nav.querySelector('.ns-nav-link.active');
+                if (activo) activo.scrollIntoView({ block: 'center' });
+            }
+            window.addEventListener('beforeunload', function () {
+                sessionStorage.setItem('ns-nav-scroll', String(nav.scrollTop));
+            });
+        })();
         (function () {
             var modalEl = document.getElementById('busquedaGlobalModal');
             var input = document.getElementById('busquedaGlobalInput');
