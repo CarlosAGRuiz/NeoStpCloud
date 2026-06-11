@@ -1,6 +1,8 @@
 @inject NeoSTP.Application.Empresas.IEmpresaContext EmpresaContext
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
+@inject Microsoft.Extensions.Localization.IStringLocalizer<NeoSTP.Web.SharedResource> L
 @{
+    var idiomaActual = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     var username = User.Identity?.Name;
     var isAuth = User.Identity?.IsAuthenticated ?? false;
     var tipoUsuario = User.FindFirst(NeoSTP.Web.Auth.CookieCurrentUser.ClaimTipoUsuario)?.Value;
@@ -42,7 +44,7 @@
     var inicial = string.IsNullOrEmpty(username) ? "?" : username!.Substring(0, 1).ToUpperInvariant();
 }
 <!DOCTYPE html>
-<html lang="es">
+<html lang="@idiomaActual">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -58,6 +60,7 @@
     <link rel="stylesheet" href="~/NeoSTP.Web.styles.css" asp-append-version="true" />
 </head>
 <body class="ns-app">
+<a class="ns-skip-link" href="#contenido-principal">@L["SaltarContenido"]</a>
 @if (!isAuth)
 {
     @RenderBody()
@@ -68,7 +71,7 @@ else
         <div class="ns-backdrop" onclick="document.body.classList.remove('ns-drawer-open')"></div>
 
         <!-- Sidebar -->
-        <aside class="ns-sidebar">
+        <aside class="ns-sidebar" aria-label="@L["MenuPrincipal"]">
             <a class="ns-brand text-decoration-none" asp-controller="Home" asp-action="Index">
                 <span class="ns-brand-logo"><span class="material-symbols-outlined fill">cloud_done</span></span>
                 <span>
@@ -269,7 +272,7 @@ else
 
             <header class="ns-topbar">
                 <div class="ns-topbar-left">
-                    <button class="ns-hamburger" onclick="document.body.classList.toggle('ns-drawer-open')" aria-label="Menú">
+                    <button class="ns-hamburger" onclick="document.body.classList.toggle('ns-drawer-open')" aria-label="@L["AbrirMenu"]">
                         <span class="material-symbols-outlined">menu</span>
                     </button>
                     <h1 class="ns-topbar-title">@(ViewData["Title"] ?? "NeoSTP Cloud")</h1>
@@ -280,6 +283,9 @@ else
                 <div class="ns-topbar-right">
                     @if (isSuperAdmin)
                     {
+                        <a class="ns-chip" asp-controller="Soporte" asp-action="Operacion" title="Operación del servicio">
+                            <span class="material-symbols-outlined" style="font-size:16px">monitoring</span> Operación
+                        </a>
                         <a class="ns-chip @(enModoSoporte ? "ns-chip--active" : "")" asp-controller="Soporte" asp-action="Index">
                             <span class="material-symbols-outlined" style="font-size:16px">@(enModoSoporte ? "location_on" : "build")</span>
                             @(enModoSoporte ? soporteEmpresaNombre : "Modo soporte")
@@ -287,17 +293,27 @@ else
                     }
                     @await Component.InvokeAsync("AlertasBadge")
                     <div class="dropdown">
-                        <button class="ns-icon-btn" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="material-symbols-outlined">account_circle</span>
+                        <button class="ns-icon-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="@L["MenuUsuario"]">
+                            <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text small text-muted">@username</span></li>
                             <li><hr class="dropdown-divider" /></li>
                             <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Cambiar contraseña</a></li>
                             <li>
+                                <span class="dropdown-item-text small text-muted">@L["Idioma"]</span>
+                                <form asp-controller="Home" asp-action="CambiarIdioma" method="post" class="px-3 py-1 d-flex gap-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                    <button type="submit" name="cultura" value="es" class="btn btn-sm @(idiomaActual == "es" ? "btn-secondary" : "btn-outline-secondary")">ES</button>
+                                    <button type="submit" name="cultura" value="en" class="btn btn-sm @(idiomaActual == "en" ? "btn-secondary" : "btn-outline-secondary")">EN</button>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li>
                                 <form asp-controller="Account" asp-action="Logout" method="post" class="px-3 py-1">
                                     @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">Cerrar sesión</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">@L["CerrarSesion"]</button>
                                 </form>
                             </li>
                         </ul>
@@ -305,7 +321,7 @@ else
                 </div>
             </header>
 
-            <main role="main" class="ns-content">
+            <main role="main" id="contenido-principal" tabindex="-1" class="ns-content">
                 @RenderBody()
             </main>
 

@@ -84,6 +84,23 @@ public class HomeController : Controller
     [AllowAnonymous]
     public IActionResult Privacy() => View();
 
+    /// <summary>V2.5-S6 — cambia el idioma de la UI (es/en) vía cookie de cultura estándar.</summary>
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult CambiarIdioma(string cultura, string? returnUrl)
+    {
+        if (cultura is "es" or "en")
+        {
+            Response.Cookies.Append(
+                Microsoft.AspNetCore.Localization.CookieRequestCultureProvider.DefaultCookieName,
+                Microsoft.AspNetCore.Localization.CookieRequestCultureProvider.MakeCookieValue(
+                    new Microsoft.AspNetCore.Localization.RequestCulture(cultura)),
+                new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true, HttpOnly = false });
+        }
+        return Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl!) : RedirectToAction(nameof(Index));
+    }
+
     [AllowAnonymous]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()

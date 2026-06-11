@@ -686,3 +686,28 @@ tr:hover .ns-row-actions--hover { opacity: 1; }
   width: 56px; height: 56px; border-radius: var(--ns-radius-lg); margin: 0 auto 16px;
   background: var(--ns-secondary); color: #fff; display: flex; align-items: center; justify-content: center;
 }
+
+/* ── V2.5-S6: accesibilidad base ───────────────────────────────────────── */
+.ns-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 2000;
+  padding: .5rem 1rem;
+  background: var(--ns-primary, #0d6efd);
+  color: #fff;
+  border-radius: 0 0 .5rem .5rem;
+  text-decoration: none;
+}
+.ns-skip-link:focus {
+  left: 1rem;
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ns-primary, #0d6efd);
+  outline-offset: 2px;
+}
