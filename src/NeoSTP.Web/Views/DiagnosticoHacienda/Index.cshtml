@@ -26,14 +26,6 @@
 <div class="ns-toolbar">
     <p class="text-muted small m-0">Mapeo de códigos de error de Hacienda a explicaciones y acciones sugeridas.</p>
 </div>
-    <p class="text-muted small m-0">Mapeo de códigos de error de Hacienda a explicaciones y acciones sugeridas.</p>
-    <form asp-action="Sincronizar" method="post" class="d-inline m-0">
-        @Html.AntiForgeryToken()
-        <button class="btn btn-sm btn-outline-secondary">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">sync</span> Sincronizar historial
-        </button>
-    </form>
-</div>
 
 @if (resumen is not null)
 {
