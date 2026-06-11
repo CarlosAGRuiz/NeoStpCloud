@@ -44,6 +44,7 @@
             <select name="estado" class="form-select" onchange="this.form.submit()">
                 <option value="" selected="@(string.IsNullOrEmpty(estado))">Todos</option>
                 <option value="NO_CONCILIADO" selected="@(estado == "NO_CONCILIADO")">Pendientes</option>
+                <option value="PARCIAL" selected="@(estado == "PARCIAL")">Parciales</option>
                 <option value="CONCILIADO" selected="@(estado == "CONCILIADO")">Conciliados</option>
             </select>
         </div>
@@ -78,7 +79,7 @@ else
     {
         <div class="row g-3 mb-3">
             <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Líneas del banco</div><div class="fs-4 ns-mono">@resumen.TotalBanco</div></div></div></div>
-            <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Conciliadas</div><div class="fs-4 ns-mono text-success">@resumen.Conciliados</div></div></div></div>
+            <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Conciliadas</div><div class="fs-4 ns-mono text-success">@resumen.Conciliados @(resumen.Parciales > 0 ? $"(+{resumen.Parciales} parciales)" : "")</div></div></div></div>
             <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Pendientes</div><div class="fs-4 ns-mono @(resumen.NoConciliados > 0 ? "text-warning" : "")">@resumen.NoConciliados <small class="text-muted fs-6">($@resumen.MontoNoConciliado.ToString("N2"))</small></div></div></div></div>
             <div class="col-6 col-md-3"><div class="card"><div class="card-body py-2"><div class="ns-metric-label">Internos sin conciliar</div><div class="fs-4 ns-mono">@resumen.InternosSinConciliar</div></div></div></div>
         </div>
@@ -109,16 +110,32 @@ else
                     <td class="text-end ns-mono @(m.Monto < 0 ? "text-danger" : "text-success")">@m.Monto.ToString("N2")</td>
                     <td>
                         @if (m.EstadoCodigo == "CONCILIADO") { <span class="ns-badge ns-badge--processed">Conciliado</span> }
+                        else if (m.EstadoCodigo == "PARCIAL") { <span class="ns-badge ns-badge--draft">Parcial $@m.MontoConciliado.ToString("N2") / $@Math.Abs(m.Monto).ToString("N2")</span> }
                         else { <span class="ns-badge ns-badge--draft">Pendiente</span> }
                     </td>
                     <td>
-                        @if (m.EstadoCodigo == "CONCILIADO")
+                        @if (m.Detalles.Count > 0)
                         {
-                            <small>#@m.MovimientoTesoreriaId @m.MovimientoTesoreriaConcepto<br /><span class="text-muted">por @m.ConciliadoPor</span></small>
+                            foreach (var d in m.Detalles)
+                            {
+                                <small class="d-block">#@d.MovimientoTesoreriaId @d.MovimientoTesoreriaConcepto ($@d.Monto.ToString("N2"))
+                                @if (puedeGestionar)
+                                {
+                                    <form asp-action="QuitarDetalle" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@m.Id" />
+                                        <input type="hidden" name="movimientoTesoreriaId" value="@d.MovimientoTesoreriaId" />
+                                        <input type="hidden" name="cuentaId" value="@cuentaId" />
+                                        <button type="submit" class="btn btn-link btn-sm p-0 align-baseline" title="Quitar este movimiento"><span class="material-symbols-outlined" style="font-size:14px">close</span></button>
+                                    </form>
+                                }
+                                </small>
+                            }
+                            if (m.EstadoCodigo == "CONCILIADO") { <small class="text-muted">por @m.ConciliadoPor</small> }
                         }
                         else if (sug is not null)
                         {
-                            <small>#@sug.MovimientoTesoreriaId @sug.MovimientoTesoreriaConcepto (@sug.MovimientoTesoreriaFecha.ToString("dd/MM"))
+                            <small>@(sug.CombinacionIds.Count > 1 ? "Combinación: " : $"#{sug.MovimientoTesoreriaId} ")@sug.MovimientoTesoreriaConcepto (@sug.MovimientoTesoreriaFecha.ToString("dd/MM"))
                                 <span class="ns-badge @(sug.Confianza == "ALTA" ? "ns-badge--processed" : "ns-badge--draft")">@sug.Confianza</span>
                             </small>
                         }
@@ -127,13 +144,26 @@ else
                     @if (puedeGestionar)
                     {
                         <td class="text-end">
-                            @if (m.EstadoCodigo == "CONCILIADO")
+                            @if (m.EstadoCodigo != "NO_CONCILIADO")
                             {
                                 <form asp-action="Desconciliar" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@m.Id" />
                                     <input type="hidden" name="cuentaId" value="@cuentaId" />
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm" title="Desconciliar"><span class="material-symbols-outlined" style="font-size:18px">link_off</span></button>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm" title="Desconciliar todo"><span class="material-symbols-outlined" style="font-size:18px">link_off</span></button>
+                                </form>
+                            }
+                            else if (sug is not null && sug.CombinacionIds.Count > 1)
+                            {
+                                <form asp-action="ConciliarCombinacion" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@m.Id" />
+                                    <input type="hidden" name="cuentaId" value="@cuentaId" />
+                                    @foreach (var cid in sug.CombinacionIds)
+                                    {
+                                        <input type="hidden" name="movimientoTesoreriaIds" value="@cid" />
+                                    }
+                                    <button type="submit" class="btn btn-outline-primary btn-sm" title="Conciliar la combinación sugerida"><span class="material-symbols-outlined" style="font-size:18px">join_inner</span></button>
                                 </form>
                             }
                             else if (sug is not null)

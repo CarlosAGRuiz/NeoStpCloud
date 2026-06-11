@@ -181,6 +181,24 @@ public class TesoreriaApiController : ApiControllerBase
         return Respond(await _conciliacion.DesconciliarAsync(eid, id, _currentUser.Username, ct), "Línea desconciliada.");
     }
 
+    /// <summary>V2.5-S1: aplica varios movimientos internos a una línea (conciliación N:1).</summary>
+    [HttpPost("conciliacion/movimientos/{id:int}/conciliar-combinacion")]
+    [RequirePermiso("Tesoreria.Movimientos.Gestionar")]
+    public async Task<IActionResult> ConciliarCombinacion(int id, [FromBody] int[] movimientoTesoreriaIds, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.ConciliarCombinacionAsync(eid, id, movimientoTesoreriaIds, _currentUser.Username, ct), "Movimientos aplicados.");
+    }
+
+    /// <summary>V2.5-S1: quita un movimiento interno de una línea conciliada o parcial.</summary>
+    [HttpPost("conciliacion/movimientos/{id:int}/quitar/{movimientoTesoreriaId:int}")]
+    [RequirePermiso("Tesoreria.Movimientos.Gestionar")]
+    public async Task<IActionResult> QuitarDetalle(int id, int movimientoTesoreriaId, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _conciliacion.QuitarDetalleAsync(eid, id, movimientoTesoreriaId, _currentUser.Username, ct), "Movimiento removido de la línea.");
+    }
+
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;
 
     private object NoTenant() => ApiResponse.Fail(

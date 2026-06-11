@@ -290,6 +290,28 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(Conciliacion), new { cuentaId });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConciliarCombinacion(int id, int cuentaId, int[] movimientoTesoreriaIds, CancellationToken ct)
+    {
+        if (!Has("Tesoreria.Movimientos.Gestionar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var result = await _conciliacion.ConciliarCombinacionAsync(eid, id, movimientoTesoreriaIds, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Movimientos aplicados a la línea." : result.Error;
+        return RedirectToAction(nameof(Conciliacion), new { cuentaId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> QuitarDetalle(int id, int movimientoTesoreriaId, int cuentaId, CancellationToken ct)
+    {
+        if (!Has("Tesoreria.Movimientos.Gestionar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var result = await _conciliacion.QuitarDetalleAsync(eid, id, movimientoTesoreriaId, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Movimiento removido." : result.Error;
+        return RedirectToAction(nameof(Conciliacion), new { cuentaId });
+    }
+
     private async Task CargarCuentasAsync(int eid, CancellationToken ct)
     {
         var cuentas = await _tesoreria.ListCuentasAsync(eid, new PagedQuery { Page = 1, PageSize = 200 }, ct);

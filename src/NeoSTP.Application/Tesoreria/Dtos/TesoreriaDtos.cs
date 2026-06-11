@@ -100,6 +100,20 @@ public class MovimientoBancarioDto
     public string? MovimientoTesoreriaConcepto { get; set; }
     public DateTime? ConciliadoAt { get; set; }
     public string? ConciliadoPor { get; set; }
+
+    /// <summary>Suma ya aplicada por los detalles (V2.5-S1, conciliación parcial).</summary>
+    public decimal MontoConciliado { get; set; }
+
+    public List<ConciliacionDetalleDto> Detalles { get; set; } = [];
+}
+
+public class ConciliacionDetalleDto
+{
+    public int Id { get; set; }
+    public int MovimientoTesoreriaId { get; set; }
+    public string MovimientoTesoreriaConcepto { get; set; } = null!;
+    public DateOnly MovimientoTesoreriaFecha { get; set; }
+    public decimal Monto { get; set; }
 }
 
 public class SugerenciaConciliacionDto
@@ -113,12 +127,16 @@ public class SugerenciaConciliacionDto
     public string Confianza { get; set; } = null!;
 
     public int DiferenciaDias { get; set; }
+
+    /// <summary>V2.5-S1: ids de la combinación N:1 sugerida; vacío cuando el match es 1:1.</summary>
+    public List<int> CombinacionIds { get; set; } = [];
 }
 
 public class ConciliacionResumenDto
 {
     public int TotalBanco { get; set; }
     public int Conciliados { get; set; }
+    public int Parciales { get; set; }
     public int NoConciliados { get; set; }
 
     /// <summary>Suma absoluta de las líneas del banco aún sin conciliar.</summary>

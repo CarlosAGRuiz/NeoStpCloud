@@ -72,3 +72,23 @@ public class MovimientoBancarioConfiguration : IEntityTypeConfiguration<Movimien
         b.HasIndex(x => new { x.EmpresaId, x.CuentaTesoreriaId, x.Fecha });
     }
 }
+
+public class ConciliacionDetalleConfiguration : IEntityTypeConfiguration<ConciliacionDetalle>
+{
+    public void Configure(EntityTypeBuilder<ConciliacionDetalle> b)
+    {
+        b.ToTable("Tes_ConciliacionDetalles");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Monto).HasPrecision(18, 2);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.MovimientoBancario).WithMany(m => m.Detalles)
+            .HasForeignKey(x => x.MovimientoBancarioId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne(x => x.MovimientoTesoreria).WithMany()
+            .HasForeignKey(x => x.MovimientoTesoreriaId).OnDelete(DeleteBehavior.Restrict);
+        // Un movimiento interno solo puede aplicarse a una línea bancaria.
+        b.HasIndex(x => x.MovimientoTesoreriaId).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.MovimientoBancarioId });
+    }
+}

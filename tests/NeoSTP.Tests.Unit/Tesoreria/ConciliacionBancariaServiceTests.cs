@@ -246,6 +246,104 @@ public class ConciliacionBancariaServiceTests
         (await svc.ConciliarAsync(Empresa, 1, 10, "tester")).IsSuccess.Should().BeTrue();
     }
 
+    // ── Conciliación parcial N:1 (V2.5-S1) ───────────────────────────────────
+
+    [Fact]
+    public void SugerirCombinaciones_EncuentraParQueSumaExacto_SinRobarMatches1a1()
+    {
+        var banco = new[]
+        {
+            new BancoMatchRow(1, new DateOnly(2026, 6, 5), 500m, null),   // solo combinable: 300+200
+            new BancoMatchRow(2, new DateOnly(2026, 6, 5), 300m, null),   // tiene match 1:1 con el 10
+        };
+        var internos = new[]
+        {
+            new InternoMatchRow(10, new DateOnly(2026, 6, 5), 300m, "INGRESO", null, "Cobro A"),
+            new InternoMatchRow(11, new DateOnly(2026, 6, 5), 300m, "INGRESO", null, "Cobro B"),
+            new InternoMatchRow(12, new DateOnly(2026, 6, 5), 200m, "INGRESO", null, "Cobro C"),
+        };
+
+        var combos = ConciliacionCalculator.SugerirCombinaciones(banco, internos, toleranciaDias: 3);
+
+        // El 1:1 (línea 2 ↔ algún interno de 300) tiene prioridad; la combinación usa los restantes.
+        combos.Should().ContainSingle();
+        combos[0].MovimientoBancoId.Should().Be(1);
+        combos[0].CombinacionIds.Should().HaveCount(2);
+        combos[0].CombinacionIds.Should().Contain(12);
+        combos[0].Confianza.Should().Be("MEDIA");
+    }
+
+    [Fact]
+    public async Task ConciliarParcial_AcumulaHastaCompletarYRechazaExceso()
+    {
+        var db = NewDb();
+        db.MovimientosBancarios.Add(Banco(1, "2026-06-05", 500m));
+        db.MovimientosTesoreria.AddRange(
+            Interno(10, "2026-06-05", 300m, "INGRESO"),
+            Interno(11, "2026-06-05", 200m, "INGRESO"),
+            Interno(12, "2026-06-05", 50m, "INGRESO"));
+        db.SaveChanges();
+        var svc = NewSvc(db);
+
+        (await svc.ConciliarAsync(Empresa, 1, 10, "tester")).IsSuccess.Should().BeTrue();
+        db.MovimientosBancarios.Single().EstadoCodigo.Should().Be("PARCIAL");
+
+        // Exceso: 300 + 200 + 50 > 500 al intentar agregar el 12 después del 11.
+        (await svc.ConciliarAsync(Empresa, 1, 11, "tester")).IsSuccess.Should().BeTrue();
+        var banco = db.MovimientosBancarios.Single();
+        banco.EstadoCodigo.Should().Be("CONCILIADO");
+        db.ConciliacionDetalles.Count().Should().Be(2);
+
+        (await svc.ConciliarAsync(Empresa, 1, 12, "tester")).ErrorCode.Should().Be("INVALID_STATE"); // ya completa
+
+        // Nueva línea: exceso directo rechazado.
+        db.MovimientosBancarios.Add(Banco(2, "2026-06-05", 40m));
+        db.SaveChanges();
+        (await svc.ConciliarAsync(Empresa, 2, 12, "tester")).ErrorCode.Should().Be("VALIDATION");
+    }
+
+    [Fact]
+    public async Task ConciliarCombinacion_AplicaVariosYQuitarDetalleRegresaEstado()
+    {
+        var db = NewDb();
+        db.MovimientosBancarios.Add(Banco(1, "2026-06-05", -500m)); // cargo agrupado
+        db.MovimientosTesoreria.AddRange(
+            Interno(10, "2026-06-05", 300m, "EGRESO"),
+            Interno(11, "2026-06-06", 200m, "EGRESO"));
+        db.SaveChanges();
+        var svc = NewSvc(db);
+
+        var r = await svc.ConciliarCombinacionAsync(Empresa, 1, [10, 11], "tester");
+
+        r.IsSuccess.Should().BeTrue();
+        var banco = db.MovimientosBancarios.Single();
+        banco.EstadoCodigo.Should().Be("CONCILIADO");
+        banco.MovimientoTesoreriaId.Should().BeNull(); // N:1 no tiene "principal"
+        db.ConciliacionDetalles.Count().Should().Be(2);
+
+        (await svc.QuitarDetalleAsync(Empresa, 1, 11, "tester")).IsSuccess.Should().BeTrue();
+        db.MovimientosBancarios.Single().EstadoCodigo.Should().Be("PARCIAL");
+        (await svc.QuitarDetalleAsync(Empresa, 1, 10, "tester")).IsSuccess.Should().BeTrue();
+        db.MovimientosBancarios.Single().EstadoCodigo.Should().Be("NO_CONCILIADO");
+        db.ConciliacionDetalles.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ConciliarCombinacion_RechazaRepetidosYSignoIncompatible()
+    {
+        var db = NewDb();
+        db.MovimientosBancarios.Add(Banco(1, "2026-06-05", 500m));
+        db.MovimientosTesoreria.AddRange(
+            Interno(10, "2026-06-05", 300m, "INGRESO"),
+            Interno(11, "2026-06-05", 200m, "EGRESO"));
+        db.SaveChanges();
+        var svc = NewSvc(db);
+
+        (await svc.ConciliarCombinacionAsync(Empresa, 1, [10, 10], "tester")).ErrorCode.Should().Be("VALIDATION");
+        (await svc.ConciliarCombinacionAsync(Empresa, 1, [10, 11], "tester")).ErrorCode.Should().Be("VALIDATION");
+        db.ConciliacionDetalles.Should().BeEmpty(); // nada quedó a medias
+    }
+
     [Fact]
     public async Task ConciliarSugeridos_AplicaSoloConfianzaAltaYResumenCuadra()
     {

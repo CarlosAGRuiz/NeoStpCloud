@@ -183,6 +183,15 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
                 EstadoCodigo = m.EstadoCodigo, MovimientoTesoreriaId = m.MovimientoTesoreriaId,
                 MovimientoTesoreriaConcepto = m.MovimientoTesoreria != null ? m.MovimientoTesoreria.Concepto : null,
                 ConciliadoAt = m.ConciliadoAt, ConciliadoPor = m.ConciliadoPor,
+                MontoConciliado = m.Detalles.Sum(d => (decimal?)d.Monto) ?? 0,
+                Detalles = m.Detalles.Select(d => new ConciliacionDetalleDto
+                {
+                    Id = d.Id,
+                    MovimientoTesoreriaId = d.MovimientoTesoreriaId,
+                    MovimientoTesoreriaConcepto = d.MovimientoTesoreria.Concepto,
+                    MovimientoTesoreriaFecha = d.MovimientoTesoreria.Fecha,
+                    Monto = d.Monto,
+                }).ToList(),
             })
             .ToListAsync(ct);
         return Result<PagedResult<MovimientoBancarioDto>>.Ok(PagedResult<MovimientoBancarioDto>.Create(items, total, page, pageSize));
@@ -191,11 +200,14 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
     public async Task<Result<IReadOnlyList<SugerenciaConciliacionDto>>> SugerenciasAsync(int empresaId, int cuentaId, int toleranciaDias = 3, CancellationToken ct = default)
     {
         var (banco, internos) = await CandidatosAsync(empresaId, cuentaId, ct);
-        var sugerencias = ConciliacionCalculator.Sugerir(banco, internos, toleranciaDias);
+        var sugerencias = ConciliacionCalculator.Sugerir(banco, internos, toleranciaDias)
+            .Concat(ConciliacionCalculator.SugerirCombinaciones(banco, internos, toleranciaDias))
+            .OrderBy(s => s.MovimientoBancoId)
+            .ToList();
         return Result<IReadOnlyList<SugerenciaConciliacionDto>>.Ok(sugerencias);
     }
 
-    /// <summary>Líneas del banco sin conciliar + movimientos internos confirmados aún no vinculados.</summary>
+    /// <summary>Líneas del banco sin conciliar + movimientos internos confirmados aún no aplicados a ningún detalle.</summary>
     private async Task<(IReadOnlyList<BancoMatchRow> Banco, IReadOnlyList<InternoMatchRow> Internos)> CandidatosAsync(int empresaId, int cuentaId, CancellationToken ct)
     {
         var banco = await _db.MovimientosBancarios.AsNoTracking()
@@ -206,7 +218,7 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
         var internos = await _db.MovimientosTesoreria.AsNoTracking()
             .Where(m => m.EmpresaId == empresaId && m.CuentaId == cuentaId
                 && m.EstadoCodigo == EstadosMovimientoTesoreria.Confirmado
-                && !_db.MovimientosBancarios.Any(b => b.MovimientoTesoreriaId == m.Id && b.EstadoCodigo == EstadosConciliacion.Conciliado))
+                && !_db.ConciliacionDetalles.Any(d => d.MovimientoTesoreriaId == m.Id))
             .Select(m => new InternoMatchRow(m.Id, m.Fecha, m.Monto, m.Tipo, m.Referencia, m.Concepto))
             .ToListAsync(ct);
 
@@ -216,39 +228,95 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
     // ── Conciliar / desconciliar ─────────────────────────────────────────────
 
     public async Task<Result> ConciliarAsync(int empresaId, int movimientoBancoId, int movimientoTesoreriaId, string? actor, CancellationToken ct = default)
+        => await ConciliarCombinacionAsync(empresaId, movimientoBancoId, [movimientoTesoreriaId], actor, ct);
+
+    public async Task<Result> ConciliarCombinacionAsync(int empresaId, int movimientoBancoId, IReadOnlyList<int> movimientoTesoreriaIds, string? actor, CancellationToken ct = default)
     {
+        if (movimientoTesoreriaIds.Count == 0 || movimientoTesoreriaIds.Distinct().Count() != movimientoTesoreriaIds.Count)
+            return Result.Fail("Indica movimientos de tesorería sin repetir.", "VALIDATION");
+
         var banco = await _db.MovimientosBancarios
+            .Include(m => m.Detalles)
             .FirstOrDefaultAsync(m => m.Id == movimientoBancoId && m.EmpresaId == empresaId, ct);
         if (banco is null) return Result.Fail("Línea bancaria no encontrada.", "MOV_BANCO_NOT_FOUND");
         if (banco.EstadoCodigo == EstadosConciliacion.Conciliado)
-            return Result.Fail("La línea ya está conciliada.", "INVALID_STATE");
+            return Result.Fail("La línea ya está conciliada por completo.", "INVALID_STATE");
 
-        var interno = await _db.MovimientosTesoreria.AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == movimientoTesoreriaId && m.EmpresaId == empresaId, ct);
-        if (interno is null) return Result.Fail("Movimiento de tesorería no encontrado.", "MOVIMIENTO_NOT_FOUND");
-        if (interno.CuentaId != banco.CuentaTesoreriaId)
-            return Result.Fail("El movimiento pertenece a otra cuenta de tesorería.", "VALIDATION");
-        if (interno.EstadoCodigo != EstadosMovimientoTesoreria.Confirmado)
-            return Result.Fail("Solo se concilian movimientos confirmados.", "INVALID_STATE");
+        var internos = await _db.MovimientosTesoreria.AsNoTracking()
+            .Where(m => movimientoTesoreriaIds.Contains(m.Id) && m.EmpresaId == empresaId)
+            .ToListAsync(ct);
+        if (internos.Count != movimientoTesoreriaIds.Count)
+            return Result.Fail("Movimiento de tesorería no encontrado.", "MOVIMIENTO_NOT_FOUND");
 
-        var yaUsado = await _db.MovimientosBancarios.AsNoTracking()
-            .AnyAsync(m => m.MovimientoTesoreriaId == movimientoTesoreriaId && m.EstadoCodigo == EstadosConciliacion.Conciliado, ct);
-        if (yaUsado) return Result.Fail("Ese movimiento de tesorería ya está conciliado con otra línea del banco.", "INVALID_STATE");
+        foreach (var interno in internos)
+        {
+            if (interno.CuentaId != banco.CuentaTesoreriaId)
+                return Result.Fail($"El movimiento {interno.Id} pertenece a otra cuenta de tesorería.", "VALIDATION");
+            if (interno.EstadoCodigo != EstadosMovimientoTesoreria.Confirmado)
+                return Result.Fail($"El movimiento {interno.Id} no está confirmado.", "INVALID_STATE");
+            if (!ConciliacionCalculator.SignoCompatible(banco.Monto, interno.Tipo))
+                return Result.Fail("El tipo no coincide: abonos concilian con INGRESOS y cargos con EGRESOS.", "VALIDATION");
+            if (banco.Detalles.Any(d => d.MovimientoTesoreriaId == interno.Id))
+                return Result.Fail($"El movimiento {interno.Id} ya está aplicado a esta línea.", "INVALID_STATE");
+        }
 
-        var compatible = ConciliacionCalculator.MontoCompatible(
-            new BancoMatchRow(banco.Id, banco.Fecha, banco.Monto, banco.Referencia),
-            new InternoMatchRow(interno.Id, interno.Fecha, interno.Monto, interno.Tipo, interno.Referencia, interno.Concepto));
-        if (!compatible)
-            return Result.Fail("El monto/tipo no coincide: abonos concilian con INGRESOS y cargos con EGRESOS por el mismo monto.", "VALIDATION");
+        var idsNuevos = internos.Select(i => i.Id).ToList();
+        var yaUsado = await _db.ConciliacionDetalles.AsNoTracking()
+            .AnyAsync(d => idsNuevos.Contains(d.MovimientoTesoreriaId), ct);
+        if (yaUsado) return Result.Fail("Alguno de los movimientos ya está conciliado con otra línea del banco.", "INVALID_STATE");
 
-        banco.EstadoCodigo = EstadosConciliacion.Conciliado;
-        banco.MovimientoTesoreriaId = movimientoTesoreriaId;
-        banco.ConciliadoAt = DateTime.UtcNow;
-        banco.ConciliadoPor = actor;
+        var objetivo = Math.Abs(banco.Monto);
+        var acumulado = banco.Detalles.Sum(d => d.Monto);
+        var aAplicar = internos.Sum(i => i.Monto);
+        if (acumulado + aAplicar > objetivo)
+            return Result.Fail($"La suma aplicada (${acumulado + aAplicar:N2}) excede el monto de la línea (${objetivo:N2}).", "VALIDATION");
+
+        foreach (var interno in internos)
+        {
+            banco.Detalles.Add(new ConciliacionDetalle
+            {
+                EmpresaId = empresaId,
+                MovimientoBancarioId = banco.Id,
+                MovimientoTesoreriaId = interno.Id,
+                Monto = interno.Monto,
+                CreatedBy = actor,
+            });
+        }
+
+        var total = acumulado + aAplicar;
+        var completa = total == objetivo;
+        banco.EstadoCodigo = completa ? EstadosConciliacion.Conciliado : EstadosConciliacion.Parcial;
+        banco.MovimientoTesoreriaId = completa && banco.Detalles.Count == 1 ? banco.Detalles.First().MovimientoTesoreriaId : null;
+        banco.ConciliadoAt = completa ? DateTime.UtcNow : null;
+        banco.ConciliadoPor = completa ? actor : null;
         banco.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "CONCILIAR",
-            $"Línea bancaria {banco.Id} conciliada con movimiento {movimientoTesoreriaId}.", "MovimientoBancario", banco.Id);
+        await Audit(empresaId, actor, completa ? "CONCILIAR" : "CONCILIAR_PARCIAL",
+            $"Línea bancaria {banco.Id}: aplicados movimientos [{string.Join(",", idsNuevos)}] (${total:N2} de ${objetivo:N2}).",
+            "MovimientoBancario", banco.Id);
+        return Result.Ok();
+    }
+
+    public async Task<Result> QuitarDetalleAsync(int empresaId, int movimientoBancoId, int movimientoTesoreriaId, string? actor, CancellationToken ct = default)
+    {
+        var banco = await _db.MovimientosBancarios
+            .Include(m => m.Detalles)
+            .FirstOrDefaultAsync(m => m.Id == movimientoBancoId && m.EmpresaId == empresaId, ct);
+        if (banco is null) return Result.Fail("Línea bancaria no encontrada.", "MOV_BANCO_NOT_FOUND");
+
+        var detalle = banco.Detalles.FirstOrDefault(d => d.MovimientoTesoreriaId == movimientoTesoreriaId);
+        if (detalle is null) return Result.Fail("Ese movimiento no está aplicado a la línea.", "INVALID_STATE");
+
+        banco.Detalles.Remove(detalle);
+        _db.Remove(detalle);
+        banco.EstadoCodigo = banco.Detalles.Count > 0 ? EstadosConciliacion.Parcial : EstadosConciliacion.NoConciliado;
+        banco.MovimientoTesoreriaId = null;
+        banco.ConciliadoAt = null;
+        banco.ConciliadoPor = null;
+        banco.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "QUITAR_DETALLE",
+            $"Línea bancaria {banco.Id}: removido movimiento {movimientoTesoreriaId}.", "MovimientoBancario", banco.Id);
         return Result.Ok();
     }
 
@@ -271,12 +339,15 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
     public async Task<Result> DesconciliarAsync(int empresaId, int movimientoBancoId, string? actor, CancellationToken ct = default)
     {
         var banco = await _db.MovimientosBancarios
+            .Include(m => m.Detalles)
             .FirstOrDefaultAsync(m => m.Id == movimientoBancoId && m.EmpresaId == empresaId, ct);
         if (banco is null) return Result.Fail("Línea bancaria no encontrada.", "MOV_BANCO_NOT_FOUND");
-        if (banco.EstadoCodigo != EstadosConciliacion.Conciliado)
+        if (banco.EstadoCodigo == EstadosConciliacion.NoConciliado)
             return Result.Fail("La línea no está conciliada.", "INVALID_STATE");
 
-        var movimientoAnterior = banco.MovimientoTesoreriaId;
+        var removidos = banco.Detalles.Select(d => d.MovimientoTesoreriaId).ToList();
+        _db.RemoveRange(banco.Detalles);
+        banco.Detalles.Clear();
         banco.EstadoCodigo = EstadosConciliacion.NoConciliado;
         banco.MovimientoTesoreriaId = null;
         banco.ConciliadoAt = null;
@@ -284,7 +355,7 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
         banco.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "DESCONCILIAR",
-            $"Línea bancaria {banco.Id} desconciliada (movimiento {movimientoAnterior}).", "MovimientoBancario", banco.Id);
+            $"Línea bancaria {banco.Id} desconciliada (movimientos [{string.Join(",", removidos)}]).", "MovimientoBancario", banco.Id);
         return Result.Ok();
     }
 
@@ -297,22 +368,27 @@ public class ConciliacionBancariaService : IConciliacionBancariaService
             {
                 Total = g.Count(),
                 Conciliados = g.Count(m => m.EstadoCodigo == EstadosConciliacion.Conciliado),
-                MontoPendiente = g.Where(m => m.EstadoCodigo == EstadosConciliacion.NoConciliado)
+                Parciales = g.Count(m => m.EstadoCodigo == EstadosConciliacion.Parcial),
+                MontoPendiente = g.Where(m => m.EstadoCodigo != EstadosConciliacion.Conciliado)
                     .Sum(m => (decimal?)(m.Monto < 0 ? -m.Monto : m.Monto)) ?? 0,
+                MontoAplicadoParcial = g.Where(m => m.EstadoCodigo == EstadosConciliacion.Parcial)
+                    .SelectMany(m => m.Detalles).Sum(d => (decimal?)d.Monto) ?? 0,
             })
             .FirstOrDefaultAsync(ct);
 
         var internosSinConciliar = await _db.MovimientosTesoreria.AsNoTracking()
             .CountAsync(m => m.EmpresaId == empresaId && m.CuentaId == cuentaId
                 && m.EstadoCodigo == EstadosMovimientoTesoreria.Confirmado
-                && !_db.MovimientosBancarios.Any(b => b.MovimientoTesoreriaId == m.Id && b.EstadoCodigo == EstadosConciliacion.Conciliado), ct);
+                && !_db.ConciliacionDetalles.Any(d => d.MovimientoTesoreriaId == m.Id), ct);
 
         return Result<ConciliacionResumenDto>.Ok(new ConciliacionResumenDto
         {
             TotalBanco = banco?.Total ?? 0,
             Conciliados = banco?.Conciliados ?? 0,
-            NoConciliados = (banco?.Total ?? 0) - (banco?.Conciliados ?? 0),
-            MontoNoConciliado = banco?.MontoPendiente ?? 0,
+            Parciales = banco?.Parciales ?? 0,
+            NoConciliados = (banco?.Total ?? 0) - (banco?.Conciliados ?? 0) - (banco?.Parciales ?? 0),
+            // Pendiente = total no completado menos lo ya aplicado en parciales.
+            MontoNoConciliado = (banco?.MontoPendiente ?? 0) - (banco?.MontoAplicadoParcial ?? 0),
             InternosSinConciliar = internosSinConciliar,
         });
     }
