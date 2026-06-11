@@ -14,17 +14,26 @@ public class SucursalesController : Controller
     private readonly IPuntosVentaService _puntosVenta;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
+    private readonly NeoSTP.Application.Lookups.ILookupService _lookups;
 
     public SucursalesController(
         ISucursalesService sucursales,
         IPuntosVentaService puntosVenta,
         ICurrentUser currentUser,
-        IEmpresaContext empresaContext)
+        IEmpresaContext empresaContext,
+        NeoSTP.Application.Lookups.ILookupService lookups)
     {
         _sucursales   = sucursales;
         _puntosVenta  = puntosVenta;
         _currentUser  = currentUser;
         _empresaContext = empresaContext;
+        _lookups      = lookups;
+    }
+
+    private async Task CargarTerritorialAsync(CancellationToken ct)
+    {
+        ViewBag.Departamentos = await _lookups.GetDepartamentosAsync(_empresaContext.CurrentEmpresaId, ct);
+        ViewBag.Municipios = await _lookups.GetCatalogoAsync(NeoSTP.Domain.Common.CatalogCodes.MunicipioEs, _empresaContext.CurrentEmpresaId, null, ct);
     }
 
     // â”€â”€ Sucursales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -41,10 +50,11 @@ public class SucursalesController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(CancellationToken ct)
     {
         if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is null) return RedirectToSoporte();
+        await CargarTerritorialAsync(ct);
         return View(new CreateSucursalRequest());
     }
 
@@ -55,13 +65,14 @@ public class SucursalesController : Controller
         if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) { await CargarTerritorialAsync(ct); return View(model); }
 
         var result = await _sucursales.CreateAsync(eid, model, _currentUser.Username, ct);
         if (result.IsFailure)
         {
             ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
             foreach (var e in result.ValidationErrors) ModelState.AddModelError(string.Empty, e);
+            await CargarTerritorialAsync(ct);
             return View(model);
         }
 
@@ -79,6 +90,7 @@ public class SucursalesController : Controller
         if (result.IsFailure) return NotFound();
 
         var s = result.Value!;
+        await CargarTerritorialAsync(ct);
         return View(new UpdateSucursalRequest
         {
             Nombre                   = s.Nombre,
@@ -99,12 +111,13 @@ public class SucursalesController : Controller
         if (!Has("Core.Sucursales.Administrar")) return Forbid();
         if (RequireEmpresa() is not int eid) return Forbid();
 
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) { await CargarTerritorialAsync(ct); return View(model); }
 
         var result = await _sucursales.UpdateAsync(eid, id, model, _currentUser.Username, ct);
         if (result.IsFailure)
         {
             ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
+            await CargarTerritorialAsync(ct);
             return View(model);
         }
 

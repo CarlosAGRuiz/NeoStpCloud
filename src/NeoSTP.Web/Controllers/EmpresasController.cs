@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
@@ -13,11 +13,19 @@ public class EmpresasController : Controller
 {
     private readonly IEmpresasService _empresas;
     private readonly ICurrentUser _currentUser;
+    private readonly NeoSTP.Application.Lookups.ILookupService _lookups;
 
-    public EmpresasController(IEmpresasService empresas, ICurrentUser currentUser)
+    public EmpresasController(IEmpresasService empresas, ICurrentUser currentUser, NeoSTP.Application.Lookups.ILookupService lookups)
     {
         _empresas = empresas;
         _currentUser = currentUser;
+        _lookups = lookups;
+    }
+
+    private async Task CargarTerritorialAsync(CancellationToken ct)
+    {
+        ViewBag.Departamentos = await _lookups.GetDepartamentosAsync(_currentUser.EmpresaId, ct);
+        ViewBag.Municipios = await _lookups.GetCatalogoAsync(NeoSTP.Domain.Common.CatalogCodes.MunicipioEs, _currentUser.EmpresaId, null, ct);
     }
 
     [HttpGet]
@@ -31,9 +39,10 @@ public class EmpresasController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(CancellationToken ct)
     {
         if (!Has("SuperAdmin.Empresas.Administrar")) return Forbid();
+        await CargarTerritorialAsync(ct);
         return View(new CreateEmpresaViewModel());
     }
 
@@ -42,7 +51,7 @@ public class EmpresasController : Controller
     public async Task<IActionResult> Create(CreateEmpresaViewModel model, CancellationToken ct)
     {
         if (!Has("SuperAdmin.Empresas.Administrar")) return Forbid();
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) { await CargarTerritorialAsync(ct); return View(model); }
 
         var result = await _empresas.CreateAsync(new CreateEmpresaRequest
         {
@@ -57,6 +66,7 @@ public class EmpresasController : Controller
         {
             ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
             foreach (var e in result.ValidationErrors) ModelState.AddModelError(string.Empty, e);
+            await CargarTerritorialAsync(ct);
             return View(model);
         }
 
@@ -71,6 +81,7 @@ public class EmpresasController : Controller
         var result = await _empresas.GetByIdAsync(_currentUser.EmpresaId, id, ct);
         if (result.IsFailure) return NotFound();
         var e = result.Value!;
+        await CargarTerritorialAsync(ct);
         return View(new EditEmpresaViewModel
         {
             Id = e.Id, Nit = e.Nit, Nrc = e.Nrc,
@@ -87,7 +98,7 @@ public class EmpresasController : Controller
     public async Task<IActionResult> Edit(EditEmpresaViewModel model, CancellationToken ct)
     {
         if (!Has("Core.Empresa.Editar")) return Forbid();
-        if (!ModelState.IsValid) return View(model);
+        if (!ModelState.IsValid) { await CargarTerritorialAsync(ct); return View(model); }
 
         var result = await _empresas.UpdateAsync(_currentUser.EmpresaId, model.Id, new UpdateEmpresaRequest
         {
@@ -102,6 +113,7 @@ public class EmpresasController : Controller
         if (result.IsFailure)
         {
             ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
+            await CargarTerritorialAsync(ct);
             return View(model);
         }
 

@@ -54,14 +54,14 @@
                 <label asp-for="Telefono" class="form-label">Teléfono</label>
                 <input asp-for="Telefono" class="form-control" placeholder="2222-0000" />
             </div>
-            <div class="col-md-3">
-                <label asp-for="Departamento" class="form-label">Departamento</label>
-                <input asp-for="Departamento" class="form-control" placeholder="Cód." maxlength="2" />
-            </div>
-            <div class="col-md-3">
-                <label asp-for="Municipio" class="form-label">Municipio</label>
-                <input asp-for="Municipio" class="form-control" placeholder="Cód." maxlength="4" />
-            </div>
+            <partial name="_SelectorTerritorial" model="new NeoSTP.Web.Models.TerritorialSelectorViewModel
+            {
+                PorCodigo = true,
+                ValorDepartamento = Model.Departamento,
+                ValorMunicipio = Model.Municipio,
+                Departamentos = ViewBag.Departamentos as IReadOnlyList<NeoSTP.Application.Lookups.LookupItem> ?? [],
+                Municipios = ViewBag.Municipios as IReadOnlyList<NeoSTP.Application.Lookups.LookupItem> ?? [],
+            }" />
         </div>
     </div>
 </form>

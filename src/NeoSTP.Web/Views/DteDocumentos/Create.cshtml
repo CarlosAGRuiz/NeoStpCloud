@@ -9,6 +9,8 @@
         ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var formasPago = ViewBag.FormasPago as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
         ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var tiposDocIdent = ViewBag.TiposDoc as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
+        ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var tiposDocStr = new (string Code, string Label)[]
     {
         ("01", "01 Factura"),
@@ -160,7 +162,13 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Tipo doc</label>
-                        <input asp-for="ReceptorTipoDocumento" class="form-control" />
+                        <select asp-for="ReceptorTipoDocumento" class="form-select">
+                            <option value="">— Sin documento —</option>
+                            @foreach (var td in tiposDocIdent)
+                            {
+                                <option value="@td.Codigo" selected="@(Model.ReceptorTipoDocumento == td.Codigo)">@td.Codigo — @td.Valor</option>
+                            }
+                        </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Documento</label>

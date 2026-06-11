@@ -1,4 +1,4 @@
-@model NeoSTP.Web.Models.CreateEmpresaViewModel
+﻿@model NeoSTP.Web.Models.CreateEmpresaViewModel
 @{ ViewData["Title"] = "Nueva empresa"; }
 
 <form asp-action="Create" method="post" style="max-width: 880px;">
@@ -44,14 +44,13 @@
             <label asp-for="ActividadEconomica" class="form-label"></label>
             <input asp-for="ActividadEconomica" class="form-control" />
         </div>
-        <div class="col-md-4">
-            <label asp-for="Departamento" class="form-label"></label>
-            <input asp-for="Departamento" class="form-control" />
-        </div>
-        <div class="col-md-4">
-            <label asp-for="Municipio" class="form-label"></label>
-            <input asp-for="Municipio" class="form-control" />
-        </div>
+        <partial name="_SelectorTerritorial" model="new NeoSTP.Web.Models.TerritorialSelectorViewModel
+        {
+            ValorDepartamento = Model.Departamento,
+            ValorMunicipio = Model.Municipio,
+            Departamentos = ViewBag.Departamentos as IReadOnlyList<NeoSTP.Application.Lookups.LookupItem> ?? [],
+            Municipios = ViewBag.Municipios as IReadOnlyList<NeoSTP.Application.Lookups.LookupItem> ?? [],
+        }" />
         <div class="col-md-4">
             <label asp-for="Telefono" class="form-label"></label>
             <input asp-for="Telefono" class="form-control" />

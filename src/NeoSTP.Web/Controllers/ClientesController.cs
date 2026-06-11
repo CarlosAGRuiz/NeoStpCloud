@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
@@ -251,6 +251,7 @@ public class ClientesController : Controller
         ViewBag.TiposDoc = await Items("TIPO_DOC_IDENTIDAD");
         ViewBag.TiposContrib = await Items("TIPO_CONTRIBUYENTE");
         ViewBag.Departamentos = await Items("DEPARTAMENTO_ES");
+        ViewBag.Municipios = await Items("MUNICIPIO_ES");
         ViewBag.Estados = await Items("ESTADO_GENERICO");
     }
 }

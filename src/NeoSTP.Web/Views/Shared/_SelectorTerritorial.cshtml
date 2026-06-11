@@ -1,0 +1,63 @@
+@using System.Text.Json
+@model NeoSTP.Web.Models.TerritorialSelectorViewModel
+@{
+    var uid = Guid.NewGuid().ToString("N")[..8];
+    string DeptoDe(NeoSTP.Application.Lookups.LookupItem m)
+    {
+        if (!string.IsNullOrEmpty(m.Parent)) return m.Parent;
+        if (string.IsNullOrEmpty(m.Meta)) return string.Empty;
+        try
+        {
+            using var doc = JsonDocument.Parse(m.Meta);
+            return doc.RootElement.TryGetProperty("departamento", out var d) ? d.GetString() ?? string.Empty : string.Empty;
+        }
+        catch (JsonException) { return string.Empty; }
+    }
+}
+
+<div class="col-md-4">
+    <label class="form-label" for="depto-@uid">Departamento</label>
+    <select name="@Model.CampoDepartamento" id="depto-@uid" class="form-select">
+        <option value="">—</option>
+        @foreach (var d in Model.Departamentos)
+        {
+            var dv = Model.PorCodigo ? d.Value : d.Label;
+            <option value="@dv" data-codigo="@d.Value" selected="@(dv == Model.ValorDepartamento)">@d.Label</option>
+        }
+    </select>
+</div>
+<div class="col-md-4">
+    <label class="form-label" for="muni-@uid">Municipio</label>
+    <select name="@Model.CampoMunicipio" id="muni-@uid" class="form-select" data-current="@Model.ValorMunicipio">
+        <option value="">— (selecciona departamento)</option>
+        @foreach (var m in Model.Municipios)
+        {
+            var mv = Model.PorCodigo ? m.Value : m.Label;
+            <option value="@mv" data-depto="@DeptoDe(m)" selected="@(mv == Model.ValorMunicipio)" style="display:none">@m.Label</option>
+        }
+    </select>
+</div>
+
+<script>
+(function () {
+    var depto = document.getElementById('depto-@uid');
+    var muni = document.getElementById('muni-@uid');
+    if (!depto || !muni) return;
+    function filter() {
+        var sel = depto.options[depto.selectedIndex];
+        var codigo = sel ? sel.getAttribute('data-codigo') : '';
+        var actual = muni.value;
+        var visible = false;
+        Array.prototype.forEach.call(muni.options, function (opt) {
+            if (!opt.value) { opt.style.display = ''; return; }
+            var ok = !codigo || opt.getAttribute('data-depto') === codigo;
+            opt.style.display = ok ? '' : 'none';
+            opt.disabled = !ok;
+            if (opt.value === actual && ok) visible = true;
+        });
+        if (!visible) muni.value = '';
+    }
+    depto.addEventListener('change', filter);
+    filter();
+})();
+</script>
