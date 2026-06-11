@@ -10,7 +10,23 @@
 
 ---
 
-## Actualizacion reciente - 2026-06-10 — **FASE V2 CERRADA**
+## Actualizacion reciente - 2026-06-10 (tarde) — **FASE V2.5 CERRADA**
+
+La Fase V2.5 (`docs/Plan-V2.5.md`) quedo cerrada el mismo dia, convirtiendo lo diferido del bloque E en capacidades activables por configuracion (defaults = comportamiento V2):
+
+- **S1 Conciliacion parcial N:1**: `ConciliacionDetalle` (`Tes_ConciliacionDetalles`), estado PARCIAL, sugerencias por combinacion (pares/trios exactos), conciliar-combinacion/quitar detalle (API+UI), migracion `V25_S1_ConciliacionParcial` con backfill.
+- **S2 WhatsApp real**: `MetaWhatsAppSender` (Meta Cloud API) tras `IWhatsAppSender`, toggle `WhatsApp:Provider=Meta`, normalizacion E.164 (+503), mock por defecto.
+- **S3 Observabilidad**: OpenTelemetry opcional (`Observability:Otlp:Endpoint`) en API/Web/Worker + Meter `NeoSTP` (`NeoStpMetrics`: DTE emitidos/errores MH/recordatorios/portal), health ready ampliado (BD+correo+storage), panel SuperAdmin `/Soporte/Operacion` (`IOperacionPanelService`).
+- **S4 Escala**: `Cache:Provider=Memory|Redis` con L2 distribuida versionada para lookups + `ILookupCacheInvalidator` (invalida al mutar catalogos); `Scan:Storage:Provider=FileSystem` saca los blobs de escaneo de la BD (`ArchivoPath`, migracion `V25_S4_ScanArchivoPath`).
+- **S5 Operacion**: `LimpiezaAuditoriaService`+`LimpiezaAuditoriaWorker` (`Worker:LimpiezaAuditoria`, retencion minima 30 dias, off por defecto); CI ya existia (M5.3).
+- **S6 UX**: i18n es/en (`SharedResource`, selector ES/EN por cookie de cultura, `Home/CambiarIdioma`), `<html lang>` dinamico, skip-link, `:focus-visible`, aria-labels.
+- **S7**: pruebas en vivo verdes (combinacion N:1 exacta, PARCIAL $300/$500, i18n es↔en con sesion real, health 3 checks) — detalle en `docs/Plan-V2.5.md`. Suites: **673 unit + 7 integracion**.
+
+Pendiente solo lo externo de verdad: credenciales reales (Meta/Redis/OTLP collector) y verificacion NIT MH (sin API publica). Siguiente fase sugerida: app Flutter (`neocloud_mobile_android`) o V3.
+
+---
+
+## Actualizacion previa - 2026-06-10 — **FASE V2 CERRADA**
 
 La Fase V2 quedo cerrada en lo funcional (`docs/Plan-Cierre-Fase-V2.md`). Sprints entregados en este cierre:
 

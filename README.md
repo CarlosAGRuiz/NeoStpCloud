@@ -37,7 +37,9 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
 | Firma/DTE | XML/JWS, integración Ministerio de Hacienda (MH) El Salvador |
 | Seguridad | JWT, DataProtection (`ISecretProtector`), políticas de contraseña, MFA |
-| Tests | xUnit + FluentAssertions + NSubstitute (**653 unitarias + 7 integración**) |
+| Tests | xUnit + FluentAssertions + NSubstitute (**673 unitarias + 7 integración**) |
+| Observabilidad | Health checks (BD/correo/storage), Serilog estructurado, **OpenTelemetry OTLP opcional** + Meter `NeoSTP` |
+| Escala | Caché distribuida **Memory/Redis** para lookups, storage externo opcional para blobs de scan |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -259,8 +261,12 @@ operación en [`docs/Runbook-V2.md`](docs/Runbook-V2.md).
 - **Fase C — Comercial ✅**: NeoPOS (S1–S4 con corte de caja) · NEOCRM (API + web + cotización→DTE) · NeoPortal.
 - **Fase D — Cierre fiscal/contable ✅**: NeoBI fiscal (libros IVA/F-07) · NeoConta mínima ·
   recordatorios de cobro configurables · conciliación bancaria.
-- **Fase E — Escala**: runbook de despliegue/backup/rotación ✅ documental; OpenTelemetry, storage
-  externo/Redis y a11y/i18n → **V2.5**.
+- **Fase E — Escala**: runbook de despliegue/backup/rotación ✅ documental.
+- **V2.5 ✅ (2026-06-10)** — [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md): conciliación bancaria **parcial N:1**
+  (combinaciones sugeridas), **WhatsApp Business real** (Meta Cloud API, pluggable), **OpenTelemetry** OTLP
+  opcional + métricas de negocio + panel operativo SuperAdmin (`/Soporte/Operacion`) + health ready ampliado,
+  caché distribuida **Redis** con invalidación, storage externo para escaneos, purga programada de auditoría,
+  y **a11y + i18n es/en** (selector de idioma, skip-link, focus visible).
 
 > Fuera de alcance de este repo: la app Flutter y la UI de NeoScan (viven en `neocloud_mobile_android`).
 
