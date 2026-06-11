@@ -1,4 +1,4 @@
-# NeoSTP.Api
+﻿# NeoSTP.Api
 
 API REST central de NeoSTP Cloud. Expone la operacion multiempresa de la suite, sirve a la app movil y publica NeoConnect para integradores externos.
 
@@ -72,6 +72,11 @@ Los secretos locales deben vivir en `src/NeoSTP.Api/appsettings.Local.json`, que
 | `Pos` | IVA, ancho de ticket, moneda y pie de ticket. |
 | `Nomina` | Parametros ISSS/AFP/Renta. |
 | `Worker:RecordatoriosCobro` | Job opcional de recordatorios CxC vencida por email/WhatsApp. |
+| `Worker:LimpiezaAuditoria` | Purga programada de auditoria por retencion (off por defecto, minimo 30 dias). |
+| `WhatsApp` | Proveedor `Mock` o `Meta` (Cloud API: Token, PhoneNumberId; E.164 con +503 por defecto). |
+| `Observability:Otlp:Endpoint` | Exporta trazas y metricas OpenTelemetry (Meter `NeoSTP`); vacio = sin overhead. |
+| `Cache` | Cache distribuida `Memory` (default) o `Redis` para lookups/catalogos con invalidacion. |
+| `Scan:Storage` | Blobs de escaneo en `Database` (default) o `FileSystem` (ruta local/UNC). |
 
 Ejemplo minimo:
 
@@ -317,6 +322,7 @@ Mapeo general:
 | POST | `/api/cobros/cuentas/{id}/inactivar` | Inactivar cuenta. |
 | POST | `/api/cobros/qr` | Generar QR/enlace. |
 | POST | `/api/cobros/recordatorios/ejecutar` | Ejecutar recordatorios de facturas vencidas por email/WhatsApp. |
+| GET/PUT | `/api/cobros/recordatorios/configuracion` | Configuracion por empresa de recordatorios (reglas, canales, plantillas). |
 | GET/POST/PUT | `/api/compras/proveedores` | Proveedores. |
 | POST | `/api/compras/proveedores/{id}/inactivar` | Inactivar proveedor. |
 | POST | `/api/compras/proveedores/{id}/reactivar` | Reactivar proveedor. |
@@ -332,6 +338,15 @@ Mapeo general:
 | GET/POST | `/api/tesoreria/movimientos` | Movimientos. |
 | POST | `/api/tesoreria/movimientos/{id}/anular` | Anular movimiento. |
 | GET | `/api/tesoreria/resumen` | Resumen tesoreria. |
+| POST | `/api/tesoreria/conciliacion/{cuentaId}/importar` | Importar estado de cuenta del banco (CSV/XLSX multipart, dedupe). |
+| GET | `/api/tesoreria/conciliacion/{cuentaId}/movimientos` | Lineas bancarias (filtro por estado, con detalles N:1). |
+| GET | `/api/tesoreria/conciliacion/{cuentaId}/sugerencias` | Matches sugeridos 1:1 y combinaciones N:1 (confianza ALTA/MEDIA). |
+| GET | `/api/tesoreria/conciliacion/{cuentaId}/resumen` | Conciliadas/parciales/pendientes y monto sin conciliar. |
+| POST | `/api/tesoreria/conciliacion/movimientos/{id}/conciliar/{movId}` | Aplicar un movimiento interno (acumula; PARCIAL hasta completar). |
+| POST | `/api/tesoreria/conciliacion/movimientos/{id}/conciliar-combinacion` | Aplicar varios movimientos de una vez (body: `[ids]`). |
+| POST | `/api/tesoreria/conciliacion/movimientos/{id}/quitar/{movId}` | Quitar un movimiento aplicado. |
+| POST | `/api/tesoreria/conciliacion/movimientos/{id}/desconciliar` | Desconciliar la linea completa. |
+| POST | `/api/tesoreria/conciliacion/{cuentaId}/conciliar-sugeridos` | Aplicar todas las sugerencias de confianza ALTA. |
 | GET | `/api/inventario/existencias` | Existencias. |
 | GET | `/api/inventario/existencias/{productoId}` | Existencia por producto. |
 | GET | `/api/inventario/kardex/{productoId}` | Kardex. |
@@ -408,6 +423,37 @@ Esquema tecnico: `docs/NEOCRM-Schema-V2-C1.md`.
 | GET/POST | `/api/crm/actividades` | Listar o crear actividades. |
 | POST | `/api/crm/actividades/{id}/completar` | Completar actividad. |
 | POST | `/api/crm/actividades/{id}/cancelar` | Cancelar actividad. |
+| GET/POST | `/api/crm/cotizaciones` | Listar o crear cotizaciones con lineas. |
+| GET | `/api/crm/cotizaciones/{id}` | Detalle de cotizacion. |
+| POST | `/api/crm/cotizaciones/{id}/estado` | Cambiar estado (BORRADOR/ENVIADA/ACEPTADA/RECHAZADA). |
+| POST | `/api/crm/cotizaciones/{id}/convertir` | Convertir a Factura/CCF electronica (exige `DTE.Emitir`). |
+
+### Portal del receptor (V2-C2, modulo NEOPORTAL)
+
+Gestion interna de enlaces publicos; el acceso del receptor es por la **web** (`/portal/{token}`),
+con token de 256 bits expirable/revocable (solo el hash queda en BD).
+
+| Metodo | Ruta | Uso |
+|---|---|---|
+| GET | `/api/portal/enlaces` | Listar enlaces (sin exponer el token). |
+| POST | `/api/portal/enlaces/documento/{dteId}` | Generar enlace a un DTE (token solo en la respuesta de creacion). |
+| POST | `/api/portal/enlaces/estado-cuenta/{clienteId}` | Generar enlace de estado de cuenta del cliente. |
+| POST | `/api/portal/enlaces/{id}/revocar` | Revocar enlace (el token muere de inmediato). |
+
+### NeoConta y reportes fiscales (V2-D1/D2, modulos NEOBI y NEOCONTA)
+
+| Metodo | Ruta | Uso |
+|---|---|---|
+| GET | `/api/conta/cuentas` | Catalogo contable minimo (se siembra al primer uso). |
+| POST | `/api/conta/asientos/generar?anio=&mes=` | Genera asientos automaticos del periodo (idempotente). |
+| GET | `/api/conta/asientos` | Asientos del periodo. |
+| GET | `/api/conta/asientos/{id}` | Detalle con partidas. |
+| POST | `/api/conta/asientos/{id}/reversar` | Reversa espejo (no hay borrado). |
+| GET | `/api/conta/balanza` (+`/csv`) | Balanza de comprobacion del periodo. |
+| GET | `/api/reportes/fiscal/libro-ventas-consumidor` (+`/csv`) | Libro IVA consumidor final por dia. |
+| GET | `/api/reportes/fiscal/libro-ventas-contribuyentes` (+`/csv`) | Libro IVA contribuyentes (NC en negativo). |
+| GET | `/api/reportes/fiscal/libro-compras` (+`/csv`) | Libro IVA compras. |
+| GET | `/api/reportes/fiscal/f07` | Resumen F-07 del periodo. |
 
 ### Alertas, correo, hardening y billing
 
@@ -549,5 +595,13 @@ Areas con cobertura relevante:
 - NeoConnect API keys, middleware y webhooks.
 - Cobros, compras, inventario, POS/caja, RRHH, NeoProfit, NeoScanAI.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
-- Recordatorios de cobranza: envio, omision por destinatario faltante e idempotencia diaria.
-- NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido y actividades.
+- Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
+- NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
+- NeoPortal: tokens (hash, expiracion, revocacion) y aislamiento por empresa/cliente.
+- NeoConta: doble partida, idempotencia, reversa espejo y balanza cuadrada.
+- Reportes fiscales: LibroIvaCalculator (NC resta, ND suma, INVALIDADO excluido).
+- Conciliacion bancaria: matcher 1:1 y combinaciones N:1, import con dedupe, parciales.
+- WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
+- Operacion: purga de auditoria por retencion y storage externo de escaneos.
+
+Estado actual de las suites: **681 unitarias + 7 de integracion** (CI en GitHub Actions en cada push/PR a main).

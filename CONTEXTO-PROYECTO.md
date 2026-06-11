@@ -1,68 +1,78 @@
-# 📘 Contexto Maestro — NeoSTP Cloud · NeoSTP Business Suite
+﻿# 📘 Contexto Maestro — NeoSTP Cloud · NeoSTP Business Suite
 
 > Documento único de contexto del proyecto. Reúne: estado real del sistema (README),
 > arquitectura, base de datos, **explicación detallada del funcionamiento DTE/Hacienda**,
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** NeoConnect COMPLETO · NeoProfit (Sprint 22) · Onboarding · Branding · Backend NeoCloud Mobile (B-1…B-6) · Scalar · Plan-V2 (M1 paridad Web↔API · M2 OCR Gemini + Push FCM · M3 health+auditoría · M5 tests integración + CI) · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 485 unit + 7 integración
+> **Versión:** Fases V2 y V2.5 CERRADAS (2026-06-10/11) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 681 unit + 7 integración (CI verde)
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
 
-## Actualizacion reciente - 2026-06-10 (tarde) — **FASE V2.5 CERRADA**
+## Estado actual — 2026-06-11 · FASES V2 Y V2.5 CERRADAS
 
-La Fase V2.5 (`docs/Plan-V2.5.md`) quedo cerrada el mismo dia, convirtiendo lo diferido del bloque E en capacidades activables por configuracion (defaults = comportamiento V2):
+NeoSTP Cloud es un **producto funcionalmente completo**: los 17 modulos licenciables estan
+entregados, el ciclo de negocio opera de punta a punta y todo proveedor externo es pluggable
+por configuracion (los defaults funcionan sin servicios externos).
 
-- **S1 Conciliacion parcial N:1**: `ConciliacionDetalle` (`Tes_ConciliacionDetalles`), estado PARCIAL, sugerencias por combinacion (pares/trios exactos), conciliar-combinacion/quitar detalle (API+UI), migracion `V25_S1_ConciliacionParcial` con backfill.
-- **S2 WhatsApp real**: `MetaWhatsAppSender` (Meta Cloud API) tras `IWhatsAppSender`, toggle `WhatsApp:Provider=Meta`, normalizacion E.164 (+503), mock por defecto.
-- **S3 Observabilidad**: OpenTelemetry opcional (`Observability:Otlp:Endpoint`) en API/Web/Worker + Meter `NeoSTP` (`NeoStpMetrics`: DTE emitidos/errores MH/recordatorios/portal), health ready ampliado (BD+correo+storage), panel SuperAdmin `/Soporte/Operacion` (`IOperacionPanelService`).
-- **S4 Escala**: `Cache:Provider=Memory|Redis` con L2 distribuida versionada para lookups + `ILookupCacheInvalidator` (invalida al mutar catalogos); `Scan:Storage:Provider=FileSystem` saca los blobs de escaneo de la BD (`ArchivoPath`, migracion `V25_S4_ScanArchivoPath`).
-- **S5 Operacion**: `LimpiezaAuditoriaService`+`LimpiezaAuditoriaWorker` (`Worker:LimpiezaAuditoria`, retencion minima 30 dias, off por defecto); CI ya existia (M5.3).
-- **S6 UX**: i18n es/en (`SharedResource`, selector ES/EN por cookie de cultura, `Home/CambiarIdioma`), `<html lang>` dinamico, skip-link, `:focus-visible`, aria-labels.
-- **S7**: pruebas en vivo verdes (combinacion N:1 exacta, PARCIAL $300/$500, i18n es↔en con sesion real, health 3 checks) — detalle en `docs/Plan-V2.5.md`. Suites: **673 unit + 7 integracion**.
+**Numeros del sistema**: 17 modulos · ~89 tablas · 55 migraciones · 38 controllers API ·
+~45 pantallas web · 8 jobs de Worker · **681 tests unitarios + 7 de integracion** · CI verde.
 
-Pendiente solo lo externo de verdad: credenciales reales (Meta/Redis/OTLP collector) y verificacion NIT MH (sin API publica). Siguiente fase sugerida: app Flutter (`neocloud_mobile_android`) o V3.
+**Lo que el producto hace hoy** (todo probado): emision de 9 tipos de DTE certificados contra
+apitest de Hacienda (incl. 07 Retencion), POS con corte de caja y promocion a DTE, CxC con
+recordatorios automaticos configurables (email/WhatsApp) e historial, portal publico del receptor
+con tokens revocables, compras/CxP, inventario con kardex y costo promedio, nomina quincenal
+ISSS/AFP/Renta, tesoreria con conciliacion bancaria N:1 (import CSV + matching con combinaciones),
+libros IVA + F-07, contabilidad de doble partida con balanza, P&L, CRM con cotizacion→DTE,
+NeoConnect (API publica + webhooks), NeoScanAI (OCR Gemini), alertas+push, billing multi-pasarela,
+branding, onboarding, i18n es/en, buscador global Ctrl+K y panel operativo SuperAdmin.
 
----
+**Pendiente real** (insumos externos, no codigo): credenciales Meta WhatsApp + plantilla aprobada,
+Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado DTE de produccion
+(ambiente 01) por cliente, y la app Flutter (repo aparte, backend listo). Backlog V3 en README.
 
-## Actualizacion previa - 2026-06-10 — **FASE V2 CERRADA**
+### Fases del proyecto (historial)
 
-La Fase V2 quedo cerrada en lo funcional (`docs/Plan-Cierre-Fase-V2.md`). Sprints entregados en este cierre:
+| Fase | Contenido | Cierre |
+|---|---|---|
+| Sprints 1–12 | Nucleo DTE: emision, firma JWS, transmision, **certificacion real apitest Hacienda** | ✅ |
+| Sprints 13–21 | Catalogos MH, modulo certificacion, eventos DTE, contingencia/lotes, diagnostico errores MH, legal, billing self-service, hardening (MFA/cuotas/backups), design system 
+s-* | ✅ |
+| Sprints 22–30 | NeoProfit, NeoScanAI, NeoConnect completo, backend movil B-1..B-6, pagos LATAM, lookups, carga masiva, onboarding, branding | ✅ |
+| V2 Fase A/B | ERP interno: NeoRRHH (planilla), Tesoreria, Compras/CxP, Inventario + glue (compra→entrada, POS→salida, stock bajo) | ✅ |
+| V2 Fase C | NeoPOS S1–S4 (corte de caja), NEOCRM (pipeline, actividades, cotizaciones→DTE), NeoPortal receptor | ✅ 2026-06-10 |
+| V2 Fase D | NeoBI fiscal (libros IVA/F-07), NeoConta minima, recordatorios configurables, conciliacion bancaria | ✅ 2026-06-10 |
+| V2.5 | Conciliacion parcial N:1, WhatsApp Meta real, OpenTelemetry + panel operativo + health ampliado, Redis + storage externo scans, purga auditoria, i18n/a11y | ✅ 2026-06-10 |
+| Recorrido UX | Pruebas como cliente: 7 bugs corregidos + 5 mejoras de experiencia | ✅ 2026-06-11 |
 
-- **V2-C2 NeoPortal 107**: enlaces publicos con token (solo hash en BD, expira/revoca), portal `/portal/{token}` (DTE HTML/JSON/PDF, estado de cuenta, QR pago, reenvio), gestion `/PortalEnlaces` + `/api/portal/*`, permisos 416/417, migracion `V2_C2_NeoPortal`, 9 tests.
-- **V2-D1 NEOBI fiscal 105**: `LibroIvaCalculator` + `IReporteFiscalService`, libros IVA (consumidor/contribuyentes/compras) + resumen F-07 con CSV, `/NeoBi` + `/api/reportes/fiscal/*`, 6 tests.
-- **V2-D2 NEOCONTA 116**: catalogo minimo 8 cuentas por empresa, asientos automaticos idempotentes (ventas/cobros/compras/pagos/gastos) con reversa espejo, balanza + CSV, `/Conta` + `/api/conta/*`, permisos 418/419, migracion `V2_D2_NeoConta`, 6 tests.
-- **V2-D3 Recordatorios configurables**: `ConfigRecordatorioCobro` por empresa (umbral, frecuencia con dedupe por ventana, maximo, canales, plantillas con placeholders), `/Cobros/Recordatorios` + GET/PUT `/api/cobros/recordatorios/configuracion`, worker filtra empresas activas, migracion `V2_D3_ConfigRecordatorios`, 15 tests del servicio.
-- **V2-D4 Conciliacion bancaria**: `MovimientoBancario` (`Tes_MovimientosBanco`), import CSV/XLSX con dedupe (`TabularParser`), `ConciliacionCalculator` (monto exacto + signo + ventana fecha + referencia; confianza ALTA/MEDIA), conciliar/desconciliar/conciliar-sugeridos, `/Tesoreria/Conciliacion` + `/api/tesoreria/conciliacion/*`, migracion `V2_D4_ConciliacionBancaria`, 10 tests.
-- **V2-E**: `docs/Runbook-V2.md` (despliegue, backup/restore, rotacion JWT/cert DTE, retencion, checklists secretos/release, incidentes comunes). E1/E2/E5 movidos a V2.5.
-- **Pruebas tipo cliente**: API+Web reales contra SQL local, todos los flujos verdes — `docs/Analisis-Pruebas-Cliente-V2.md`. Suites: **653 unit + 7 integracion, 0 fallos**.
+Detalle por sprint con evidencia: docs/Plan-Cierre-Fase-V2.md y docs/Plan-V2.5.md.
 
-Siguiente fase: **V2.5** (OpenTelemetry, storage externo/Redis, WhatsApp/OCR/FCM/NIT-MH reales, conciliacion N:1, a11y/i18n) o arranque de la app Flutter.
+### Todo lo que se ha probado
 
----
-
-## Actualizacion previa - 2026-06-09
-
-Ultimos commits revisados para este contexto:
-
-- `d36d58c feat(pos)`: cierre de NeoPOS S4 con sesion/corte de caja, endpoints POS caja, vistas Web, migracion `NEOPOS_S4_SesionCaja` y tests de caja.
-- `5b7517f feat(api)`: configuracion SMTP por empresa desde `/api/correo`.
-- `6be7c7f feat(inventario)`: auto-integracion compra/venta con inventario y alerta de stock bajo.
-- `f247b7f fix(dte)`: envio de DTE usando SMTP por empresa mediante `ITenantEmailSender`.
-- `f915505 fix(web)`: Web aplica migraciones y seed al arrancar.
-- `a12f518 feat(inventario)`: modulo INVENTARIO 110 con existencias, kardex y costo promedio.
-- `59111cf feat(pos)`: promocion de venta POS a Factura/CCF electronica.
-- `d1c8616 feat(pos)`: NeoPOS ventas, tickets, impresion y correo por empresa.
-- `0b8db98 feat(compras)`: NEOCOMPRAS 111 con proveedores y CxP.
-- `f3f49c3 feat(tesoreria)`: NEOTESORERIA 115 con cuentas banco/caja y movimientos.
-- `f5e4174 style(web)`: modernizacion de vistas Catalogos, Clientes, Empleados y Planilla.
-- `c6eff23 fix(seeder)`: backfill de modulos del plan en la empresa de pruebas.
-
-Estado actualizado: NeoPOS, caja, Inventario, Compras/CxP, Tesoreria y configuracion SMTP por empresa ya forman parte de la base implementada. V2-C0 quedo cerrado como contrato API-first con checklist tecnico y cobertura de permisos para controllers nuevos. V2-C1 NEOCRM quedo cerrado en backend/API-first con modulo 114, permisos, tablas `Crm_*`, cotizaciones/lineas, servicio `ICrmService`, endpoints `/api/crm/*`, migraciones `20260609214258_V2_C1_NeoCrm` y `20260609223000_V2_C1_NeoCrm_Cotizaciones`, documento `docs/NEOCRM-Schema-V2-C1.md` y tests de servicio/contrato. V2-D3 tiene primer corte implementado con recordatorios CxC por email/WhatsApp pluggable, worker opcional, endpoint interno y log `Cobros_Recordatorios`. La documentacion tecnica de la API vive en `src/NeoSTP.Api/README.md` y debe mantenerse sincronizada con OpenAPI/Scalar y los controllers.
-
-Siguiente sprint recomendado: V2-C2 NeoPortal Clientes 107, para consulta/descarga de DTE y estado de cuenta sin soporte manual. Plan de cierre: `docs/Plan-Cierre-Fase-V2.md`.
-
+1. **Suites automatizadas**: 681 unit + 7 integracion, 0 fallos, CI GitHub Actions en cada push.
+   Calculadoras puras con cobertura dedicada (nomina, cobranza, POS, caja, CxP, costo promedio,
+   ESC/POS, libro IVA, conciliacion 1:1 y combinaciones, profit, validador de clientes).
+2. **Certificacion Hacienda real** (Sprint 12 + modulo): matriz de escenarios PROCESADA contra
+   apitest; el indicador del topbar muestra PRUEBAS · HACIENDA cuando Hacienda:Client=Http.
+3. **Pruebas tipo cliente del cierre V2** (docs/Analisis-Pruebas-Cliente-V2.md): API+Web reales
+   contra SQL local — portal publico sin sesion (HTML/JSON/PDF, token revocado→404), F-07 cuadrando
+   con la balanza contable al centavo (,900.00), recordatorios con validacion negativa,
+   conciliacion E2E (import→sugerencia→conciliar→desconciliar→dedupe de reimporte).
+4. **Pruebas V2.5 en vivo** (docs/Plan-V2.5.md §Pruebas): combinacion N:1 exacta (+ ↔
+   −), estado PARCIAL con progreso, health de 3 checks (BD/correo/storage), i18n es↔en con
+   sesion real, panel /Soporte/Operacion gateado a SUPERADMIN.
+5. **Recorrido UX completo** (docs/Analisis-UX-Cliente.md): ~45 pantallas con usuario ADMIN real.
+   Bugs encontrados y corregidos: crear cliente fallaba desde la web (codigos MH vs texto en el
+   validador), Sucursales inaccesible (permisos inexistentes Empresas.*), Diagnostico Hacienda
+   solo SUPERADMIN (permiso 420 sin sembrar), Integraciones negado al ADMIN (faltaban 351/352),
+   layout roto del Diagnostico (bloque duplicado + </div> extra), select de Municipio vacio en
+   Clientes, "Tipo doc" del receptor como texto libre en crear DTE, hover negro en botones
+   outline, scroll del menu lateral que se perdia al navegar.
+   **Leccion operativa: probar cada pantalla con rol ADMIN, no SUPERADMIN (bypassa permisos).**
+6. **Mejoras UX entregadas**: dashboard con KPIs de negocio (cartera vencida, tesoreria, alertas),
+   buscador global Ctrl+K (clientes/productos/DTE por permiso), historial de recordatorios,
+   CTAs en estados vacios, selector territorial en cascada (Empresas/Sucursales/Clientes).
 ---
 
 ## Índice
@@ -168,6 +178,9 @@ las **implementaciones** en Infrastructure → inversión de dependencias limpia
 
 # 3. Estado actual del sistema
 
+> Resumen ejecutivo y fases al inicio del documento (sección "Estado actual — 2026-06-11").
+> Lo de abajo se conserva como detalle histórico del núcleo DTE.
+
 ## ✅ Implementado y funcionando
 Empresas · Usuarios · Roles · Permisos · Planes · Módulos · Licenciamiento · Sucursales ·
 Puntos de venta · Clientes · Productos · Configuración DTE (cifrada) · Generación DTE ·
@@ -240,7 +253,11 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 
 # 4. Base de datos
 
-## Tablas actuales (36)
+## Tablas actuales (~89)
+> El conteo creció con las fases V2/V2.5: a las áreas listadas abajo se suman `Crm_*`, `Tes_*`
+> (incl. `Tes_MovimientosBanco` y `Tes_ConciliacionDetalles`), `Conta_*`, `Rrhh_*`, `Inv_*`,
+> `Compras_*`, `Pos_*`, `Portal_Accesos` y `Cobros_ConfigRecordatorios`. La lista detallada por
+> área vive en las configurations de EF (`src/NeoSTP.Infrastructure/Persistence/Configurations`).
 
 ### Core / Administración
 | Tabla | Contenido |
@@ -732,6 +749,10 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 ---
 
 # 10. Plan de trabajo para completar la Suite
+
+> **2026-06-11: este plan está COMPLETADO.** Las fases 1–5 y los planes V2/V2.5 cerraron; queda
+> solo lo que depende de insumos externos (credenciales Meta/Redis/OTLP/pasarelas, certificado
+> de producción) y el backlog V3. Se conserva como referencia histórica de cómo se construyó.
 
 ## Fase 1 — Certificación y cumplimiento DTE (CRÍTICO)
 1. ✅ **Módulo de mantenimiento de Catálogos** (§6.2) — CRUD/Import/Export/versionado. **Sprint 13.**
