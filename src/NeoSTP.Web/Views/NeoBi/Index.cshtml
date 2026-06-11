@@ -1,7 +1,7 @@
-@using NeoSTP.Application.Reportes
+﻿@using NeoSTP.Application.Reportes
 @model ResumenF07Dto
 @{
-    ViewData["Title"] = "NeoBI · Reportes fiscales";
+    ViewData["Title"] = "NeoBI Â· Reportes fiscales";
     int anio = ViewBag.Anio, mes = ViewBag.Mes;
     var consumidor = ViewBag.Consumidor as LibroFiscalDto<VentasConsumidorDiaDto>;
     var contribuyentes = ViewBag.Contribuyentes as LibroFiscalDto<VentasContribuyenteRowDto>;
@@ -12,14 +12,14 @@
 <div class="ns-page-head">
     <div>
         <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>NeoBI fiscal</span></nav>
-        <h1 class="ns-page-title">Libros IVA y F-07 · @meses[mes - 1] @anio</h1>
+        <h1 class="ns-page-title">Libros IVA y F-07 Â· @meses[mes - 1] @anio</h1>
     </div>
     <form method="get" class="ns-toolbar">
         <select name="mes" class="form-select form-select-sm" style="max-width:140px">
             @for (var i = 1; i <= 12; i++) { <option value="@i" selected="@(i == mes)">@meses[i - 1]</option> }
         </select>
         <input name="anio" type="number" value="@anio" min="2020" max="2100" class="form-control form-control-sm ns-mono" style="max-width:100px" />
-        <button type="submit" class="btn btn-primary btn-sm">Ver período</button>
+        <button type="submit" class="btn btn-primary btn-sm">Ver perÃ­odo</button>
     </form>
 </div>
 
@@ -29,9 +29,9 @@
 {
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Ventas netas</div><div class="h5 mb-0 ns-mono">$ @Model.VentasNetasGravadas.ToString("N2")</div></div></div></div>
-        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Débito fiscal</div><div class="h5 mb-0 ns-mono">$ @Model.DebitoFiscal.ToString("N2")</div></div></div></div>
+        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">DÃ©bito fiscal</div><div class="h5 mb-0 ns-mono">$ @Model.DebitoFiscal.ToString("N2")</div></div></div></div>
         <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Compras netas</div><div class="h5 mb-0 ns-mono">$ @Model.ComprasNetasGravadas.ToString("N2")</div></div></div></div>
-        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Crédito fiscal</div><div class="h5 mb-0 ns-mono">$ @Model.CreditoFiscal.ToString("N2")</div></div></div></div>
+        <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">CrÃ©dito fiscal</div><div class="h5 mb-0 ns-mono">$ @Model.CreditoFiscal.ToString("N2")</div></div></div></div>
         <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">IVA a pagar</div><div class="h5 mb-0 ns-mono @(Model.ImpuestoDeterminado > 0 ? "text-danger" : "")">$ @Model.ImpuestoDeterminado.ToString("N2")</div></div></div></div>
         <div class="col-6 col-md-2"><div class="card h-100"><div class="card-body py-3"><div class="ns-metric-label">Remanente</div><div class="h5 mb-0 ns-mono">$ @Model.RemanenteCredito.ToString("N2")</div></div></div></div>
     </div>
@@ -39,18 +39,18 @@
 
 <div class="card mb-4"><div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h6 mb-0">Libro de ventas a consumidor final (por día)</h2>
+        <h2 class="h6 mb-0">Libro de ventas a consumidor final (por dÃ­a)</h2>
         <a asp-action="Csv" asp-route-libro="consumidor" asp-route-anio="@anio" asp-route-mes="@mes" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:16px">download</span> CSV</a>
     </div>
     @if (consumidor is null || consumidor.Filas.Count == 0)
     {
-        <div class="ns-empty"><span class="material-symbols-outlined">receipt</span><p>Sin ventas a consumidor final en el período.</p></div>
+        <div class="ns-empty"><span class="material-symbols-outlined">receipt</span><p>Sin ventas a consumidor final en el perÃ­odo.</p></div>
     }
     else
     {
         <div class="table-responsive">
             <table class="table table-sm align-middle">
-                <thead><tr><th>Fecha</th><th class="text-end">Docs</th><th class="text-end">Exentas</th><th class="text-end">Gravadas (con IVA)</th><th class="text-end">Ventas netas</th><th class="text-end">Débito fiscal</th></tr></thead>
+                <thead><tr><th>Fecha</th><th class="text-end">Docs</th><th class="text-end">Exentas</th><th class="text-end">Gravadas (con IVA)</th><th class="text-end">Ventas netas</th><th class="text-end">DÃ©bito fiscal</th></tr></thead>
                 <tbody>
                     @foreach (var f in consumidor.Filas)
                     {
@@ -65,18 +65,18 @@
 
 <div class="card mb-4"><div class="card-body">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h6 mb-0">Libro de ventas a contribuyentes (CCF · NC resta · ND suma)</h2>
+        <h2 class="h6 mb-0">Libro de ventas a contribuyentes (CCF Â· NC resta Â· ND suma)</h2>
         <a asp-action="Csv" asp-route-libro="contribuyentes" asp-route-anio="@anio" asp-route-mes="@mes" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:16px">download</span> CSV</a>
     </div>
     @if (contribuyentes is null || contribuyentes.Filas.Count == 0)
     {
-        <div class="ns-empty"><span class="material-symbols-outlined">receipt_long</span><p>Sin ventas a contribuyentes en el período.</p></div>
+        <div class="ns-empty"><span class="material-symbols-outlined">receipt_long</span><p>Sin ventas a contribuyentes en el perÃ­odo.</p></div>
     }
     else
     {
         <div class="table-responsive">
             <table class="table table-sm align-middle">
-                <thead><tr><th>Fecha</th><th>Tipo</th><th>Número de control</th><th>Receptor</th><th>NRC</th><th class="text-end">Venta neta</th><th class="text-end">Débito</th><th class="text-end">Total</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>NÃºmero de control</th><th>Receptor</th><th>NRC</th><th class="text-end">Venta neta</th><th class="text-end">DÃ©bito</th><th class="text-end">Total</th></tr></thead>
                 <tbody>
                     @foreach (var f in contribuyentes.Filas)
                     {
@@ -96,13 +96,13 @@
     </div>
     @if (compras is null || compras.Filas.Count == 0)
     {
-        <div class="ns-empty"><span class="material-symbols-outlined">shopping_cart</span><p>Sin compras registradas en el período.</p></div>
+        <div class="ns-empty"><span class="material-symbols-outlined">shopping_cart</span><p>Sin compras registradas en el perÃ­odo.</p></div>
     }
     else
     {
         <div class="table-responsive">
             <table class="table table-sm align-middle">
-                <thead><tr><th>Fecha</th><th>Documento</th><th>Proveedor</th><th>NRC</th><th class="text-end">Compras netas</th><th class="text-end">Crédito fiscal</th><th class="text-end">Total</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Documento</th><th>Proveedor</th><th>NRC</th><th class="text-end">Compras netas</th><th class="text-end">CrÃ©dito fiscal</th><th class="text-end">Total</th></tr></thead>
                 <tbody>
                     @foreach (var f in compras.Filas)
                     {

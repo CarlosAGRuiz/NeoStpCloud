@@ -53,3 +53,44 @@
     <hr />
     <p class="form-text mb-0">WhatsApp usa un proveedor conectable (<code>IWhatsAppSender</code>); mientras no haya credenciales de WhatsApp Business API configuradas, se usa el proveedor simulado. El correo sale por el SMTP de la empresa.</p>
 </div></div>
+
+@{
+    var historial = ViewBag.Historial as IReadOnlyList<NeoSTP.Application.Cobranza.RecordatorioLogDto>
+        ?? Array.Empty<NeoSTP.Application.Cobranza.RecordatorioLogDto>();
+}
+<div class="card mt-3">
+    <div class="card-header"><span class="material-symbols-outlined align-middle" style="font-size:18px">history</span> Últimos recordatorios</div>
+    @if (historial.Count == 0)
+    {
+        <div class="ns-empty"><span class="material-symbols-outlined">forward_to_inbox</span><p>Aún no se ha enviado ningún recordatorio. Actívalos arriba o usa "Ejecutar ahora".</p></div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th>Canal</th><th>Destinatario</th><th class="text-end">Saldo</th><th class="text-center">Días venc.</th><th>Estado</th></tr></thead>
+                <tbody>
+                @foreach (var r in historial)
+                {
+                    var badge = r.EstadoCodigo switch
+                    {
+                        "ENVIADO" => "ns-badge ns-badge--processed",
+                        "FALLIDO" => "ns-badge ns-badge--rejected",
+                        _ => "ns-badge ns-badge--draft",
+                    };
+                    <tr>
+                        <td class="ns-mono">@r.Fecha.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                        <td><code class="small ns-mono">@r.NumeroControl</code></td>
+                        <td>@r.ClienteNombre</td>
+                        <td>@r.Canal</td>
+                        <td class="small">@(string.IsNullOrEmpty(r.Destinatario) ? "—" : r.Destinatario)</td>
+                        <td class="text-end ns-mono">$@r.Saldo.ToString("N2")</td>
+                        <td class="text-center ns-mono">@r.DiasVencido</td>
+                        <td><span class="@badge" title="@r.Motivo">@r.EstadoCodigo</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

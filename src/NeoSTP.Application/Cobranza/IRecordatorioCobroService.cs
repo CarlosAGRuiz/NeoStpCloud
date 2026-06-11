@@ -22,6 +22,22 @@ public interface IRecordatorioCobroService
 
     Task<Result<ConfigRecordatorioCobroDto>> GetConfiguracionAsync(int empresaId, CancellationToken ct = default);
     Task<Result<ConfigRecordatorioCobroDto>> GuardarConfiguracionAsync(int empresaId, GuardarConfigRecordatorioRequest request, string? actor, CancellationToken ct = default);
+
+    /// <summary>Últimos envíos/omisiones del log (mejora UX: el cliente ve qué salió y qué no).</summary>
+    Task<IReadOnlyList<RecordatorioLogDto>> GetHistorialAsync(int empresaId, int max = 50, CancellationToken ct = default);
+}
+
+public class RecordatorioLogDto
+{
+    public DateTime Fecha { get; set; }
+    public string? NumeroControl { get; set; }
+    public string? ClienteNombre { get; set; }
+    public string Canal { get; set; } = null!;
+    public string Destinatario { get; set; } = string.Empty;
+    public string EstadoCodigo { get; set; } = null!;
+    public string? Motivo { get; set; }
+    public decimal Saldo { get; set; }
+    public int DiasVencido { get; set; }
 }
 
 public class ConfigRecordatorioCobroDto

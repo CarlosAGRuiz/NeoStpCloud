@@ -17,19 +17,28 @@ public class HomeController : Controller
     private readonly IEmpresaContext _empresaContext;
     private readonly IEmpresasService _empresas;
     private readonly IOnboardingService _onboarding;
+    private readonly NeoSTP.Application.Cobranza.ICobranzaService _cobranza;
+    private readonly NeoSTP.Application.Tesoreria.ITesoreriaService _tesoreria;
+    private readonly NeoSTP.Application.Notificaciones.IAlertaService _alertas;
 
     public HomeController(
         ICurrentUser currentUser,
         IDashboardService dashboard,
         IEmpresaContext empresaContext,
         IEmpresasService empresas,
-        IOnboardingService onboarding)
+        IOnboardingService onboarding,
+        NeoSTP.Application.Cobranza.ICobranzaService cobranza,
+        NeoSTP.Application.Tesoreria.ITesoreriaService tesoreria,
+        NeoSTP.Application.Notificaciones.IAlertaService alertas)
     {
         _currentUser = currentUser;
         _dashboard = dashboard;
         _empresaContext = empresaContext;
         _empresas = empresas;
         _onboarding = onboarding;
+        _cobranza = cobranza;
+        _tesoreria = tesoreria;
+        _alertas = alertas;
     }
 
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -77,6 +86,15 @@ public class HomeController : Controller
             EmpresaNombre = empNombre,
             Onboarding = onboarding,
         };
+
+        // KPIs de negocio adicionales, condicionados al permiso de cada módulo.
+        bool Puede(string p) => isSuperAdmin || _currentUser.HasPermiso(p);
+        if (Puede("Cobros.Ver"))
+            vm.Cobranza = await _cobranza.GetResumenAsync(empresaId.Value, ct);
+        if (Puede("Tesoreria.Cuentas.Ver"))
+            vm.Tesoreria = (await _tesoreria.ResumenAsync(empresaId.Value, ct)).Value;
+        if (_currentUser.UserId is int uid)
+            vm.AlertasActivas = (await _alertas.ResumenAsync(empresaId.Value, uid, ct)).Pendientes;
 
         return View(vm);
     }

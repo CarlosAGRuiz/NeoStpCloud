@@ -272,6 +272,25 @@ public class RecordatorioCobroService : IRecordatorioCobroService
         }, actor, ct);
     }
 
+    public async Task<IReadOnlyList<RecordatorioLogDto>> GetHistorialAsync(int empresaId, int max = 50, CancellationToken ct = default)
+        => await _db.RecordatoriosCobro.AsNoTracking()
+            .Where(r => r.EmpresaId == empresaId)
+            .OrderByDescending(r => r.Id)
+            .Take(Math.Clamp(max, 1, 200))
+            .Select(r => new RecordatorioLogDto
+            {
+                Fecha = r.CreatedAt,
+                NumeroControl = r.DteDocumento.NumeroControl,
+                ClienteNombre = r.DteDocumento.ReceptorNombre,
+                Canal = r.Canal,
+                Destinatario = r.Destinatario,
+                EstadoCodigo = r.EstadoCodigo,
+                Motivo = r.Motivo,
+                Saldo = r.Saldo,
+                DiasVencido = r.DiasVencido,
+            })
+            .ToListAsync(ct);
+
     public async Task<Result<ConfigRecordatorioCobroDto>> GetConfiguracionAsync(int empresaId, CancellationToken ct = default)
     {
         var config = await _db.ConfigRecordatoriosCobro.AsNoTracking()

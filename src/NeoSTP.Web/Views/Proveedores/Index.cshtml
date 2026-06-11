@@ -1,4 +1,4 @@
-@using NeoSTP.Application.Compras.Dtos
+﻿@using NeoSTP.Application.Compras.Dtos
 @model NeoSTP.Application.Common.PagedResult<ProveedorDto>
 @{
     ViewData["Title"] = "Proveedores";
@@ -22,7 +22,7 @@
 
 <div class="ns-toolbar">
     <form method="get" class="ns-toolbar-search">
-        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar nombre, código o NIT…" />
+        <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar nombre, cÃ³digo o NITâ€¦" />
         <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
     </form>
 </div>
@@ -32,7 +32,7 @@
         <table class="table table-hover m-0 align-middle">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>CÃ³digo</th>
                     <th>Nombre</th>
                     <th>NIT</th>
                     <th>Contacto</th>
@@ -44,7 +44,7 @@
             <tbody>
                 @if (Model is null || !Model.Items.Any())
                 {
-                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">local_shipping</span><p>Sin proveedores registrados.</p></div></td></tr>
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">local_shipping</span><p>Sin proveedores registrados. Crea el primero para llevar tus compras y cuentas por pagar.</p><a asp-action="Create" class="btn btn-primary btn-sm">Nuevo proveedor</a></div></td></tr>
                 }
                 @foreach (var p in Model?.Items ?? Array.Empty<ProveedorDto>())
                 {
@@ -52,8 +52,8 @@
                     <tr>
                         <td class="ns-mono"><strong>@p.Codigo</strong></td>
                         <td><a asp-action="Detalle" asp-route-id="@p.Id">@p.Nombre</a></td>
-                        <td class="ns-mono small">@(p.Nit ?? "—")</td>
-                        <td class="small">@(p.Contacto ?? "—") @if (!string.IsNullOrWhiteSpace(p.Telefono)) { <span class="text-muted">· @p.Telefono</span> }</td>
+                        <td class="ns-mono small">@(p.Nit ?? "â€”")</td>
+                        <td class="small">@(p.Contacto ?? "â€”") @if (!string.IsNullOrWhiteSpace(p.Telefono)) { <span class="text-muted">Â· @p.Telefono</span> }</td>
                         <td class="text-center">@(p.PlazoDiasDefault > 0 ? $"{p.PlazoDiasDefault} d" : "contado")</td>
                         <td><span class="@badge">@p.EstadoCodigo</span></td>
                         <td class="text-end">

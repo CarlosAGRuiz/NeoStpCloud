@@ -18,4 +18,9 @@ public class DashboardViewModel
 
     /// <summary>Disponible solo para SuperAdmin sin modo soporte activo.</summary>
     public DashboardSuperAdminDto? SuperAdminDashboard { get; set; }
+
+    // ── KPIs de negocio (mejora UX): null cuando el usuario no tiene el permiso del módulo ──
+    public NeoSTP.Application.Cobranza.Dtos.CobranzaResumenDto? Cobranza { get; set; }
+    public NeoSTP.Application.Tesoreria.Dtos.TesoreriaResumenDto? Tesoreria { get; set; }
+    public int? AlertasActivas { get; set; }
 }

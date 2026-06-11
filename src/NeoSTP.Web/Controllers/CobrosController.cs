@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Cobranza;
@@ -39,7 +39,7 @@ public class CobrosController : Controller
         _empresaContext = empresaContext;
     }
 
-    // ── Recordatorios automáticos (V2-D3) ────────────────────────────────────
+    // â”€â”€ Recordatorios automÃ¡ticos (V2-D3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet("recordatorios")]
     public async Task<IActionResult> Recordatorios(CancellationToken ct)
@@ -48,6 +48,7 @@ public class CobrosController : Controller
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var config = await _recordatorios.GetConfiguracionAsync(eid, ct);
         ViewBag.PuedeGestionar = Has("Cobros.Gestionar");
+        ViewBag.Historial = await _recordatorios.GetHistorialAsync(eid, 50, ct);
         return View(config.Value);
     }
 
@@ -58,7 +59,7 @@ public class CobrosController : Controller
         if (!Has("Cobros.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var r = await _recordatorios.GuardarConfiguracionAsync(eid, model, _currentUser.Username, ct);
-        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Configuración guardada." : r.Error;
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "ConfiguraciÃ³n guardada." : r.Error;
         return RedirectToAction(nameof(Recordatorios));
     }
 

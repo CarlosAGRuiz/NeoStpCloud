@@ -1,4 +1,4 @@
-@model NeoSTP.Web.Controllers.CobrosIndexViewModel
+﻿@model NeoSTP.Web.Controllers.CobrosIndexViewModel
 @{
     ViewData["Title"] = "Cobros";
     var returnUrl = Context.Request.Path + Context.Request.QueryString;
@@ -122,7 +122,7 @@
             <tbody>
                 @if (!Model.Pendientes.Items.Any())
                 {
-                    <tr><td colspan="10"><div class="ns-empty"><span class="material-symbols-outlined">paid</span><p>Sin facturas a credito pendientes.</p></div></td></tr>
+                    <tr><td colspan="10"><div class="ns-empty"><span class="material-symbols-outlined">paid</span><p>Sin facturas a crédito pendientes. Las facturas con condición a crédito aparecen aquí para darles seguimiento.</p><a asp-controller="DteDocumentos" asp-action="Create" class="btn btn-primary btn-sm">Emitir DTE</a></div></td></tr>
                 }
                 @foreach (var f in Model.Pendientes.Items)
                 {

@@ -107,6 +107,46 @@
     </div>
 </div>
 
+@* ── Fila 1b: negocio (cartera, tesorería, alertas) ───────────────────────── *@
+@if (Model.Cobranza is not null || Model.Tesoreria is not null || Model.AlertasActivas is not null)
+{
+    <div class="row g-3 mb-4">
+        @if (Model.Cobranza is not null)
+        {
+            <div class="col-sm-6 col-lg-3">
+                <a asp-controller="Cobros" asp-action="Index" asp-route-soloVencidas="true" class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
+                    <div class="ns-kpi-top"><span class="ns-kpi-chip @(Model.Cobranza.TotalVencido > 0 ? "ns-kpi-chip--rejected" : "ns-kpi-chip--processed")"><span class="material-symbols-outlined">request_quote</span></span></div>
+                    <p class="ns-kpi-label">Cartera vencida</p>
+                    <h2 class="ns-kpi-value ns-mono" style="color:@(Model.Cobranza.TotalVencido > 0 ? "var(--ns-rejected)" : "var(--ns-processed)")">$@Model.Cobranza.TotalVencido.ToString("N2")</h2>
+                    <small class="text-muted">$@Model.Cobranza.TotalPendiente.ToString("N2") por cobrar en @Model.Cobranza.FacturasPendientes factura@(Model.Cobranza.FacturasPendientes != 1 ? "s" : "")</small>
+                </div></a>
+            </div>
+        }
+        @if (Model.Tesoreria is not null)
+        {
+            <div class="col-sm-6 col-lg-3">
+                <a asp-controller="Tesoreria" asp-action="Index" class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
+                    <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">account_balance</span></span></div>
+                    <p class="ns-kpi-label">Saldo en tesorería</p>
+                    <h2 class="ns-kpi-value ns-mono">$@Model.Tesoreria.SaldoTotal.ToString("N2")</h2>
+                    <small class="text-muted">Bancos $@Model.Tesoreria.SaldoBancos.ToString("N2") · Caja $@Model.Tesoreria.SaldoCaja.ToString("N2")</small>
+                </div></a>
+            </div>
+        }
+        @if (Model.AlertasActivas is int alertas)
+        {
+            <div class="col-sm-6 col-lg-3">
+                <a asp-controller="Alertas" asp-action="Index" class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
+                    <div class="ns-kpi-top"><span class="ns-kpi-chip @(alertas > 0 ? "ns-kpi-chip--contingency" : "")"><span class="material-symbols-outlined">notifications_active</span></span></div>
+                    <p class="ns-kpi-label">Alertas activas</p>
+                    <h2 class="ns-kpi-value" style="color:@(alertas > 0 ? "var(--ns-contingency)" : "var(--ns-draft)")">@alertas</h2>
+                    <small class="text-muted">@(alertas == 0 ? "Todo en orden" : "Revisa el centro de notificaciones")</small>
+                </div></a>
+            </div>
+        }
+    </div>
+}
+
 @* ── Fila 2: Charts ────────────────────────────────────────── *@
 <div class="row g-3 mb-4">
     <div class="col-lg-8">

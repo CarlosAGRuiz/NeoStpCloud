@@ -281,6 +281,10 @@ else
                     </span>
                 </div>
                 <div class="ns-topbar-right">
+                    <button type="button" class="ns-chip" id="busquedaGlobalBtn" title="Buscar (Ctrl+K)">
+                        <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">search</span> Buscar
+                        <kbd class="small text-muted ms-1" style="font-size:10px">Ctrl+K</kbd>
+                    </button>
                     @if (isSuperAdmin)
                     {
                         <a class="ns-chip" asp-controller="Soporte" asp-action="Operacion" title="Operación del servicio">
@@ -339,6 +343,71 @@ else
 }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @if (isAuth)
+    {
+        <!-- Buscador global (Ctrl+K) -->
+        <div class="modal fade" id="busquedaGlobalModal" tabindex="-1" aria-label="Buscador global">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body p-2">
+                        <input type="search" id="busquedaGlobalInput" class="form-control form-control-lg border-0 shadow-none"
+                               placeholder="Buscar clientes, productos o DTE…" autocomplete="off" />
+                        <div id="busquedaGlobalResultados" class="list-group list-group-flush mt-1" style="max-height:50vh;overflow:auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+        (function () {
+            var modalEl = document.getElementById('busquedaGlobalModal');
+            var input = document.getElementById('busquedaGlobalInput');
+            var lista = document.getElementById('busquedaGlobalResultados');
+            var btn = document.getElementById('busquedaGlobalBtn');
+            if (!modalEl || !input) return;
+            var modal, timer;
+
+            function abrir() {
+                modal = modal || new bootstrap.Modal(modalEl);
+                modal.show();
+                setTimeout(function () { input.focus(); input.select(); }, 150);
+            }
+            if (btn) btn.addEventListener('click', abrir);
+            document.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); abrir(); }
+            });
+
+            function escapar(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+
+            input.addEventListener('input', function () {
+                clearTimeout(timer);
+                var q = input.value.trim();
+                if (q.length < 2) { lista.innerHTML = ''; return; }
+                timer = setTimeout(function () {
+                    fetch('@Url.Action("Global", "Busqueda")?q=' + encodeURIComponent(q))
+                        .then(function (r) { return r.ok ? r.json() : []; })
+                        .then(function (items) {
+                            if (!items.length) {
+                                lista.innerHTML = '<div class="list-group-item text-muted small">Sin resultados para "' + escapar(q) + '"</div>';
+                                return;
+                            }
+                            var html = '', grupo = '';
+                            items.forEach(function (i) {
+                                if (i.grupo !== grupo) {
+                                    grupo = i.grupo;
+                                    html += '<div class="list-group-item py-1 small text-uppercase text-muted fw-semibold border-0">' + escapar(grupo) + '</div>';
+                                }
+                                html += '<a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="' + i.url + '">'
+                                     + '<span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">' + escapar(i.icono) + '</span>'
+                                     + '<span><strong>' + escapar(i.titulo) + '</strong><br/><small class="text-muted">' + escapar(i.detalle) + '</small></span></a>';
+                            });
+                            lista.innerHTML = html;
+                        })
+                        .catch(function () { lista.innerHTML = ''; });
+                }, 250);
+            });
+        })();
+        </script>
+    }
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
