@@ -479,12 +479,14 @@ iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
 
 **Estados:** `RECIBIDO → PROCESANDO → (PROCESADO | REQUIERE_REVISION) → (CONFIRMADO | RECHAZADO)`.
 
-> **Importante (extracción OCR/IA):** hoy el backend usa un **extractor mock** (`Scan:Provider=Mock`):
+> **Importante (extracción OCR/IA):** el backend funciona con `Scan:Provider=Mock` por defecto:
 > guarda la captura y deja el documento en `REQUIERE_REVISION` con `confianza = 0`, para que el usuario
-> capture/corrija los campos manualmente en la app. El proveedor real (Azure Document Intelligence /
-> Google Vision / LLM) es **pluggable** sin cambiar el contrato: cuando se active, los campos vendrán
-> precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que venga y
-> permitir corregir antes de confirmar). **Límite mensual:** si la empresa supera el cupo configurado
+> capture/corrija los campos manualmente en la app. También existe proveedor real Gemini
+> (`Scan:Provider=Gemini` + `Scan:Gemini:ApiKey`) sin cambiar el contrato: cuando se active, los campos
+> vendrán precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que
+> venga y permitir corregir antes de confirmar). Para demo productiva queda planificado endurecer
+> NeoScan con OCR asíncrono, umbral de confianza configurable, whitelist MIME y API key por header
+> (`docs/Plan-Hallazgos-Bugs-Demo.md`). **Límite mensual:** si la empresa supera el cupo configurado
 > (`Scan:LimiteMensual`, 0 = sin límite), `POST /documentos` devuelve `409` con `LIMIT_EXCEEDED`.
 
 ### 8.8 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)

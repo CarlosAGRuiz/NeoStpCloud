@@ -583,6 +583,9 @@ El envio por correo usa `ITenantEmailSender`, por lo que respeta SMTP por empres
 
 ## Pruebas relacionadas
 
+Plan recurrente para demos Web/API: [`../../docs/Plan-Pruebas-Web-Api-Demos.md`](../../docs/Plan-Pruebas-Web-Api-Demos.md).
+Plan de sprints de hallazgos y bugs: [`../../docs/Plan-Hallazgos-Bugs-Demo.md`](../../docs/Plan-Hallazgos-Bugs-Demo.md).
+
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj

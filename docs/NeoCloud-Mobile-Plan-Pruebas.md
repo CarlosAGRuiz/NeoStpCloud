@@ -56,7 +56,7 @@ Fuera de alcance para esta ronda:
 - Exponer SQL Server.
 - Compartir certificados, passwords MH o connection strings.
 - Firma DTE desde Flutter.
-- Configurar OCR real, FCM real o NIT en linea de MH.
+- Configurar hardening productivo de OCR Gemini, FCM real o NIT en linea de MH.
 - Publicacion en Play Store.
 
 ## Requisitos previos

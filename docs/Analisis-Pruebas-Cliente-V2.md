@@ -106,8 +106,10 @@ Migraciones aplicadas a la BD local en este cierre: `V2_C2_NeoPortal`, `V2_D2_Ne
    de los dos rechazos es correcto; solo es relevante para documentación de integradores.
 3. **Libros de contribuyentes/compras vacíos en la demo.** Para una demo comercial conviene
    sembrar al menos un CCF y una compra del mes, así los tres libros muestran datos.
-4. **Dependencias externas siguen mock por diseño**: WhatsApp Business, OCR real de NeoScan, FCM
-   push y verificación de NIT en línea de MH. Todas pluggables por configuración (V2.5).
+4. **Dependencias externas en esa corrida estaban mock por diseño**: WhatsApp Business, OCR real de
+   NeoScan, FCM push y verificación de NIT en línea de MH. Estado actualizado 2026-06-14: NeoScan
+   ya tiene Gemini configurable (`Scan:Provider=Gemini`); para demos productivas queda pendiente
+   el hardening indicado en `docs/Plan-Hallazgos-Bugs-Demo.md`.
 5. Los 404 iniciales en `profit/resumen` y `lookups/catalogos/*` durante el smoke fueron rutas
    mal escritas en la prueba (las reales son `profit/dashboard` y `lookups/catalogo/{codigo}`);
    los endpoints están sanos.

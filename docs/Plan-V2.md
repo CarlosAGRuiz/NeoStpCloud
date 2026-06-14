@@ -3,7 +3,9 @@
 Roadmap de la **versión 2** de NeoSTP Cloud: análisis del estado actual (Web + API), ejes de mejora
 transversales y nuevos módulos a incorporar, **desglosados** por alcance, entregables y prioridad.
 
-> Fecha de corte: cierre del backend de NeoCloud Mobile (B-1…B-6). Build verde, 370 tests unit + 2 integración.
+> Fecha de corte original: cierre del backend de NeoCloud Mobile (B-1…B-6). Documento historico.
+> Estado actualizado 2026-06-14: V2/V2.5 cerradas, 681 tests unit + 7 integracion; el plan vivo de
+> hallazgos y demos esta en `docs/Plan-Hallazgos-Bugs-Demo.md`.
 > Acompaña a: `NeoCloud-Mobile-API.md`, `NeoCloud-Mobile-Plan.md`, `CONTEXTO-PROYECTO.md`, backlog sprints 13–30.
 
 ---
@@ -45,8 +47,9 @@ multiempresa con modo soporte, gestión completa de DTE/maestros/billing/hardeni
 multi-tenant seguro (token manda), OpenAPI + Scalar, NeoConnect v1 por API key.
 
 **Mejoras técnicas detectadas:**
-- 🔴 **Integraciones externas en mock:** OCR/IA de NeoScan (`Scan:Provider=Mock`), push FCM (`Push:Provider=Mock`).
-  Hooks listos; falta el proveedor real.
+- 🟡 **Integraciones externas:** OCR/IA de NeoScan ya tiene proveedor Gemini configurable
+  (`Scan:Provider=Gemini`) y mantiene `Mock` por defecto; el hardening productivo queda en
+  `docs/Plan-Hallazgos-Bugs-Demo.md`. Push FCM y otros proveedores siguen pluggable por config.
 - 🟡 **Cobertura de pruebas:** 370 unit (muy bueno) pero **solo 2 de integración**. Faltan tests de
   controladores/host real (WebApplicationFactory) para los módulos nuevos.
 - 🟡 **Blobs en BD:** certificado, logo/firma, imágenes de scan se guardan como `byte[]` en columnas →
@@ -69,7 +72,7 @@ Construir las vistas web que faltan, reusando el design system y los servicios y
 - *Entregable:* 5 áreas de menú nuevas con CRUD/operación completa, gated por permisos.
 
 ### M2 — Encender integraciones reales (quitar mocks) · **Prioridad: Alta**
-- **M2.1 OCR/IA real para NeoScan:** implementar `IScanExtractionService` real (Azure Document Intelligence / Google Document AI / LLM con visión). Toggle `Scan:Provider`. Reintentos + colas.
+- **M2.1 NeoScan/Gemini productivo:** `IScanExtractionService` real ya existe con Gemini. Pendiente hardening: reintentos/colas, asincronia, umbral de confianza, whitelist MIME y secretos fuera de URL.
 - **M2.2 Push FCM real:** `FcmPushSender` (HTTP v1 con service account). Toggle `Push:Provider`. Manejo de tokens inválidos.
 - **M2.3 (cuando MH lo publique)** verificación NIT en línea (`Fuente=MH`).
 - *Entregable:* la app y la web pasan de "captura manual / sin push" a extracción y push reales con solo cambiar config.

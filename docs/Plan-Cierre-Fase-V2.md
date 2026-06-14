@@ -500,6 +500,10 @@ Validacion:
 > documental por `docs/Runbook-V2.md`. Tambien pasan a V2.5: proveedor real WhatsApp Business,
 > OCR real NeoScan, FCM push real y conciliacion parcial N:1.
 
+> Nota 2026-06-14: OCR real de NeoScan ya existe con Gemini configurable (`Scan:Provider=Gemini`).
+> Lo pendiente para demos productivas es hardening: asincronia, umbral de confianza, MIME whitelist
+> y API key por header, segun `docs/Plan-Hallazgos-Bugs-Demo.md`.
+
 Estos puntos pueden moverse a V2.5/V3 si el objetivo es cerrar V2 con disciplina:
 
 - SSO/SAML enterprise.

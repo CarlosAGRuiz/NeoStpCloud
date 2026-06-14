@@ -301,6 +301,8 @@ y `api/v1/*` (NeoConnect público).
 | [`src/NeoSTP.Api/README.md`](src/NeoSTP.Api/README.md) | API: auth, formato, catálogo completo de endpoints |
 | [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md) | Fase V2 por sprint con entregado y validación |
 | [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md) | Fase V2.5 (escala/proveedores reales) con evidencia de pruebas |
+| [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md) | Sprints de consolidación para hallazgos, bugs y preparación de demos |
+| [`docs/Plan-Pruebas-Web-Api-Demos.md`](docs/Plan-Pruebas-Web-Api-Demos.md) | Plan recurrente de pruebas Web/API para demos comerciales y técnicas |
 | [`docs/Runbook-V2.md`](docs/Runbook-V2.md) | Operación: despliegue, backup, rotación, retención |
 | [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) | Pruebas E2E en vivo del cierre V2 |
 | [`docs/Analisis-UX-Cliente.md`](docs/Analisis-UX-Cliente.md) | Recorrido UX completo: bugs encontrados y mejoras |
@@ -308,6 +310,10 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/NeoCloud-Mobile-API.md`](docs/NeoCloud-Mobile-API.md) | Contrato API para la app Flutter |
 
 ## Roadmap
+
+Prioridad inmediata antes de nuevos módulos: ejecutar el plan de consolidación
+[`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md), empezando por
+alineación documental, limpieza de warnings, NeoScan/Gemini productivo y pruebas Web/API de demo.
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 

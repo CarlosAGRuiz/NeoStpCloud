@@ -6,7 +6,8 @@ Flutter (Android tablet/celular).
 > **Estado del backend: COMPLETO.** Todas las brechas (B-1…B-6) y los pendientes menores ya están
 > entregados, probados (370 tests verdes) y desplegados en `main`. **No queda backend por desarrollar** para el
 > alcance de la propuesta móvil; lo único pendiente son **integraciones externas** que dependen de credenciales/
-> servicios de terceros (OCR real, FCM real, NIT en línea de MH), y todas tienen su **hook pluggable** ya listo.
+> servicios de terceros. NeoScan ya cuenta con proveedor Gemini configurable (`Scan:Provider=Gemini`)
+> y `Mock` por defecto; FCM real y NIT en línea de MH siguen dependiendo de credenciales/servicio externo.
 >
 > En consecuencia, **el plan de sprints de abajo es el roadmap del cliente Flutter**: cada sprint consume
 > endpoints que ya existen. El dev Flutter trabaja contra el contrato de `NeoCloud-Mobile-API.md` y el explorador
@@ -35,7 +36,7 @@ Leyenda: ✅ disponible en el backend · 📱 trabajo de cliente Flutter · 🔵
 | 3.4 | Catálogo: buscar, escanear, crear rápido, activar/inactivar | ✅ 📱 | `productos` CRUD + `lookups/productos` |
 | 3.4 | Existencia básica / inventario | — | sin módulo de inventario (fuera de alcance inicial) |
 | 3.5 | NeoScan: bandeja, capturar, revisar/corregir, clasificar | ✅ | `/api/scanai/documentos/*` |
-| 3.5 | NeoScan: extracción OCR/IA automática | 🔵 | mock pluggable hoy; proveedor real (Azure/Google/LLM) por configurar |
+| 3.5 | NeoScan: extracción OCR/IA automática | ✅/🔵 | Mock por defecto + Gemini configurable; hardening productivo en `Plan-Hallazgos-Bugs-Demo.md` |
 | 3.6 | Centro de notificaciones, cert por vencer, factura vencida, DTE rechazado | ✅ | `/api/alertas/*` (+ generación automática en el Worker) |
 | 3.6 | Entrega push real | 🔵 | mock pluggable hoy; FCM real por configurar (service account) |
 | 3.7 | Cobros: pendientes/vencidas, registrar pago, adjuntar | ✅ | `GET /api/cobros/pendientes` · `POST /api/cobros/dte/{id}/pagos` |
@@ -47,9 +48,10 @@ Leyenda: ✅ disponible en el backend · 📱 trabajo de cliente Flutter · 🔵
 | — | Login, tenant, perfil, permisos | ✅ | `auth/*`, `me` |
 | — | Configurar emisor + certificado + credenciales MH | ✅ | `dte/configuracion/*` |
 
-**Conclusión:** **todo el alcance funcional de la propuesta está cubierto por la API.** Solo quedan 2
-integraciones externas (OCR real y FCM real), ambas con hook pluggable: la app se construye igual con el mock
-y se "enciende" la integración real cuando haya credenciales, **sin cambiar el contrato**.
+**Conclusión:** **todo el alcance funcional de la propuesta está cubierto por la API.** NeoScan puede
+operar con captura manual (`Mock`) o Gemini por configuración, sin cambiar el contrato. Las integraciones
+externas que aun dependen de insumos son FCM real, NIT en línea de MH y el endurecimiento productivo de
+NeoScan antes de venderlo como OCR real de demo.
 
 ---
 
@@ -71,7 +73,7 @@ Todo lo siguiente está **implementado, probado y en `main`**:
 
 | Pendiente | Estado | Nota |
 |---|---|---|
-| 🔵 **OCR/IA real** de NeoScan | Mock activo (`Scan:Provider=Mock`) | Conectar Azure Document Intelligence / Google Vision / LLM. La app funciona con el mock (captura manual). |
+| ✅/🔵 **OCR/IA real** de NeoScan | Mock por defecto; Gemini configurable (`Scan:Provider=Gemini`) | La app funciona con captura manual o campos precargados. Pendiente hardening productivo: asincrono, umbral de confianza, MIME whitelist y API key por header. |
 | 🔵 **FCM real** para push | Mock activo (`Push:Provider=Mock`) | Requiere service account de Firebase. El centro de alertas funciona vía polling sin push real. |
 | 🔵 **NIT en línea de MH** | Hook `Fuente=MH` listo | El servicio público de MH no está disponible; hoy se valida formato + datos locales. |
 | ⚪ **UIs web** de Cobros/Scan/Alertas | Opcional | El consumidor principal es la app; la web puede agregarse después. |
@@ -131,7 +133,7 @@ backend pendientes.
 ### Sprint 7 — NeoScan / respaldo de facturas
 - **Escanear:** capturar factura/PDF (`POST /api/scanai/documentos`), revisar/corregir campos, **registrar como
   gasto/compra/DTE recibido**, rechazar; bandeja con filtros.
-- Backend: ✅ `scanai/documentos/*`. (🔵 con extracción mock; al activar OCR real los campos vendrán precargados.)
+- Backend: ✅ `scanai/documentos/*`. Funciona con extracción mock por defecto o Gemini configurable; la app siempre debe permitir corrección antes de confirmar.
 
 ### Sprint 8 — Alertas y notificaciones
 - **Alertas:** centro de notificaciones (`/api/alertas`), badge, marcar leída/resuelta, registrar **token FCM**
@@ -157,7 +159,7 @@ backend pendientes.
 - [x] **NeoScan** bandeja + conversión a gasto/compra/**DTE recibido** (B-3).
 - [x] **Alertas** + dispositivos FCM + generación automática en el Worker (B-4).
 - [x] **Rate limiting** y cuotas (`429` + `Retry-After`).
-- [ ] 🔵 OCR real / FCM real / NIT MH en línea — integraciones externas (hook listo).
+- [ ] 🔵 Hardening NeoScan real / FCM real / NIT MH en línea — integraciones externas (hook listo).
 
 > La app puede arrancar **hoy** con **cualquier** sprint: no hay dependencias de backend pendientes.
 

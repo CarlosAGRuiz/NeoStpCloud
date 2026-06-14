@@ -32,6 +32,11 @@ branding, onboarding, i18n es/en, buscador global Ctrl+K y panel operativo Super
 Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado DTE de produccion
 (ambiente 01) por cliente, y la app Flutter (repo aparte, backend listo). Backlog V3 en README.
 
+**Prioridad inmediata post-analisis (2026-06-14):** consolidar hallazgos y preparar demos antes de
+abrir nuevos modulos. Ver `docs/Plan-Hallazgos-Bugs-Demo.md` para los sprints HB-0..HB-8
+(documentacion, warnings, NeoScan/Gemini, pruebas API/Web, datos demo, contratos, storage y runbook)
+y `docs/Plan-Pruebas-Web-Api-Demos.md` para la bateria repetible de pruebas de demo.
+
 ### Fases del proyecto (historial)
 
 | Fase | Contenido | Cierre |
@@ -46,7 +51,8 @@ s-* | ✅ |
 | V2.5 | Conciliacion parcial N:1, WhatsApp Meta real, OpenTelemetry + panel operativo + health ampliado, Redis + storage externo scans, purga auditoria, i18n/a11y | ✅ 2026-06-10 |
 | Recorrido UX | Pruebas como cliente: 7 bugs corregidos + 5 mejoras de experiencia | ✅ 2026-06-11 |
 
-Detalle por sprint con evidencia: docs/Plan-Cierre-Fase-V2.md y docs/Plan-V2.5.md.
+Detalle por sprint con evidencia: docs/Plan-Cierre-Fase-V2.md, docs/Plan-V2.5.md y el plan
+post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 
 ### Todo lo que se ha probado
 
@@ -798,7 +804,7 @@ Tras cerrar los Sprints 13–21, se ejecutó un **plan re-secuenciado para prior
 | 5 | **NeoConnect API comercial** | ✅ | Gestión (API keys + webhooks firmados + worker + UI `/Integraciones`) **y endpoints de negocio v1** (`/api/v1`: emitir/consultar/descargar DTE, alta/listado clientes y productos por API Key + scopes), sandbox por ambiente DTE, OpenAPI público + `docs/NeoConnect-API-v1.md` — **base para NeoBusiness y NeoScan**; COMPLETO (gestión + negocio + tests) |
 | 6 | **NeoProfit** (Sprint 22) | ✅ | `ProfitCalculator` (PROCESADO, NC resta, ND suma, SE sin IVA, costo pendiente) + `IProfitService`/`/api/profit/*` + dashboard financiero Web + grids/CRUD de gastos y compras; permisos NEOPROFIT 370/371; migración `Sprint22_NeoProfit` |
 | 7 | **Backend NeoCloud Mobile** (B-1…B-6) | ✅ | API lista para la app Flutter: emisión 1-paso, Cobros/CxC, NeoScanAI (OCR pluggable), Alertas/push, QR de cobro, verificación NIT; tenant-safe (mobile = empresa-only, sin SuperAdmin); docs `NeoCloud-Mobile-API.md` + `NeoCloud-Mobile-Plan.md`; explorador Scalar `/scalar/v1` |
-| 8 | **NeoScanAI** | ✅ backend (B-3) + UI Web | Bandeja + conversión a gasto/compra/DTE recibido vía API (`/api/scanai/*`) y vía web (`/Scan`: bandeja, preview, corrección, conversión); OCR/IA real pendiente |
+| 8 | **NeoScanAI** | ✅ backend (B-3) + UI Web | Bandeja + conversión a gasto/compra/DTE recibido vía API (`/api/scanai/*`) y vía web (`/Scan`: bandeja, preview, corrección, conversión); OCR Gemini real configurable con `Scan:Provider=Gemini` (pendiente endurecer para demo productiva: asincrono, umbral de confianza, MIME whitelist y header de API key) |
 | 9 | **Plan V2** | 📋 | Roadmap de mejoras y nuevos módulos (paridad Web↔API, integraciones reales OCR/FCM, NeoPOS, Inventario, NeoBI, NeoPortal, App Flutter, etc.) — ver `docs/Plan-V2.md` |
 
 **Checklist "vendible ya":** ✅ DTE certificado · ✅ Multiempresa/RBAC · ✅ Billing + pagos locales · ✅ Legal · ✅ Hardening · ✅ UI moderna · ✅ Lookups · ✅ Carga masiva · ✅ Onboarding self-service · ✅ NeoConnect (gestión + negocio) · ✅ NeoProfit · ✅ Backend Mobile (B-1…B-6) → **siguiente: ejecutar `docs/Plan-V2.md` (paridad Web↔API + app Flutter + integraciones reales)**.
