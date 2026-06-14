@@ -69,6 +69,61 @@ endpoints, sino en endurecer compatibilidad y demo:
 | Alertas | `/api/alertas/*`, `/dispositivos`, `/preferencias` | Badges, centro de alertas, token FCM/ANDROID. |
 | POS/caja | `/api/pos/ventas/*`, `/api/pos/caja/*` | Ventas, ticket bytes, caja nullable en estado actual. |
 
+## Contratos Inmutables para Mobile
+
+Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
+
+| Contrato | Regla |
+|---|---|
+| Envelope JSON | Todo JSON sale como `ApiResponse<T>` con `success`, `message`, `data`, `errors`, `traceId`. |
+| Paginacion | Listados moviles usan `PagedResult<T>` con `items`, `total`, `page`, `pageSize`, `totalPages`. |
+| Descargas | PDF DTE, JSON DTE, ticket POS y archivo NeoScan salen como bytes crudos, no `ApiResponse`. |
+| Auth | Login/refresh devuelven `accessToken`, `refreshToken`, expiraciones y `user`. |
+| Tenant | Mobile usa usuarios de empresa. No se envia `?empresaId`; `empresaId` viene en JWT. |
+| SuperAdmin | La app lo bloquea localmente; la API debe seguir devolviendo `AUTH_NO_TENANT` si intenta operar sin empresa. |
+| Errores | Todo error de negocio debe traer `traceId` y codigos estables en `errors`. |
+| Timeouts | Endpoints de accion usados por mobile deben responder dentro de 30s o quedar como flujo asincrono/polling. |
+| Providers | `Mock` sigue siendo default seguro; providers reales no cambian contrato HTTP. |
+
+## Matriz Endpoint-Permiso-Modulo
+
+| Pantalla/flujo movil | Endpoint | Permiso API | Modulo | Estado del contrato |
+|---|---|---|---|---|
+| Splash/conectividad | `GET /health` | anon | n/a | OK. |
+| Login | `POST /api/auth/login` | anon | n/a | OK. |
+| Sesion | `GET /api/auth/me`, `POST /api/auth/refresh`, `POST /api/auth/logout` | usuario autenticado | n/a | OK; falta prueba contractual mobile. |
+| Dashboard | `GET /api/dashboard/empresa` | usuario autenticado | n/a | OK; validar datos demo. |
+| Config DTE | `GET/PUT /api/dte/configuracion` | `DTE.Configurar` | NEODTE/licencia de empresa | OK. |
+| Certificado DTE | `POST/DELETE /api/dte/configuracion/certificado` | `DTE.Configurar` | NEODTE/licencia de empresa | OK; falta prueba de tamano/MIME/error. |
+| Prueba MH | `POST /api/dte/configuracion/probar-conexion` | `DTE.Configurar` | NEODTE/licencia de empresa | OK; provider puede ser Mock/Http. |
+| Emitir factura | `POST /api/dte/emitir/factura` | `DTE.Emitir` | NEODTE/licencia de empresa | OK; medir duracion. |
+| Emitir generico | `POST /api/dte/emitir` | `DTE.Emitir` | NEODTE/licencia de empresa | OK; preservar para tipos futuros. |
+| Consultar DTE | `GET /api/dte/documentos`, `GET /api/dte/documentos/{id}` | Debe ser `DTE.Consultar` | NEODTE/licencia de empresa | Bug AM-001: hoy exige `DTE.Emitir`. |
+| Descargar DTE | `GET /api/dte/documentos/{id}/pdf`, `/json` | `DTE.Consultar` | NEODTE/licencia de empresa | OK; bytes crudos. |
+| Reenviar DTE | `POST /api/dte/documentos/{id}/reenviar` | `DTE.Reenviar` | NEODTE/licencia de empresa | OK; validar error email. |
+| Clientes | `GET/POST/PUT /api/clientes`, `PATCH /inactivar`, `PATCH /etiqueta` | `Clientes.Ver/Crear/Editar` | CORE | OK. |
+| Productos | `GET/POST/PUT /api/productos`, `PATCH /inactivar` | `Productos.Ver/Crear/Editar` | CORE | OK. |
+| Lookups | `/api/lookups/clientes`, `/productos`, `/sucursales`, territoriales, `verificar-nit` | usuario autenticado | CORE | OK. |
+| Cobros lectura | `/api/cobros/resumen`, `pendientes`, `clientes/{id}`, `dte/{id}/pagos`, `cuentas`, `qr` | `Cobros.Ver` | CORE/NEODTE | OK; `qr` usa permiso de lectura. |
+| Cobros gestion | pagos, confirmar/anular, cuentas CRUD | `Cobros.Gestionar` | CORE/NEODTE | OK. |
+| NeoScan bandeja | `GET/POST /api/scanai/documentos`, `GET /{id}`, `GET /{id}/archivo`, `PUT /campos`, `POST /resultado` | `ScanAI.Ver` | `NEOSCANAI` | OK; hardening AM-3. |
+| NeoScan confirmar | `registrar-gasto`, `registrar-compra`, `registrar-dte-recibido`, `rechazar` | `ScanAI.Confirmar` | `NEOSCANAI` | OK; probar estados invalidos. |
+| Alertas | `/api/alertas/*`, `/dispositivos`, `/preferencias` | usuario autenticado | CORE | OK; FCM real opcional. |
+| POS ventas | `/api/pos/ventas`, detalle, anular, ticket, enviar, resumen | `Pos.Ver`, `Pos.Vender`, `Pos.Anular` | `NEOPOS` | OK; ticket bytes crudos. |
+| POS promover | `POST /api/pos/ventas/{id}/promover` | `DTE.Emitir` | `NEOPOS` + NEODTE | OK; validar error fiscal controlado. |
+| POS caja | `/api/pos/caja/*` | `Pos.Ver`, `Pos.Vender` | `NEOPOS` | OK; `estado` puede traer `data: null`. |
+
+## Perfiles de Prueba API Mobile
+
+| Perfil | Uso | Permisos minimos |
+|---|---|---|
+| `MOBILE_ADMIN` | Smoke completo de empresa | `DTE.Emitir`, `DTE.Consultar`, `DTE.Reenviar`, `DTE.Configurar`, `Clientes.*`, `Productos.*`, `Cobros.*`, `ScanAI.*`, `Pos.*`. |
+| `MOBILE_DTE_CONSULTA` | Validar bug AM-001 y lectura sin emitir | `DTE.Consultar`, opcional `DTE.Reenviar`. Sin `DTE.Emitir`. |
+| `MOBILE_OPERADOR_POS` | POS/caja/ticket/promocion | `Pos.Ver`, `Pos.Vender`, `DTE.Emitir`, `Clientes.Ver`, `Productos.Ver`. |
+| `MOBILE_COBROS` | CxC, pagos y QR | `Cobros.Ver`, `Cobros.Gestionar`, `DTE.Consultar`, `Clientes.Ver`. |
+| `MOBILE_SCAN` | NeoScan captura y confirmacion | `ScanAI.Ver`, `ScanAI.Confirmar`, `Profit.Gestionar` si se confirma gasto/compra. |
+| `MOBILE_LIMITADO` | Casos negativos de 403/402 | Usuario sin permisos o empresa sin modulo `NEOSCANAI`/`NEOPOS`. |
+
 ## Hallazgos Priorizados
 
 | ID | Severidad | Hallazgo | Impacto | Sprint |
@@ -87,6 +142,9 @@ endpoints, sino en endurecer compatibilidad y demo:
 | AM-012 | Media | Certificado DTE y Scan usan base64 en JSON; faltan pruebas de tamano, MIME y errores legibles para movil. | Errores de archivo pueden verse genericos en la app. | AM-1/AM-3 |
 | AM-013 | Media | Versionado interno `/api/*` no esta formalizado; NeoConnect si usa `/api/v1`. | Riesgo de cambios incompatibles para mobile. | AM-6 |
 | AM-014 | Media | Falta runbook de demo API movil: URL, usuario, permisos, proveedor mock/real, health y evidencias. | La demo depende de memoria operativa. | AM-6 |
+| AM-015 | Media-alta | Falta matriz de usuarios/roles demo para mobile con permisos minimos y negativos. | No se puede validar RBAC real sin depender de `ADMIN` amplio. | AM-4 |
+| AM-016 | Media | Falta registrar evidencia por endpoint: status, traceId, usuario, empresa, duracion y payload resumido. | Los errores de demo quedan dificiles de reproducir. | AM-2/AM-6 |
+| AM-017 | Media-alta | Falta validar modulos no contratados (`NEOPOS`, `NEOSCANAI`) con respuesta legible para app. | La app puede mostrar error generico en planes sin modulo. | AM-2/AM-5 |
 
 ## Siguiente Sprint Recomendado
 
@@ -122,6 +180,30 @@ Criterio de cierre:
 | AM-5 | Media-alta | POS, Cobros y Alertas para demo | Flujos moviles de venta, caja, QR y centro de alertas repetibles. |
 | AM-6 | Media | Runbook y versionado API movil | URL demo estable, politica de cambios y checklist antes de demo/release. |
 
+## Definition of Done del Plan API Mobile
+
+El plan se considera cerrado cuando:
+
+- AM-1 tiene bugfixes y pruebas verdes.
+- AM-2 deja una suite contractual repetible en CI o lista para CI.
+- AM-3 deja NeoScan seguro para demo con provider `Mock` y camino claro para Gemini real.
+- AM-4 deja empresa demo con datos moviles visibles e idempotentes.
+- AM-5 deja POS/cobros/alertas con flujos positivos y negativos documentados.
+- AM-6 deja runbook de demo API mobile con URL, usuarios, variables, providers y evidencias.
+- README raiz, README API, `NeoCloud-Mobile-API.md` y OpenAPI/Scalar no se contradicen.
+- No hay trabajo Flutter pendiente dentro de NeoSTP Cloud.
+
+## Plan de Ejecucion por Orden
+
+| Orden | Sprint | Por que va ahi | Salida concreta |
+|---:|---|---|---|
+| 1 | AM-1 | Quita bloqueos directos de la app existente. | Contrato base compatible y probado. |
+| 2 | AM-2 | Evita regresiones mientras se corrigen bugs. | Tests contractuales y reporte de cobertura. |
+| 3 | AM-4 | Permite demos con pantallas moviles llenas. | Seed/empresa demo mobile-first. |
+| 4 | AM-5 | Cierra los flujos comerciales mas visibles. | POS, cobros y alertas repetibles. |
+| 5 | AM-3 | Endurece la parte diferenciadora con IA. | NeoScan seguro, medible y compatible con timeout. |
+| 6 | AM-6 | Formaliza operacion y versionado. | Runbook y politica de compatibilidad. |
+
 ## AM-0 - Baseline Contrato Movil
 
 Entregables:
@@ -147,6 +229,18 @@ Entregables:
 - Confirmar que descargas binarias no se envuelven.
 - Medir tiempo de emision DTE y subida NeoScan.
 
+Tareas:
+
+| ID | Tarea | Resultado |
+|---|---|---|
+| AM-1.1 | Cambiar `DteController` lista/detalle a permiso de lectura si aplica. | `DTE.Consultar` puede listar/detallar. |
+| AM-1.2 | Agregar pruebas de permiso DTE lectura vs emision. | Usuario consulta sin emitir pasa; usuario sin permiso falla. |
+| AM-1.3 | Agregar smoke de auth mobile: login, me, refresh, logout. | Contrato de sesion cubierto. |
+| AM-1.4 | Validar SuperAdmin no soportado para mobile. | Error `AUTH_NO_TENANT` o bloqueo documentado. |
+| AM-1.5 | Probar descargas binarias DTE/POS/Scan. | Content-Type y bytes validos, sin envelope. |
+| AM-1.6 | Medir duracion de emision y scan. | Riesgo de timeout clasificado. |
+| AM-1.7 | Revisar errores de certificado/scan base64. | Mensajes y codigos legibles. |
+
 Validacion:
 
 - Tests de integracion con usuarios de empresa y permisos minimos.
@@ -169,6 +263,17 @@ Entregables:
   - POS/caja.
 - Casos negativos: sin token, sin permiso, sin modulo, tenant cruzado, estado invalido.
 
+Tareas:
+
+| ID | Tarea | Resultado |
+|---|---|---|
+| AM-2.1 | Crear fixture `MobileApiContract`. | Datos y usuarios reutilizables. |
+| AM-2.2 | Implementar tests por endpoint MAPI-01 a MAPI-30. | Cobertura positiva base. |
+| AM-2.3 | Implementar negativos: 401, 403, 402, 404, 409. | Manejo app-friendly validado. |
+| AM-2.4 | Validar shape JSON con asserts sobre nombres camelCase. | Compatibilidad con modelos Flutter. |
+| AM-2.5 | Validar bytes con `Content-Type` y longitud. | Descargas protegidas contra regresion. |
+| AM-2.6 | Generar reporte simple de endpoints cubiertos. | Evidencia para demos/release. |
+
 Validacion:
 
 - `dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj`.
@@ -184,6 +289,17 @@ Entregables:
 - Estado asincrono recomendado: guardar `RECIBIDO/PROCESANDO`, encolar OCR y permitir polling.
 - Trazabilidad: proveedor, modelo, duracion, error resumido, fecha de intento.
 - Reintento seguro de OCR sin duplicar documento.
+
+Tareas:
+
+| ID | Tarea | Resultado |
+|---|---|---|
+| AM-3.1 | Mover API key Gemini a header. | Secretos fuera de URL/logs. |
+| AM-3.2 | Configurar y probar umbral de confianza. | `REQUIERE_REVISION` cuando la confianza es baja. |
+| AM-3.3 | Validar MIME/extension/tamano. | Errores 400/409 claros para mobile. |
+| AM-3.4 | Disenar ejecucion asincrona o modo rapido no bloqueante. | Upload no excede timeout mobile. |
+| AM-3.5 | Persistir metadatos de OCR. | Soporte puede diagnosticar provider/modelo/duracion. |
+| AM-3.6 | Probar fallback cuando Gemini falla. | Captura manual sigue disponible. |
 
 Validacion:
 
@@ -206,6 +322,18 @@ Entregables:
   - Alertas pendientes/resueltas.
 - Seed o script idempotente.
 
+Tareas:
+
+| ID | Tarea | Resultado |
+|---|---|---|
+| AM-4.1 | Definir empresa demo mobile. | Tenant unico para pruebas de app. |
+| AM-4.2 | Crear usuarios `MOBILE_*`. | RBAC positivo/negativo repetible. |
+| AM-4.3 | Sembrar clientes/productos. | Lookups y CRUD con datos. |
+| AM-4.4 | Sembrar DTE procesado y credito. | Consulta, PDF, JSON y CxC visibles. |
+| AM-4.5 | Sembrar POS/caja. | Ticket y resumen no vacios. |
+| AM-4.6 | Sembrar Scan y alertas. | NeoScan/alertas visibles. |
+| AM-4.7 | Documentar reset demo. | Corrida idempotente sin duplicados. |
+
 Validacion:
 
 - Dashboard movil no queda vacio.
@@ -219,6 +347,16 @@ Entregables:
 - Checklist de cobro: pendiente, registrar pago, confirmar/anular, generar QR.
 - Checklist de alertas: generar, listar, leer, resolver, registrar dispositivo.
 - Mensajes controlados para modulo no contratado o permiso faltante.
+
+Tareas:
+
+| ID | Tarea | Resultado |
+|---|---|---|
+| AM-5.1 | Ejecutar ciclo POS completo. | Caja, venta, ticket, promover, cerrar. |
+| AM-5.2 | Ejecutar ciclo CxC completo. | Pendiente, pago, confirmar/anular, QR. |
+| AM-5.3 | Ejecutar ciclo alertas. | Generar, listar, leer, resolver, dispositivo. |
+| AM-5.4 | Probar sin modulo `NEOPOS`/`NEOSCANAI`. | Respuesta legible para app. |
+| AM-5.5 | Probar permisos insuficientes por flujo. | 403 controlado y traceable. |
 
 Validacion:
 
@@ -234,37 +372,97 @@ Entregables:
 - Matriz de permisos por pantalla movil.
 - Registro de evidencias por demo.
 
+Tareas:
+
+| ID | Tarea | Resultado |
+|---|---|---|
+| AM-6.1 | Definir URL demo y politica de `API_BASE_URL`. | La app apunta a ambiente correcto sin rebuild confuso. |
+| AM-6.2 | Escribir checklist pre-demo API mobile. | Preparacion repetible. |
+| AM-6.3 | Definir politica de cambios breaking. | Mobile no se rompe por cambios de DTO. |
+| AM-6.4 | Documentar providers por demo. | Mock/Gemini/FCM/SMTP claros. |
+| AM-6.5 | Documentar formato de evidencia. | Status, traceId, usuario, empresa, duracion. |
+
 Validacion:
 
 - Cualquier miembro tecnico puede preparar una demo movil/API siguiendo el runbook sin tocar Flutter.
 
+## Datos Demo Requeridos
+
+| Dato | Cantidad minima | Para validar |
+|---|---:|---|
+| Empresa con perfil fiscal completo | 1 | Dashboard, DTE config, tenant. |
+| Usuarios mobile | 5 | RBAC positivo/negativo. |
+| Clientes | 3 | Facturacion, CxC, lookups. |
+| Productos | 5 | Factura, POS, barcode lookup. |
+| DTE procesado | 2 | Listado, detalle, PDF/JSON. |
+| DTE a credito | 1 | Cobros pendientes y QR. |
+| Cuenta de cobro activa | 1 | Generacion de QR. |
+| Venta POS | 1 | Ticket, resumen, caja. |
+| Sesion de caja abierta/cerrada | 1/1 | Estado, cierre y negativos. |
+| Scan con archivo | 1 | Bandeja, archivo, correccion. |
+| Alerta pendiente | 1 | Badge, listar, leer/resolver. |
+| Empresa sin `NEOPOS` o sin `NEOSCANAI` | 1 | Negativos 402/403 por modulo. |
+
+## Evidencia por Corrida Mobile API
+
+Cada corrida debe guardar:
+
+- Fecha, branch, commit y ambiente.
+- Base URL usada por la app/API.
+- Usuario, rol, permisos y empresa.
+- Provider activo: Hacienda, DTE signer, Scan, Push, Email.
+- Resultado de `dotnet test NeoSTP.slnx` o suite contractual.
+- Tabla de MAPI ejecutados: endpoint, status, `traceId`, duracion, resultado.
+- Errores con payload resumido sin secretos.
+- Decision final: apto demo, apto con advertencias, no apto.
+
 ## Matriz de Pruebas Minimas
 
-| ID | Endpoint | Usuario | Esperado |
-|---|---|---|---|
-| MAPI-01 | `GET /health` | anon | 200 con `data.status=ok`. |
-| MAPI-02 | `POST /api/auth/login` | ADMIN | Tokens, `empresaId`, roles y permisos. |
-| MAPI-03 | `GET /api/auth/me` | ADMIN | Perfil consistente con login. |
-| MAPI-04 | `POST /api/auth/refresh` | refresh token | Nuevo access token. |
-| MAPI-05 | `GET /api/dashboard/empresa` | ADMIN | KPIs. |
-| MAPI-06 | `GET /api/lookups/clientes?search=` | ADMIN | Lista para autocomplete. |
-| MAPI-07 | `GET /api/clientes` | ADMIN | `PagedResult`. |
-| MAPI-08 | `GET /api/productos` | ADMIN | `PagedResult`. |
-| MAPI-09 | `GET /api/dte/configuracion` | ADMIN | Config sin secretos. |
-| MAPI-10 | `POST /api/dte/emitir/factura` | ADMIN | DTE o error fiscal controlado con `traceId`. |
-| MAPI-11 | `GET /api/dte/documentos` | DTE.Consultar | 200; no debe exigir emision si es lectura. |
-| MAPI-12 | `GET /api/dte/documentos/{id}/pdf` | DTE.Consultar | Bytes PDF. |
-| MAPI-13 | `POST /api/dte/documentos/{id}/reenviar` | DTE.Reenviar | `ApiResponse` exitoso o error email controlado. |
-| MAPI-14 | `GET /api/cobros/resumen` | Cobros.Ver | CxC visible. |
-| MAPI-15 | `POST /api/cobros/qr` | Cobros.Ver | `qrPngBase64`. |
-| MAPI-16 | `POST /api/scanai/documentos` | ScanAI.Ver | Documento creado; no expone secretos ni bloquea por OCR externo. |
-| MAPI-17 | `GET /api/scanai/documentos/{id}/archivo` | ScanAI.Ver | Bytes del archivo. |
-| MAPI-18 | `GET /api/alertas/resumen` | ADMIN | Conteos para badge. |
-| MAPI-19 | `POST /api/alertas/dispositivos` | ADMIN | Token registrado. |
-| MAPI-20 | `GET /api/pos/caja/estado` | OPERADOR | `data` puede ser null si no hay caja. |
-| MAPI-21 | `POST /api/pos/caja/abrir` | OPERADOR | Caja abierta o conflicto controlado. |
-| MAPI-22 | `POST /api/pos/ventas` | OPERADOR | Venta creada. |
-| MAPI-23 | `GET /api/pos/ventas/{id}/ticket` | OPERADOR | Bytes PDF ticket. |
+| ID | Endpoint | Usuario | Esperado | Tipo |
+|---|---|---|---|---|
+| MAPI-01 | `GET /health` | anon | 200 con `data.status=ok`, `data.service=NeoSTP.Api`. | Positivo |
+| MAPI-02 | `POST /api/auth/login` | `MOBILE_ADMIN` | Tokens, `empresaId`, roles y permisos. | Positivo |
+| MAPI-03 | `GET /api/auth/me` | `MOBILE_ADMIN` | Perfil consistente con login. | Positivo |
+| MAPI-04 | `POST /api/auth/refresh` | refresh token | Nuevo access token. | Positivo |
+| MAPI-05 | `POST /api/auth/logout` | `MOBILE_ADMIN` | Refresh revocado. | Positivo |
+| MAPI-06 | `POST /api/auth/login` | `SUPERADMIN` | App debe bloquear; API no debe operar datos sin empresa. | Negativo |
+| MAPI-07 | `GET /api/dashboard/empresa` | `MOBILE_ADMIN` | KPIs. | Positivo |
+| MAPI-08 | `GET /api/lookups/clientes?search=` | `MOBILE_ADMIN` | Lista para autocomplete. | Positivo |
+| MAPI-09 | `GET /api/lookups/productos?search=` | `MOBILE_ADMIN` | Lista para autocomplete. | Positivo |
+| MAPI-10 | `GET /api/clientes` | `MOBILE_ADMIN` | `PagedResult`. | Positivo |
+| MAPI-11 | `POST /api/clientes` | `MOBILE_ADMIN` | Cliente creado o duplicado controlado. | Positivo/409 |
+| MAPI-12 | `GET /api/productos` | `MOBILE_ADMIN` | `PagedResult`. | Positivo |
+| MAPI-13 | `GET /api/dte/configuracion` | `MOBILE_ADMIN` | Config sin secretos. | Positivo |
+| MAPI-14 | `POST /api/dte/configuracion/certificado` | `MOBILE_ADMIN` | Certificado aceptado o validacion controlada. | Positivo/400 |
+| MAPI-15 | `POST /api/dte/configuracion/probar-conexion` | `MOBILE_ADMIN` | Resultado controlado. | Positivo |
+| MAPI-16 | `POST /api/dte/emitir/factura` | `MOBILE_ADMIN` | DTE o error fiscal controlado con `traceId`. | Positivo/502 |
+| MAPI-17 | `GET /api/dte/documentos` | `MOBILE_DTE_CONSULTA` | 200; no debe exigir emision si es lectura. | Positivo |
+| MAPI-18 | `GET /api/dte/documentos/{id}` | `MOBILE_DTE_CONSULTA` | Detalle. | Positivo |
+| MAPI-19 | `GET /api/dte/documentos/{id}/pdf` | `MOBILE_DTE_CONSULTA` | Bytes PDF. | Positivo |
+| MAPI-20 | `GET /api/dte/documentos/{id}/json` | `MOBILE_DTE_CONSULTA` | Bytes/JSON crudo. | Positivo |
+| MAPI-21 | `POST /api/dte/documentos/{id}/reenviar` | `MOBILE_DTE_CONSULTA` con `DTE.Reenviar` | `ApiResponse` exitoso o error email controlado. | Positivo/502 |
+| MAPI-22 | `GET /api/cobros/resumen` | `MOBILE_COBROS` | CxC visible. | Positivo |
+| MAPI-23 | `GET /api/cobros/pendientes` | `MOBILE_COBROS` | `PagedResult`. | Positivo |
+| MAPI-24 | `POST /api/cobros/dte/{id}/pagos` | `MOBILE_COBROS` | Pago creado o validacion controlada. | Positivo/400 |
+| MAPI-25 | `POST /api/cobros/qr` | `MOBILE_COBROS` | `qrPngBase64`. | Positivo |
+| MAPI-26 | `GET /api/scanai/documentos` | `MOBILE_SCAN` | Bandeja paginada. | Positivo |
+| MAPI-27 | `POST /api/scanai/documentos` | `MOBILE_SCAN` | Documento creado; no expone secretos ni bloquea por OCR externo. | Positivo |
+| MAPI-28 | `GET /api/scanai/documentos/{id}/archivo` | `MOBILE_SCAN` | Bytes del archivo. | Positivo |
+| MAPI-29 | `PUT /api/scanai/documentos/{id}/campos` | `MOBILE_SCAN` | Campos corregidos. | Positivo |
+| MAPI-30 | `POST /api/scanai/documentos/{id}/registrar-dte-recibido` | `MOBILE_SCAN` | DTE recibido o estado invalido controlado. | Positivo/409 |
+| MAPI-31 | `GET /api/alertas/resumen` | `MOBILE_ADMIN` | Conteos para badge. | Positivo |
+| MAPI-32 | `GET /api/alertas` | `MOBILE_ADMIN` | `PagedResult`. | Positivo |
+| MAPI-33 | `POST /api/alertas/dispositivos` | `MOBILE_ADMIN` | Token registrado. | Positivo |
+| MAPI-34 | `POST /api/alertas/{id}/leer` | `MOBILE_ADMIN` | Alerta leida. | Positivo |
+| MAPI-35 | `GET /api/pos/caja/estado` | `MOBILE_OPERADOR_POS` | `data` puede ser null si no hay caja. | Positivo |
+| MAPI-36 | `POST /api/pos/caja/abrir` | `MOBILE_OPERADOR_POS` | Caja abierta o conflicto controlado. | Positivo/409 |
+| MAPI-37 | `POST /api/pos/ventas` | `MOBILE_OPERADOR_POS` | Venta creada. | Positivo |
+| MAPI-38 | `GET /api/pos/ventas/{id}/ticket` | `MOBILE_OPERADOR_POS` | Bytes PDF ticket. | Positivo |
+| MAPI-39 | `POST /api/pos/ventas/{id}/promover` | `MOBILE_OPERADOR_POS` | DTE creado o error fiscal controlado. | Positivo/502 |
+| MAPI-40 | `GET /api/scanai/documentos` | usuario sin `NEOSCANAI` | 402/403 legible, sin 500. | Negativo |
+| MAPI-41 | `GET /api/pos/resumen` | usuario sin `NEOPOS` | 402/403 legible, sin 500. | Negativo |
+| MAPI-42 | endpoint de empresa | sin token | 401. | Negativo |
+| MAPI-43 | recurso de otra empresa | usuario empresa | 404/403 sin filtrar existencia. | Negativo |
 
 ## No Alcance
 

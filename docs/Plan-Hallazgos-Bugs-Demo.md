@@ -310,6 +310,9 @@ Criterio de cierre:
 | AM-012 | Media | Certificado y scan base64 requieren pruebas de tamano, MIME y errores legibles | AM-1/AM-3 |
 | AM-013 | Media | Versionado interno `/api/*` debe formalizar compatibilidad para mobile | AM-6 |
 | AM-014 | Media | Falta runbook demo API movil con URL, usuarios, providers y evidencias | AM-6 |
+| AM-015 | Media-alta | Falta matriz de usuarios/roles demo para mobile con permisos minimos y negativos | AM-4 |
+| AM-016 | Media | Falta registrar evidencia API mobile por endpoint, status, traceId, usuario, empresa y duracion | AM-2/AM-6 |
+| AM-017 | Media-alta | Falta validar modulos no contratados (`NEOPOS`, `NEOSCANAI`) con respuesta legible para app | AM-2/AM-5 |
 
 ## Orden de Ejecucion Recomendado
 
