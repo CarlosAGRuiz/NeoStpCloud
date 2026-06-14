@@ -62,6 +62,38 @@ public class EmpresaPruebaSeederTests
         await db.SaveChangesAsync();
     }
 
+    private static async Task SeedPlanYRolesMobileAsync(IServiceProvider sp)
+    {
+        await using var scope = sp.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<NeoStpDbContext>();
+
+        db.Modulos.AddRange(
+            new Modulo { Id = 100, Codigo = "CORE", Nombre = "Core", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 101, Codigo = "NEODTE", Nombre = "NeoDTE", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 102, Codigo = "NEOPOS", Nombre = "NeoPOS", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 103, Codigo = "NEOSCANAI", Nombre = "NeoScanAI", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 104, Codigo = "NEOPROFIT", Nombre = "NeoProfit", Activo = true, CreatedAt = DateTime.UtcNow });
+        db.Planes.Add(new Plan
+        {
+            Id = 204, Codigo = "ENTERPRISE", Nombre = "Enterprise", PrecioMensual = 400m,
+            Activo = true, CreatedAt = DateTime.UtcNow,
+            Modulos =
+            {
+                new PlanModulo { PlanId = 204, ModuloId = 100, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 101, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 102, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 103, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 104, Activo = true },
+            },
+        });
+        db.Roles.AddRange(
+            new Rol { Id = 501, Codigo = "ADMIN", Nombre = "Administrador", EsSistema = true, Activo = true, CreatedAt = DateTime.UtcNow },
+            new Rol { Id = 502, Codigo = "OPERADOR", Nombre = "Operador", EsSistema = true, Activo = true, CreatedAt = DateTime.UtcNow },
+            new Rol { Id = 503, Codigo = "CONTADOR", Nombre = "Contador", EsSistema = true, Activo = true, CreatedAt = DateTime.UtcNow },
+            new Rol { Id = 504, Codigo = "READONLY", Nombre = "Solo lectura", EsSistema = true, Activo = true, CreatedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task Deshabilitado_NoHaceNada()
     {
@@ -137,5 +169,32 @@ public class EmpresaPruebaSeederTests
         await using var scope = sp.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<NeoStpDbContext>();
         (await db.Empresas.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task MobileDemoEnabled_CreaDatosMinimosParaApiMobile()
+    {
+        var opts = DefaultOpts();
+        opts.MobileDemo.Enabled = true;
+        var sp = BuildProvider(nameof(MobileDemoEnabled_CreaDatosMinimosParaApiMobile), opts);
+        await SeedPlanYRolesMobileAsync(sp);
+
+        await EmpresaPruebaSeeder.SeedAsync(sp);
+        await EmpresaPruebaSeeder.SeedAsync(sp);
+
+        await using var scope = sp.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<NeoStpDbContext>();
+        var empresaId = await db.Empresas.Select(e => e.Id).SingleAsync();
+
+        (await db.Usuarios.CountAsync(u => u.EmpresaId == empresaId && u.Username.StartsWith("mobile."))).Should().Be(6);
+        (await db.Clientes.CountAsync(c => c.EmpresaId == empresaId)).Should().Be(3);
+        (await db.Productos.CountAsync(p => p.EmpresaId == empresaId && p.CodigoInterno.StartsWith("MOB-"))).Should().Be(5);
+        (await db.DteDocumentos.CountAsync(d => d.EmpresaId == empresaId && d.NumeroControl.Contains("MDEMO"))).Should().Be(2);
+        (await db.PagosCliente.CountAsync(p => p.EmpresaId == empresaId && p.Referencia == "MOBILE-DEMO-PARCIAL")).Should().Be(1);
+        (await db.CuentasCobro.CountAsync(c => c.EmpresaId == empresaId && c.Nombre == "Demo Transferencia Mobile")).Should().Be(1);
+        (await db.VentasPos.CountAsync(v => v.EmpresaId == empresaId && v.Numero == "POS-MOB-000001")).Should().Be(1);
+        (await db.SesionesCaja.CountAsync(c => c.EmpresaId == empresaId && c.Numero.StartsWith("CAJA-MOB-"))).Should().Be(2);
+        (await db.ScanDocumentos.CountAsync(s => s.EmpresaId == empresaId && s.ArchivoNombre == "demo-factura-proveedor.pdf")).Should().Be(1);
+        (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.Clave.StartsWith("MOBILE_DEMO:"))).Should().Be(1);
     }
 }

@@ -33,6 +33,8 @@ public class EmpresaPruebaOptions
     /// <summary>Código del plan a asignar. Default ENTERPRISE (incluye todos los módulos).</summary>
     public string PlanCodigo { get; set; } = "ENTERPRISE";
 
+    public MobileDemoPrueba MobileDemo { get; set; } = new();
+
     // ----- Usuario administrador de la empresa -----
     public AdminPrueba Admin { get; set; } = new();
 
@@ -78,5 +80,11 @@ public class EmpresaPruebaOptions
         public string TipoEstablecimientoCodigo { get; set; } = "CASA_MATRIZ";
         public string? CodigoEstablecimientoMh { get; set; }
         public string? CodigoPuntoVentaMh { get; set; }
+    }
+
+    public class MobileDemoPrueba
+    {
+        public bool Enabled { get; set; }
+        public string Password { get; set; } = "MobileDemo!2026";
     }
 }

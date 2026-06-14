@@ -68,7 +68,7 @@ public sealed class GeminiScanExtractionService : IScanExtractionService
         try
         {
             var http = _httpFactory.CreateClient(HttpClientName);
-            var url = $"{_opts.BaseUrl.TrimEnd('/')}/v1beta/models/{_opts.Model}:generateContent?key={_opts.ApiKey}";
+            var url = $"{_opts.BaseUrl.TrimEnd('/')}/v1beta/models/{_opts.Model}:generateContent";
 
             var body = new
             {
@@ -86,7 +86,13 @@ public sealed class GeminiScanExtractionService : IScanExtractionService
                 generationConfig = new { temperature = 0, responseMimeType = "application/json" },
             };
 
-            using var resp = await http.PostAsJsonAsync(url, body, ct);
+            using var req = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = JsonContent.Create(body),
+            };
+            req.Headers.TryAddWithoutValidation("x-goog-api-key", _opts.ApiKey);
+
+            using var resp = await http.SendAsync(req, ct);
             var json = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
             {

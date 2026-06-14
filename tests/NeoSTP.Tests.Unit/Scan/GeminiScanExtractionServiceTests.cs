@@ -85,14 +85,20 @@ public class GeminiScanExtractionServiceTests
     public async Task EnviaImagenInlineYUsaModeloEnLaUrl()
     {
         HttpRequestMessage? captured = null;
-        var svc = Build(req => { captured = req; return (HttpStatusCode.OK, GeminiEnvelope("{\"total\":50,\"confianza\":0.5}")); });
+        string? sent = null;
+        var svc = Build(req =>
+        {
+            captured = req;
+            sent = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+            return (HttpStatusCode.OK, GeminiEnvelope("{\"total\":50,\"confianza\":0.5}"));
+        });
 
         await svc.ExtraerAsync(new byte[] { 9, 9, 9 }, "application/pdf");
 
         captured.Should().NotBeNull();
         captured!.RequestUri!.AbsoluteUri.Should().Contain("gemini-2.0-flash:generateContent");
-        captured.RequestUri.AbsoluteUri.Should().Contain("key=test-key");
-        var sent = await captured.Content!.ReadAsStringAsync();
+        captured.RequestUri.Query.Should().NotContain("key=");
+        captured.Headers.GetValues("x-goog-api-key").Should().ContainSingle().Which.Should().Be("test-key");
         sent.Should().Contain("inlineData");
         sent.Should().Contain("application/pdf");
         sent.Should().Contain(Convert.ToBase64String(new byte[] { 9, 9, 9 }));

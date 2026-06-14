@@ -5,6 +5,7 @@ using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Profit;
 using NeoSTP.Application.Profit.Dtos;
+using NeoSTP.Application.Scan;
 using NeoSTP.Application.Scan.Dtos;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Scan;
@@ -37,10 +38,34 @@ public class ScanServiceTests
         return db;
     }
 
-    private static (ScanService svc, IProfitService profit) NewSvc(NeoStpDbContext db)
+    private sealed class FixedScanExtractionService(decimal confianza) : IScanExtractionService
+    {
+        public string? LastContentType { get; private set; }
+
+        public Task<ScanExtraccion> ExtraerAsync(byte[] contenido, string contentType, CancellationToken ct = default)
+        {
+            LastContentType = contentType;
+            return Task.FromResult(new ScanExtraccion
+            {
+                EmisorNombre = confianza > 0 ? "Proveedor Demo" : null,
+                Total = confianza > 0 ? 113m : null,
+                Confianza = confianza,
+            });
+        }
+    }
+
+    private static (ScanService svc, IProfitService profit) NewSvc(
+        NeoStpDbContext db,
+        IScanExtractionService? extraction = null,
+        IConfiguration? configuration = null)
     {
         var profit = Substitute.For<IProfitService>();
-        var svc = new ScanService(db, new MockScanExtractionService(), profit, Substitute.For<IAuditoriaService>());
+        var svc = new ScanService(
+            db,
+            extraction ?? new MockScanExtractionService(),
+            profit,
+            Substitute.For<IAuditoriaService>(),
+            configuration);
         return (svc, profit);
     }
 
@@ -75,6 +100,57 @@ public class ScanServiceTests
 
         r.IsFailure.Should().BeTrue();
         r.ErrorCode.Should().Be("VALIDATION");
+    }
+
+    [Fact]
+    public async Task Subir_MimeNoPermitido_Validation_YNoGuardaDocumento()
+    {
+        var db = NewDb();
+        var (svc, _) = NewSvc(db);
+        var request = Captura();
+        request.ContentType = "text/plain";
+
+        var r = await svc.SubirAsync(EmpresaA, request, "tester");
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("VALIDATION");
+        (await db.ScanDocumentos.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Subir_ConfianzaDebajoDelUmbral_QuedaRequiereRevision()
+    {
+        var db = NewDb();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Scan:ConfianzaMinimaProcesado"] = "0.75" })
+            .Build();
+        var (svc, _) = NewSvc(db, new FixedScanExtractionService(0.7m), config);
+
+        var r = await svc.SubirAsync(EmpresaA, Captura(), "tester");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EstadoCodigo.Should().Be(ScanEstados.RequiereRevision);
+        r.Value.Confianza.Should().Be(0.7m);
+    }
+
+    [Fact]
+    public async Task Subir_ConfianzaSuficiente_QuedaProcesado_YNormalizaMime()
+    {
+        var db = NewDb();
+        var extraction = new FixedScanExtractionService(0.76m);
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Scan:ConfianzaMinimaProcesado"] = "0.75" })
+            .Build();
+        var (svc, _) = NewSvc(db, extraction, config);
+        var request = Captura();
+        request.ContentType = "image/png; charset=binary";
+
+        var r = await svc.SubirAsync(EmpresaA, request, "tester");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EstadoCodigo.Should().Be(ScanEstados.Procesado);
+        r.Value.ArchivoContentType.Should().Be("image/png");
+        extraction.LastContentType.Should().Be("image/png");
     }
 
     [Fact]

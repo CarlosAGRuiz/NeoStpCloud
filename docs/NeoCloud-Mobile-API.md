@@ -387,9 +387,8 @@ DTE rechazados.
 | `GET` | `/api/dte/documentos/{id}` | Detalle completo (`DteDocumentoDto` con `detalles[]`, `jsonDte`, `respuestaHacienda`). |
 | `GET` | `/api/dte/documentos/{id}/pdf` · `/json` | Descargas. |
 
-Permiso de lectura: `DTE.Consultar` (pdf/json). Hallazgo actual de compatibilidad: lista/detalle en
-`DteController` todavia requieren `DTE.Emitir`; el objetivo para mobile es que lectura use
-`DTE.Consultar`. Seguimiento: `docs/Plan-Hallazgos-Api-Mobile.md` (`AM-001`).
+Permiso de lectura: `DTE.Consultar` para lista, detalle, PDF y JSON. La emision sigue protegida por
+`DTE.Emitir`.
 
 ### 8.3 CRM ligero — Clientes `/api/clientes`
 
@@ -493,10 +492,11 @@ iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
 > capture/corrija los campos manualmente en la app. También existe proveedor real Gemini
 > (`Scan:Provider=Gemini` + `Scan:Gemini:ApiKey`) sin cambiar el contrato: cuando se active, los campos
 > vendrán precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que
-> venga y permitir corregir antes de confirmar). Para demo productiva queda planificado endurecer
-> NeoScan con OCR asíncrono, umbral de confianza configurable, whitelist MIME y API key por header
-> (`docs/Plan-Hallazgos-Bugs-Demo.md`). **Límite mensual:** si la empresa supera el cupo configurado
-> (`Scan:LimiteMensual`, 0 = sin límite), `POST /documentos` devuelve `409` con `LIMIT_EXCEEDED`.
+> venga y permitir corregir antes de confirmar). Para demo productiva, NeoScan valida MIME permitidos
+> (`image/jpeg`, `image/png`, `application/pdf` por defecto), usa `Scan:ConfianzaMinimaProcesado`
+> para decidir `PROCESADO` vs `REQUIERE_REVISION` y envia la API key de Gemini por header
+> `x-goog-api-key`. **Limite mensual:** si la empresa supera el cupo configurado
+> (`Scan:LimiteMensual`, 0 = sin limite), `POST /documentos` devuelve `409` con `LIMIT_EXCEEDED`.
 
 ### 8.8 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)
 

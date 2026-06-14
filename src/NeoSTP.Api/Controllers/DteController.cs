@@ -27,7 +27,7 @@ public class DteController : ApiControllerBase
     // ---- listado y detalle ----
 
     [HttpGet("documentos")]
-    [RequirePermiso("DTE.Emitir")]
+    [RequirePermiso("DTE.Consultar")]
     public async Task<IActionResult> List([FromQuery] DteListQuery query, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
@@ -35,7 +35,7 @@ public class DteController : ApiControllerBase
     }
 
     [HttpGet("documentos/{id:int}")]
-    [RequirePermiso("DTE.Emitir")]
+    [RequirePermiso("DTE.Consultar")]
     public async Task<IActionResult> GetById(int id, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

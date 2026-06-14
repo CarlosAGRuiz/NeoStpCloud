@@ -19,12 +19,16 @@ public class ScanService : IScanService
 {
     private const string AuditModule = "NEOSCANAI";
     private const int MaxBytes = 8_388_608; // 8 MB
+    private const decimal DefaultConfianzaMinimaProcesado = 0.8m;
+    private static readonly string[] DefaultAllowedContentTypes = ["image/jpeg", "image/png", "application/pdf"];
 
     private readonly NeoStpDbContext _db;
     private readonly IScanExtractionService _extraction;
     private readonly IProfitService _profit;
     private readonly IAuditoriaService _auditoria;
     private readonly int _limiteMensual;
+    private readonly decimal _confianzaMinimaProcesado;
+    private readonly HashSet<string> _allowedContentTypes;
 
     private readonly NeoSTP.Infrastructure.Scan.IScanBlobStorage? _blobStorage;
 
@@ -39,6 +43,11 @@ public class ScanService : IScanService
         _blobStorage = blobStorage;
         // Límite mensual de escaneos por empresa (0/ausente = sin límite). Configurable: Scan:LimiteMensual.
         _limiteMensual = configuration?.GetValue("Scan:LimiteMensual", 0) ?? 0;
+        _confianzaMinimaProcesado = Math.Clamp(
+            configuration?.GetValue<decimal?>("Scan:ConfianzaMinimaProcesado") ?? DefaultConfianzaMinimaProcesado,
+            0m,
+            1m);
+        _allowedContentTypes = ParseAllowedContentTypes(configuration?["Scan:AllowedContentTypes"]);
     }
 
     public async Task<Result<PagedResult<ScanDocumentoDto>>> ListAsync(int empresaId, ScanQuery query, CancellationToken ct = default)
@@ -95,6 +104,10 @@ public class ScanService : IScanService
         if (bytes.Length == 0) return Result<ScanDocumentoDto>.Fail("El archivo está vacío.", "VALIDATION");
         if (bytes.Length > MaxBytes) return Result<ScanDocumentoDto>.Fail($"El archivo excede {MaxBytes / 1024 / 1024} MB.", "VALIDATION");
 
+        var contentType = NormalizeContentType(request.ContentType);
+        if (!_allowedContentTypes.Contains(contentType))
+            return Result<ScanDocumentoDto>.Fail("Tipo de archivo no permitido. Usa JPEG, PNG o PDF.", "VALIDATION");
+
         if (_limiteMensual > 0)
         {
             var inicioMes = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -108,7 +121,7 @@ public class ScanService : IScanService
             EmpresaId = empresaId,
             EstadoCodigo = ScanEstados.Procesando,
             Origen = string.IsNullOrWhiteSpace(request.Origen) ? "MOBILE" : request.Origen.Trim().ToUpperInvariant(),
-            ArchivoContentType = request.ContentType,
+            ArchivoContentType = contentType,
             ArchivoNombre = request.Nombre,
             CreatedBy = actor,
         };
@@ -119,10 +132,12 @@ public class ScanService : IScanService
         else
             entity.ArchivoBlob = bytes;
 
-        var ext = await _extraction.ExtraerAsync(bytes, request.ContentType ?? "image/jpeg", ct);
+        var ext = await _extraction.ExtraerAsync(bytes, contentType, ct);
         Aplicar(entity, ext);
         entity.Confianza = ext.Confianza;
-        entity.EstadoCodigo = ext.Confianza > 0 ? ScanEstados.Procesado : ScanEstados.RequiereRevision;
+        entity.EstadoCodigo = ext.Confianza >= _confianzaMinimaProcesado
+            ? ScanEstados.Procesado
+            : ScanEstados.RequiereRevision;
 
         _db.ScanDocumentos.Add(entity);
         await _db.SaveChangesAsync(ct);
@@ -264,6 +279,30 @@ public class ScanService : IScanService
         s.Fecha = r.Fecha; s.TipoDocumento = r.TipoDocumento?.Trim(); s.NumeroControl = r.NumeroControl?.Trim();
         s.SelloRecibido = r.SelloRecibido?.Trim(); s.Subtotal = r.Subtotal; s.Iva = r.Iva; s.Total = r.Total;
         s.Notas = r.Notas?.Trim();
+    }
+
+    private static string NormalizeContentType(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "image/jpeg";
+        var separator = value.IndexOf(';');
+        var normalized = separator >= 0 ? value[..separator] : value;
+        return normalized.Trim().ToLowerInvariant();
+    }
+
+    private static HashSet<string> ParseAllowedContentTypes(string? raw)
+    {
+        var values = string.IsNullOrWhiteSpace(raw)
+            ? DefaultAllowedContentTypes
+            : raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var parsed = values
+            .Select(NormalizeContentType)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return parsed.Count > 0
+            ? parsed
+            : DefaultAllowedContentTypes.ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private static ScanDocumentoDto ToDto(ScanDocumento s) => new()

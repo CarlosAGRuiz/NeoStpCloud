@@ -306,6 +306,7 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md) | Fase V2.5 (escala/proveedores reales) con evidencia de pruebas |
 | [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md) | Sprints de consolidación para hallazgos, bugs y preparación de demos |
 | [`docs/Plan-Hallazgos-Api-Mobile.md`](docs/Plan-Hallazgos-Api-Mobile.md) | Hallazgos y sprints API contra la app Android existente |
+| [`docs/Runbook-Api-Mobile-Demo.md`](docs/Runbook-Api-Mobile-Demo.md) | Preparacion y checklist de demo API mobile |
 | [`docs/Plan-Pruebas-Web-Api-Demos.md`](docs/Plan-Pruebas-Web-Api-Demos.md) | Plan recurrente de pruebas Web/API para demos comerciales y técnicas |
 | [`docs/Runbook-V2.md`](docs/Runbook-V2.md) | Operación: despliegue, backup, rotación, retención |
 | [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) | Pruebas E2E en vivo del cierre V2 |
@@ -318,7 +319,7 @@ y `api/v1/*` (NeoConnect público).
 Prioridad inmediata antes de nuevos módulos: ejecutar el plan de consolidación
 [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md) y
 [`docs/Plan-Hallazgos-Api-Mobile.md`](docs/Plan-Hallazgos-Api-Mobile.md), empezando por
-compatibilidad API mobile, limpieza de warnings, NeoScan/Gemini productivo y pruebas Web/API de demo.
+seguimiento de bugs restantes, limpieza de warnings y pruebas Web/API de demo.
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 

@@ -51,7 +51,7 @@ Con Docker:
 docker compose up --build api
 ```
 
-Al iniciar, la API ejecuta `DatabaseSeeder.SeedAsync(app.Services)` y `EmpresaPruebaSeeder.SeedAsync(app.Services)` cuando `EmpresaPrueba:Enabled=true`.
+Al iniciar, la API ejecuta `DatabaseSeeder.SeedAsync(app.Services)` y `EmpresaPruebaSeeder.SeedAsync(app.Services)` cuando `EmpresaPrueba:Enabled=true`. Si `EmpresaPrueba:MobileDemo:Enabled=true`, tambien asegura usuarios `mobile.*` y datos demo API/mobile.
 
 ## Configuracion
 
@@ -65,7 +65,7 @@ Los secretos locales deben vivir en `src/NeoSTP.Api/appsettings.Local.json`, que
 | `Email` | Proveedor `Mock` o `Smtp`, remitente global y SMTP global. |
 | `Hacienda` | Cliente Hacienda `Mock` o `Http`. |
 | `Dte` / `Dte:Territorial` | Firma, ambiente DTE y datos territoriales por defecto. |
-| `EmpresaPrueba` | Provisioning idempotente de empresa/admin de pruebas. |
+| `EmpresaPrueba` | Provisioning idempotente de empresa/admin de pruebas y datos mobile opt-in (`MobileDemo`). |
 | `Security` | Password policy y bloqueo de cuenta. |
 | `Hardening:RateLimit` | Cuotas/rate limit. |
 | `Hardening:Backup` | Backup local o storage externo. |
@@ -590,6 +590,7 @@ El envio por correo usa `ITenantEmailSender`, por lo que respeta SMTP por empres
 Plan recurrente para demos Web/API: [`../../docs/Plan-Pruebas-Web-Api-Demos.md`](../../docs/Plan-Pruebas-Web-Api-Demos.md).
 Plan de sprints de hallazgos y bugs: [`../../docs/Plan-Hallazgos-Bugs-Demo.md`](../../docs/Plan-Hallazgos-Bugs-Demo.md).
 Plan especifico de hallazgos API movil: [`../../docs/Plan-Hallazgos-Api-Mobile.md`](../../docs/Plan-Hallazgos-Api-Mobile.md).
+Runbook demo API mobile: [`../../docs/Runbook-Api-Mobile-Demo.md`](../../docs/Runbook-Api-Mobile-Demo.md).
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
