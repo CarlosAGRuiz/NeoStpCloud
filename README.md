@@ -10,7 +10,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado actualizado 2026-06-14: Fases V2/V2.5, API mobile AM-0..AM-6 y HB-1 cerrados
+**Estado actualizado 2026-06-14: Fases V2/V2.5, API mobile AM-0..AM-6, HB-1 y HB-3/HB-4 cerrados
 operativos.** El producto opera el ciclo completo de un
 negocio salvadoreño: emite DTE certificados contra Hacienda, vende por POS, cobra, compra, maneja
 inventario, paga planilla, concilia el banco, lleva libros fiscales y contabilidad mínima, y da
@@ -86,7 +86,7 @@ El recorrido completo de un cliente, de punta a punta:
 | Observabilidad | Health checks (BD/correo/storage), Serilog estructurado, **OpenTelemetry OTLP opcional** + Meter `NeoSTP` |
 | Escala | Caché distribuida Memory/**Redis** para lookups, storage externo opcional para blobs de scan |
 | i18n / a11y | es (default) + en por cookie de cultura; skip-link, focus visible, aria-labels |
-| Tests | xUnit + FluentAssertions + NSubstitute — **697 unitarias + 9 integración**, CI en GitHub Actions |
+| Tests | xUnit + FluentAssertions + NSubstitute — **701 unitarias + 9 integración**, CI en GitHub Actions |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -104,7 +104,7 @@ src/
   NeoSTP.Worker           Tareas en segundo plano (8 jobs)
   NeoSTP.Shared           Utilidades compartidas (ApiResponse, CsvExporter, etc.)
 tests/
-  NeoSTP.Tests.Unit         697 pruebas unitarias
+  NeoSTP.Tests.Unit         701 pruebas unitarias
   NeoSTP.Tests.Integration  9 pruebas de integración (API)
 ```
 
@@ -177,10 +177,13 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **697 pruebas unitarias + 9 de integración**, verdes en CI (GitHub Actions, cada push/PR a main).
+- **701 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
 - **Validacion local 2026-06-14:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
-  `dotnet test NeoSTP.slnx` paso con 697 unitarias + 9 integracion. HB-1 quedo cerrado operativo.
+  `dotnet test NeoSTP.slnx` paso con 701 unitarias + 9 integracion. HB-1 y HB-3/HB-4 quedaron
+  cerrados operativos.
+- **HB-3/HB-4 demo readiness**: `DemoReadinessContractTests` congela rutas API criticas, permisos,
+  modulos licenciables, API publica NeoConnect v1, rutas Web y existencia de vistas Razor para demos.
 - **Certificación DTE real**: matriz de escenarios transmitida y PROCESADA contra el ambiente de
   pruebas (apitest) de Hacienda — Sprint 12 y módulo de certificación.
 - **Pruebas tipo cliente** (documentadas): recorrido de ~45 pantallas con sesión real de ADMIN,
@@ -319,9 +322,9 @@ y `api/v1/*` (NeoConnect público).
 
 ## Roadmap
 
-Prioridad inmediata antes de nuevos módulos: con API mobile y HB-1 cerrados, ejecutar HB-4/HB-3 del
-plan de consolidación [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md): pruebas
-Web por rol y smoke API de alto valor con evidencia de demo.
+Prioridad inmediata antes de nuevos módulos: con API mobile, HB-1 y HB-3/HB-4 cerrados, ejecutar
+HB-5 del plan de consolidación [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md):
+datos demo comerciales completos para evitar pantallas vacias o reportes sin valor durante demos.
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 

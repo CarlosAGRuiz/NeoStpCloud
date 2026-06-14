@@ -604,6 +604,8 @@ Areas con cobertura relevante:
 - DTE, Hacienda mocks, correo SMTP y DTE recibido.
 - NeoConnect API keys, middleware y webhooks.
 - Cobros, compras, inventario, POS/caja, RRHH, NeoProfit, NeoScanAI y contrato mobile operativo.
+- Demo readiness HB-3/HB-4: rutas API criticas, permisos, modulos licenciables, NeoConnect v1,
+  rutas Web y vistas Razor protegidas por `DemoReadinessContractTests`.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -615,5 +617,6 @@ Areas con cobertura relevante:
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
 Estado actual validado 2026-06-14: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 697 unitarias + 9 integracion. La suite incluye contrato mobile
-operativo (`MobileApiContractOperationalTests`) y HB-1 quedo cerrado sin cambios breaking de API.
+`dotnet test NeoSTP.slnx` con 701 unitarias + 9 integracion. La suite incluye contrato mobile
+operativo (`MobileApiContractOperationalTests`) y demo readiness HB-3/HB-4
+(`DemoReadinessContractTests`) sin cambios breaking de API.

@@ -35,8 +35,10 @@ Una demo esta lista cuando:
 Ultima validacion tecnica registrada (2026-06-14):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 697 unitarias + 9 integracion verdes.
-- HB-1 cerrado operativo; API mobile AM-0..AM-6 cerrado operativo al 100%.
+- `dotnet test NeoSTP.slnx`: 701 unitarias + 9 integracion verdes.
+- HB-1 y HB-3/HB-4 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
+- `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
+  NeoConnect v1, rutas Web, portal publico y vistas Razor.
 
 ## Ambientes
 
@@ -103,6 +105,27 @@ La empresa demo debe tener:
 | Smoke comercial | 30-45 min | Antes de cada presentacion |
 | Regresion demo completa | 4-6 h | Antes de release, demo ejecutiva o entrega a cliente |
 | Regresion automatizada | Segun CI | Cada push/PR |
+
+## Baseline Automatizada HB-3/HB-4
+
+La prueba `tests/NeoSTP.Tests.Unit/Api/DemoReadinessContractTests.cs` es obligatoria para aceptar
+cambios que toquen controllers API, controllers Web, permisos, modulos o vistas de demo.
+
+Cubre:
+
+- API interna de alto valor: dashboard, DTE, cobros, POS/caja, NeoScanAI, compras, inventario,
+  tesoreria, reportes fiscales, NeoConta, NeoProfit, CRM y portal interno.
+- API publica NeoConnect v1: ping, DTE, PDF, clientes y productos.
+- Web demo: Home, DTE, POS, caja, cobros, compras, inventario, NeoProfit, Scan, tesoreria,
+  integraciones, soporte y portal publico.
+- Metadata de seguridad: `[Authorize]`, `[AllowAnonymous]`, `[RequireModule]` y `[RequirePermiso]`.
+- Existencia de vistas Razor criticas para evitar rutas que compilan pero rompen la demo.
+
+Comando enfocado:
+
+```bash
+dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter DemoReadinessContractTests
+```
 
 ## Preflight Tecnico
 

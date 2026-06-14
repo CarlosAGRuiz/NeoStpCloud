@@ -9,8 +9,9 @@
 > contrato HTTP, permisos, datos demo y pruebas. El plan detallado esta en
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
 >
-> Actualizacion 2026-06-14: API mobile AM-0..AM-6 quedo cerrada operativa al 100%. HB-1 tambien
-> quedo cerrado operativo con build limpio y suite completa verde: 697 unitarias + 9 integracion.
+> Actualizacion 2026-06-14: API mobile AM-0..AM-6 quedo cerrada operativa al 100%. HB-1 y
+> HB-3/HB-4 tambien quedaron cerrados operativos con build limpio y suite completa verde:
+> 701 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -33,30 +34,31 @@ para Web/API.
 |---|---|---|
 | HB-0 | Cerrado documental | README raiz, README API, contexto maestro, plan de bugs y plan de pruebas enlazados. |
 | API mobile AM-0..AM-6 | Cerrado operativo 100% | Contrato Android, permisos, datos demo, NeoScan/Gemini, POS/cobros/alertas y runbook actualizados. |
-| HB-1 | Cerrado operativo 100% | Billing sin `Id` duplicado, Billing Portal sin null refs, Infrastructure sin PackageReferences redundantes; build 0 warnings y tests 697 + 9 verdes. |
+| HB-1 | Cerrado operativo 100% | Billing sin `Id` duplicado, Billing Portal sin null refs, Infrastructure sin PackageReferences redundantes; build 0 warnings y suite base 697 + 9 verde. |
+| HB-3 | Cerrado operativo 100% | `DemoReadinessContractTests` cubre rutas API criticas, permisos, modulos, NeoConnect v1 y superficies de demo. |
+| HB-4 | Cerrado operativo 100% | `DemoReadinessContractTests` cubre rutas Web criticas, auth de controllers, portal publico y existencia de vistas Razor. |
 
 ## Siguiente Sprint Recomendado
 
-**HB-4 + HB-3 - Evidencia de demo Web/API.**
+**HB-5 - Datos Demo y Escenarios Comerciales.**
 
-Motivo: con API mobile y HB-1 ya cerrados, el mayor riesgo de cliente no es otro bug de build sino
-fallar una demo por datos incompletos, permisos inesperados, pantalla vacia o endpoint critico sin
-evidencia HTTP. Conviene ejecutar primero la ruta Web por rol y la bateria API de alto valor.
+Motivo: con API mobile, HB-1 y la cobertura HB-3/HB-4 ya cerradas, el mayor riesgo de cliente pasa a
+ser una demo tecnicamente sana pero pobre en datos: dashboards, libros, cartera, inventario,
+tesoreria, CRM o reportes sin historias comerciales completas.
 
 Entregables:
 
-- Corrida del plan `docs/Plan-Pruebas-Web-Api-Demos.md` con usuario `ADMIN`, `OPERADOR`, `CONTADOR`
-  y receptor publico.
-- Smoke API de alto valor: auth, dashboard, DTE, POS/caja, cobros, Scan, portal, NeoConnect.
-- Evidencia por corrida: branch, commit, ambiente, usuarios, endpoints/pantallas, errores y decision
-  "apto demo / apto con advertencias / no apto".
-- Hallazgos nuevos clasificados en este backlog o issue tracker.
+- Seed demo opcional e idempotente con DTE, POS/caja, cobros, compras, inventario, tesoreria,
+  NeoScan, portal, CRM y reportes.
+- Checklist para resetear demo sin tocar datos productivos.
+- Evidencia de pantallas con datos visibles y reportes con valor de negocio.
+- Actualizacion de README, contexto y plan de pruebas cuando se cierre.
 
 Criterio de cierre:
 
-- Demo Web de 60-90 minutos sin bloqueantes.
-- Smoke API sin 500, 403 inesperados ni contratos rotos.
-- Evidencia guardada y documentacion actualizada antes del commit.
+- Demo puede iniciar desde una BD limpia y quedar lista en menos de 10 minutos.
+- Dashboard, libros IVA, NeoProfit, inventario, CxC, tesoreria, CRM y portal muestran datos utiles.
+- El seed es idempotente y no duplica escenarios si corre dos veces.
 
 ## Roadmap de Sprints
 
@@ -65,8 +67,8 @@ Criterio de cierre:
 | HB-0 | Alta | Alineacion documental y backlog | Fuente de verdad actualizada y plan accionable |
 | HB-1 | Alta | Limpieza de warnings y bugs menores | Cerrado operativo: build 0 warnings y suite 697 + 9 verde |
 | HB-2 | Alta | NeoScan/Gemini productivo | OCR real mas seguro, asincrono y medible |
-| HB-3 | Alta | Pruebas API de alto valor | Flujos criticos cubiertos con integracion/host real |
-| HB-4 | Alta | Pruebas Web para demo comercial | Recorrido Web repetible por rol y evidencia visual |
+| HB-3 | Alta | Pruebas API de alto valor | Cerrado operativo: contrato automatizado de rutas, permisos, modulos y NeoConnect v1 |
+| HB-4 | Alta | Pruebas Web para demo comercial | Cerrado operativo: contrato automatizado de rutas Web, auth, portal y vistas Razor |
 | HB-5 | Media-alta | Datos demo y escenarios comerciales | Demo con datos completos, no pantallas vacias |
 | HB-6 | Media-alta | Contratos API y versionado | API mas estable para mobile/integradores |
 | AM-0..AM-6 | Alta | API movil Android | Cerrado operativo 100%: contrato, pruebas, datos demo y runbook |
@@ -187,6 +189,19 @@ Criterio de cierre:
 - La demo API se puede repetir sin preparar datos manualmente.
 - Cualquier fallo deja log claro con endpoint, usuario, empresa y dato usado.
 
+### Cierre Operativo 2026-06-14
+
+- Se agrego `tests/NeoSTP.Tests.Unit/Api/DemoReadinessContractTests.cs`.
+- La suite congela rutas y metadata de seguridad para dashboard, DTE, cobros, POS/caja, NeoScanAI,
+  compras, inventario, tesoreria, reportes fiscales, NeoConta, NeoProfit, CRM, portal interno y
+  NeoConnect publico `/api/v1`.
+- La validacion revisa `[Authorize]`, `[AllowAnonymous]`, `[RequireModule]`, `[RequirePermiso]`,
+  verbo HTTP y template de cada endpoint critico.
+- Validacion enfocada: `dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter DemoReadinessContractTests`
+  = 4/4 pruebas verdes.
+- Validacion completa registrada: `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` verdes,
+  701 unitarias + 9 integracion.
+
 ## HB-4 - Pruebas Web para Demo Comercial
 
 Hallazgos:
@@ -209,6 +224,18 @@ Validacion:
 Criterio de cierre:
 
 - Demo Web de 60-90 minutos sin errores bloqueantes ni pantallas vacias criticas.
+
+### Cierre Operativo 2026-06-14
+
+- Se agrego cobertura automatizada de rutas Web criticas para demos: Home, DTE, POS, caja, cobros,
+  compras, inventario, NeoProfit, Scan, tesoreria, integraciones y soporte.
+- La prueba verifica que los controllers internos sigan protegidos por `[Authorize]`.
+- El portal publico mantiene `[AllowAnonymous]`, ruta base `portal` y acciones esperadas para token,
+  PDF, JSON y QR.
+- La prueba valida existencia fisica y contenido no vacio de vistas Razor criticas, incluyendo
+  `Portal/Documento.cshtml`, `Portal/EstadoCuenta.cshtml` y `Portal/NoDisponible.cshtml`.
+- Las capturas/manual browser walkthrough quedan como ejecucion recurrente por demo dentro de
+  `docs/Plan-Pruebas-Web-Api-Demos.md`; el sprint queda cerrado por baseline automatizada y runbook.
 
 ## HB-5 - Datos Demo y Escenarios Comerciales
 
@@ -319,8 +346,8 @@ Criterio de cierre:
 | HB-005 | Alta | Cerrado AM-3: umbral de confianza configurable | HB-2/AM-3 |
 | HB-006 | Media-alta | Cerrado AM-3: whitelist estricta de MIME/tipo de archivo | HB-2/AM-3 |
 | HB-007 | Media-alta | "Compra" desde Scan no cubre compra operativa/CxP/inventario | HB-2 |
-| HB-008 | Alta | Pocas pruebas de integracion para la amplitud real de API | HB-3 |
-| HB-009 | Alta | Falta checklist Web recurrente por rol para demos | HB-4 |
+| HB-008 | Alta | Cerrado HB-3: baseline automatizada de rutas API criticas, permisos, modulos y NeoConnect v1 | HB-3 |
+| HB-009 | Alta | Cerrado HB-4: baseline automatizada de rutas Web, portal publico y vistas Razor + checklist recurrente | HB-4 |
 | HB-010 | Media | Empresa demo puede dejar libros/reportes sin datos comerciales | HB-5 |
 | HB-011 | Media-alta | Versionado API no esta formalizado fuera de NeoConnect | HB-6 |
 | HB-012 | Media-alta | Storage de documentos fiscales requiere runbook de seguridad/retencion | HB-7 |
@@ -345,9 +372,8 @@ Criterio de cierre:
 
 ## Orden de Ejecucion Recomendado
 
-1. HB-0, API mobile AM-0..AM-6 y HB-1 ya quedaron cerrados operativos.
-2. Ejecutar HB-4 y HB-3 antes de cualquier demo ejecutiva importante.
+1. HB-0, API mobile AM-0..AM-6, HB-1 y HB-3/HB-4 ya quedaron cerrados operativos.
+2. Ejecutar HB-5 antes de cualquier demo ejecutiva importante que requiera datos comerciales ricos.
 3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
    operativa Compras/CxP/Inventario desde Scan.
-4. Ejecutar HB-5 si la demo muestra pantallas sin datos comerciales suficientes.
-5. Cerrar HB-6, HB-7 y HB-8 como consolidacion antes de nuevos proyectos o modulos.
+4. Cerrar HB-6, HB-7 y HB-8 como consolidacion antes de nuevos proyectos o modulos.

@@ -28,8 +28,8 @@ Repositorio movil revisado:
 | AM-6 | Cerrado operativo 100% | Runbook de URL, providers, versionado y evidencias en `docs/Runbook-Api-Mobile-Demo.md`. |
 
 Estado de validacion acumulado 2026-06-14: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` quedo verde con 697 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
-mobile; solo limpio warnings de build en Billing/Infrastructure/Web.
+`dotnet test NeoSTP.slnx` quedo verde con 701 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
+mobile; HB-3/HB-4 agregaron baseline automatizada de demo readiness sin romper mobile.
 
 Pendiente deliberado: OCR asincrono/polling avanzado de NeoScan queda como mejora V3. El contrato actual
 queda operativo para mobile con modo rapido: `Scan:OcrTimeoutSeconds` corta el intento OCR antes del timeout
@@ -166,8 +166,8 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 
 **Ninguno dentro del plan API mobile: AM-0..AM-6 esta cerrado operativo al 100%.**
 
-Siguiente trabajo recomendado en este repositorio: ejecutar HB-4/HB-3 del plan de hallazgos general
-para producir evidencia Web/API de demo. Mobile queda en modo mantenimiento de contrato: cualquier cambio
+Siguiente trabajo recomendado en este repositorio: ejecutar HB-5 del plan de hallazgos general
+para producir datos demo comerciales completos. Mobile queda en modo mantenimiento de contrato: cualquier cambio
 futuro debe conservar `ApiResponse<T>`, `PagedResult<T>`, bytes crudos, tenant por JWT y providers
 pluggables.
 
