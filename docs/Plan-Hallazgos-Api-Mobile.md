@@ -21,15 +21,15 @@ Repositorio movil revisado:
 |---|---|---|
 | AM-0 | Cerrado operativo 100% | Matriz de endpoints, permisos, DTOs y contratos inmutables en este documento. |
 | AM-1 | Cerrado operativo 100% | Lista/detalle DTE usan `DTE.Consultar`; pruebas `DteControllerMobileContractTests`. |
-| AM-2 | Cerrado operativo 100% | Suite contractual por reflexion `MobileApiContractCoverageTests` + pruebas de bytes crudos DTE. |
-| AM-3 | Cerrado operativo 100% | Gemini usa `x-goog-api-key`; NeoScan valida MIME y `Scan:ConfianzaMinimaProcesado`; pruebas `Scan` verdes. |
-| AM-4 | Cerrado operativo 100% | `EmpresaPrueba:MobileDemo:Enabled` crea usuarios/datos demo idempotentes; prueba `MobileDemoEnabled_CreaDatosMinimosParaApiMobile`. |
+| AM-2 | Cerrado operativo 100% | Suite contractual por reflexion + integracion `MobileApiContractOperationalTests` con fixture mobile demo, MAPI-01..MAPI-23 y shape camelCase. |
+| AM-3 | Cerrado operativo 100% | Gemini usa `x-goog-api-key`; NeoScan valida MIME, timeout OCR, metadata persistida y reintento `POST /reprocesar`; migracion `Sprint_AM3_ScanOcrOperationalMetadata`. |
+| AM-4 | Cerrado operativo 100% | `EmpresaPrueba:MobileDemo:Enabled` crea usuarios, modulos, DTE/CxC/POS/Scan y alertas pendiente+resuelta idempotentes. |
 | AM-5 | Cerrado operativo 100% | Runbook de POS, Cobros y Alertas en `docs/Runbook-Api-Mobile-Demo.md`. |
 | AM-6 | Cerrado operativo 100% | Runbook de URL, providers, versionado y evidencias en `docs/Runbook-Api-Mobile-Demo.md`. |
 
 Pendiente deliberado: OCR asincrono/polling avanzado de NeoScan queda como mejora V3. El contrato actual
-sigue siendo compatible con el timeout mobile porque el provider `Mock` es default y Gemini degrada a captura
-manual ante error.
+queda operativo para mobile con modo rapido: `Scan:OcrTimeoutSeconds` corta el intento OCR antes del timeout
+de la app, Gemini degrada a captura manual ante error y el mismo documento puede reprocesarse sin duplicarse.
 
 ## Resumen Ejecutivo
 
@@ -122,7 +122,7 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 | Lookups | `/api/lookups/clientes`, `/productos`, `/sucursales`, territoriales, `verificar-nit` | usuario autenticado | CORE | OK. |
 | Cobros lectura | `/api/cobros/resumen`, `pendientes`, `clientes/{id}`, `dte/{id}/pagos`, `cuentas`, `qr` | `Cobros.Ver` | CORE/NEODTE | OK; `qr` usa permiso de lectura. |
 | Cobros gestion | pagos, confirmar/anular, cuentas CRUD | `Cobros.Gestionar` | CORE/NEODTE | OK. |
-| NeoScan bandeja | `GET/POST /api/scanai/documentos`, `GET /{id}`, `GET /{id}/archivo`, `PUT /campos`, `POST /resultado` | `ScanAI.Ver` | `NEOSCANAI` | OK; hardening AM-3. |
+| NeoScan bandeja | `GET/POST /api/scanai/documentos`, `GET /{id}`, `GET /{id}/archivo`, `PUT /campos`, `POST /reprocesar`, `POST /resultado` | `ScanAI.Ver` | `NEOSCANAI` | OK; hardening AM-3 operativo. |
 | NeoScan confirmar | `registrar-gasto`, `registrar-compra`, `registrar-dte-recibido`, `rechazar` | `ScanAI.Confirmar` | `NEOSCANAI` | OK; probar estados invalidos. |
 | Alertas | `/api/alertas/*`, `/dispositivos`, `/preferencias` | usuario autenticado | CORE | OK; FCM real opcional. |
 | POS ventas | `/api/pos/ventas`, detalle, anular, ticket, enviar, resumen | `Pos.Ver`, `Pos.Vender`, `Pos.Anular` | `NEOPOS` | OK; ticket bytes crudos. |
@@ -145,21 +145,21 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 | ID | Severidad | Hallazgo | Impacto | Sprint |
 |---|---:|---|---|---|
 | AM-001 | Alta | `GET /api/dte/documentos` y `GET /api/dte/documentos/{id}` requerian `DTE.Emitir`; la app y el contrato de lectura esperan `DTE.Consultar`. | Cerrado: usuarios de solo consulta pueden listar/detallar. | AM-1 |
-| AM-002 | Alta | No habia suite automatizada especifica que cubriera endpoints exactos de `api_endpoints.dart`. | Cerrado operativo 100%: cobertura contractual por controllers/rutas/permisos/modulos. | AM-2 |
-| AM-003 | Alta | NeoScan con Gemini necesitaba hardening: API key por query, umbral de confianza permisivo y MIME whitelist pendiente. | Cerrado operativo 100%: header seguro, MIME whitelist y umbral configurable. | AM-3 |
-| AM-004 | Alta | Flujos largos pueden superar el timeout movil de 30s (`receiveTimeout`). | La app puede mostrar error aunque el backend termine despues. | AM-1/AM-3 |
+| AM-002 | Alta | No habia suite automatizada especifica que cubriera endpoints exactos de `api_endpoints.dart`. | Cerrado operativo 100%: cobertura contractual por controllers/rutas/permisos/modulos e integracion MAPI-01..MAPI-23 con datos demo. | AM-2 |
+| AM-003 | Alta | NeoScan con Gemini necesitaba hardening: API key por query, umbral de confianza permisivo y MIME whitelist pendiente. | Cerrado operativo 100%: header seguro, MIME whitelist, umbral, metadata OCR, timeout y reintento seguro. | AM-3 |
+| AM-004 | Alta | Flujos largos pueden superar el timeout movil de 30s (`receiveTimeout`). | Cerrado operativo 100%: `Scan:OcrTimeoutSeconds` limita OCR y degrada a `REQUIERE_REVISION` con `OCR_TIMEOUT`. | AM-1/AM-3 |
 | AM-005 | Media-alta | URL demo movil depende de tunnel temporal si no se inyecta `API_BASE_URL`. | Demo falla por endpoint expirado o no reproducible. | AM-6 |
 | AM-006 | Media-alta | Descargas binarias deben permanecer sin envelope. | Si se envuelven por error, compartir PDF/JSON/ticket/archivo falla. | AM-2 |
 | AM-007 | Media-alta | Auth refresh, bloqueo SuperAdmin y permisos efectivos requieren pruebas contractuales. | Sesiones moviles pueden quedar en logout inesperado o acceso incorrecto. | AM-1/AM-2 |
-| AM-008 | Media-alta | Datos demo deben cubrir DTE, CxC, QR, NeoScan, POS/caja y alertas; si no, pantallas moviles quedan vacias. | Cerrado operativo 100%: seeder mobile opt-in e idempotente. | AM-4 |
+| AM-008 | Media-alta | Datos demo deben cubrir DTE, CxC, QR, NeoScan, POS/caja y alertas; si no, pantallas moviles quedan vacias. | Cerrado operativo 100%: seeder mobile opt-in e idempotente, con alerta pendiente y resuelta. | AM-4 |
 | AM-009 | Media | `POST /api/dte/emitir/factura` es el flujo movil real actual; la app muestra mas tipos, pero su request de factura hardcodea `01`. | No es bug backend, pero debe preservarse ruta generica y documentar atajos por tipo. | AM-5 |
 | AM-010 | Media | POS/caja depende de modulo `NEOPOS`, permisos y caja activa; estado de caja puede ser `data: null`. | La app lo tolera, pero requiere seed/permisos claros. | AM-5 |
 | AM-011 | Media | Push real FCM es pluggable; polling de alertas funciona sin FCM. | Demo no debe prometer notificacion push real sin credenciales. | AM-5 |
 | AM-012 | Media | Certificado DTE y Scan usan base64 en JSON; faltan pruebas de tamano, MIME y errores legibles para movil. | Errores de archivo pueden verse genericos en la app. | AM-1/AM-3 |
 | AM-013 | Media | Versionado interno `/api/*` no esta formalizado; NeoConnect si usa `/api/v1`. | Riesgo de cambios incompatibles para mobile. | AM-6 |
 | AM-014 | Media | Faltaba runbook de demo API movil: URL, usuario, permisos, proveedor mock/real, health y evidencias. | Cerrado: `docs/Runbook-Api-Mobile-Demo.md`. | AM-6 |
-| AM-015 | Media-alta | Faltaba matriz de usuarios/roles demo para mobile con permisos minimos y negativos. | Cerrado operativo 100%: usuarios `mobile.*` sembrados por `MobileDemo`. | AM-4 |
-| AM-016 | Media | Falta registrar evidencia por endpoint: status, traceId, usuario, empresa, duracion y payload resumido. | Los errores de demo quedan dificiles de reproducir. | AM-2/AM-6 |
+| AM-015 | Media-alta | Faltaba matriz de usuarios/roles demo para mobile con permisos minimos y negativos. | Cerrado operativo 100%: usuarios `mobile.*` sembrados por `MobileDemo` y modulos CORE/NEODTE/NEOPOS/NEOSCANAI/NEOPROFIT/NEOPORTAL activos. | AM-4 |
+| AM-016 | Media | Falta registrar evidencia por endpoint: status, traceId, usuario, empresa, duracion y payload resumido. | Cerrado operativo 100%: runbook + manifiesto MAPI-01..MAPI-23 en prueba de integracion. | AM-2/AM-6 |
 | AM-017 | Media-alta | Falta validar modulos no contratados (`NEOPOS`, `NEOSCANAI`) con respuesta legible para app. | La app puede mostrar error generico en planes sin modulo. | AM-2/AM-5 |
 
 ## Siguiente Sprint Recomendado

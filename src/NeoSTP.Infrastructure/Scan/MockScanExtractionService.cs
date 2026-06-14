@@ -11,5 +11,13 @@ namespace NeoSTP.Infrastructure.Scan;
 public class MockScanExtractionService : IScanExtractionService
 {
     public Task<ScanExtraccion> ExtraerAsync(byte[] contenido, string contentType, CancellationToken ct = default)
-        => Task.FromResult(new ScanExtraccion { Confianza = 0m });
+        => Task.FromResult(new ScanExtraccion
+        {
+            Confianza = 0m,
+            OcrProveedor = "Mock",
+            OcrModelo = "manual",
+            OcrDuracionMs = 0,
+            OcrErrorResumen = "MOCK_PROVIDER",
+            OcrIntentoAt = DateTime.UtcNow,
+        });
 }

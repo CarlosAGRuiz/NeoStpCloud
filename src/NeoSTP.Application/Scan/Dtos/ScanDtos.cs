@@ -24,6 +24,13 @@ public sealed class ScanDocumentoDto
     public decimal Confianza { get; set; }
     public string? Notas { get; set; }
 
+    public string? OcrProveedor { get; set; }
+    public string? OcrModelo { get; set; }
+    public long? OcrDuracionMs { get; set; }
+    public string? OcrErrorResumen { get; set; }
+    public int OcrIntentos { get; set; }
+    public DateTime? OcrUltimoIntentoAt { get; set; }
+
     public int? ProfitGastoId { get; set; }
     public int? ProfitCompraId { get; set; }
     public int? DteRecibidoId { get; set; }
@@ -62,6 +69,10 @@ public sealed class ScanResultadoRequest : CorregirScanRequest
     public decimal Confianza { get; set; }
     /// <summary>Si true, queda PROCESADO; si false, REQUIERE_REVISION.</summary>
     public bool Completo { get; set; }
+    public string? OcrProveedor { get; set; }
+    public string? OcrModelo { get; set; }
+    public long? OcrDuracionMs { get; set; }
+    public string? OcrErrorResumen { get; set; }
 }
 
 /// <summary>Confirmar el escaneo como DTE recibido de un proveedor.</summary>

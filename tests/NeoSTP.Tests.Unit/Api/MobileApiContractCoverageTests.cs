@@ -94,6 +94,7 @@ public class MobileApiContractCoverageTests
         AssertMethod<ScanAiController>(nameof(ScanAiController.Archivo), "GET", "{id:int}/archivo", "ScanAI.Ver");
         AssertMethod<ScanAiController>(nameof(ScanAiController.Subir), "POST", null, "ScanAI.Ver");
         AssertMethod<ScanAiController>(nameof(ScanAiController.Corregir), "PUT", "{id:int}/campos", "ScanAI.Ver");
+        AssertMethod<ScanAiController>(nameof(ScanAiController.Reprocesar), "POST", "{id:int}/reprocesar", "ScanAI.Ver");
         AssertMethod<ScanAiController>(nameof(ScanAiController.RegistrarGasto), "POST", "{id:int}/registrar-gasto", "ScanAI.Confirmar");
         AssertMethod<ScanAiController>(nameof(ScanAiController.RegistrarCompra), "POST", "{id:int}/registrar-compra", "ScanAI.Confirmar");
         AssertMethod<ScanAiController>(nameof(ScanAiController.RegistrarDteRecibido), "POST", "{id:int}/registrar-dte-recibido", "ScanAI.Confirmar");

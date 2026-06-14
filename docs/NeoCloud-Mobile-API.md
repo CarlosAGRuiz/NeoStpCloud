@@ -475,6 +475,7 @@ Lectura/captura `ScanAI.Ver`; confirmaciones `ScanAI.Confirmar`.
 | `GET` | `/api/scanai/documentos/{id}/archivo` | Descarga la imagen/PDF capturado. |
 | `POST` | `/api/scanai/documentos` | Subir captura. Body `{ nombre, contentType, contenidoBase64, origen }`. Ejecuta la extracción y deja el doc en la bandeja. |
 | `PUT` | `/api/scanai/documentos/{id}/campos` | Corregir campos (`CorregirScanRequest`). |
+| `POST` | `/api/scanai/documentos/{id}/reprocesar` | Reintentar OCR/IA sobre el mismo archivo, sin duplicar documento. |
 | `POST` | `/api/scanai/documentos/{id}/resultado` | Cargar resultado de un proveedor externo de OCR/IA. |
 | `POST` | `/api/scanai/documentos/{id}/registrar-gasto` | Confirmar como gasto (body `CreateProfitGastoRequest`). |
 | `POST` | `/api/scanai/documentos/{id}/registrar-compra` | Confirmar como compra (body `CreateProfitCompraRequest`). |
@@ -483,7 +484,8 @@ Lectura/captura `ScanAI.Ver`; confirmaciones `ScanAI.Confirmar`.
 
 `ScanDocumentoDto`: `id, estadoCodigo, tipoClasificacion, origen, archivoNombre, tieneArchivo,
 emisorNombre, emisorNit, emisorNrc, fecha, tipoDocumento, numeroControl, selloRecibido, subtotal,
-iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
+iva, total, confianza, notas, ocrProveedor, ocrModelo, ocrDuracionMs, ocrErrorResumen,
+ocrIntentos, ocrUltimoIntentoAt, profitGastoId, profitCompraId, dteRecibidoId`.
 
 **Estados:** `RECIBIDO → PROCESANDO → (PROCESADO | REQUIERE_REVISION) → (CONFIRMADO | RECHAZADO)`.
 
@@ -494,7 +496,8 @@ iva, total, confianza, notas, profitGastoId, profitCompraId, dteRecibidoId`.
 > vendrán precargados con su `confianza`. La app debe funcionar igual en ambos casos (mostrar lo que
 > venga y permitir corregir antes de confirmar). Para demo productiva, NeoScan valida MIME permitidos
 > (`image/jpeg`, `image/png`, `application/pdf` por defecto), usa `Scan:ConfianzaMinimaProcesado`
-> para decidir `PROCESADO` vs `REQUIERE_REVISION` y envia la API key de Gemini por header
+> para decidir `PROCESADO` vs `REQUIERE_REVISION`, corta OCR con `Scan:OcrTimeoutSeconds`
+> para no exceder el timeout mobile, guarda metadata de OCR y envia la API key de Gemini por header
 > `x-goog-api-key`. **Limite mensual:** si la empresa supera el cupo configurado
 > (`Scan:LimiteMensual`, 0 = sin limite), `POST /documentos` devuelve `409` con `LIMIT_EXCEEDED`.
 
@@ -633,6 +636,7 @@ PUT    /api/cobros/cuentas/{id}
 GET    /api/scanai/documentos | {id} | {id}/archivo
 POST   /api/scanai/documentos                                   # subir captura (base64)
 PUT    /api/scanai/documentos/{id}/campos                       # corregir
+POST   /api/scanai/documentos/{id}/reprocesar                   # reintento OCR sin duplicar
 POST   /api/scanai/documentos/{id}/resultado                    # resultado externo OCR
 POST   /api/scanai/documentos/{id}/registrar-gasto | registrar-compra | registrar-dte-recibido | rechazar
 

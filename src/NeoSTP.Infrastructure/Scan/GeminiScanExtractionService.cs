@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -57,13 +58,16 @@ public sealed class GeminiScanExtractionService : IScanExtractionService
 
     public async Task<ScanExtraccion> ExtraerAsync(byte[] contenido, string contentType, CancellationToken ct = default)
     {
+        var startedAt = DateTime.UtcNow;
+        var sw = Stopwatch.StartNew();
+
         if (string.IsNullOrWhiteSpace(_opts.ApiKey))
         {
             _logger.LogWarning("GeminiScanExtractionService: sin API key (Scan:Gemini:ApiKey). Se deja captura manual.");
-            return new ScanExtraccion { Confianza = 0m };
+            return Manual(startedAt, sw, "GEMINI_API_KEY_MISSING");
         }
         if (contenido is null || contenido.Length == 0)
-            return new ScanExtraccion { Confianza = 0m };
+            return Manual(startedAt, sw, "EMPTY_CONTENT");
 
         try
         {
@@ -97,21 +101,37 @@ public sealed class GeminiScanExtractionService : IScanExtractionService
             if (!resp.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Gemini OCR falló {Status}: {Body}", (int)resp.StatusCode, Truncar(json));
-                return new ScanExtraccion { Confianza = 0m };
+                return Manual(startedAt, sw, $"HTTP_{(int)resp.StatusCode}");
             }
 
             var texto = ExtraerTextoCandidato(json);
             if (string.IsNullOrWhiteSpace(texto))
-                return new ScanExtraccion { Confianza = 0m };
+                return Manual(startedAt, sw, "NO_CANDIDATE_TEXT");
 
-            return Mapear(texto!);
+            var ext = Mapear(texto!);
+            ext.OcrProveedor = "Gemini";
+            ext.OcrModelo = _opts.Model;
+            ext.OcrDuracionMs = sw.ElapsedMilliseconds;
+            ext.OcrIntentoAt = startedAt;
+            return ext;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error en extracción Gemini; se deja captura manual.");
-            return new ScanExtraccion { Confianza = 0m };
+            return Manual(startedAt, sw, ex.GetType().Name);
         }
     }
+
+    private ScanExtraccion Manual(DateTime startedAt, Stopwatch sw, string error)
+        => new()
+        {
+            Confianza = 0m,
+            OcrProveedor = "Gemini",
+            OcrModelo = _opts.Model,
+            OcrDuracionMs = sw.ElapsedMilliseconds,
+            OcrErrorResumen = Truncar(error),
+            OcrIntentoAt = startedAt,
+        };
 
     /// <summary>Extrae el texto del primer candidato de la respuesta de Gemini.</summary>
     private static string? ExtraerTextoCandidato(string json)

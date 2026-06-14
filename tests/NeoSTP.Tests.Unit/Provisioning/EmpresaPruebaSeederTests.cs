@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Provisioning;
 using NeoSTP.Domain.Core.Licenciamiento;
+using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Persistence.Seed;
@@ -72,7 +73,8 @@ public class EmpresaPruebaSeederTests
             new Modulo { Id = 101, Codigo = "NEODTE", Nombre = "NeoDTE", Activo = true, CreatedAt = DateTime.UtcNow },
             new Modulo { Id = 102, Codigo = "NEOPOS", Nombre = "NeoPOS", Activo = true, CreatedAt = DateTime.UtcNow },
             new Modulo { Id = 103, Codigo = "NEOSCANAI", Nombre = "NeoScanAI", Activo = true, CreatedAt = DateTime.UtcNow },
-            new Modulo { Id = 104, Codigo = "NEOPROFIT", Nombre = "NeoProfit", Activo = true, CreatedAt = DateTime.UtcNow });
+            new Modulo { Id = 104, Codigo = "NEOPROFIT", Nombre = "NeoProfit", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 105, Codigo = "NEOPORTAL", Nombre = "NeoPortal", Activo = true, CreatedAt = DateTime.UtcNow });
         db.Planes.Add(new Plan
         {
             Id = 204, Codigo = "ENTERPRISE", Nombre = "Enterprise", PrecioMensual = 400m,
@@ -84,6 +86,7 @@ public class EmpresaPruebaSeederTests
                 new PlanModulo { PlanId = 204, ModuloId = 102, Activo = true },
                 new PlanModulo { PlanId = 204, ModuloId = 103, Activo = true },
                 new PlanModulo { PlanId = 204, ModuloId = 104, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 105, Activo = true },
             },
         });
         db.Roles.AddRange(
@@ -187,6 +190,7 @@ public class EmpresaPruebaSeederTests
         var empresaId = await db.Empresas.Select(e => e.Id).SingleAsync();
 
         (await db.Usuarios.CountAsync(u => u.EmpresaId == empresaId && u.Username.StartsWith("mobile."))).Should().Be(6);
+        (await db.EmpresaModulos.CountAsync(m => m.EmpresaId == empresaId)).Should().Be(6);
         (await db.Clientes.CountAsync(c => c.EmpresaId == empresaId)).Should().Be(3);
         (await db.Productos.CountAsync(p => p.EmpresaId == empresaId && p.CodigoInterno.StartsWith("MOB-"))).Should().Be(5);
         (await db.DteDocumentos.CountAsync(d => d.EmpresaId == empresaId && d.NumeroControl.Contains("MDEMO"))).Should().Be(2);
@@ -195,6 +199,12 @@ public class EmpresaPruebaSeederTests
         (await db.VentasPos.CountAsync(v => v.EmpresaId == empresaId && v.Numero == "POS-MOB-000001")).Should().Be(1);
         (await db.SesionesCaja.CountAsync(c => c.EmpresaId == empresaId && c.Numero.StartsWith("CAJA-MOB-"))).Should().Be(2);
         (await db.ScanDocumentos.CountAsync(s => s.EmpresaId == empresaId && s.ArchivoNombre == "demo-factura-proveedor.pdf")).Should().Be(1);
-        (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.Clave.StartsWith("MOBILE_DEMO:"))).Should().Be(1);
+        var scan = await db.ScanDocumentos.SingleAsync(s => s.EmpresaId == empresaId && s.ArchivoNombre == "demo-factura-proveedor.pdf");
+        scan.ArchivoBlob.Should().NotBeNullOrEmpty();
+        scan.OcrProveedor.Should().Be("Mock");
+        scan.OcrIntentos.Should().Be(1);
+        (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.Clave.StartsWith("MOBILE_DEMO:"))).Should().Be(2);
+        (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == AlertaEstados.Pendiente)).Should().Be(1);
+        (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == AlertaEstados.Resuelta)).Should().Be(1);
     }
 }

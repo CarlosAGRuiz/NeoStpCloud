@@ -15,6 +15,21 @@ public sealed class ScanExtraccion
     public decimal? Total { get; set; }
     /// <summary>Confianza global 0..1. 0 = sin datos (captura manual requerida).</summary>
     public decimal Confianza { get; set; }
+
+    /// <summary>Proveedor que intento extraer los datos: Mock, Gemini u otro proveedor futuro.</summary>
+    public string? OcrProveedor { get; set; }
+
+    /// <summary>Modelo/version usada por el proveedor cuando aplique.</summary>
+    public string? OcrModelo { get; set; }
+
+    /// <summary>Duracion del intento OCR en milisegundos.</summary>
+    public long? OcrDuracionMs { get; set; }
+
+    /// <summary>Error resumido para soporte. No debe incluir secretos ni payload completo.</summary>
+    public string? OcrErrorResumen { get; set; }
+
+    /// <summary>Fecha UTC del intento OCR.</summary>
+    public DateTime? OcrIntentoAt { get; set; }
 }
 
 /// <summary>

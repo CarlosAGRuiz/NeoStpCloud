@@ -201,13 +201,7 @@ public static class EmpresaPruebaSeeder
             sucursal.Nombre, options.PuntoVenta.Nombre, admin.Username, options.Admin.Password);
     }
 
-    /// <summary>
-    /// Activa en <c>EmpresaModulos</c> los módulos del plan vigente de la empresa que aún
-    /// no estén presentes. Idempotente: si no falta ninguno, no hace nada. Permite que
-    /// módulos liberados después de provisionar (p. ej. NEORRHH) queden activos sin recrear
-    /// la empresa de pruebas.
-    /// </summary>
-    // Datos demo mobile opt-in e idempotentes.
+    /// <summary>Datos demo mobile opt-in e idempotentes.</summary>
     private static async Task EnsureMobileDemoDataAsync(
         NeoStpDbContext db,
         Empresa empresa,
@@ -613,6 +607,12 @@ public static class EmpresaPruebaSeeder
             Iva = 13m,
             Total = 113m,
             Confianza = 0.62m,
+            OcrProveedor = "Mock",
+            OcrModelo = "mobile-demo",
+            OcrDuracionMs = 0,
+            OcrErrorResumen = "DEMO_REQUIERE_REVISION",
+            OcrIntentos = 1,
+            OcrUltimoIntentoAt = DateTime.UtcNow.AddMinutes(-10),
             Notas = "Demo mobile: revisar y confirmar.",
             CreatedBy = actor,
         });
@@ -621,23 +621,45 @@ public static class EmpresaPruebaSeeder
 
     private static async Task EnsureMobileAlertasAsync(NeoStpDbContext db, int empresaId, int dteCreditoId, string actor, CancellationToken ct)
     {
-        var clave = $"MOBILE_DEMO:FACTURA_VENCIDA:{dteCreditoId}";
-        if (await db.Alertas.AnyAsync(a => a.EmpresaId == empresaId && a.Clave == clave, ct))
-            return;
-
-        db.Alertas.Add(new Alerta
+        var pendiente = $"MOBILE_DEMO:FACTURA_VENCIDA:{dteCreditoId}";
+        if (!await db.Alertas.AnyAsync(a => a.EmpresaId == empresaId && a.Clave == pendiente, ct))
         {
-            EmpresaId = empresaId,
-            TipoCodigo = AlertaTipos.FacturaVencida,
-            Severidad = AlertaSeveridades.Advertencia,
-            Titulo = "Factura demo vencida",
-            Mensaje = "La factura de credito demo mobile tiene saldo pendiente.",
-            EntidadTipo = "DteDocumento",
-            EntidadId = dteCreditoId,
-            EstadoCodigo = AlertaEstados.Pendiente,
-            Clave = clave,
-            CreatedBy = actor,
-        });
+            db.Alertas.Add(new Alerta
+            {
+                EmpresaId = empresaId,
+                TipoCodigo = AlertaTipos.FacturaVencida,
+                Severidad = AlertaSeveridades.Advertencia,
+                Titulo = "Factura demo vencida",
+                Mensaje = "La factura de credito demo mobile tiene saldo pendiente.",
+                EntidadTipo = "DteDocumento",
+                EntidadId = dteCreditoId,
+                EstadoCodigo = AlertaEstados.Pendiente,
+                Clave = pendiente,
+                CreatedBy = actor,
+            });
+        }
+
+        var resuelta = $"MOBILE_DEMO:BIENVENIDA_RESUELTA:{empresaId}";
+        if (!await db.Alertas.AnyAsync(a => a.EmpresaId == empresaId && a.Clave == resuelta, ct))
+        {
+            var at = DateTime.UtcNow.AddDays(-1);
+            db.Alertas.Add(new Alerta
+            {
+                EmpresaId = empresaId,
+                TipoCodigo = AlertaTipos.F07Proxima,
+                Severidad = AlertaSeveridades.Info,
+                Titulo = "Checklist demo completado",
+                Mensaje = "Alerta resuelta para validar filtros de historial en mobile.",
+                EntidadTipo = "Demo",
+                EntidadId = empresaId,
+                EstadoCodigo = AlertaEstados.Resuelta,
+                Clave = resuelta,
+                LeidaAt = at,
+                ResueltaAt = at,
+                CreatedBy = actor,
+            });
+        }
+
         await db.SaveChangesAsync(ct);
     }
 

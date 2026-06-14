@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NeoSTP.Application.Auth.Abstractions;
@@ -28,6 +29,7 @@ public class ScanService : IScanService
     private readonly IAuditoriaService _auditoria;
     private readonly int _limiteMensual;
     private readonly decimal _confianzaMinimaProcesado;
+    private readonly TimeSpan _ocrTimeout;
     private readonly HashSet<string> _allowedContentTypes;
 
     private readonly NeoSTP.Infrastructure.Scan.IScanBlobStorage? _blobStorage;
@@ -47,6 +49,10 @@ public class ScanService : IScanService
             configuration?.GetValue<decimal?>("Scan:ConfianzaMinimaProcesado") ?? DefaultConfianzaMinimaProcesado,
             0m,
             1m);
+        _ocrTimeout = TimeSpan.FromSeconds(Math.Clamp(
+            configuration?.GetValue<int?>("Scan:OcrTimeoutSeconds") ?? 25,
+            1,
+            25));
         _allowedContentTypes = ParseAllowedContentTypes(configuration?["Scan:AllowedContentTypes"]);
     }
 
@@ -132,17 +138,44 @@ public class ScanService : IScanService
         else
             entity.ArchivoBlob = bytes;
 
-        var ext = await _extraction.ExtraerAsync(bytes, contentType, ct);
-        Aplicar(entity, ext);
-        entity.Confianza = ext.Confianza;
-        entity.EstadoCodigo = ext.Confianza >= _confianzaMinimaProcesado
-            ? ScanEstados.Procesado
-            : ScanEstados.RequiereRevision;
+        var ext = await ExtraerConTimeoutAsync(bytes, contentType, ct);
+        AplicarResultadoOcr(entity, ext);
 
         _db.ScanDocumentos.Add(entity);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "SUBIR", $"Captura {entity.ArchivoNombre} ({bytes.Length} bytes, conf {entity.Confianza:0.##})", entity.Id);
+        await Audit(empresaId, actor, "SUBIR", $"Captura {entity.ArchivoNombre} ({bytes.Length} bytes, conf {entity.Confianza:0.##}, ocr {entity.OcrProveedor}/{entity.OcrModelo})", entity.Id);
         return Result<ScanDocumentoDto>.Ok(ToDto(entity));
+    }
+
+    public async Task<Result<ScanDocumentoDto>> ReprocesarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    {
+        var s = await _db.ScanDocumentos.FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
+        if (s is null) return Result<ScanDocumentoDto>.Fail("Escaneo no encontrado.", "SCAN_NOT_FOUND");
+        if (s.EstadoCodigo is ScanEstados.Confirmado or ScanEstados.Rechazado)
+            return Result<ScanDocumentoDto>.Fail("El escaneo ya esta confirmado o rechazado.", "INVALID_STATE");
+
+        var bytes = s.ArchivoBlob;
+        if (bytes is not { Length: > 0 } && s.ArchivoPath is not null && _blobStorage is not null)
+            bytes = await _blobStorage.LeerAsync(s.ArchivoPath, ct);
+        if (bytes is not { Length: > 0 })
+            return Result<ScanDocumentoDto>.Fail("Archivo no encontrado para reprocesar.", "SCAN_FILE_NOT_FOUND");
+
+        var contentType = NormalizeContentType(s.ArchivoContentType);
+        if (!_allowedContentTypes.Contains(contentType))
+            return Result<ScanDocumentoDto>.Fail("Tipo de archivo no permitido. Usa JPEG, PNG o PDF.", "VALIDATION");
+
+        s.EstadoCodigo = ScanEstados.Procesando;
+        s.UpdatedAt = DateTime.UtcNow;
+        s.UpdatedBy = actor;
+
+        var ext = await ExtraerConTimeoutAsync(bytes, contentType, ct);
+        AplicarResultadoOcr(s, ext);
+        s.UpdatedAt = DateTime.UtcNow;
+        s.UpdatedBy = actor;
+
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "REPROCESAR", $"Scan #{id} reprocesado (conf {s.Confianza:0.##}, ocr {s.OcrProveedor}/{s.OcrModelo})", id);
+        return Result<ScanDocumentoDto>.Ok(ToDto(s));
     }
 
     public Task<Result<ScanDocumentoDto>> CorregirAsync(int empresaId, int id, CorregirScanRequest request, string? actor, CancellationToken ct = default)
@@ -157,7 +190,13 @@ public class ScanService : IScanService
         => MutarAsync(empresaId, id, actor, "RESULTADO", s =>
         {
             AplicarCorreccion(s, request);
-            s.Confianza = request.Confianza;
+            s.Confianza = Math.Clamp(request.Confianza, 0m, 1m);
+            s.OcrProveedor = Truncar(request.OcrProveedor ?? "External", 50);
+            s.OcrModelo = Truncar(request.OcrModelo, 100);
+            s.OcrDuracionMs = request.OcrDuracionMs;
+            s.OcrErrorResumen = Truncar(request.OcrErrorResumen, 500);
+            s.OcrIntentos += 1;
+            s.OcrUltimoIntentoAt = DateTime.UtcNow;
             s.EstadoCodigo = request.Completo ? ScanEstados.Procesado : ScanEstados.RequiereRevision;
         }, ct);
 
@@ -244,6 +283,64 @@ public class ScanService : IScanService
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
+    private async Task<ScanExtraccion> ExtraerConTimeoutAsync(byte[] bytes, string contentType, CancellationToken ct)
+    {
+        var startedAt = DateTime.UtcNow;
+        var sw = Stopwatch.StartNew();
+
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(_ocrTimeout);
+            var ext = await _extraction.ExtraerAsync(bytes, contentType, timeoutCts.Token);
+            ext.OcrProveedor ??= InferOcrProveedor();
+            ext.OcrDuracionMs ??= sw.ElapsedMilliseconds;
+            ext.OcrIntentoAt ??= startedAt;
+            return ext;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return OcrFallback(startedAt, sw, "OCR_TIMEOUT");
+        }
+        catch (Exception ex)
+        {
+            return OcrFallback(startedAt, sw, ex.GetType().Name);
+        }
+    }
+
+    private ScanExtraccion OcrFallback(DateTime startedAt, Stopwatch sw, string error)
+        => new()
+        {
+            Confianza = 0m,
+            OcrProveedor = InferOcrProveedor(),
+            OcrDuracionMs = sw.ElapsedMilliseconds,
+            OcrErrorResumen = Truncar(error, 500),
+            OcrIntentoAt = startedAt,
+        };
+
+    private void AplicarResultadoOcr(ScanDocumento s, ScanExtraccion ext)
+    {
+        Aplicar(s, ext);
+        s.Confianza = Math.Clamp(ext.Confianza, 0m, 1m);
+        s.OcrProveedor = Truncar(ext.OcrProveedor ?? InferOcrProveedor(), 50);
+        s.OcrModelo = Truncar(ext.OcrModelo, 100);
+        s.OcrDuracionMs = ext.OcrDuracionMs;
+        s.OcrErrorResumen = Truncar(ext.OcrErrorResumen, 500);
+        s.OcrIntentos += 1;
+        s.OcrUltimoIntentoAt = ext.OcrIntentoAt ?? DateTime.UtcNow;
+        s.EstadoCodigo = s.Confianza >= _confianzaMinimaProcesado
+            ? ScanEstados.Procesado
+            : ScanEstados.RequiereRevision;
+    }
+
+    private string InferOcrProveedor()
+    {
+        var name = _extraction.GetType().Name;
+        return name.EndsWith("ScanExtractionService", StringComparison.Ordinal)
+            ? name[..^"ScanExtractionService".Length]
+            : name;
+    }
+
     private async Task<(ScanDocumento? scan, Result<ScanDocumentoDto>? error)> CargarConfirmable(int empresaId, int id, CancellationToken ct)
     {
         var s = await _db.ScanDocumentos.FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
@@ -289,6 +386,13 @@ public class ScanService : IScanService
         return normalized.Trim().ToLowerInvariant();
     }
 
+    private static string? Truncar(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
+    }
+
     private static HashSet<string> ParseAllowedContentTypes(string? raw)
     {
         var values = string.IsNullOrWhiteSpace(raw)
@@ -313,6 +417,8 @@ public class ScanService : IScanService
         EmisorNombre = s.EmisorNombre, EmisorNit = s.EmisorNit, EmisorNrc = s.EmisorNrc, Fecha = s.Fecha,
         TipoDocumento = s.TipoDocumento, NumeroControl = s.NumeroControl, SelloRecibido = s.SelloRecibido,
         Subtotal = s.Subtotal, Iva = s.Iva, Total = s.Total, Confianza = s.Confianza, Notas = s.Notas,
+        OcrProveedor = s.OcrProveedor, OcrModelo = s.OcrModelo, OcrDuracionMs = s.OcrDuracionMs,
+        OcrErrorResumen = s.OcrErrorResumen, OcrIntentos = s.OcrIntentos, OcrUltimoIntentoAt = s.OcrUltimoIntentoAt,
         ProfitGastoId = s.ProfitGastoId, ProfitCompraId = s.ProfitCompraId, DteRecibidoId = s.DteRecibidoId,
         CreatedAt = s.CreatedAt,
     };

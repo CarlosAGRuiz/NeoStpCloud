@@ -27,6 +27,9 @@ public class ScanDocumentoConfiguration : IEntityTypeConfiguration<ScanDocumento
         b.Property(x => x.Iva).HasPrecision(18, 2);
         b.Property(x => x.Total).HasPrecision(18, 2);
         b.Property(x => x.Confianza).HasPrecision(5, 4);
+        b.Property(x => x.OcrProveedor).HasMaxLength(50);
+        b.Property(x => x.OcrModelo).HasMaxLength(100);
+        b.Property(x => x.OcrErrorResumen).HasMaxLength(500);
         b.Property(x => x.CreatedBy).HasMaxLength(100);
         b.Property(x => x.UpdatedBy).HasMaxLength(100);
 

@@ -71,7 +71,7 @@ Los secretos locales deben vivir en `src/NeoSTP.Api/appsettings.Local.json`, que
 | `Hardening:Backup` | Backup local o storage externo. |
 | `Legal` | Textos legales. |
 | `Billing` | Proveedor de pago y credenciales de pasarelas. |
-| `Scan` | OCR `Mock` o `Gemini`. |
+| `Scan` | OCR `Mock` o `Gemini`, MIME permitidos, umbral de confianza y timeout OCR mobile. |
 | `Push` | Push `Mock` o `Fcm`. |
 | `Pos` | IVA, ancho de ticket, moneda y pie de ticket. |
 | `Nomina` | Parametros ISSS/AFP/Renta. |
@@ -403,6 +403,7 @@ Mapeo general:
 | GET | `/api/scanai/documentos/{id}` | Detalle documento. |
 | GET | `/api/scanai/documentos/{id}/archivo` | Archivo original. |
 | PUT | `/api/scanai/documentos/{id}/campos` | Corregir campos. |
+| POST | `/api/scanai/documentos/{id}/reprocesar` | Reintentar OCR/IA sin duplicar documento. |
 | POST | `/api/scanai/documentos/{id}/resultado` | Guardar resultado OCR. |
 | POST | `/api/scanai/documentos/{id}/registrar-gasto` | Convertir a gasto. |
 | POST | `/api/scanai/documentos/{id}/registrar-compra` | Convertir a compra. |
@@ -602,7 +603,7 @@ Areas con cobertura relevante:
 - Auth, password policy, MFA, hardening y quotas.
 - DTE, Hacienda mocks, correo SMTP y DTE recibido.
 - NeoConnect API keys, middleware y webhooks.
-- Cobros, compras, inventario, POS/caja, RRHH, NeoProfit, NeoScanAI.
+- Cobros, compras, inventario, POS/caja, RRHH, NeoProfit, NeoScanAI y contrato mobile operativo.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -613,4 +614,4 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual de las suites: **681 unitarias + 7 de integracion** (CI en GitHub Actions en cada push/PR a main).
+Estado actual de las suites: ejecutar `dotnet test tests\NeoSTP.Tests.Unit` y `dotnet test tests\NeoSTP.Tests.Integration`. La suite incluye contrato mobile operativo (`MobileApiContractOperationalTests`).

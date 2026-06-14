@@ -50,7 +50,40 @@ public class ScanServiceTests
                 EmisorNombre = confianza > 0 ? "Proveedor Demo" : null,
                 Total = confianza > 0 ? 113m : null,
                 Confianza = confianza,
+                OcrProveedor = "Fixed",
+                OcrModelo = "test-model",
+                OcrDuracionMs = 12,
+                OcrIntentoAt = DateTime.UtcNow,
             });
+        }
+    }
+
+    private sealed class SequenceScanExtractionService(params decimal[] confianzas) : IScanExtractionService
+    {
+        private int _index;
+
+        public Task<ScanExtraccion> ExtraerAsync(byte[] contenido, string contentType, CancellationToken ct = default)
+        {
+            var confianza = confianzas[Math.Min(_index++, confianzas.Length - 1)];
+            return Task.FromResult(new ScanExtraccion
+            {
+                EmisorNombre = $"Proveedor {confianza:0.00}",
+                Total = 113m,
+                Confianza = confianza,
+                OcrProveedor = "Sequence",
+                OcrModelo = "sequence-model",
+                OcrDuracionMs = 7,
+                OcrIntentoAt = DateTime.UtcNow,
+            });
+        }
+    }
+
+    private sealed class SlowScanExtractionService : IScanExtractionService
+    {
+        public async Task<ScanExtraccion> ExtraerAsync(byte[] contenido, string contentType, CancellationToken ct = default)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), ct);
+            return new ScanExtraccion { Confianza = 1m, OcrProveedor = "Slow" };
         }
     }
 
@@ -84,6 +117,10 @@ public class ScanServiceTests
         r.Value!.EstadoCodigo.Should().Be(ScanEstados.RequiereRevision);
         r.Value.TieneArchivo.Should().BeTrue();
         r.Value.Confianza.Should().Be(0m);
+        r.Value.OcrProveedor.Should().Be("Mock");
+        r.Value.OcrModelo.Should().Be("manual");
+        r.Value.OcrIntentos.Should().Be(1);
+        r.Value.OcrUltimoIntentoAt.Should().NotBeNull();
 
         var arch = await svc.GetArchivoAsync(EmpresaA, r.Value.Id);
         arch.Should().NotBeNull();
@@ -151,6 +188,49 @@ public class ScanServiceTests
         r.Value!.EstadoCodigo.Should().Be(ScanEstados.Procesado);
         r.Value.ArchivoContentType.Should().Be("image/png");
         extraction.LastContentType.Should().Be("image/png");
+    }
+
+    [Fact]
+    public async Task Reprocesar_ReusaDocumento_YActualizaEstadoMetadatosSinDuplicar()
+    {
+        var db = NewDb();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Scan:ConfianzaMinimaProcesado"] = "0.75" })
+            .Build();
+        var (svc, _) = NewSvc(db, new SequenceScanExtractionService(0.2m, 0.95m), config);
+        var scan = (await svc.SubirAsync(EmpresaA, Captura(), "tester")).Value!;
+
+        var r = await svc.ReprocesarAsync(EmpresaA, scan.Id, "tester");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.Id.Should().Be(scan.Id);
+        r.Value.EstadoCodigo.Should().Be(ScanEstados.Procesado);
+        r.Value.Confianza.Should().Be(0.95m);
+        r.Value.OcrProveedor.Should().Be("Sequence");
+        r.Value.OcrModelo.Should().Be("sequence-model");
+        r.Value.OcrIntentos.Should().Be(2);
+        (await db.ScanDocumentos.CountAsync(s => s.EmpresaId == EmpresaA)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Subir_OcrExcedeTimeout_QuedaRequiereRevisionConErrorResumido()
+    {
+        var db = NewDb();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Scan:OcrTimeoutSeconds"] = "1",
+            })
+            .Build();
+        var (svc, _) = NewSvc(db, new SlowScanExtractionService(), config);
+
+        var r = await svc.SubirAsync(EmpresaA, Captura(), "tester");
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EstadoCodigo.Should().Be(ScanEstados.RequiereRevision);
+        r.Value.OcrProveedor.Should().Be("Slow");
+        r.Value.OcrErrorResumen.Should().Be("OCR_TIMEOUT");
+        r.Value.OcrIntentos.Should().Be(1);
     }
 
     [Fact]

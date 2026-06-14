@@ -85,7 +85,7 @@ El recorrido completo de un cliente, de punta a punta:
 | Observabilidad | Health checks (BD/correo/storage), Serilog estructurado, **OpenTelemetry OTLP opcional** + Meter `NeoSTP` |
 | Escala | Caché distribuida Memory/**Redis** para lookups, storage externo opcional para blobs de scan |
 | i18n / a11y | es (default) + en por cookie de cultura; skip-link, focus visible, aria-labels |
-| Tests | xUnit + FluentAssertions + NSubstitute — **681 unitarias + 7 integración**, CI en GitHub Actions |
+| Tests | xUnit + FluentAssertions + NSubstitute — **697 unitarias + 9 integración**, CI en GitHub Actions |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -103,8 +103,8 @@ src/
   NeoSTP.Worker           Tareas en segundo plano (8 jobs)
   NeoSTP.Shared           Utilidades compartidas (ApiResponse, CsvExporter, etc.)
 tests/
-  NeoSTP.Tests.Unit         681 pruebas unitarias
-  NeoSTP.Tests.Integration  7 pruebas de integración (API)
+  NeoSTP.Tests.Unit         697 pruebas unitarias
+  NeoSTP.Tests.Integration  9 pruebas de integración (API)
 ```
 
 **Patrones clave**
@@ -176,7 +176,7 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **681 pruebas unitarias + 7 de integración**, verdes en CI (GitHub Actions, cada push/PR a main).
+- **697 pruebas unitarias + 9 de integración**, verdes en CI (GitHub Actions, cada push/PR a main).
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
 - **Certificación DTE real**: matriz de escenarios transmitida y PROCESADA contra el ambiente de
   pruebas (apitest) de Hacienda — Sprint 12 y módulo de certificación.

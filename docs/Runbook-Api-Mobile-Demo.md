@@ -32,6 +32,7 @@ Usar `src/NeoSTP.Api/appsettings.Local.json` o user-secrets. No commitear secret
     "Provider": "Mock",
     "LimiteMensual": 0,
     "ConfianzaMinimaProcesado": 0.8,
+    "OcrTimeoutSeconds": 25,
     "AllowedContentTypes": "image/jpeg,image/png,application/pdf"
   },
   "Push": { "Provider": "Mock" },
@@ -46,6 +47,7 @@ Para probar OCR real:
   "Scan": {
     "Provider": "Gemini",
     "ConfianzaMinimaProcesado": 0.8,
+    "OcrTimeoutSeconds": 25,
     "AllowedContentTypes": "image/jpeg,image/png,application/pdf",
     "Gemini": {
       "ApiKey": "GOOGLE_AI_STUDIO_KEY",
@@ -87,7 +89,7 @@ El seeder mobile crea de forma idempotente:
 | Caja POS | 1 cerrada + 1 abierta | Estado, cierre, negativos. |
 | Venta POS | 1 | Ticket PDF y resumen. |
 | Scan con archivo | 1 | Bandeja, archivo, correccion. |
-| Alerta pendiente | 1 | Badge y centro de alertas. |
+| Alertas | 2 | Una pendiente para badge y una resuelta para historial/filtros. |
 
 ## Preparacion
 
@@ -101,6 +103,7 @@ dotnet build NeoSTP.slnx
 
 ```powershell
 dotnet test tests\NeoSTP.Tests.Unit\NeoSTP.Tests.Unit.csproj --filter "FullyQualifiedName~MobileApiContractCoverageTests|FullyQualifiedName~DteControllerMobileContractTests|FullyQualifiedName~EmpresaPruebaSeederTests|FullyQualifiedName~Scan"
+dotnet test tests\NeoSTP.Tests.Integration\NeoSTP.Tests.Integration.csproj --filter "FullyQualifiedName~MobileApiContract"
 ```
 
 3. Levantar API:
@@ -147,10 +150,11 @@ Configurar la app con `API_BASE_URL=https://xxxxx.trycloudflare.com`.
 | MAPI-16 | `GET /api/scanai/documentos` | `mobile.scan` | Bandeja con documento demo. |
 | MAPI-17 | `GET /api/scanai/documentos/{id}/archivo` | `mobile.scan` | Bytes PDF/imagen. |
 | MAPI-18 | `POST /api/scanai/documentos` | `mobile.scan` | Rechaza MIME no permitido o crea documento valido. |
-| MAPI-19 | `GET /api/alertas/resumen` | `mobile.admin` | Badge con pendiente. |
-| MAPI-20 | `POST /api/alertas/dispositivos` | `mobile.admin` | Token registrado. |
-| MAPI-21 | Endpoint protegido | sin token | 401. |
-| MAPI-22 | Accion sin permiso | `mobile.limitado` | 403/402 legible, sin 500. |
+| MAPI-19 | `POST /api/scanai/documentos/{id}/reprocesar` | `mobile.scan` | Reintento OCR sin duplicar documento. |
+| MAPI-20 | `GET /api/alertas/resumen` | `mobile.admin` | Badge con pendiente. |
+| MAPI-21 | `POST /api/alertas/dispositivos` | `mobile.admin` | Token registrado. |
+| MAPI-22 | Endpoint protegido | sin token | 401. |
+| MAPI-23 | Accion sin permiso | `mobile.limitado` | 403/402 legible, sin 500. |
 
 ## Flujo POS
 

@@ -19,6 +19,9 @@ public interface IScanService
     /// <summary>Sube un documento capturado, ejecuta la extracción y lo deja en la bandeja.</summary>
     Task<Result<ScanDocumentoDto>> SubirAsync(int empresaId, SubirScanRequest request, string? actor, CancellationToken ct = default);
 
+    /// <summary>Reintenta la extraccion OCR/IA del mismo documento sin duplicarlo.</summary>
+    Task<Result<ScanDocumentoDto>> ReprocesarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
+
     /// <summary>Corrige manualmente los campos extraídos.</summary>
     Task<Result<ScanDocumentoDto>> CorregirAsync(int empresaId, int id, CorregirScanRequest request, string? actor, CancellationToken ct = default);
 

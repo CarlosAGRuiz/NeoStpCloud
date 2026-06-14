@@ -55,6 +55,9 @@ public class GeminiScanExtractionServiceTests
         var r = await svc.ExtraerAsync(new byte[] { 1, 2, 3 }, "image/jpeg");
 
         r.Confianza.Should().Be(0m);
+        r.OcrProveedor.Should().Be("Gemini");
+        r.OcrModelo.Should().Be("gemini-2.0-flash");
+        r.OcrErrorResumen.Should().Be("GEMINI_API_KEY_MISSING");
         called.Should().BeFalse();
     }
 
@@ -79,6 +82,10 @@ public class GeminiScanExtractionServiceTests
         r.Iva.Should().Be(13.00m);
         r.Total.Should().Be(113.00m);
         r.Confianza.Should().Be(0.92m);
+        r.OcrProveedor.Should().Be("Gemini");
+        r.OcrModelo.Should().Be("gemini-2.0-flash");
+        r.OcrDuracionMs.Should().NotBeNull();
+        r.OcrIntentoAt.Should().NotBeNull();
     }
 
     [Fact]
@@ -133,6 +140,7 @@ public class GeminiScanExtractionServiceTests
         var r = await svc.ExtraerAsync(new byte[] { 1 }, "image/jpeg");
 
         r.Confianza.Should().Be(0m);
+        r.OcrErrorResumen.Should().Be("HTTP_429");
     }
 
     [Fact]
@@ -143,6 +151,7 @@ public class GeminiScanExtractionServiceTests
         var r = await svc.ExtraerAsync(new byte[] { 1 }, "image/jpeg");
 
         r.Confianza.Should().Be(0m);
+        r.OcrErrorResumen.Should().Be("NO_CANDIDATE_TEXT");
     }
 
     [Fact]

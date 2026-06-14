@@ -48,6 +48,24 @@ public class ScanDocumento : AuditableEntity
     /// <summary>Confianza global de la extracción (0..1). 0 = requiere captura manual.</summary>
     public decimal Confianza { get; set; }
 
+    /// <summary>Proveedor OCR/IA usado en el ultimo intento: Mock, Gemini u otro.</summary>
+    public string? OcrProveedor { get; set; }
+
+    /// <summary>Modelo/version usado por el proveedor en el ultimo intento.</summary>
+    public string? OcrModelo { get; set; }
+
+    /// <summary>Duracion del ultimo intento OCR en milisegundos.</summary>
+    public long? OcrDuracionMs { get; set; }
+
+    /// <summary>Error resumido del ultimo intento OCR, sin secretos ni payload completo.</summary>
+    public string? OcrErrorResumen { get; set; }
+
+    /// <summary>Total de intentos OCR hechos sobre este documento.</summary>
+    public int OcrIntentos { get; set; }
+
+    /// <summary>Fecha UTC del ultimo intento OCR.</summary>
+    public DateTime? OcrUltimoIntentoAt { get; set; }
+
     public string? Notas { get; set; }
 
     // ── Referencias creadas al confirmar ──

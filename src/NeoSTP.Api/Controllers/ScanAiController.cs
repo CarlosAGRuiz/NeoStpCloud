@@ -72,7 +72,16 @@ public class ScanAiController : ApiControllerBase
         return Respond(await _service.CorregirAsync(eid, id, req, _currentUser.Username, ct));
     }
 
-    /// <summary>Recibe un resultado de extracción desde un proveedor externo de NeoScanAI.</summary>
+    /// <summary>Reintenta la extraccion OCR/IA del mismo documento, sin duplicarlo.</summary>
+    [HttpPost("{id:int}/reprocesar")]
+    [RequirePermiso("ScanAI.Ver")]
+    public async Task<IActionResult> Reprocesar(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.ReprocesarAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    /// <summary>Recibe un resultado de extraccion desde un proveedor externo de NeoScanAI.</summary>
     [HttpPost("{id:int}/resultado")]
     [RequirePermiso("ScanAI.Ver")]
     public async Task<IActionResult> Resultado(int id, [FromBody] ScanResultadoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
