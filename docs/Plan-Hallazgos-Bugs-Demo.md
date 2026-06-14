@@ -3,6 +3,11 @@
 > Fecha: 2026-06-14. Alcance: cerrar hallazgos importantes detectados en README, contexto,
 > README de API, funcionamiento actual y revision de NeoScan/Gemini. Este plan no incluye nuevos
 > productos ni modulos; esos se evaluan despues de estabilizar la base comercial.
+>
+> Actualizacion API movil: la app Android ya existe en
+> `manuelberganza-dev/neocloud_mobile_android`. En este repositorio solo se trabaja backend/API,
+> contrato HTTP, permisos, datos demo y pruebas. El plan detallado esta en
+> `docs/Plan-Hallazgos-Api-Mobile.md`.
 
 ## Objetivo
 
@@ -13,6 +18,7 @@ para Web/API.
 ## Principios
 
 - No abrir nuevos modulos hasta cerrar la consolidacion API-first, NeoScan real y pruebas de demo.
+- No abrir trabajo Flutter en este repositorio; la app movil se atiende aqui solo mediante API.
 - Todo cambio debe preservar aislamiento por `EmpresaId`, RBAC, modulo contratado, auditoria y cuotas.
 - La demo debe probarse con usuarios reales de empresa, no solo con `SUPERADMIN`.
 - Los proveedores externos deben seguir siendo pluggables: default seguro en `Mock`, activacion real por config.
@@ -50,8 +56,24 @@ Criterio de cierre:
 | HB-4 | Alta | Pruebas Web para demo comercial | Recorrido Web repetible por rol y evidencia visual |
 | HB-5 | Media-alta | Datos demo y escenarios comerciales | Demo con datos completos, no pantallas vacias |
 | HB-6 | Media-alta | Contratos API y versionado | API mas estable para mobile/integradores |
+| AM-1 | Alta | Compatibilidad API movil | Contrato Android sin bugs de permisos, auth, bytes ni timeouts |
 | HB-7 | Media | Storage, secretos y retencion | Archivos fiscales y secretos operados con guardrails |
 | HB-8 | Media | Runbook de demo y release | Checklist previo a demo/release ejecutable |
+
+## Aclaracion de Alcance Movil
+
+La app movil ya fue trabajada fuera de este repositorio. El repo Android consume esta API con:
+
+- `ApiResponse<T>` para JSON y `PagedResult<T>` para listas.
+- JWT Bearer y refresh token.
+- Descargas binarias como bytes crudos para PDF/JSON/tickets/archivos.
+- Tenant implicito por `empresaId` en el JWT; no soporta `SUPERADMIN` ni envia `?empresaId`.
+- Endpoints de DTE, DTE config, clientes, productos, lookups, dashboard, cobros, NeoScan, alertas,
+  POS y caja.
+
+Por tanto, cualquier hallazgo movil se atiende aqui como trabajo de API: permisos, DTOs,
+compatibilidad, datos demo, observabilidad y pruebas contractuales. No se planifican cambios Flutter en
+NeoSTP Cloud. Ver la matriz completa en `docs/Plan-Hallazgos-Api-Mobile.md`.
 
 ## HB-1 - Limpieza de Warnings y Bugs Menores
 
@@ -274,11 +296,26 @@ Criterio de cierre:
 | HB-011 | Media-alta | Versionado API no esta formalizado fuera de NeoConnect | HB-6 |
 | HB-012 | Media-alta | Storage de documentos fiscales requiere runbook de seguridad/retencion | HB-7 |
 | HB-013 | Media | Falta runbook especifico de demo/release comercial | HB-8 |
+| AM-001 | Alta | DTE listado/detalle requiere `DTE.Emitir`, pero la app separa consulta con `DTE.Consultar` | AM-1 |
+| AM-002 | Alta | Falta suite contractual que ejecute endpoints reales consumidos por `api_endpoints.dart` | AM-2 |
+| AM-003 | Alta | NeoScan/Gemini requiere hardening productivo antes de demo comercial OCR | AM-3 |
+| AM-004 | Alta | Flujos largos pueden exceder timeout movil de 30s | AM-1/AM-3 |
+| AM-005 | Media-alta | URL demo movil debe ser estable o inyectada via `API_BASE_URL` | AM-6 |
+| AM-006 | Media-alta | Descargas binarias deben permanecer sin envelope JSON | AM-2 |
+| AM-007 | Media-alta | Refresh, SuperAdmin bloqueado y permisos efectivos necesitan pruebas API movil | AM-1/AM-2 |
+| AM-008 | Media-alta | Datos demo deben cubrir pantallas moviles para evitar estados vacios | AM-4 |
+| AM-009 | Media | App actual emite factura por atajo `emitir/factura`; preservar ruta generica y atajos por tipo | AM-5 |
+| AM-010 | Media | POS/caja requiere permisos, modulo y manejo de `data: null` en estado de caja | AM-5 |
+| AM-011 | Media | Push FCM real es pluggable; demo debe declarar si usa polling/mock o FCM real | AM-5 |
+| AM-012 | Media | Certificado y scan base64 requieren pruebas de tamano, MIME y errores legibles | AM-1/AM-3 |
+| AM-013 | Media | Versionado interno `/api/*` debe formalizar compatibilidad para mobile | AM-6 |
+| AM-014 | Media | Falta runbook demo API movil con URL, usuarios, providers y evidencias | AM-6 |
 
 ## Orden de Ejecucion Recomendado
 
 1. HB-0 y HB-1 en el mismo ciclo corto.
-2. HB-2 antes de vender NeoScan como OCR real.
-3. HB-3 y HB-4 antes de cualquier demo ejecutiva importante.
-4. HB-5 para mejorar demos comerciales.
-5. HB-6, HB-7 y HB-8 como cierre de consolidacion antes de nuevos proyectos.
+2. AM-1 antes de cualquier prueba formal con la app Android existente.
+3. HB-2/AM-3 antes de vender NeoScan como OCR real.
+4. HB-3/AM-2 y HB-4 antes de cualquier demo ejecutiva importante.
+5. HB-5/AM-4 para mejorar demos comerciales.
+6. HB-6/AM-6, HB-7 y HB-8 como cierre de consolidacion antes de nuevos proyectos.

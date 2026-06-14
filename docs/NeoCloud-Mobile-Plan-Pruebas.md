@@ -2,6 +2,10 @@
 
 Este plan cubre la validacion de NeoCloud Mobile consumiendo `NeoSTP.Api` desde una URL HTTPS temporal, mientras la API apunta a la base SQL Server local ya configurada en `appsettings`.
 
+> Nota 2026-06-14: la app Android vive en
+> `https://github.com/manuelberganza-dev/neocloud_mobile_android`. En este repositorio este plan se usa para
+> validar API, ambiente, usuarios, datos demo y contrato; no para modificar Flutter.
+
 ## Objetivo
 
 Probar la app Flutter contra datos reales/demo de NeoSTP Cloud sin exponer SQL Server, certificados DTE, claves de Hacienda, passwords ni connection strings.

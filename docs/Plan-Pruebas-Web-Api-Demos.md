@@ -9,6 +9,7 @@
 Incluye:
 
 - API REST interna/mobile.
+- Contrato API para la app Android existente (`manuelberganza-dev/neocloud_mobile_android`).
 - API publica NeoConnect `/api/v1`.
 - Web MVC/Razor.
 - Portal publico del receptor.
@@ -137,6 +138,52 @@ La empresa demo debe tener:
 | API-18 | `GET /api/crm/resumen` | ADMIN | Pipeline |
 | API-19 | `GET /api/alertas/resumen` | ADMIN | Badges |
 | API-20 | `GET /api/v1/ping` | API Key | Key y scopes validos |
+
+## Smoke API Mobile
+
+Este bloque valida el contrato que consume la app Android ya construida. No prueba Flutter ni cambia el
+repo movil; prueba que la API de este repositorio siga entregando lo que la app espera.
+
+Reglas:
+
+- Usar usuarios de empresa, nunca `SUPERADMIN`.
+- No enviar `?empresaId` desde el cliente movil.
+- Mantener `ApiResponse<T>` para JSON y bytes crudos para descargas.
+- Ejecutar con `Scan:Provider=Mock` por defecto; repetir con Gemini solo si hay credenciales de demo.
+- Confirmar que las respuestas clave entran en el timeout movil: conexion 20s, respuesta 30s.
+
+| Paso | Endpoint | Usuario | Esperado |
+|---|---|---|---|
+| MAPI-01 | `GET /health` | anon | 200, `data.status=ok`, `data.service=NeoSTP.Api` |
+| MAPI-02 | `POST /api/auth/login` | ADMIN | Tokens, `empresaId`, roles y permisos |
+| MAPI-03 | `GET /api/auth/me` | ADMIN | Perfil igual al login |
+| MAPI-04 | `POST /api/auth/refresh` | refresh token | Nuevo access token |
+| MAPI-05 | `GET /api/dashboard/empresa` | ADMIN | KPIs visibles |
+| MAPI-06 | `GET /api/lookups/clientes?search=` | ADMIN | Lista autocomplete |
+| MAPI-07 | `GET /api/lookups/productos?search=` | ADMIN | Lista autocomplete |
+| MAPI-08 | `GET /api/clientes?page=1&pageSize=20` | ADMIN | `PagedResult` |
+| MAPI-09 | `GET /api/productos?page=1&pageSize=20` | ADMIN | `PagedResult` |
+| MAPI-10 | `GET /api/dte/configuracion` | ADMIN | Config sin secretos |
+| MAPI-11 | `POST /api/dte/configuracion/probar-conexion` | ADMIN | Resultado controlado |
+| MAPI-12 | `POST /api/dte/emitir/factura` | ADMIN | DTE o error fiscal controlado con `traceId` |
+| MAPI-13 | `GET /api/dte/documentos` | DTE.Consultar | Lista paginada sin exigir `DTE.Emitir` |
+| MAPI-14 | `GET /api/dte/documentos/{id}` | DTE.Consultar | Detalle del documento |
+| MAPI-15 | `GET /api/dte/documentos/{id}/pdf` | DTE.Consultar | Bytes PDF, no `ApiResponse` |
+| MAPI-16 | `GET /api/dte/documentos/{id}/json` | DTE.Consultar | Bytes/JSON crudo del DTE, no envelope |
+| MAPI-17 | `POST /api/dte/documentos/{id}/reenviar` | DTE.Reenviar | Reenvio o error email controlado |
+| MAPI-18 | `GET /api/cobros/resumen` | Cobros.Ver | Totales de cartera |
+| MAPI-19 | `GET /api/cobros/pendientes` | Cobros.Ver | `PagedResult` |
+| MAPI-20 | `POST /api/cobros/qr` | Cobros.Ver | `qrPngBase64` |
+| MAPI-21 | `GET /api/scanai/documentos` | ScanAI.Ver | Bandeja paginada |
+| MAPI-22 | `POST /api/scanai/documentos` | ScanAI.Ver | Documento creado; si OCR falla, queda corregible |
+| MAPI-23 | `GET /api/scanai/documentos/{id}/archivo` | ScanAI.Ver | Bytes del archivo original |
+| MAPI-24 | `GET /api/alertas/resumen` | ADMIN | Conteos para badge |
+| MAPI-25 | `POST /api/alertas/dispositivos` | ADMIN | Token Android registrado |
+| MAPI-26 | `GET /api/pos/caja/estado` | OPERADOR | `data` puede ser null si no hay caja |
+| MAPI-27 | `POST /api/pos/caja/abrir` | OPERADOR | Caja abierta o conflicto controlado |
+| MAPI-28 | `POST /api/pos/ventas` | OPERADOR | Venta creada |
+| MAPI-29 | `GET /api/pos/ventas/{id}/ticket` | OPERADOR | Bytes PDF ticket, no `ApiResponse` |
+| MAPI-30 | `POST /api/pos/ventas/{id}/promover` | OPERADOR | DTE creado o error fiscal controlado |
 
 ## Regresion API por Flujo
 

@@ -2,6 +2,10 @@
 
 API REST central de NeoSTP Cloud. Expone la operacion multiempresa de la suite, sirve a la app movil y publica NeoConnect para integradores externos.
 
+La app movil Android vive en el repo externo
+`https://github.com/manuelberganza-dev/neocloud_mobile_android`. En NeoSTP Cloud solo se trabaja el
+contrato backend/API que esa app consume: endpoints, DTOs, permisos, datos demo y pruebas.
+
 ## Resumen
 
 - Proyecto: `src/NeoSTP.Api/NeoSTP.Api.csproj`.
@@ -585,6 +589,7 @@ El envio por correo usa `ITenantEmailSender`, por lo que respeta SMTP por empres
 
 Plan recurrente para demos Web/API: [`../../docs/Plan-Pruebas-Web-Api-Demos.md`](../../docs/Plan-Pruebas-Web-Api-Demos.md).
 Plan de sprints de hallazgos y bugs: [`../../docs/Plan-Hallazgos-Bugs-Demo.md`](../../docs/Plan-Hallazgos-Bugs-Demo.md).
+Plan especifico de hallazgos API movil: [`../../docs/Plan-Hallazgos-Api-Mobile.md`](../../docs/Plan-Hallazgos-Api-Mobile.md).
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj

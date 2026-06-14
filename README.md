@@ -4,7 +4,10 @@
 Monolito modular en **.NET 10** con Web (MVC/Razor), API REST y Worker de tareas en segundo plano.
 Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos y RBAC granular.
 
-> La app móvil (Flutter, repo aparte `neocloud_mobile_android`) consume **esta misma API**.
+> La app móvil (Flutter, repo aparte
+> [`neocloud_mobile_android`](https://github.com/manuelberganza-dev/neocloud_mobile_android))
+> consume **esta misma API**. En este repositorio solo se trabaja backend/API para mobile:
+> contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
 **Estado: Fases V2 y V2.5 cerradas (junio 2026).** El producto opera el ciclo completo de un
@@ -302,6 +305,7 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md) | Fase V2 por sprint con entregado y validación |
 | [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md) | Fase V2.5 (escala/proveedores reales) con evidencia de pruebas |
 | [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md) | Sprints de consolidación para hallazgos, bugs y preparación de demos |
+| [`docs/Plan-Hallazgos-Api-Mobile.md`](docs/Plan-Hallazgos-Api-Mobile.md) | Hallazgos y sprints API contra la app Android existente |
 | [`docs/Plan-Pruebas-Web-Api-Demos.md`](docs/Plan-Pruebas-Web-Api-Demos.md) | Plan recurrente de pruebas Web/API para demos comerciales y técnicas |
 | [`docs/Runbook-V2.md`](docs/Runbook-V2.md) | Operación: despliegue, backup, rotación, retención |
 | [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) | Pruebas E2E en vivo del cierre V2 |
@@ -312,15 +316,17 @@ y `api/v1/*` (NeoConnect público).
 ## Roadmap
 
 Prioridad inmediata antes de nuevos módulos: ejecutar el plan de consolidación
-[`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md), empezando por
-alineación documental, limpieza de warnings, NeoScan/Gemini productivo y pruebas Web/API de demo.
+[`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md) y
+[`docs/Plan-Hallazgos-Api-Mobile.md`](docs/Plan-Hallazgos-Api-Mobile.md), empezando por
+compatibilidad API mobile, limpieza de warnings, NeoScan/Gemini productivo y pruebas Web/API de demo.
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 
 - **Credenciales reales** (solo configuración, el código ya está): WhatsApp Business (Meta) +
   plantilla aprobada, Redis productivo, collector OTLP, pasarelas de pago, certificado DTE de
   producción (ambiente 01) por cliente.
-- **App Flutter** (`neocloud_mobile_android`): el backend B-1..B-6 está completo y documentado.
+- **App Flutter** (`neocloud_mobile_android`): la app ya fue trabajada en repo aparte; aqui se mantiene
+  el contrato API, pruebas y datos demo. El backend B-1..B-6 está completo y documentado.
 - **V3 (backlog)**: SSO/SAML, white label, marketplace, SDKs NeoConnect, multi-moneda, BI
   predictivo, catálogo contable personalizable, órdenes de compra, vacaciones/aguinaldo.
 

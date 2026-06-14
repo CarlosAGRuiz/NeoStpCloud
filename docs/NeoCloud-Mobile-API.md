@@ -4,14 +4,21 @@ Documento técnico para el desarrollo de **NeoCloud Mobile** (Flutter, Android t
 La app consume **la misma API y base de datos** que el panel web (NeoSTP.Api): no es un backend separado,
 sino un cliente ligero sobre la API REST de NeoSTP Cloud.
 
-> **Audiencia:** desarrollador Flutter.
+> **Audiencia:** backend/API NeoSTP y desarrollador Flutter.
 > **Backend:** lo mantenemos nosotros (NeoSTP). Este documento define el contrato que la app debe consumir.
-> **Acompaña a:** `NeoCloud-Mobile-Plan.md` (estado del backend y plan de sprints Flutter).
+> **App Android:** repo externo `https://github.com/manuelberganza-dev/neocloud_mobile_android`.
+> La app ya fue trabajada; en este repositorio solo se mantiene la API, su contrato, pruebas y datos demo.
+> **Acompaña a:** `Plan-Hallazgos-Api-Mobile.md` (hallazgos API contra la app real) y
+> `NeoCloud-Mobile-Plan.md` (referencia historica del alcance backend/mobile).
 >
 > **Estado del backend: COMPLETO.** Todos los endpoints de este documento están **implementados, probados y
 > desplegados** en `main`. Las únicas piezas con proveedor *mock* (pluggable, sin cambiar el contrato) son la
 > **extracción OCR/IA** de NeoScan y el **envío push real (FCM)**; la app se construye igual y la integración
 > real se "enciende" por configuración cuando haya credenciales.
+>
+> **Revision 2026-06-14:** contrato contrastado contra `api_endpoints.dart`, `api_client.dart` y repositorios
+> Flutter de auth, DTE, cobros, NeoScan, alertas y POS. Hallazgos de compatibilidad en
+> `docs/Plan-Hallazgos-Api-Mobile.md`.
 
 ---
 
@@ -380,7 +387,9 @@ DTE rechazados.
 | `GET` | `/api/dte/documentos/{id}` | Detalle completo (`DteDocumentoDto` con `detalles[]`, `jsonDte`, `respuestaHacienda`). |
 | `GET` | `/api/dte/documentos/{id}/pdf` · `/json` | Descargas. |
 
-Permiso de lectura: `DTE.Consultar` (pdf/json) / `DTE.Emitir` (lista).
+Permiso de lectura: `DTE.Consultar` (pdf/json). Hallazgo actual de compatibilidad: lista/detalle en
+`DteController` todavia requieren `DTE.Emitir`; el objetivo para mobile es que lectura use
+`DTE.Consultar`. Seguimiento: `docs/Plan-Hallazgos-Api-Mobile.md` (`AM-001`).
 
 ### 8.3 CRM ligero — Clientes `/api/clientes`
 

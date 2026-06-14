@@ -3,6 +3,11 @@
 Acompaña a `NeoCloud-Mobile-API.md`. Resume **qué cubre la API** y el **plan de sprints** para construir la app
 Flutter (Android tablet/celular).
 
+> **Nota 2026-06-14:** la app Flutter ya fue trabajada en el repo externo
+> `https://github.com/manuelberganza-dev/neocloud_mobile_android`. Este documento queda como referencia del
+> alcance backend/mobile. El trabajo actual en este repositorio es solo API, contrato, datos demo y pruebas;
+> ver `docs/Plan-Hallazgos-Api-Mobile.md`.
+>
 > **Estado del backend: COMPLETO.** Todas las brechas (B-1…B-6) y los pendientes menores ya están
 > entregados, probados (370 tests verdes) y desplegados en `main`. **No queda backend por desarrollar** para el
 > alcance de la propuesta móvil; lo único pendiente son **integraciones externas** que dependen de credenciales/
