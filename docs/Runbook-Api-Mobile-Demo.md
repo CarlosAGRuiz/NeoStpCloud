@@ -8,6 +8,14 @@
 Dejar una corrida repetible para demostrar NeoCloud Mobile contra `NeoSTP.Api` con usuarios de empresa,
 datos visibles y providers seguros por defecto.
 
+## Estado de Validacion 2026-06-14
+
+- Plan API mobile AM-0..AM-6 cerrado operativo al 100%.
+- HB-1 cerrado sin cambios de contrato HTTP: solo limpieza de warnings en Billing, Billing Portal e
+  Infrastructure.
+- Validacion local: `dotnet build NeoSTP.slnx` = 0 warnings/0 errores.
+- Validacion local: `dotnet test NeoSTP.slnx` = 697 unitarias + 9 integracion verdes.
+
 ## Configuracion Minima
 
 Usar `src/NeoSTP.Api/appsettings.Local.json` o user-secrets. No commitear secretos.
@@ -99,9 +107,10 @@ El seeder mobile crea de forma idempotente:
 dotnet build NeoSTP.slnx
 ```
 
-2. Ejecutar pruebas dirigidas:
+2. Ejecutar pruebas dirigidas o la suite completa antes de demo:
 
 ```powershell
+dotnet test NeoSTP.slnx
 dotnet test tests\NeoSTP.Tests.Unit\NeoSTP.Tests.Unit.csproj --filter "FullyQualifiedName~MobileApiContractCoverageTests|FullyQualifiedName~DteControllerMobileContractTests|FullyQualifiedName~EmpresaPruebaSeederTests|FullyQualifiedName~Scan"
 dotnet test tests\NeoSTP.Tests.Integration\NeoSTP.Tests.Integration.csproj --filter "FullyQualifiedName~MobileApiContract"
 ```

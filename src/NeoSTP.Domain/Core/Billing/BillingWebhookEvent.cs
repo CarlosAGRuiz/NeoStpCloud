@@ -7,7 +7,6 @@ namespace NeoSTP.Domain.Core.Billing;
 /// </summary>
 public class BillingWebhookEvent : AuditableEntity
 {
-    public int Id { get; set; }
     public string Provider { get; set; } = string.Empty;   // Stripe | MercadoPago
     public string EventType { get; set; } = string.Empty;
     public string ExternalEventId { get; set; } = string.Empty;

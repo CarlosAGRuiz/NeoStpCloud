@@ -5,7 +5,6 @@ namespace NeoSTP.Domain.Core.Billing;
 
 public class BillingSubscription : AuditableEntity
 {
-    public int Id { get; set; }
     public int BillingCustomerId { get; set; }
     public BillingCustomer Customer { get; set; } = null!;
 

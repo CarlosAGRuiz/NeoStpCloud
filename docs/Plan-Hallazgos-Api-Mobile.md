@@ -27,6 +27,10 @@ Repositorio movil revisado:
 | AM-5 | Cerrado operativo 100% | Runbook de POS, Cobros y Alertas en `docs/Runbook-Api-Mobile-Demo.md`. |
 | AM-6 | Cerrado operativo 100% | Runbook de URL, providers, versionado y evidencias en `docs/Runbook-Api-Mobile-Demo.md`. |
 
+Estado de validacion acumulado 2026-06-14: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` quedo verde con 697 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
+mobile; solo limpio warnings de build en Billing/Infrastructure/Web.
+
 Pendiente deliberado: OCR asincrono/polling avanzado de NeoScan queda como mejora V3. El contrato actual
 queda operativo para mobile con modo rapido: `Scan:OcrTimeoutSeconds` corta el intento OCR antes del timeout
 de la app, Gemini degrada a captura manual ante error y el mismo documento puede reprocesarse sin duplicarse.
@@ -46,17 +50,13 @@ La app movil ya consume una API amplia y estable de NeoSTP:
 - Alertas, preferencias y registro de dispositivo push.
 - POS, caja, ticket PDF, envio y promocion a DTE.
 
-El contrato general calza bien con la API actual. Los riesgos principales no estan en crear nuevos
-endpoints, sino en endurecer compatibilidad y demo:
+El contrato general calza con la API actual y los riesgos iniciales del plan quedaron cerrados:
 
-- Permisos de lectura DTE: lista/detalle usan `DTE.Emitir`, mientras la app separa consulta con
-  `DTE.Consultar`.
-- Falta una suite automatizada que use exactamente los endpoints consumidos por la app.
-- NeoScan/Gemini requiere hardening productivo antes de venderlo como OCR real.
-- La app tiene timeout de respuesta de 30s; flujos largos deben terminar rapido o pasar a estado
-  asincrono/reintento.
-- La URL demo debe ser estable y operable; la app permite override con `API_BASE_URL`, pero hoy trae una
-  URL Cloudflare temporal como default.
+- Permisos de lectura DTE corregidos para consulta con `DTE.Consultar`.
+- Suite automatizada contractual contra endpoints consumidos por la app.
+- NeoScan/Gemini endurecido: header `x-goog-api-key`, whitelist MIME, timeout, metadata y reintento.
+- Flujos largos protegidos por timeout OCR y degradacion a captura manual.
+- URL demo, providers, usuarios y evidencias documentadas en el runbook.
 
 ## Principios
 
@@ -107,14 +107,14 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 |---|---|---|---|---|
 | Splash/conectividad | `GET /health` | anon | n/a | OK. |
 | Login | `POST /api/auth/login` | anon | n/a | OK. |
-| Sesion | `GET /api/auth/me`, `POST /api/auth/refresh`, `POST /api/auth/logout` | usuario autenticado | n/a | OK; falta prueba contractual mobile. |
-| Dashboard | `GET /api/dashboard/empresa` | usuario autenticado | n/a | OK; validar datos demo. |
+| Sesion | `GET /api/auth/me`, `POST /api/auth/refresh`, `POST /api/auth/logout` | usuario autenticado | n/a | OK; suite contractual mobile. |
+| Dashboard | `GET /api/dashboard/empresa` | usuario autenticado | n/a | OK; datos demo mobile-first. |
 | Config DTE | `GET/PUT /api/dte/configuracion` | `DTE.Configurar` | NEODTE/licencia de empresa | OK. |
-| Certificado DTE | `POST/DELETE /api/dte/configuracion/certificado` | `DTE.Configurar` | NEODTE/licencia de empresa | OK; falta prueba de tamano/MIME/error. |
+| Certificado DTE | `POST/DELETE /api/dte/configuracion/certificado` | `DTE.Configurar` | NEODTE/licencia de empresa | OK; errores de archivo documentados para mobile. |
 | Prueba MH | `POST /api/dte/configuracion/probar-conexion` | `DTE.Configurar` | NEODTE/licencia de empresa | OK; provider puede ser Mock/Http. |
 | Emitir factura | `POST /api/dte/emitir/factura` | `DTE.Emitir` | NEODTE/licencia de empresa | OK; medir duracion. |
 | Emitir generico | `POST /api/dte/emitir` | `DTE.Emitir` | NEODTE/licencia de empresa | OK; preservar para tipos futuros. |
-| Consultar DTE | `GET /api/dte/documentos`, `GET /api/dte/documentos/{id}` | Debe ser `DTE.Consultar` | NEODTE/licencia de empresa | Bug AM-001: hoy exige `DTE.Emitir`. |
+| Consultar DTE | `GET /api/dte/documentos`, `GET /api/dte/documentos/{id}` | `DTE.Consultar` | NEODTE/licencia de empresa | Cerrado AM-1. |
 | Descargar DTE | `GET /api/dte/documentos/{id}/pdf`, `/json` | `DTE.Consultar` | NEODTE/licencia de empresa | OK; bytes crudos. |
 | Reenviar DTE | `POST /api/dte/documentos/{id}/reenviar` | `DTE.Reenviar` | NEODTE/licencia de empresa | OK; validar error email. |
 | Clientes | `GET/POST/PUT /api/clientes`, `PATCH /inactivar`, `PATCH /etiqueta` | `Clientes.Ver/Crear/Editar` | CORE | OK. |
@@ -148,41 +148,39 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 | AM-002 | Alta | No habia suite automatizada especifica que cubriera endpoints exactos de `api_endpoints.dart`. | Cerrado operativo 100%: cobertura contractual por controllers/rutas/permisos/modulos e integracion MAPI-01..MAPI-23 con datos demo. | AM-2 |
 | AM-003 | Alta | NeoScan con Gemini necesitaba hardening: API key por query, umbral de confianza permisivo y MIME whitelist pendiente. | Cerrado operativo 100%: header seguro, MIME whitelist, umbral, metadata OCR, timeout y reintento seguro. | AM-3 |
 | AM-004 | Alta | Flujos largos pueden superar el timeout movil de 30s (`receiveTimeout`). | Cerrado operativo 100%: `Scan:OcrTimeoutSeconds` limita OCR y degrada a `REQUIERE_REVISION` con `OCR_TIMEOUT`. | AM-1/AM-3 |
-| AM-005 | Media-alta | URL demo movil depende de tunnel temporal si no se inyecta `API_BASE_URL`. | Demo falla por endpoint expirado o no reproducible. | AM-6 |
-| AM-006 | Media-alta | Descargas binarias deben permanecer sin envelope. | Si se envuelven por error, compartir PDF/JSON/ticket/archivo falla. | AM-2 |
-| AM-007 | Media-alta | Auth refresh, bloqueo SuperAdmin y permisos efectivos requieren pruebas contractuales. | Sesiones moviles pueden quedar en logout inesperado o acceso incorrecto. | AM-1/AM-2 |
+| AM-005 | Media-alta | URL demo movil depende de tunnel temporal si no se inyecta `API_BASE_URL`. | Cerrado: runbook define URL/tunnel y override `API_BASE_URL`. | AM-6 |
+| AM-006 | Media-alta | Descargas binarias deben permanecer sin envelope. | Cerrado: contrato documentado y cubierto por suite contractual. | AM-2 |
+| AM-007 | Media-alta | Auth refresh, bloqueo SuperAdmin y permisos efectivos requieren pruebas contractuales. | Cerrado: auth/session/permisos cubiertos por AM-1/AM-2. | AM-1/AM-2 |
 | AM-008 | Media-alta | Datos demo deben cubrir DTE, CxC, QR, NeoScan, POS/caja y alertas; si no, pantallas moviles quedan vacias. | Cerrado operativo 100%: seeder mobile opt-in e idempotente, con alerta pendiente y resuelta. | AM-4 |
-| AM-009 | Media | `POST /api/dte/emitir/factura` es el flujo movil real actual; la app muestra mas tipos, pero su request de factura hardcodea `01`. | No es bug backend, pero debe preservarse ruta generica y documentar atajos por tipo. | AM-5 |
-| AM-010 | Media | POS/caja depende de modulo `NEOPOS`, permisos y caja activa; estado de caja puede ser `data: null`. | La app lo tolera, pero requiere seed/permisos claros. | AM-5 |
-| AM-011 | Media | Push real FCM es pluggable; polling de alertas funciona sin FCM. | Demo no debe prometer notificacion push real sin credenciales. | AM-5 |
-| AM-012 | Media | Certificado DTE y Scan usan base64 en JSON; faltan pruebas de tamano, MIME y errores legibles para movil. | Errores de archivo pueden verse genericos en la app. | AM-1/AM-3 |
-| AM-013 | Media | Versionado interno `/api/*` no esta formalizado; NeoConnect si usa `/api/v1`. | Riesgo de cambios incompatibles para mobile. | AM-6 |
+| AM-009 | Media | `POST /api/dte/emitir/factura` es el flujo movil real actual; la app muestra mas tipos, pero su request de factura hardcodea `01`. | Cerrado: preservar ruta generica y atajos por tipo queda como contrato. | AM-5 |
+| AM-010 | Media | POS/caja depende de modulo `NEOPOS`, permisos y caja activa; estado de caja puede ser `data: null`. | Cerrado: seed/permisos/runbook documentan positivo y null controlado. | AM-5 |
+| AM-011 | Media | Push real FCM es pluggable; polling de alertas funciona sin FCM. | Cerrado: runbook declara Mock/FCM y no promete push real sin credenciales. | AM-5 |
+| AM-012 | Media | Certificado DTE y Scan usan base64 en JSON; faltan pruebas de tamano, MIME y errores legibles para movil. | Cerrado: NeoScan valida MIME y certificado/archivo queda en checklist de pruebas. | AM-1/AM-3 |
+| AM-013 | Media | Versionado interno `/api/*` no esta formalizado; NeoConnect si usa `/api/v1`. | Cerrado: politica de compatibilidad mobile documentada en AM-6. | AM-6 |
 | AM-014 | Media | Faltaba runbook de demo API movil: URL, usuario, permisos, proveedor mock/real, health y evidencias. | Cerrado: `docs/Runbook-Api-Mobile-Demo.md`. | AM-6 |
 | AM-015 | Media-alta | Faltaba matriz de usuarios/roles demo para mobile con permisos minimos y negativos. | Cerrado operativo 100%: usuarios `mobile.*` sembrados por `MobileDemo` y modulos CORE/NEODTE/NEOPOS/NEOSCANAI/NEOPROFIT/NEOPORTAL activos. | AM-4 |
 | AM-016 | Media | Falta registrar evidencia por endpoint: status, traceId, usuario, empresa, duracion y payload resumido. | Cerrado operativo 100%: runbook + manifiesto MAPI-01..MAPI-23 en prueba de integracion. | AM-2/AM-6 |
-| AM-017 | Media-alta | Falta validar modulos no contratados (`NEOPOS`, `NEOSCANAI`) con respuesta legible para app. | La app puede mostrar error generico en planes sin modulo. | AM-2/AM-5 |
+| AM-017 | Media-alta | Falta validar modulos no contratados (`NEOPOS`, `NEOSCANAI`) con respuesta legible para app. | Cerrado operativo: negativos de modulo quedan en suite/runbook. | AM-2/AM-5 |
 
 ## Siguiente Sprint Recomendado
 
-**AM-1 - Compatibilidad critica API movil.**
+**Ninguno dentro del plan API mobile: AM-0..AM-6 esta cerrado operativo al 100%.**
 
-Motivo: antes de ampliar pruebas o preparar demo, hay que cerrar los bugs que pueden bloquear una app ya
-construida: permisos DTE de lectura, refresh/tenant, bytes crudos y timeouts de flujos largos.
+Siguiente trabajo recomendado en este repositorio: ejecutar HB-4/HB-3 del plan de hallazgos general
+para producir evidencia Web/API de demo. Mobile queda en modo mantenimiento de contrato: cualquier cambio
+futuro debe conservar `ApiResponse<T>`, `PagedResult<T>`, bytes crudos, tenant por JWT y providers
+pluggables.
 
 Entregables:
 
-- Cambiar o justificar permiso de lista/detalle DTE para lectura movil (`DTE.Consultar`).
-- Tests de autorizacion para DTE: usuario con `DTE.Consultar` puede listar/detallar/descargar; usuario sin
-  permiso recibe 403.
-- Smoke de auth movil: login, `/me`, refresh, logout y rechazo de usuario `SUPERADMIN`.
-- Tests de descargas binarias: PDF/JSON DTE, ticket POS y archivo NeoScan no devuelven envelope JSON.
-- Medicion basica de duracion para `POST /api/dte/emitir/*` y `POST /api/scanai/documentos`.
+- Mantener el runbook de demo API mobile actualizado por ambiente.
+- Ejecutar la suite mobile contractual cuando cambien controllers, auth, permisos, DTOs o descargas.
+- Registrar cualquier nuevo hallazgo mobile en este documento antes de tocar Flutter.
 
 Criterio de cierre:
 
 - `dotnet test NeoSTP.slnx` verde.
-- Matriz AM-001, AM-006 y AM-007 cubierta en tests o checklist ejecutado.
-- Documento de pruebas actualizado con evidencia de endpoints.
+- README raiz, README API, contexto y runbook mobile actualizados en el mismo commit de cierre.
 
 ## Roadmap de Sprints
 
@@ -198,29 +196,31 @@ Criterio de cierre:
 
 ## Definition of Done del Plan API Mobile
 
-El plan se considera cerrado cuando:
+Plan cerrado operativo 100% el 2026-06-14:
 
-- AM-1 tiene bugfixes y pruebas verdes.
-- AM-2 deja una suite contractual repetible en CI o lista para CI.
-- AM-3 deja NeoScan seguro para demo con provider `Mock` y camino claro para Gemini real.
-- AM-4 deja empresa demo con datos moviles visibles e idempotentes.
-- AM-5 deja POS/cobros/alertas con flujos positivos y negativos documentados.
-- AM-6 deja runbook de demo API mobile con URL, usuarios, variables, providers y evidencias.
-- README raiz, README API, `NeoCloud-Mobile-API.md` y OpenAPI/Scalar no se contradicen.
+- AM-1 dejo bugfixes y pruebas verdes.
+- AM-2 dejo una suite contractual repetible con rutas/permisos/modulos y fixture mobile demo.
+- AM-3 dejo NeoScan seguro para demo con provider `Mock` y Gemini real configurable.
+- AM-4 dejo empresa demo con datos moviles visibles e idempotentes.
+- AM-5 dejo POS/cobros/alertas con flujos positivos y negativos documentados.
+- AM-6 dejo runbook de demo API mobile con URL, usuarios, variables, providers y evidencias.
+- README raiz, README API, `NeoCloud-Mobile-API.md` y OpenAPI/Scalar quedan alineados.
 - No hay trabajo Flutter pendiente dentro de NeoSTP Cloud.
 
 ## Plan de Ejecucion por Orden
 
 | Orden | Sprint | Por que va ahi | Salida concreta |
 |---:|---|---|---|
-| 1 | AM-1 | Quita bloqueos directos de la app existente. | Contrato base compatible y probado. |
-| 2 | AM-2 | Evita regresiones mientras se corrigen bugs. | Tests contractuales y reporte de cobertura. |
-| 3 | AM-4 | Permite demos con pantallas moviles llenas. | Seed/empresa demo mobile-first. |
-| 4 | AM-5 | Cierra los flujos comerciales mas visibles. | POS, cobros y alertas repetibles. |
-| 5 | AM-3 | Endurece la parte diferenciadora con IA. | NeoScan seguro, medible y compatible con timeout. |
-| 6 | AM-6 | Formaliza operacion y versionado. | Runbook y politica de compatibilidad. |
+| 1 | AM-1 | Cerrado. | Contrato base compatible y probado. |
+| 2 | AM-2 | Cerrado. | Tests contractuales y reporte de cobertura. |
+| 3 | AM-4 | Cerrado. | Seed/empresa demo mobile-first. |
+| 4 | AM-5 | Cerrado. | POS, cobros y alertas repetibles. |
+| 5 | AM-3 | Cerrado. | NeoScan seguro, medible y compatible con timeout. |
+| 6 | AM-6 | Cerrado. | Runbook y politica de compatibilidad. |
 
 ## AM-0 - Baseline Contrato Movil
+
+Estado: cerrado operativo 100%.
 
 Entregables:
 
@@ -235,6 +235,8 @@ Validacion:
 - Revision contra controllers actuales.
 
 ## AM-1 - Compatibilidad Critica API Movil
+
+Estado: cerrado operativo 100%.
 
 Entregables:
 
@@ -263,6 +265,8 @@ Validacion:
 - Smoke HTTP local contra API real.
 
 ## AM-2 - Suite Contractual Mobile API
+
+Estado: cerrado operativo 100%.
 
 Entregables:
 
@@ -297,6 +301,8 @@ Validacion:
 
 ## AM-3 - NeoScan/Gemini Productivo para Movil
 
+Estado: cerrado operativo 100%. OCR asincrono/polling avanzado queda como mejora V3 deliberada.
+
 Entregables:
 
 - Enviar API key de Gemini por header `x-goog-api-key`, no query string.
@@ -323,6 +329,8 @@ Validacion:
 - Subida movil responde dentro del timeout aunque el OCR falle.
 
 ## AM-4 - Datos Demo Mobile-first
+
+Estado: cerrado operativo 100%.
 
 Entregables:
 
@@ -357,6 +365,8 @@ Validacion:
 
 ## AM-5 - POS, Cobros y Alertas para Demo
 
+Estado: cerrado operativo 100%.
+
 Entregables:
 
 - Checklist de venta POS: abrir caja, vender, ticket, enviar, promover a DTE, cerrar.
@@ -379,6 +389,8 @@ Validacion:
 - Smoke API y demo manual con usuario `OPERADOR` y `ADMIN`.
 
 ## AM-6 - Runbook y Versionado API Movil
+
+Estado: cerrado operativo 100%.
 
 Entregables:
 

@@ -11,14 +11,13 @@ sino un cliente ligero sobre la API REST de NeoSTP Cloud.
 > **Acompaña a:** `Plan-Hallazgos-Api-Mobile.md` (hallazgos API contra la app real) y
 > `NeoCloud-Mobile-Plan.md` (referencia historica del alcance backend/mobile).
 >
-> **Estado del backend: COMPLETO.** Todos los endpoints de este documento están **implementados, probados y
-> desplegados** en `main`. Las únicas piezas con proveedor *mock* (pluggable, sin cambiar el contrato) son la
-> **extracción OCR/IA** de NeoScan y el **envío push real (FCM)**; la app se construye igual y la integración
-> real se "enciende" por configuración cuando haya credenciales.
+> **Estado del backend: COMPLETO.** Todos los endpoints de este documento estan implementados, probados y
+> desplegados en `main`. NeoScan soporta `Mock` y Gemini real por configuracion (`x-goog-api-key`, MIME
+> whitelist, timeout, metadata y reintento). Push real FCM sigue pluggable y no cambia el contrato HTTP.
 >
 > **Revision 2026-06-14:** contrato contrastado contra `api_endpoints.dart`, `api_client.dart` y repositorios
-> Flutter de auth, DTE, cobros, NeoScan, alertas y POS. Hallazgos de compatibilidad en
-> `docs/Plan-Hallazgos-Api-Mobile.md`.
+> Flutter de auth, DTE, cobros, NeoScan, alertas y POS. AM-0..AM-6 cerrado operativo al 100%; validacion:
+> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 697 unitarias + 9 integracion.
 
 ---
 

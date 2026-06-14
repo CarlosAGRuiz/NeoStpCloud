@@ -614,4 +614,6 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual de las suites: ejecutar `dotnet test tests\NeoSTP.Tests.Unit` y `dotnet test tests\NeoSTP.Tests.Integration`. La suite incluye contrato mobile operativo (`MobileApiContractOperationalTests`).
+Estado actual validado 2026-06-14: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` con 697 unitarias + 9 integracion. La suite incluye contrato mobile
+operativo (`MobileApiContractOperationalTests`) y HB-1 quedo cerrado sin cambios breaking de API.

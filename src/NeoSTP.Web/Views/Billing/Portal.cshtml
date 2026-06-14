@@ -195,6 +195,10 @@
     }
 </div>
 
+@if (sub != null)
+{
+    var planesCambio = planes.Where(p => p.Nombre != sub.PlanNombre).ToList();
+
 <!-- Modal cambio de plan -->
 <div class="modal fade" id="changePlanModal" tabindex="-1" aria-labelledby="changePlanModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -209,12 +213,12 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Nuevo plan</label>
                         <select name="newPlanId" class="form-select" required>
-                            @foreach (var pl in planes.Where(p => p.Nombre != sub.PlanNombre))
+                            @foreach (var pl in planesCambio)
                             {
                                 <option value="@pl.Id">@pl.Nombre — @pl.MonedaCodigo @pl.PrecioMensual.ToString("N2")/mes</option>
                             }
                         </select>
-                        @if (!planes.Any(p => p.Nombre != sub.PlanNombre))
+                        @if (!planesCambio.Any())
                         {
                             <div class="form-text text-warning">No hay otros planes disponibles para cambiar.</div>
                         }
@@ -229,3 +233,4 @@
         </div>
     </div>
 </div>
+}

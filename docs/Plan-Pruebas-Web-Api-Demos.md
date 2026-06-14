@@ -32,6 +32,12 @@ Una demo esta lista cuando:
 - El recorrido Web principal termina sin errores 500, 403 inesperados, selects vacios criticos ni pantallas sin accion.
 - Los endpoints API criticos devuelven contratos consistentes y errores esperados en negativos.
 
+Ultima validacion tecnica registrada (2026-06-14):
+
+- `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
+- `dotnet test NeoSTP.slnx`: 697 unitarias + 9 integracion verdes.
+- HB-1 cerrado operativo; API mobile AM-0..AM-6 cerrado operativo al 100%.
+
 ## Ambientes
 
 | Ambiente | Uso | Proveedores |

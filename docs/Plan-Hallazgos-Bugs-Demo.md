@@ -8,6 +8,9 @@
 > `manuelberganza-dev/neocloud_mobile_android`. En este repositorio solo se trabaja backend/API,
 > contrato HTTP, permisos, datos demo y pruebas. El plan detallado esta en
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
+>
+> Actualizacion 2026-06-14: API mobile AM-0..AM-6 quedo cerrada operativa al 100%. HB-1 tambien
+> quedo cerrado operativo con build limpio y suite completa verde: 697 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -24,39 +27,49 @@ para Web/API.
 - Los proveedores externos deben seguir siendo pluggables: default seguro en `Mock`, activacion real por config.
 - Cada sprint termina con evidencia: tests, capturas o checklist de demo ejecutado.
 
+## Estado de Ejecucion 2026-06-14
+
+| Sprint | Estado | Evidencia |
+|---|---|---|
+| HB-0 | Cerrado documental | README raiz, README API, contexto maestro, plan de bugs y plan de pruebas enlazados. |
+| API mobile AM-0..AM-6 | Cerrado operativo 100% | Contrato Android, permisos, datos demo, NeoScan/Gemini, POS/cobros/alertas y runbook actualizados. |
+| HB-1 | Cerrado operativo 100% | Billing sin `Id` duplicado, Billing Portal sin null refs, Infrastructure sin PackageReferences redundantes; build 0 warnings y tests 697 + 9 verdes. |
+
 ## Siguiente Sprint Recomendado
 
-**HB-0 - Alineacion documental y backlog ejecutable.**
+**HB-4 + HB-3 - Evidencia de demo Web/API.**
 
-Motivo: hay contradicciones entre documentos historicos y estado actual, especialmente NeoScan/Gemini,
-integraciones reales y conteos de pruebas. Antes de tocar codigo conviene dejar una fuente de verdad
-para que cada bug y mejora tenga un sprint, criterio de aceptacion y plan de validacion.
+Motivo: con API mobile y HB-1 ya cerrados, el mayor riesgo de cliente no es otro bug de build sino
+fallar una demo por datos incompletos, permisos inesperados, pantalla vacia o endpoint critico sin
+evidencia HTTP. Conviene ejecutar primero la ruta Web por rol y la bateria API de alto valor.
 
 Entregables:
 
-- Este plan de sprints.
-- Plan completo de pruebas Web/API para demos.
-- README raiz, contexto maestro y README API enlazando ambos documentos.
-- Backlog de hallazgos priorizado.
+- Corrida del plan `docs/Plan-Pruebas-Web-Api-Demos.md` con usuario `ADMIN`, `OPERADOR`, `CONTADOR`
+  y receptor publico.
+- Smoke API de alto valor: auth, dashboard, DTE, POS/caja, cobros, Scan, portal, NeoConnect.
+- Evidencia por corrida: branch, commit, ambiente, usuarios, endpoints/pantallas, errores y decision
+  "apto demo / apto con advertencias / no apto".
+- Hallazgos nuevos clasificados en este backlog o issue tracker.
 
 Criterio de cierre:
 
-- Documentos enlazados desde la documentacion principal.
-- No hay cambios de codigo.
-- `git diff` revisado y commit creado sin push.
+- Demo Web de 60-90 minutos sin bloqueantes.
+- Smoke API sin 500, 403 inesperados ni contratos rotos.
+- Evidencia guardada y documentacion actualizada antes del commit.
 
 ## Roadmap de Sprints
 
 | Sprint | Prioridad | Tema | Resultado esperado |
 |---|---:|---|---|
 | HB-0 | Alta | Alineacion documental y backlog | Fuente de verdad actualizada y plan accionable |
-| HB-1 | Alta | Limpieza de warnings y bugs menores | Build mas limpio, sin warnings obvios de dominio/vistas |
+| HB-1 | Alta | Limpieza de warnings y bugs menores | Cerrado operativo: build 0 warnings y suite 697 + 9 verde |
 | HB-2 | Alta | NeoScan/Gemini productivo | OCR real mas seguro, asincrono y medible |
 | HB-3 | Alta | Pruebas API de alto valor | Flujos criticos cubiertos con integracion/host real |
 | HB-4 | Alta | Pruebas Web para demo comercial | Recorrido Web repetible por rol y evidencia visual |
 | HB-5 | Media-alta | Datos demo y escenarios comerciales | Demo con datos completos, no pantallas vacias |
 | HB-6 | Media-alta | Contratos API y versionado | API mas estable para mobile/integradores |
-| AM-1 | Alta | Compatibilidad API movil | Contrato Android sin bugs de permisos, auth, bytes ni timeouts |
+| AM-0..AM-6 | Alta | API movil Android | Cerrado operativo 100%: contrato, pruebas, datos demo y runbook |
 | HB-7 | Media | Storage, secretos y retencion | Archivos fiscales y secretos operados con guardrails |
 | HB-8 | Media | Runbook de demo y release | Checklist previo a demo/release ejecutable |
 
@@ -98,19 +111,35 @@ Validacion:
 Criterio de cierre:
 
 - Build sin los warnings corregidos.
-- 681 unitarias + 7 integracion siguen verdes o conteo actualizado si se agregan tests.
+- 697 unitarias + 9 integracion siguen verdes.
+- Sin migraciones accidentales.
+
+### Cierre Operativo 2026-06-14
+
+- Se eliminaron los `Id` duplicados en `BillingCustomer`, `BillingSubscription`, `BillingInvoice`,
+  `BillingPayment`, `BillingPlanProviderMapping` y `BillingWebhookEvent`; el `Id` queda heredado desde
+  `AuditableEntity`.
+- `Views/Billing/Portal.cshtml` solo renderiza el modal de cambio de plan cuando existe suscripcion y
+  calcula una lista `planesCambio` no nullable.
+- `NeoSTP.Infrastructure.csproj` retiro PackageReferences redundantes ya cubiertos por
+  `Microsoft.AspNetCore.App` o dependencias transitivas.
+- Validacion ejecutada: `dotnet build NeoSTP.slnx` = 0 warnings/0 errores; `dotnet test NeoSTP.slnx`
+  = 697 unitarias + 9 integracion verdes.
 
 ## HB-2 - NeoScan/Gemini Productivo
 
+Estado 2026-06-14: hardening operativo cerrado por AM-3 para mobile/demo. Gemini ya usa
+`x-goog-api-key`, el modelo es configurable, existe whitelist MIME, timeout OCR, metadata persistida y
+reintento seguro. HB-2 queda como sprint residual solo si se decide llevar NeoScan a OCR asincrono
+completo o conectar "registrar compra" con Compras/CxP/Inventario.
+
 Hallazgos:
 
-- Gemini real existe (`Scan:Provider=Gemini`), pero docs historicas aun dicen que OCR real esta pendiente.
-- La API key se envia como query string; conviene usar `x-goog-api-key`.
-- Modelo por defecto documentado como `gemini-2.0-flash`; mantener configurable y actualizar recomendacion.
-- OCR se ejecuta dentro del request de subida; esto puede degradar UX movil/web.
-- Cualquier confianza `> 0` deja el documento en `PROCESADO`; falta umbral configurable.
-- Falta whitelist fuerte de MIME/tipo real.
-- "Registrar compra" desde NeoScan crea `ProfitCompra`, no una compra operativa con proveedor/CxP/inventario.
+- Cerrado AM-3: Gemini real documentado y configurable.
+- Cerrado AM-3: API key viaja por header `x-goog-api-key`, no query string.
+- Cerrado AM-3: umbral de confianza y MIME permitidos configurables.
+- Mitigado AM-3: timeout OCR evita bloquear la app; OCR asincrono/polling avanzado queda V3.
+- Residual: "Registrar compra" desde NeoScan crea `ProfitCompra`, no una compra operativa con proveedor/CxP/inventario.
 
 Entregables:
 
@@ -284,11 +313,11 @@ Criterio de cierre:
 | ID | Severidad | Hallazgo | Sprint |
 |---|---:|---|---|
 | HB-001 | Alta | Docs historicas contradicen estado de NeoScan/Gemini y proveedores reales | HB-0 |
-| HB-002 | Media | Warnings de build en Billing, vista Billing y PackageReferences | HB-1 |
-| HB-003 | Alta | Gemini API key en query string | HB-2 |
-| HB-004 | Alta | OCR sincronico durante subida de documento | HB-2 |
-| HB-005 | Alta | Umbral de confianza demasiado permisivo (`> 0`) | HB-2 |
-| HB-006 | Media-alta | Falta whitelist estricta de MIME/tipo de archivo | HB-2 |
+| HB-002 | Media | Cerrado: warnings de build en Billing, vista Billing y PackageReferences | HB-1 |
+| HB-003 | Alta | Cerrado AM-3: Gemini API key via header `x-goog-api-key` | HB-2/AM-3 |
+| HB-004 | Alta | Mitigado AM-3: OCR con timeout y reintento; polling asincrono queda V3 | HB-2/AM-3 |
+| HB-005 | Alta | Cerrado AM-3: umbral de confianza configurable | HB-2/AM-3 |
+| HB-006 | Media-alta | Cerrado AM-3: whitelist estricta de MIME/tipo de archivo | HB-2/AM-3 |
 | HB-007 | Media-alta | "Compra" desde Scan no cubre compra operativa/CxP/inventario | HB-2 |
 | HB-008 | Alta | Pocas pruebas de integracion para la amplitud real de API | HB-3 |
 | HB-009 | Alta | Falta checklist Web recurrente por rol para demos | HB-4 |
@@ -316,9 +345,9 @@ Criterio de cierre:
 
 ## Orden de Ejecucion Recomendado
 
-1. HB-0 y HB-1 en el mismo ciclo corto.
-2. AM-1 antes de cualquier prueba formal con la app Android existente.
-3. HB-2/AM-3 antes de vender NeoScan como OCR real.
-4. HB-3/AM-2 y HB-4 antes de cualquier demo ejecutiva importante.
-5. HB-5/AM-4 para mejorar demos comerciales.
-6. HB-6/AM-6, HB-7 y HB-8 como cierre de consolidacion antes de nuevos proyectos.
+1. HB-0, API mobile AM-0..AM-6 y HB-1 ya quedaron cerrados operativos.
+2. Ejecutar HB-4 y HB-3 antes de cualquier demo ejecutiva importante.
+3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
+   operativa Compras/CxP/Inventario desde Scan.
+4. Ejecutar HB-5 si la demo muestra pantallas sin datos comerciales suficientes.
+5. Cerrar HB-6, HB-7 y HB-8 como consolidacion antes de nuevos proyectos o modulos.

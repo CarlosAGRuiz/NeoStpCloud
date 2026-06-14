@@ -5,19 +5,20 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Fases V2 y V2.5 CERRADAS (2026-06-10/11) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores · **Tests:** 681 unit + 7 integración (CI verde)
+> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-1 CERRADAS (2026-06-14) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 697 unit + 9 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
 
-## Estado actual — 2026-06-11 · FASES V2 Y V2.5 CERRADAS
+## Estado actual — 2026-06-14 · FASES V2/V2.5, API MOBILE Y HB-1 CERRADAS
 
 NeoSTP Cloud es un **producto funcionalmente completo**: los 17 modulos licenciables estan
 entregados, el ciclo de negocio opera de punta a punta y todo proveedor externo es pluggable
 por configuracion (los defaults funcionan sin servicios externos).
 
 **Numeros del sistema**: 17 modulos · ~89 tablas · 55 migraciones · 38 controllers API ·
-~45 pantallas web · 8 jobs de Worker · **681 tests unitarios + 7 de integracion** · CI verde.
+~45 pantallas web · 8 jobs de Worker · **697 tests unitarios + 9 de integracion** · build local
+con 0 warnings.
 
 **Lo que el producto hace hoy** (todo probado): emision de 9 tipos de DTE certificados contra
 apitest de Hacienda (incl. 07 Retencion), POS con corte de caja y promocion a DTE, CxC con
@@ -30,12 +31,13 @@ branding, onboarding, i18n es/en, buscador global Ctrl+K y panel operativo Super
 
 **Pendiente real** (insumos externos, no codigo): credenciales Meta WhatsApp + plantilla aprobada,
 Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado DTE de produccion
-(ambiente 01) por cliente, y la app Flutter (repo aparte, backend listo). Backlog V3 en README.
+(ambiente 01) por cliente, y mantenimiento del contrato con la app Android en repo aparte
+(`manuelberganza-dev/neocloud_mobile_android`). Backlog V3 en README.
 
-**Prioridad inmediata post-analisis (2026-06-14):** consolidar hallazgos y preparar demos antes de
-abrir nuevos modulos. Ver `docs/Plan-Hallazgos-Bugs-Demo.md` para los sprints HB-0..HB-8
-(documentacion, warnings, NeoScan/Gemini, pruebas API/Web, datos demo, contratos, storage y runbook)
-y `docs/Plan-Pruebas-Web-Api-Demos.md` para la bateria repetible de pruebas de demo.
+**Prioridad inmediata post-analisis (2026-06-14):** HB-0, API mobile AM-0..AM-6 y HB-1 ya quedaron
+cerrados operativos. El siguiente trabajo recomendado es HB-4/HB-3: ejecutar pruebas Web por rol y
+smoke API de alto valor con evidencia de demo antes de abrir nuevos modulos. Ver
+`docs/Plan-Hallazgos-Bugs-Demo.md` y `docs/Plan-Pruebas-Web-Api-Demos.md`.
 
 ### Fases del proyecto (historial)
 
@@ -56,7 +58,8 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 
 ### Todo lo que se ha probado
 
-1. **Suites automatizadas**: 681 unit + 7 integracion, 0 fallos, CI GitHub Actions en cada push.
+1. **Suites automatizadas**: 697 unit + 9 integracion, 0 fallos; validacion local 2026-06-14 con
+   `dotnet build NeoSTP.slnx` en 0 warnings/0 errores.
    Calculadoras puras con cobertura dedicada (nomina, cobranza, POS, caja, CxP, costo promedio,
    ESC/POS, libro IVA, conciliacion 1:1 y combinaciones, profit, validador de clientes).
 2. **Certificacion Hacienda real** (Sprint 12 + modulo): matriz de escenarios PROCESADA contra
@@ -77,8 +80,12 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
    outline, scroll del menu lateral que se perdia al navegar.
    **Leccion operativa: probar cada pantalla con rol ADMIN, no SUPERADMIN (bypassa permisos).**
 6. **Mejoras UX entregadas**: dashboard con KPIs de negocio (cartera vencida, tesoreria, alertas),
-   buscador global Ctrl+K (clientes/productos/DTE por permiso), historial de recordatorios,
-   CTAs en estados vacios, selector territorial en cascada (Empresas/Sucursales/Clientes).
+    buscador global Ctrl+K (clientes/productos/DTE por permiso), historial de recordatorios,
+    CTAs en estados vacios, selector territorial en cascada (Empresas/Sucursales/Clientes).
+7. **API mobile operativa**: AM-0..AM-6 cerrados contra la app Android existente; contrato HTTP,
+   permisos, datos demo, NeoScan/Gemini, POS/cobros/alertas y runbook documentados.
+8. **HB-1 cerrado**: Billing sin `Id` duplicado, Billing Portal protegido contra null refs e
+   Infrastructure sin PackageReferences redundantes.
 ---
 
 ## Índice
