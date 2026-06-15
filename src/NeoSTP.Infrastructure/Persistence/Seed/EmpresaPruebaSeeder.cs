@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Pos;
@@ -10,14 +12,21 @@ using NeoSTP.Application.Provisioning;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Cobranza;
+using NeoSTP.Domain.Core.Compras;
+using NeoSTP.Domain.Core.Crm;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Notificaciones;
+using NeoSTP.Domain.Core.Portal;
 using NeoSTP.Domain.Core.Pos;
 using NeoSTP.Domain.Core.Productos;
+using NeoSTP.Domain.Core.Profit;
+using NeoSTP.Domain.Core.Rrhh;
 using NeoSTP.Domain.Core.Scan;
 using NeoSTP.Domain.Core.Seguridad;
+using NeoSTP.Domain.Core.Tesoreria;
 
 namespace NeoSTP.Infrastructure.Persistence.Seed;
 
@@ -224,15 +233,25 @@ public static class EmpresaPruebaSeeder
 
         var clientes = await EnsureMobileClientesAsync(db, empresa.Id, actor, ct);
         var productos = await EnsureMobileProductosAsync(db, empresa.Id, actor, ct);
-        var (_, credito) = await EnsureMobileDtesAsync(db, empresa, sucursal?.Id, puntoVenta?.Id, clientes, productos, actor, ct);
+        var (factura, credito) = await EnsureMobileDtesAsync(db, empresa, sucursal?.Id, puntoVenta?.Id, clientes, productos, actor, ct);
 
         await EnsureMobileCobrosAsync(db, empresa.Id, credito, actor, ct);
         await EnsureMobilePosAsync(db, empresa.Id, sucursal?.Id, puntoVenta?.Id, clientes[0], productos[0], actor, ct);
         await EnsureMobileScanAsync(db, empresa.Id, actor, ct);
         await EnsureMobileAlertasAsync(db, empresa.Id, credito.Id, actor, ct);
+        await EnsureCommercialDteAsync(db, empresa, sucursal?.Id, puntoVenta?.Id, clientes[1], productos[1], credito, actor, ct);
+
+        var proveedor = await EnsureCommercialProveedorAsync(db, empresa.Id, actor, ct);
+        var facturaCompra = await EnsureCommercialCompraAsync(db, empresa.Id, proveedor, actor, ct);
+        await EnsureCommercialInventarioAsync(db, empresa.Id, productos, facturaCompra.Id, actor, ct);
+        await EnsureCommercialTesoreriaAsync(db, empresa.Id, credito.Id, facturaCompra.Id, actor, ct);
+        await EnsureCommercialPortalAsync(db, empresa.Id, factura.Id, credito.ClienteId ?? clientes[1].Id, actor, ct);
+        await EnsureCommercialCrmAsync(db, empresa.Id, clientes[1], productos, actor, ct);
+        await EnsureCommercialRrhhAsync(db, empresa.Id, sucursal?.Id, actor, ct);
+        await EnsureCommercialProfitAsync(db, empresa.Id, proveedor.Nombre, facturaCompra.NumeroDocumento, actor, ct);
 
         logger.LogWarning(
-            "EmpresaPruebaSeeder: datos demo mobile asegurados para empresa {Nit}. Usuarios: mobile.admin, mobile.dte.consulta, mobile.pos, mobile.cobros, mobile.scan, mobile.limitado.",
+            "EmpresaPruebaSeeder: datos demo mobile/comerciales asegurados para empresa {Nit}. Usuarios: mobile.admin, mobile.dte.consulta, mobile.pos, mobile.cobros, mobile.scan, mobile.limitado.",
             empresa.Nit);
     }
 
@@ -663,12 +682,665 @@ public static class EmpresaPruebaSeeder
         await db.SaveChangesAsync(ct);
     }
 
+    private static async Task EnsureCommercialDteAsync(
+        NeoStpDbContext db,
+        Empresa empresa,
+        int? sucursalId,
+        int? puntoVentaId,
+        Cliente cliente,
+        Producto producto,
+        DteDocumento documentoRelacionado,
+        string actor,
+        CancellationToken ct)
+    {
+        var notaCredito = await EnsureMobileDteAsync(
+            db, empresa.Id, sucursalId, puntoVentaId, cliente, producto,
+            TipoDteCodigos.NotaCredito, "1", null,
+            "DTE-05-CDEMO-000000000000003",
+            DemoCodigoGeneracion("33333333", "4333", "8333", empresa.Id),
+            "Sello demo nota credito", 1m, 6.75m, actor, ct);
+
+        var notaDebito = await EnsureMobileDteAsync(
+            db, empresa.Id, sucursalId, puntoVentaId, cliente, producto,
+            TipoDteCodigos.NotaDebito, "1", null,
+            "DTE-06-CDEMO-000000000000004",
+            DemoCodigoGeneracion("44444444", "4444", "8444", empresa.Id),
+            "Sello demo nota debito", 1m, 4.50m, actor, ct);
+
+        await LinkDocumentoRelacionadoAsync(db, notaCredito, documentoRelacionado, actor, ct);
+        await LinkDocumentoRelacionadoAsync(db, notaDebito, documentoRelacionado, actor, ct);
+    }
+
+    private static async Task LinkDocumentoRelacionadoAsync(
+        NeoStpDbContext db,
+        DteDocumento documento,
+        DteDocumento relacionado,
+        string actor,
+        CancellationToken ct)
+    {
+        if (documento.DocumentoRelacionadoId == relacionado.Id &&
+            documento.NumeroDocumentoRelacionado == relacionado.NumeroControl)
+        {
+            return;
+        }
+
+        documento.DocumentoRelacionadoId = relacionado.Id;
+        documento.NumeroDocumentoRelacionado = relacionado.NumeroControl;
+        documento.TipoDteRelacionado = relacionado.TipoDteCodigo;
+        documento.TipoGeneracionRelacionado = "2";
+        documento.UpdatedAt = DateTime.UtcNow;
+        documento.UpdatedBy = actor;
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task<Proveedor> EnsureCommercialProveedorAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        string actor,
+        CancellationToken ct)
+    {
+        var proveedor = await db.Proveedores.FirstOrDefaultAsync(p => p.EmpresaId == empresaId && p.Codigo == "DEM-PROV-01", ct);
+        if (proveedor is not null) return proveedor;
+
+        proveedor = new Proveedor
+        {
+            EmpresaId = empresaId,
+            Codigo = "DEM-PROV-01",
+            Nombre = "Proveedor Comercial Demo SA de CV",
+            Nit = "0614-030303-103-3",
+            Nrc = "456789-0",
+            Contacto = "Ana Proveedora",
+            Telefono = "7000-1000",
+            Email = "proveedor.demo@demo.local",
+            Direccion = "Zona industrial, San Salvador",
+            PlazoDiasDefault = 30,
+            EstadoCodigo = ProveedorEstados.Activo,
+            CreatedBy = actor,
+        };
+        db.Proveedores.Add(proveedor);
+        await db.SaveChangesAsync(ct);
+        return proveedor;
+    }
+
+    private static async Task<FacturaCompra> EnsureCommercialCompraAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        Proveedor proveedor,
+        string actor,
+        CancellationToken ct)
+    {
+        var factura = await db.FacturasCompra.FirstOrDefaultAsync(f =>
+            f.EmpresaId == empresaId &&
+            f.ProveedorId == proveedor.Id &&
+            f.NumeroDocumento == "COMP-DEMO-0001", ct);
+        if (factura is null)
+        {
+            factura = new FacturaCompra
+            {
+                EmpresaId = empresaId,
+                ProveedorId = proveedor.Id,
+                NumeroDocumento = "COMP-DEMO-0001",
+                TipoDocumento = TiposDocumentoCompra.Ccf,
+                FechaEmision = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-12)),
+                FechaVencimiento = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(18)),
+                CondicionPago = CondicionesPagoCompra.Credito,
+                Subtotal = 320m,
+                Iva = 41.60m,
+                Total = 361.60m,
+                IvaDeducible = true,
+                Descripcion = "Compra demo de inventario y suministros para cierre comercial.",
+                EstadoCodigo = FacturaCompraEstados.Parcial,
+                CreatedBy = actor,
+            };
+            db.FacturasCompra.Add(factura);
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (!await db.PagosProveedor.AnyAsync(p => p.EmpresaId == empresaId && p.Referencia == "PAGO-COMP-DEMO-0001", ct))
+        {
+            db.PagosProveedor.Add(new PagoProveedor
+            {
+                EmpresaId = empresaId,
+                FacturaCompraId = factura.Id,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-4)),
+                Monto = 120m,
+                FormaPagoCodigo = "TRANSFERENCIA",
+                Referencia = "PAGO-COMP-DEMO-0001",
+                Nota = "Pago parcial proveedor demo.",
+                EstadoCodigo = PagoProveedorEstados.Confirmado,
+                CreatedBy = actor,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+
+        return factura;
+    }
+
+    private static async Task EnsureCommercialInventarioAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        IReadOnlyList<Producto> productos,
+        int facturaCompraId,
+        string actor,
+        CancellationToken ct)
+    {
+        var producto = productos.First(p => p.CodigoInterno == "MOB-USB");
+        var existencia = await db.ExistenciasProducto.FirstOrDefaultAsync(e => e.EmpresaId == empresaId && e.ProductoId == producto.Id, ct);
+        if (existencia is null)
+        {
+            existencia = new ExistenciaProducto
+            {
+                EmpresaId = empresaId,
+                ProductoId = producto.Id,
+                Cantidad = 18m,
+                CostoPromedio = 9.80m,
+                StockMinimo = 8m,
+                CreatedBy = actor,
+            };
+            db.ExistenciasProducto.Add(existencia);
+        }
+        else if (existencia.Cantidad <= 0)
+        {
+            existencia.Cantidad = 18m;
+            existencia.CostoPromedio = 9.80m;
+            existencia.StockMinimo = existencia.StockMinimo <= 0 ? 8m : existencia.StockMinimo;
+            existencia.UpdatedAt = DateTime.UtcNow;
+            existencia.UpdatedBy = actor;
+        }
+
+        if (!await db.MovimientosInventario.AnyAsync(m => m.EmpresaId == empresaId && m.Referencia == "INV-DEMO-ENTRADA", ct))
+        {
+            db.MovimientosInventario.Add(new MovimientoInventario
+            {
+                EmpresaId = empresaId,
+                ProductoId = producto.Id,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)),
+                Tipo = TiposMovimientoInventario.Entrada,
+                Cantidad = 25m,
+                CostoUnitario = 9.80m,
+                Origen = OrigenesMovimientoInventario.Compra,
+                OrigenId = facturaCompraId,
+                Referencia = "INV-DEMO-ENTRADA",
+                Nota = "Entrada demo desde factura de compra.",
+                SaldoCantidad = 25m,
+                SaldoCostoPromedio = 9.80m,
+                CreatedBy = actor,
+            });
+        }
+
+        if (!await db.MovimientosInventario.AnyAsync(m => m.EmpresaId == empresaId && m.Referencia == "INV-DEMO-SALIDA", ct))
+        {
+            db.MovimientosInventario.Add(new MovimientoInventario
+            {
+                EmpresaId = empresaId,
+                ProductoId = producto.Id,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)),
+                Tipo = TiposMovimientoInventario.Salida,
+                Cantidad = 7m,
+                CostoUnitario = 9.80m,
+                Origen = OrigenesMovimientoInventario.Venta,
+                Referencia = "INV-DEMO-SALIDA",
+                Nota = "Salida demo por venta POS.",
+                SaldoCantidad = 18m,
+                SaldoCostoPromedio = 9.80m,
+                CreatedBy = actor,
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureCommercialTesoreriaAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        int dteCreditoId,
+        int facturaCompraId,
+        string actor,
+        CancellationToken ct)
+    {
+        var cuenta = await db.CuentasTesoreria.FirstOrDefaultAsync(c => c.EmpresaId == empresaId && c.Codigo == "BAC-DEMO", ct);
+        if (cuenta is null)
+        {
+            cuenta = new CuentaTesoreria
+            {
+                EmpresaId = empresaId,
+                Codigo = "BAC-DEMO",
+                Nombre = "Banco Demo Operativo",
+                TipoCuenta = TiposCuentaTesoreria.Banco,
+                Banco = "Banco Demo",
+                NumeroCuenta = "000-123456-9",
+                MonedaCodigo = "USD",
+                SaldoInicial = 1000m,
+                SaldoActual = 1380m,
+                EstadoCodigo = EstadosCuentaTesoreria.Activa,
+                CreatedBy = actor,
+            };
+            db.CuentasTesoreria.Add(cuenta);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var ingreso = await EnsureMovimientoTesoreriaAsync(
+            db, cuenta, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)), TiposMovimientoTesoreria.Ingreso,
+            500m, "Cobro parcial cliente demo", "TES-DEMO-COBRO-01", OrigenesMovimientoTesoreria.Cobro,
+            dteCreditoId, 1500m, actor, ct);
+        var egreso = await EnsureMovimientoTesoreriaAsync(
+            db, cuenta, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)), TiposMovimientoTesoreria.Egreso,
+            120m, "Pago parcial proveedor demo", "TES-DEMO-PAGO-01", OrigenesMovimientoTesoreria.Compra,
+            facturaCompraId, 1380m, actor, ct);
+
+        if (!await db.MovimientosBancarios.AnyAsync(m => m.EmpresaId == empresaId && m.Referencia == "BAN-DEMO-COBRO-01", ct))
+        {
+            var banco = new MovimientoBancario
+            {
+                EmpresaId = empresaId,
+                CuentaTesoreriaId = cuenta.Id,
+                Fecha = ingreso.Fecha,
+                Referencia = "BAN-DEMO-COBRO-01",
+                Descripcion = "Deposito cliente demo conciliado",
+                Monto = ingreso.Monto,
+                EstadoCodigo = EstadosConciliacion.Conciliado,
+                MovimientoTesoreriaId = ingreso.Id,
+                ConciliadoAt = DateTime.UtcNow.AddDays(-2),
+                ConciliadoPor = actor,
+                CreatedBy = actor,
+            };
+            db.MovimientosBancarios.Add(banco);
+            await db.SaveChangesAsync(ct);
+
+            if (!await db.ConciliacionDetalles.AnyAsync(d => d.EmpresaId == empresaId && d.MovimientoTesoreriaId == ingreso.Id, ct))
+            {
+                db.ConciliacionDetalles.Add(new ConciliacionDetalle
+                {
+                    EmpresaId = empresaId,
+                    MovimientoBancarioId = banco.Id,
+                    MovimientoTesoreriaId = ingreso.Id,
+                    Monto = ingreso.Monto,
+                    CreatedBy = actor,
+                });
+                await db.SaveChangesAsync(ct);
+            }
+        }
+
+        if (!await db.MovimientosBancarios.AnyAsync(m => m.EmpresaId == empresaId && m.Referencia == "BAN-DEMO-PEND-01", ct))
+        {
+            db.MovimientosBancarios.Add(new MovimientoBancario
+            {
+                EmpresaId = empresaId,
+                CuentaTesoreriaId = cuenta.Id,
+                Fecha = egreso.Fecha,
+                Referencia = "BAN-DEMO-PEND-01",
+                Descripcion = "Cargo bancario pendiente de conciliar",
+                Monto = -35m,
+                EstadoCodigo = EstadosConciliacion.NoConciliado,
+                CreatedBy = actor,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    private static async Task<MovimientoTesoreria> EnsureMovimientoTesoreriaAsync(
+        NeoStpDbContext db,
+        CuentaTesoreria cuenta,
+        DateOnly fecha,
+        string tipo,
+        decimal monto,
+        string concepto,
+        string referencia,
+        string origen,
+        int origenId,
+        decimal saldoResultante,
+        string actor,
+        CancellationToken ct)
+    {
+        var mov = await db.MovimientosTesoreria.FirstOrDefaultAsync(m => m.EmpresaId == cuenta.EmpresaId && m.Referencia == referencia, ct);
+        if (mov is not null) return mov;
+
+        mov = new MovimientoTesoreria
+        {
+            EmpresaId = cuenta.EmpresaId,
+            CuentaId = cuenta.Id,
+            Fecha = fecha,
+            Tipo = tipo,
+            Monto = monto,
+            Concepto = concepto,
+            Referencia = referencia,
+            Origen = origen,
+            OrigenId = origenId,
+            SaldoResultante = saldoResultante,
+            EstadoCodigo = EstadosMovimientoTesoreria.Confirmado,
+            CreatedBy = actor,
+        };
+        db.MovimientosTesoreria.Add(mov);
+        await db.SaveChangesAsync(ct);
+        return mov;
+    }
+
+    private static async Task EnsureCommercialPortalAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        int dteDocumentoId,
+        int clienteId,
+        string actor,
+        CancellationToken ct)
+    {
+        await EnsurePortalAccesoAsync(db, empresaId, PortalAccesoTipos.Documento, dteDocumentoId, null, "portal-demo-documento", "Documento demo publicado para receptor.", actor, ct);
+        await EnsurePortalAccesoAsync(db, empresaId, PortalAccesoTipos.EstadoCuenta, null, clienteId, "portal-demo-estado-cuenta", "Estado de cuenta demo publicado para receptor.", actor, ct);
+    }
+
+    private static async Task EnsurePortalAccesoAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        string tipo,
+        int? dteDocumentoId,
+        int? clienteId,
+        string tokenSeed,
+        string nota,
+        string actor,
+        CancellationToken ct)
+    {
+        var hash = DemoTokenHash(empresaId, tokenSeed);
+        if (await db.PortalAccesos.AnyAsync(p => p.TokenHash == hash, ct))
+            return;
+
+        db.PortalAccesos.Add(new PortalAcceso
+        {
+            EmpresaId = empresaId,
+            Tipo = tipo,
+            DteDocumentoId = dteDocumentoId,
+            ClienteId = clienteId,
+            TokenHash = hash,
+            ExpiraAt = DateTime.UtcNow.AddDays(30),
+            Accesos = 1,
+            UltimoAccesoAt = DateTime.UtcNow.AddDays(-1),
+            Nota = nota,
+            CreatedBy = actor,
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureCommercialCrmAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        Cliente cliente,
+        IReadOnlyList<Producto> productos,
+        string actor,
+        CancellationToken ct)
+    {
+        var etapa = await db.EtapasPipelineCrm.FirstOrDefaultAsync(e => e.EmpresaId == empresaId && e.Codigo == "DEMO_PROPUESTA", ct);
+        if (etapa is null)
+        {
+            etapa = new EtapaPipelineCrm
+            {
+                EmpresaId = empresaId,
+                Codigo = "DEMO_PROPUESTA",
+                Nombre = "Propuesta enviada",
+                Orden = 20,
+                ProbabilidadDefault = 0.65m,
+                Activa = true,
+                CreatedBy = actor,
+            };
+            db.EtapasPipelineCrm.Add(etapa);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var contacto = await db.ContactosCrm.FirstOrDefaultAsync(c => c.EmpresaId == empresaId && c.Email == "compras.demo@cliente.local", ct);
+        if (contacto is null)
+        {
+            contacto = new ContactoCrm
+            {
+                EmpresaId = empresaId,
+                ClienteId = cliente.Id,
+                Nombre = "Mariana Cliente Demo",
+                Cargo = "Gerente de compras",
+                Email = "compras.demo@cliente.local",
+                Telefono = "7000-2000",
+                Origen = ContactoCrmOrigenes.Cliente,
+                EstadoCodigo = ContactoCrmEstados.Activo,
+                Notas = "Contacto demo para pipeline comercial.",
+                CreatedBy = actor,
+            };
+            db.ContactosCrm.Add(contacto);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var oportunidad = await db.OportunidadesCrm.FirstOrDefaultAsync(o => o.EmpresaId == empresaId && o.Titulo == "Renovacion anual soporte demo", ct);
+        if (oportunidad is null)
+        {
+            oportunidad = new OportunidadCrm
+            {
+                EmpresaId = empresaId,
+                ClienteId = cliente.Id,
+                ContactoCrmId = contacto.Id,
+                EtapaPipelineCrmId = etapa.Id,
+                Titulo = "Renovacion anual soporte demo",
+                Descripcion = "Oportunidad comercial demo con cotizacion lista para convertir a DTE.",
+                MontoEstimado = 678m,
+                Probabilidad = 0.65m,
+                FechaApertura = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-8)),
+                FechaCierreEstimada = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(12)),
+                EstadoCodigo = OportunidadCrmEstados.Abierta,
+                CreatedBy = actor,
+            };
+            db.OportunidadesCrm.Add(oportunidad);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var producto = productos.First(p => p.CodigoInterno == "MOB-SOPORTE");
+        if (!await db.CotizacionesCrm.AnyAsync(c => c.EmpresaId == empresaId && c.Numero == "COT-DEMO-0001", ct))
+        {
+            var cantidad = 6m;
+            var precio = 100m;
+            var ventaGravada = cantidad * precio;
+            var iva = Math.Round(ventaGravada * 0.13m, 4, MidpointRounding.AwayFromZero);
+            db.CotizacionesCrm.Add(new CotizacionCrm
+            {
+                EmpresaId = empresaId,
+                OportunidadCrmId = oportunidad.Id,
+                ClienteId = cliente.Id,
+                ContactoCrmId = contacto.Id,
+                Numero = "COT-DEMO-0001",
+                Titulo = "Soporte anual demo",
+                FechaEmision = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)),
+                FechaValidez = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(15)),
+                EstadoCodigo = CotizacionCrmEstados.Enviada,
+                MonedaCodigo = "USD",
+                SubTotal = ventaGravada,
+                DescuentoTotal = 0m,
+                IvaTotal = iva,
+                Total = ventaGravada + iva,
+                Observaciones = "Cotizacion demo lista para aprobacion.",
+                Terminos = "Validez 15 dias. Pago 50% anticipo.",
+                CreatedBy = actor,
+                Lineas =
+                {
+                    new CotizacionCrmLinea
+                    {
+                        EmpresaId = empresaId,
+                        NumeroLinea = 1,
+                        ProductoId = producto.Id,
+                        TipoItem = 2,
+                        Codigo = producto.CodigoInterno,
+                        Descripcion = producto.Nombre,
+                        UnidadMedidaCodigo = producto.UnidadMedidaCodigo,
+                        Cantidad = cantidad,
+                        PrecioUnitario = precio,
+                        VentaGravada = ventaGravada,
+                        IvaItem = iva,
+                        TotalLinea = ventaGravada + iva,
+                        CreatedBy = actor,
+                    },
+                },
+            });
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (!await db.ActividadesCrm.AnyAsync(a => a.EmpresaId == empresaId && a.Asunto == "Seguimiento demo propuesta", ct))
+        {
+            db.ActividadesCrm.Add(new ActividadCrm
+            {
+                EmpresaId = empresaId,
+                OportunidadCrmId = oportunidad.Id,
+                ContactoCrmId = contacto.Id,
+                ClienteId = cliente.Id,
+                Tipo = ActividadCrmTipos.Llamada,
+                Asunto = "Seguimiento demo propuesta",
+                Descripcion = "Confirmar aprobacion de cotizacion demo.",
+                FechaProgramada = DateTime.UtcNow.AddDays(2),
+                EstadoCodigo = ActividadCrmEstados.Pendiente,
+                CreatedBy = actor,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    private static async Task EnsureCommercialRrhhAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        int? sucursalId,
+        string actor,
+        CancellationToken ct)
+    {
+        var empleado = await db.Empleados.FirstOrDefaultAsync(e => e.EmpresaId == empresaId && e.Codigo == "EMP-DEMO-001", ct);
+        if (empleado is null)
+        {
+            empleado = new Empleado
+            {
+                EmpresaId = empresaId,
+                SucursalId = sucursalId,
+                Codigo = "EMP-DEMO-001",
+                Nombres = "Carlos",
+                Apellidos = "Operador Demo",
+                TipoDocumento = "DUI",
+                NumeroDocumento = "03030303-3",
+                Nit = "0614-030303-103-3",
+                IsssNumero = "123456789",
+                AfpInstitucion = "CRECER",
+                AfpNumero = "AFP-000123",
+                FechaNacimiento = new DateOnly(1992, 4, 12),
+                FechaIngreso = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-10)),
+                Cargo = "Operador POS",
+                Email = "empleado.demo@demo.local",
+                Telefono = "7000-3000",
+                EstadoCodigo = EstadoCodes.Activo,
+                CreatedBy = actor,
+            };
+            db.Empleados.Add(empleado);
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (!await db.ContratosLaborales.AnyAsync(c => c.EmpresaId == empresaId && c.EmpleadoId == empleado.Id && c.EstadoCodigo == ContratoEstados.Vigente, ct))
+        {
+            db.ContratosLaborales.Add(new ContratoLaboral
+            {
+                EmpresaId = empresaId,
+                EmpleadoId = empleado.Id,
+                TipoContrato = "INDEFINIDO",
+                SalarioMensual = 900m,
+                PeriodicidadPago = "QUINCENAL",
+                FechaInicio = empleado.FechaIngreso,
+                EstadoCodigo = ContratoEstados.Vigente,
+                CreatedBy = actor,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+
+        var now = DateTime.UtcNow;
+        var periodo = await db.PlanillaPeriodos.FirstOrDefaultAsync(p => p.EmpresaId == empresaId && p.Anio == now.Year && p.Mes == now.Month && p.Quincena == 1, ct);
+        if (periodo is not null) return;
+
+        periodo = new PlanillaPeriodo
+        {
+            EmpresaId = empresaId,
+            Anio = now.Year,
+            Mes = now.Month,
+            Quincena = 1,
+            FechaInicio = new DateOnly(now.Year, now.Month, 1),
+            FechaFin = new DateOnly(now.Year, now.Month, 15),
+            EstadoCodigo = PlanillaEstados.Calculada,
+            TotalDevengado = 450m,
+            TotalDeducciones = 46.13m,
+            TotalNeto = 403.87m,
+            TotalCostoPatronal = 521.99m,
+            CreatedBy = actor,
+            Detalles =
+            {
+                new PlanillaDetalle
+                {
+                    EmpleadoId = empleado.Id,
+                    EmpleadoCodigo = empleado.Codigo,
+                    EmpleadoNombre = empleado.NombreCompleto,
+                    SalarioMensual = 900m,
+                    Devengado = 450m,
+                    Isss = 13.50m,
+                    Afp = 32.63m,
+                    Renta = 0m,
+                    OtrosDescuentos = 0m,
+                    TotalDeducciones = 46.13m,
+                    SalarioNeto = 403.87m,
+                    IsssPatronal = 33.75m,
+                    AfpPatronal = 38.25m,
+                    CostoPatronal = 521.99m,
+                    CreatedBy = actor,
+                },
+            },
+        };
+        db.PlanillaPeriodos.Add(periodo);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureCommercialProfitAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        string proveedor,
+        string numeroCompra,
+        string actor,
+        CancellationToken ct)
+    {
+        if (!await db.ProfitCompras.AnyAsync(c => c.EmpresaId == empresaId && c.NumeroDocumento == numeroCompra, ct))
+        {
+            db.ProfitCompras.Add(new ProfitCompra
+            {
+                EmpresaId = empresaId,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-12)),
+                Proveedor = proveedor,
+                NumeroDocumento = numeroCompra,
+                Descripcion = "Compra comercial demo para P&L.",
+                Subtotal = 320m,
+                IvaMonto = 41.60m,
+                EstadoCodigo = EstadoCodes.Activo,
+                CreatedBy = actor,
+            });
+        }
+
+        if (!await db.ProfitGastos.AnyAsync(g => g.EmpresaId == empresaId && g.Descripcion == "Alquiler local demo", ct))
+        {
+            db.ProfitGastos.Add(new ProfitGasto
+            {
+                EmpresaId = empresaId,
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-6)),
+                Categoria = "ALQUILER",
+                Descripcion = "Alquiler local demo",
+                Proveedor = "Inmobiliaria Demo",
+                Monto = 250m,
+                IvaMonto = 32.50m,
+                IvaDeducible = true,
+                EstadoCodigo = EstadoCodes.Activo,
+                CreatedBy = actor,
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     private static string DemoJson(string numeroControl, decimal total)
         => "{\"identificacion\":{\"numeroControl\":\"" + numeroControl + "\"},\"resumen\":{\"totalPagar\":" +
            total.ToString(CultureInfo.InvariantCulture) + "}}";
 
     private static string DemoCodigoGeneracion(string prefix, string versionSegment, string variantSegment, int empresaId)
         => $"{prefix}-{prefix[..4]}-{versionSegment}-{variantSegment}-{empresaId:000000000000}";
+
+    private static string DemoTokenHash(int empresaId, string seed)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{empresaId}:{seed}"))).ToLowerInvariant();
 
     /// <summary>
     /// Activa en EmpresaModulos los modulos del plan vigente de la empresa que aun no esten presentes.

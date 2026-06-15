@@ -32,13 +32,14 @@ Una demo esta lista cuando:
 - El recorrido Web principal termina sin errores 500, 403 inesperados, selects vacios criticos ni pantallas sin accion.
 - Los endpoints API criticos devuelven contratos consistentes y errores esperados en negativos.
 
-Ultima validacion tecnica registrada (2026-06-14):
+Ultima validacion tecnica registrada (2026-06-15):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
 - `dotnet test NeoSTP.slnx`: 701 unitarias + 9 integracion verdes.
-- HB-1 y HB-3/HB-4 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
+- HB-1, HB-3/HB-4 y HB-5 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
+- `EmpresaPruebaSeederTests`: 5/5 pruebas verdes para seed demo idempotente API/mobile/comercial.
 
 ## Ambientes
 
@@ -97,6 +98,14 @@ La empresa demo debe tener:
 - 1 empleado y 1 planilla cerrada o calculada.
 - 1 oportunidad CRM y 1 cotizacion convertible.
 
+Cobertura automatica HB-5:
+
+- `EmpresaPrueba:MobileDemo:Enabled=true` cubre esos datos desde el seed idempotente de empresa demo.
+- El fixture comercial incluye DTE consumidor/CCF/notas, CxC, POS/caja, compra/CxP, inventario,
+  tesoreria/conciliacion, portal, NeoScan, CRM, RRHH y Profit.
+- Antes de una demo comercial, reiniciar desde BD limpia o ejecutar migraciones + seed; correr el
+  seed dos veces no debe duplicar escenarios.
+
 ## Cadencia de Pruebas
 
 | Tipo | Duracion | Cuando correrlo |
@@ -106,7 +115,7 @@ La empresa demo debe tener:
 | Regresion demo completa | 4-6 h | Antes de release, demo ejecutiva o entrega a cliente |
 | Regresion automatizada | Segun CI | Cada push/PR |
 
-## Baseline Automatizada HB-3/HB-4
+## Baseline Automatizada HB-3/HB-4/HB-5
 
 La prueba `tests/NeoSTP.Tests.Unit/Api/DemoReadinessContractTests.cs` es obligatoria para aceptar
 cambios que toquen controllers API, controllers Web, permisos, modulos o vistas de demo.
@@ -125,6 +134,12 @@ Comando enfocado:
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter DemoReadinessContractTests
+```
+
+Comando enfocado para datos demo:
+
+```bash
+dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter EmpresaPruebaSeederTests
 ```
 
 ## Preflight Tecnico

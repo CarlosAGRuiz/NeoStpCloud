@@ -10,7 +10,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado actualizado 2026-06-14: Fases V2/V2.5, API mobile AM-0..AM-6, HB-1 y HB-3/HB-4 cerrados
+**Estado actualizado 2026-06-15: Fases V2/V2.5, API mobile AM-0..AM-6, HB-1, HB-3/HB-4 y HB-5 cerrados
 operativos.** El producto opera el ciclo completo de un
 negocio salvadoreño: emite DTE certificados contra Hacienda, vende por POS, cobra, compra, maneja
 inventario, paga planilla, concilia el banco, lleva libros fiscales y contabilidad mínima, y da
@@ -122,7 +122,8 @@ tests/
   OCR (Mock/Gemini), push (Mock/Fcm), WhatsApp (Mock/Meta), caché (Memory/Redis), storage de
   scans (Database/FileSystem), telemetría (off/OTLP). **Los defaults funcionan sin servicios externos.**
 - **Seed determinista** en `SeedData.cs` (`HasData`, capturado por migraciones) + provisioning idempotente
-  de la empresa de pruebas (`EmpresaPruebaSeeder`, con *backfill* de módulos del plan al arrancar).
+  de la empresa de pruebas (`EmpresaPruebaSeeder`, con *backfill* de módulos del plan y datos demo
+  API/mobile/comerciales al arrancar).
 - **Lookups centralizados** (`ILookupService` + `/api/lookups`): catálogos MH (CAT-001..033),
   cascada territorial Departamento→Municipio→Distrito y maestros, con caché de dos niveles.
 
@@ -179,11 +180,14 @@ dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 
 - **701 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
-- **Validacion local 2026-06-14:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
-  `dotnet test NeoSTP.slnx` paso con 701 unitarias + 9 integracion. HB-1 y HB-3/HB-4 quedaron
+- **Validacion local 2026-06-15:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
+  `dotnet test NeoSTP.slnx` paso con 701 unitarias + 9 integracion. HB-1, HB-3/HB-4 y HB-5 quedaron
   cerrados operativos.
 - **HB-3/HB-4 demo readiness**: `DemoReadinessContractTests` congela rutas API criticas, permisos,
   modulos licenciables, API publica NeoConnect v1, rutas Web y existencia de vistas Razor para demos.
+- **HB-5 datos demo comerciales**: `EmpresaPruebaSeederTests` valida que el seed opcional sea
+  idempotente y deje DTE, compras/CxP, inventario, tesoreria, portal, CRM, RRHH y Profit con datos
+  utiles para demo.
 - **Certificación DTE real**: matriz de escenarios transmitida y PROCESADA contra el ambiente de
   pruebas (apitest) de Hacienda — Sprint 12 y módulo de certificación.
 - **Pruebas tipo cliente** (documentadas): recorrido de ~45 pantallas con sesión real de ADMIN,
@@ -251,7 +255,7 @@ Toggles principales (defaults = funcionan sin servicios externos):
 | `Observability:Otlp:Endpoint` | Trazas + métricas OpenTelemetry (vacío = sin overhead) | vacío |
 | `Billing` | Pasarela `Mock` \| Wompi/PayPal/Stripe/MercadoPago + transferencia manual | Mock |
 | `Worker:*` | Jobs: recordatorios, alertas, backups, purga de auditoría (off por defecto) | off |
-| `EmpresaPrueba` | Provisioning de la empresa demo con su admin | — |
+| `EmpresaPrueba` | Provisioning de la empresa demo con admin, usuarios mobile y datos comerciales opt-in | — |
 
 Las contraseñas SMTP por empresa y los secretos sensibles se cifran con `ISecretProtector`
 (DataProtection). Los tests que tocan SMTP leen variables de entorno, nunca valores hardcodeados.
@@ -322,9 +326,9 @@ y `api/v1/*` (NeoConnect público).
 
 ## Roadmap
 
-Prioridad inmediata antes de nuevos módulos: con API mobile, HB-1 y HB-3/HB-4 cerrados, ejecutar
-HB-5 del plan de consolidación [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md):
-datos demo comerciales completos para evitar pantallas vacias o reportes sin valor durante demos.
+Prioridad inmediata antes de nuevos módulos: con API mobile, HB-1, HB-3/HB-4 y HB-5 cerrados,
+ejecutar HB-6 del plan de consolidación [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md):
+contratos API y versionado para estabilizar mobile, demos e integradores.
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 

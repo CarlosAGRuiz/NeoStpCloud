@@ -4,9 +4,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Provisioning;
+using NeoSTP.Domain.Core.Compras;
+using NeoSTP.Domain.Core.Crm;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Notificaciones;
+using NeoSTP.Domain.Core.Portal;
+using NeoSTP.Domain.Core.Profit;
+using NeoSTP.Domain.Core.Rrhh;
 using NeoSTP.Domain.Core.Seguridad;
+using NeoSTP.Domain.Core.Tesoreria;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Persistence.Seed;
 using NSubstitute;
@@ -74,7 +81,14 @@ public class EmpresaPruebaSeederTests
             new Modulo { Id = 102, Codigo = "NEOPOS", Nombre = "NeoPOS", Activo = true, CreatedAt = DateTime.UtcNow },
             new Modulo { Id = 103, Codigo = "NEOSCANAI", Nombre = "NeoScanAI", Activo = true, CreatedAt = DateTime.UtcNow },
             new Modulo { Id = 104, Codigo = "NEOPROFIT", Nombre = "NeoProfit", Activo = true, CreatedAt = DateTime.UtcNow },
-            new Modulo { Id = 105, Codigo = "NEOPORTAL", Nombre = "NeoPortal", Activo = true, CreatedAt = DateTime.UtcNow });
+            new Modulo { Id = 105, Codigo = "NEOBI", Nombre = "NeoBI", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 107, Codigo = "NEOPORTAL", Nombre = "NeoPortal", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 110, Codigo = "INVENTARIO", Nombre = "Inventario", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 111, Codigo = "COMPRAS", Nombre = "Compras", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 113, Codigo = "NEORRHH", Nombre = "NeoRRHH", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 114, Codigo = "NEOCRM", Nombre = "NeoCRM", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 115, Codigo = "NEOTESORERIA", Nombre = "NeoTesoreria", Activo = true, CreatedAt = DateTime.UtcNow },
+            new Modulo { Id = 116, Codigo = "NEOCONTA", Nombre = "NeoConta", Activo = true, CreatedAt = DateTime.UtcNow });
         db.Planes.Add(new Plan
         {
             Id = 204, Codigo = "ENTERPRISE", Nombre = "Enterprise", PrecioMensual = 400m,
@@ -87,6 +101,13 @@ public class EmpresaPruebaSeederTests
                 new PlanModulo { PlanId = 204, ModuloId = 103, Activo = true },
                 new PlanModulo { PlanId = 204, ModuloId = 104, Activo = true },
                 new PlanModulo { PlanId = 204, ModuloId = 105, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 107, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 110, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 111, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 113, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 114, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 115, Activo = true },
+                new PlanModulo { PlanId = 204, ModuloId = 116, Activo = true },
             },
         });
         db.Roles.AddRange(
@@ -190,10 +211,11 @@ public class EmpresaPruebaSeederTests
         var empresaId = await db.Empresas.Select(e => e.Id).SingleAsync();
 
         (await db.Usuarios.CountAsync(u => u.EmpresaId == empresaId && u.Username.StartsWith("mobile."))).Should().Be(6);
-        (await db.EmpresaModulos.CountAsync(m => m.EmpresaId == empresaId)).Should().Be(6);
+        (await db.EmpresaModulos.CountAsync(m => m.EmpresaId == empresaId)).Should().Be(13);
         (await db.Clientes.CountAsync(c => c.EmpresaId == empresaId)).Should().Be(3);
         (await db.Productos.CountAsync(p => p.EmpresaId == empresaId && p.CodigoInterno.StartsWith("MOB-"))).Should().Be(5);
         (await db.DteDocumentos.CountAsync(d => d.EmpresaId == empresaId && d.NumeroControl.Contains("MDEMO"))).Should().Be(2);
+        (await db.DteDocumentos.CountAsync(d => d.EmpresaId == empresaId && d.NumeroControl.Contains("CDEMO"))).Should().Be(2);
         (await db.PagosCliente.CountAsync(p => p.EmpresaId == empresaId && p.Referencia == "MOBILE-DEMO-PARCIAL")).Should().Be(1);
         (await db.CuentasCobro.CountAsync(c => c.EmpresaId == empresaId && c.Nombre == "Demo Transferencia Mobile")).Should().Be(1);
         (await db.VentasPos.CountAsync(v => v.EmpresaId == empresaId && v.Numero == "POS-MOB-000001")).Should().Be(1);
@@ -206,5 +228,35 @@ public class EmpresaPruebaSeederTests
         (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.Clave.StartsWith("MOBILE_DEMO:"))).Should().Be(2);
         (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == AlertaEstados.Pendiente)).Should().Be(1);
         (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == AlertaEstados.Resuelta)).Should().Be(1);
+
+        (await db.Proveedores.CountAsync(p => p.EmpresaId == empresaId && p.Codigo == "DEM-PROV-01")).Should().Be(1);
+        (await db.FacturasCompra.CountAsync(f => f.EmpresaId == empresaId && f.NumeroDocumento == "COMP-DEMO-0001" && f.EstadoCodigo == FacturaCompraEstados.Parcial)).Should().Be(1);
+        (await db.PagosProveedor.CountAsync(p => p.EmpresaId == empresaId && p.Referencia == "PAGO-COMP-DEMO-0001" && p.EstadoCodigo == PagoProveedorEstados.Confirmado)).Should().Be(1);
+        (await db.ExistenciasProducto.CountAsync(e => e.EmpresaId == empresaId && e.StockMinimo == 8m)).Should().Be(1);
+        (await db.MovimientosInventario.CountAsync(m => m.EmpresaId == empresaId && (m.Referencia == "INV-DEMO-ENTRADA" || m.Referencia == "INV-DEMO-SALIDA"))).Should().Be(2);
+
+        (await db.CuentasTesoreria.CountAsync(c => c.EmpresaId == empresaId && c.Codigo == "BAC-DEMO")).Should().Be(1);
+        (await db.MovimientosTesoreria.CountAsync(m => m.EmpresaId == empresaId && (m.Referencia == "TES-DEMO-COBRO-01" || m.Referencia == "TES-DEMO-PAGO-01"))).Should().Be(2);
+        (await db.MovimientosBancarios.CountAsync(m => m.EmpresaId == empresaId && m.EstadoCodigo == EstadosConciliacion.Conciliado)).Should().Be(1);
+        (await db.MovimientosBancarios.CountAsync(m => m.EmpresaId == empresaId && m.EstadoCodigo == EstadosConciliacion.NoConciliado)).Should().Be(1);
+        (await db.ConciliacionDetalles.CountAsync(d => d.EmpresaId == empresaId)).Should().Be(1);
+
+        (await db.PortalAccesos.CountAsync(p => p.EmpresaId == empresaId && p.Tipo == PortalAccesoTipos.Documento)).Should().Be(1);
+        (await db.PortalAccesos.CountAsync(p => p.EmpresaId == empresaId && p.Tipo == PortalAccesoTipos.EstadoCuenta)).Should().Be(1);
+
+        (await db.EtapasPipelineCrm.CountAsync(e => e.EmpresaId == empresaId && e.Codigo == "DEMO_PROPUESTA")).Should().Be(1);
+        (await db.ContactosCrm.CountAsync(c => c.EmpresaId == empresaId && c.Email == "compras.demo@cliente.local")).Should().Be(1);
+        (await db.OportunidadesCrm.CountAsync(o => o.EmpresaId == empresaId && o.EstadoCodigo == OportunidadCrmEstados.Abierta)).Should().Be(1);
+        (await db.CotizacionesCrm.CountAsync(c => c.EmpresaId == empresaId && c.Numero == "COT-DEMO-0001" && c.EstadoCodigo == CotizacionCrmEstados.Enviada)).Should().Be(1);
+        (await db.CotizacionLineasCrm.CountAsync(l => l.EmpresaId == empresaId)).Should().Be(1);
+        (await db.ActividadesCrm.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == ActividadCrmEstados.Pendiente)).Should().Be(1);
+
+        (await db.Empleados.CountAsync(e => e.EmpresaId == empresaId && e.Codigo == "EMP-DEMO-001")).Should().Be(1);
+        (await db.ContratosLaborales.CountAsync(c => c.EmpresaId == empresaId && c.EstadoCodigo == ContratoEstados.Vigente)).Should().Be(1);
+        (await db.PlanillaPeriodos.CountAsync(p => p.EmpresaId == empresaId && p.EstadoCodigo == PlanillaEstados.Calculada)).Should().Be(1);
+        (await db.PlanillaDetalles.CountAsync()).Should().Be(1);
+
+        (await db.ProfitCompras.CountAsync(c => c.EmpresaId == empresaId && c.NumeroDocumento == "COMP-DEMO-0001")).Should().Be(1);
+        (await db.ProfitGastos.CountAsync(g => g.EmpresaId == empresaId && g.Descripcion == "Alquiler local demo")).Should().Be(1);
     }
 }

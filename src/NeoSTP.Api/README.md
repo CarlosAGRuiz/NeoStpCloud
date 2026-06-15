@@ -51,7 +51,7 @@ Con Docker:
 docker compose up --build api
 ```
 
-Al iniciar, la API ejecuta `DatabaseSeeder.SeedAsync(app.Services)` y `EmpresaPruebaSeeder.SeedAsync(app.Services)` cuando `EmpresaPrueba:Enabled=true`. Si `EmpresaPrueba:MobileDemo:Enabled=true`, tambien asegura usuarios `mobile.*` y datos demo API/mobile.
+Al iniciar, la API ejecuta `DatabaseSeeder.SeedAsync(app.Services)` y `EmpresaPruebaSeeder.SeedAsync(app.Services)` cuando `EmpresaPrueba:Enabled=true`. Si `EmpresaPrueba:MobileDemo:Enabled=true`, tambien asegura usuarios `mobile.*` y datos demo API/mobile/comerciales.
 
 ## Configuracion
 
@@ -65,7 +65,7 @@ Los secretos locales deben vivir en `src/NeoSTP.Api/appsettings.Local.json`, que
 | `Email` | Proveedor `Mock` o `Smtp`, remitente global y SMTP global. |
 | `Hacienda` | Cliente Hacienda `Mock` o `Http`. |
 | `Dte` / `Dte:Territorial` | Firma, ambiente DTE y datos territoriales por defecto. |
-| `EmpresaPrueba` | Provisioning idempotente de empresa/admin de pruebas y datos mobile opt-in (`MobileDemo`). |
+| `EmpresaPrueba` | Provisioning idempotente de empresa/admin de pruebas y datos API/mobile/comerciales opt-in (`MobileDemo`). |
 | `Security` | Password policy y bloqueo de cuenta. |
 | `Hardening:RateLimit` | Cuotas/rate limit. |
 | `Hardening:Backup` | Backup local o storage externo. |
@@ -606,6 +606,8 @@ Areas con cobertura relevante:
 - Cobros, compras, inventario, POS/caja, RRHH, NeoProfit, NeoScanAI y contrato mobile operativo.
 - Demo readiness HB-3/HB-4: rutas API criticas, permisos, modulos licenciables, NeoConnect v1,
   rutas Web y vistas Razor protegidas por `DemoReadinessContractTests`.
+- Datos demo HB-5: seed idempotente de DTE, compras/CxP, inventario, tesoreria, portal, CRM,
+  RRHH y Profit cubierto por `EmpresaPruebaSeederTests`.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -616,7 +618,8 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual validado 2026-06-14: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
+Estado actual validado 2026-06-15: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
 `dotnet test NeoSTP.slnx` con 701 unitarias + 9 integracion. La suite incluye contrato mobile
-operativo (`MobileApiContractOperationalTests`) y demo readiness HB-3/HB-4
-(`DemoReadinessContractTests`) sin cambios breaking de API.
+operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
+(`DemoReadinessContractTests`) y datos demo HB-5 (`EmpresaPruebaSeederTests`) sin cambios breaking
+de API.

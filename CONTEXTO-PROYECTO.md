@@ -5,12 +5,12 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-1 + HB-3/HB-4 CERRADAS (2026-06-14) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 701 unit + 9 integración
+> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-1 + HB-3/HB-4 + HB-5 CERRADAS (2026-06-15) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 701 unit + 9 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
 
-## Estado actual — 2026-06-14 · FASES V2/V2.5, API MOBILE Y HB-1 CERRADAS
+## Estado actual — 2026-06-15 · FASES V2/V2.5, API MOBILE Y HB-1/HB-3/HB-4/HB-5 CERRADAS
 
 NeoSTP Cloud es un **producto funcionalmente completo**: los 17 modulos licenciables estan
 entregados, el ciclo de negocio opera de punta a punta y todo proveedor externo es pluggable
@@ -34,9 +34,9 @@ Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado 
 (ambiente 01) por cliente, y mantenimiento del contrato con la app Android en repo aparte
 (`manuelberganza-dev/neocloud_mobile_android`). Backlog V3 en README.
 
-**Prioridad inmediata post-analisis (2026-06-14):** HB-0, API mobile AM-0..AM-6, HB-1 y HB-3/HB-4
-ya quedaron cerrados operativos. El siguiente trabajo recomendado es HB-5: datos demo comerciales
-completos para evitar pantallas vacias o reportes sin valor durante demos. Ver
+**Prioridad inmediata post-analisis (2026-06-15):** HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4
+y HB-5 ya quedaron cerrados operativos. El siguiente trabajo recomendado es HB-6: contratos API
+y versionado para estabilizar mobile, demos e integradores. Ver
 `docs/Plan-Hallazgos-Bugs-Demo.md` y `docs/Plan-Pruebas-Web-Api-Demos.md`.
 
 ### Fases del proyecto (historial)
@@ -58,7 +58,7 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 
 ### Todo lo que se ha probado
 
-1. **Suites automatizadas**: 701 unit + 9 integracion, 0 fallos; validacion local 2026-06-14 con
+1. **Suites automatizadas**: 701 unit + 9 integracion, 0 fallos; validacion local 2026-06-15 con
    `dotnet build NeoSTP.slnx` en 0 warnings/0 errores.
    Calculadoras puras con cobertura dedicada (nomina, cobranza, POS, caja, CxP, costo promedio,
    ESC/POS, libro IVA, conciliacion 1:1 y combinaciones, profit, validador de clientes).
@@ -88,6 +88,9 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
    Infrastructure sin PackageReferences redundantes.
 9. **HB-3/HB-4 cerrados**: `DemoReadinessContractTests` congela rutas API criticas, permisos,
    modulos licenciables, NeoConnect v1, rutas Web protegidas y existencia de vistas Razor para demos.
+10. **HB-5 cerrado**: `EmpresaPrueba:MobileDemo:Enabled` ahora deja datos comerciales idempotentes:
+    DTE consumidor/CCF/notas, compras/CxP, inventario, tesoreria/conciliacion, portal, CRM, RRHH y
+    Profit para que dashboard, reportes y flujos de demo no arranquen vacios.
 ---
 
 ## Índice

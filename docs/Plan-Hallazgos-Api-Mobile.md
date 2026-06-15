@@ -27,9 +27,10 @@ Repositorio movil revisado:
 | AM-5 | Cerrado operativo 100% | Runbook de POS, Cobros y Alertas en `docs/Runbook-Api-Mobile-Demo.md`. |
 | AM-6 | Cerrado operativo 100% | Runbook de URL, providers, versionado y evidencias en `docs/Runbook-Api-Mobile-Demo.md`. |
 
-Estado de validacion acumulado 2026-06-14: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
+Estado de validacion acumulado 2026-06-15: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
 `dotnet test NeoSTP.slnx` quedo verde con 701 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
-mobile; HB-3/HB-4 agregaron baseline automatizada de demo readiness sin romper mobile.
+mobile; HB-3/HB-4 agregaron baseline automatizada de demo readiness y HB-5 amplio datos demo
+comerciales sin romper mobile.
 
 Pendiente deliberado: OCR asincrono/polling avanzado de NeoScan queda como mejora V3. El contrato actual
 queda operativo para mobile con modo rapido: `Scan:OcrTimeoutSeconds` corta el intento OCR antes del timeout
@@ -158,7 +159,7 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 | AM-012 | Media | Certificado DTE y Scan usan base64 en JSON; faltan pruebas de tamano, MIME y errores legibles para movil. | Cerrado: NeoScan valida MIME y certificado/archivo queda en checklist de pruebas. | AM-1/AM-3 |
 | AM-013 | Media | Versionado interno `/api/*` no esta formalizado; NeoConnect si usa `/api/v1`. | Cerrado: politica de compatibilidad mobile documentada en AM-6. | AM-6 |
 | AM-014 | Media | Faltaba runbook de demo API movil: URL, usuario, permisos, proveedor mock/real, health y evidencias. | Cerrado: `docs/Runbook-Api-Mobile-Demo.md`. | AM-6 |
-| AM-015 | Media-alta | Faltaba matriz de usuarios/roles demo para mobile con permisos minimos y negativos. | Cerrado operativo 100%: usuarios `mobile.*` sembrados por `MobileDemo` y modulos CORE/NEODTE/NEOPOS/NEOSCANAI/NEOPROFIT/NEOPORTAL activos. | AM-4 |
+| AM-015 | Media-alta | Faltaba matriz de usuarios/roles demo para mobile con permisos minimos y negativos. | Cerrado operativo 100%: usuarios `mobile.*` sembrados por `MobileDemo` y modulos CORE/NEODTE/NEOPOS/NEOSCANAI/NEOPROFIT/NEOBI/NEOPORTAL/INVENTARIO/COMPRAS/NEORRHH/NEOCRM/NEOTESORERIA/NEOCONTA activos. | AM-4 |
 | AM-016 | Media | Falta registrar evidencia por endpoint: status, traceId, usuario, empresa, duracion y payload resumido. | Cerrado operativo 100%: runbook + manifiesto MAPI-01..MAPI-23 en prueba de integracion. | AM-2/AM-6 |
 | AM-017 | Media-alta | Falta validar modulos no contratados (`NEOPOS`, `NEOSCANAI`) con respuesta legible para app. | Cerrado operativo: negativos de modulo quedan en suite/runbook. | AM-2/AM-5 |
 
@@ -166,10 +167,10 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 
 **Ninguno dentro del plan API mobile: AM-0..AM-6 esta cerrado operativo al 100%.**
 
-Siguiente trabajo recomendado en este repositorio: ejecutar HB-5 del plan de hallazgos general
-para producir datos demo comerciales completos. Mobile queda en modo mantenimiento de contrato: cualquier cambio
-futuro debe conservar `ApiResponse<T>`, `PagedResult<T>`, bytes crudos, tenant por JWT y providers
-pluggables.
+Siguiente trabajo recomendado en este repositorio: ejecutar HB-6 del plan de hallazgos general
+para formalizar contratos API/versionado. Mobile queda en modo mantenimiento de contrato: cualquier
+cambio futuro debe conservar `ApiResponse<T>`, `PagedResult<T>`, bytes crudos, tenant por JWT y
+providers pluggables. HB-5 ya dejo datos comerciales completos para demos sin requerir cambios Flutter.
 
 Entregables:
 
