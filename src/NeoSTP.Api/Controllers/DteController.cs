@@ -212,6 +212,7 @@ public class DteController : ApiControllerBase
 
     [HttpGet("documentos/{id:int}/pdf")]
     [RequirePermiso("DTE.Consultar")]
+    [Produces("application/pdf")]
     public async Task<IActionResult> DescargarPdf(int id, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
@@ -223,6 +224,7 @@ public class DteController : ApiControllerBase
 
     [HttpGet("documentos/{id:int}/json")]
     [RequirePermiso("DTE.Consultar")]
+    [Produces("application/json")]
     public async Task<IActionResult> DescargarJson(int id, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

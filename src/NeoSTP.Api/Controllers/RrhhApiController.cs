@@ -118,6 +118,7 @@ public class RrhhApiController : ApiControllerBase
     /// <summary>Recibo de pago en PDF de un empleado en el período.</summary>
     [HttpGet("planillas/{id:int}/recibo/{empleadoId:int}")]
     [RequirePermiso("Rrhh.Nomina.Ver")]
+    [Produces("application/pdf")]
     public async Task<IActionResult> Recibo(int id, int empleadoId, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

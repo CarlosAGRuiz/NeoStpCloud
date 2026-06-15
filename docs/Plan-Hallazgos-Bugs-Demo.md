@@ -10,8 +10,8 @@
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
 >
 > Actualizacion 2026-06-15: API mobile AM-0..AM-6 quedo cerrada operativa al 100%. HB-1,
-> HB-3/HB-4 y HB-5 tambien quedaron cerrados operativos con build limpio y suite completa verde:
-> 701 unitarias + 9 integracion.
+> HB-3/HB-4, HB-5 y HB-6 tambien quedaron cerrados operativos con build limpio y suite completa verde:
+> 705 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -28,7 +28,7 @@ para Web/API.
 - Los proveedores externos deben seguir siendo pluggables: default seguro en `Mock`, activacion real por config.
 - Cada sprint termina con evidencia: tests, capturas o checklist de demo ejecutado.
 
-## Estado de Ejecucion 2026-06-14
+## Estado de Ejecucion 2026-06-15
 
 | Sprint | Estado | Evidencia |
 |---|---|---|
@@ -38,27 +38,28 @@ para Web/API.
 | HB-3 | Cerrado operativo 100% | `DemoReadinessContractTests` cubre rutas API criticas, permisos, modulos, NeoConnect v1 y superficies de demo. |
 | HB-4 | Cerrado operativo 100% | `DemoReadinessContractTests` cubre rutas Web criticas, auth de controllers, portal publico y existencia de vistas Razor. |
 | HB-5 | Cerrado operativo 100% | `EmpresaPruebaSeeder` siembra datos comerciales idempotentes para DTE, compras/CxP, inventario, tesoreria, portal, CRM, RRHH y Profit; prueba enfocada 5/5 verde. |
+| HB-6 | Cerrado operativo 100% | `API-Contratos-Versionado.md`, metadata `Produces` en descargas y `ApiVersioningContractTests` cubren Tier A `/api/*`, NeoConnect `/api/v1` y politica de breaking changes. |
 
 ## Siguiente Sprint Recomendado
 
-**HB-6 - Contratos API y Versionado.**
+**HB-7 - Storage, Secretos y Retencion.**
 
-Motivo: con API mobile, HB-1, HB-3/HB-4 y HB-5 cerradas, el mayor riesgo pendiente pasa a ser la
-estabilidad documental del contrato API: rutas internas/mobile sin version explicita, ejemplos de
-errores y politica clara para cambios que afecten app Android, demos o integradores.
+Motivo: con API mobile, HB-1, HB-3/HB-4, HB-5 y HB-6 cerradas, el mayor riesgo pendiente pasa a ser
+operativo: documentos fiscales, archivos NeoScan, certificados, JWT/API keys/webhooks y retencion en
+ambientes demo/productivos.
 
 Entregables:
 
-- Matriz de endpoints estables para mobile/demo.
-- Politica de versionado: que cambia en `/api/*`, que va a `/api/v1`, y como se depreca.
-- Contratos de respuesta con ejemplos exitosos y errores frecuentes.
-- OpenAPI revisado contra README API.
+- Runbook de storage de scans: cifrado de disco, permisos, backup, retencion y purga.
+- Guardrail para no loggear nombres/rutas sensibles de documentos.
+- Checklist de secretos por entorno: JWT, DTE, Gemini, FCM, WhatsApp, pasarelas, SMTP.
+- Prueba de health/readiness para storage configurado.
 
 Criterio de cierre:
 
-- Un integrador o app mobile puede seguir la documentacion sin leer el codigo.
-- README API, README raiz, contexto y plan de pruebas quedan alineados con la politica de versionado.
-- Suite automatizada sigue verde.
+- Ambiente demo/productivo documentado sin secretos en repo y con retencion clara.
+- `/health/ready` cubre storage configurado.
+- Build y suite completa siguen verdes.
 
 ## Roadmap de Sprints
 
@@ -70,7 +71,7 @@ Criterio de cierre:
 | HB-3 | Alta | Pruebas API de alto valor | Cerrado operativo: contrato automatizado de rutas, permisos, modulos y NeoConnect v1 |
 | HB-4 | Alta | Pruebas Web para demo comercial | Cerrado operativo: contrato automatizado de rutas Web, auth, portal y vistas Razor |
 | HB-5 | Media-alta | Datos demo y escenarios comerciales | Cerrado operativo: demo con datos completos, no pantallas vacias |
-| HB-6 | Media-alta | Contratos API y versionado | API mas estable para mobile/integradores |
+| HB-6 | Media-alta | Contratos API y versionado | Cerrado operativo: politica, docs y tests de versionado |
 | AM-0..AM-6 | Alta | API movil Android | Cerrado operativo 100%: contrato, pruebas, datos demo y runbook |
 | HB-7 | Media | Storage, secretos y retencion | Archivos fiscales y secretos operados con guardrails |
 | HB-8 | Media | Runbook de demo y release | Checklist previo a demo/release ejecutable |
@@ -304,10 +305,28 @@ Validacion:
 
 - Comparar controllers vs `src/NeoSTP.Api/README.md`.
 - Smoke de OpenAPI/Scalar.
+- `dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter ApiVersioningContractTests`.
 
 Criterio de cierre:
 
 - Un integrador o app mobile puede seguir la documentacion sin leer el codigo.
+
+### Cierre Operativo 2026-06-15
+
+- Se agrego `docs/API-Contratos-Versionado.md` como fuente de verdad para:
+  - Tier A `/api/*` interno/mobile/demo sin version explicita.
+  - Tier B `/api/v1/*` NeoConnect publico con version en path.
+  - Cambios compatibles vs. breaking changes, deprecacion y ventana de migracion.
+  - `ApiResponse<T>`, `PagedResult<T>`, errores frecuentes y descargas binarias sin envelope JSON.
+- Se enlazo la politica desde README raiz, README API, guia mobile y `docs/NeoConnect-API-v1.md`.
+- Se declararon content-types OpenAPI con `[Produces]` para descargas PDF/JSON/CSV/XLSX/archivos.
+- Se agrego `ApiVersioningContractTests` para congelar:
+  - Solo NeoConnect expone ruta publica versionada `api/v1`.
+  - Rutas internas/mobile/demo permanecen en `/api/*`.
+  - Descargas binarias publican content-types reales.
+  - Documentacion de versionado queda enlazada.
+- Validacion enfocada: `dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter ApiVersioningContractTests`
+  = 4/4 pruebas verdes.
 
 ## HB-7 - Storage, Secretos y Retencion
 
@@ -368,7 +387,7 @@ Criterio de cierre:
 | HB-008 | Alta | Cerrado HB-3: baseline automatizada de rutas API criticas, permisos, modulos y NeoConnect v1 | HB-3 |
 | HB-009 | Alta | Cerrado HB-4: baseline automatizada de rutas Web, portal publico y vistas Razor + checklist recurrente | HB-4 |
 | HB-010 | Media | Cerrado HB-5: empresa demo deja datos comerciales ricos e idempotentes para reportes y flujos | HB-5 |
-| HB-011 | Media-alta | Versionado API no esta formalizado fuera de NeoConnect | HB-6 |
+| HB-011 | Media-alta | Cerrado HB-6: versionado API formalizado para `/api/*` y `/api/v1/*` con guardrails automatizados | HB-6 |
 | HB-012 | Media-alta | Storage de documentos fiscales requiere runbook de seguridad/retencion | HB-7 |
 | HB-013 | Media | Falta runbook especifico de demo/release comercial | HB-8 |
 | AM-001 | Alta | DTE listado/detalle requiere `DTE.Emitir`, pero la app separa consulta con `DTE.Consultar` | AM-1 |
@@ -391,8 +410,8 @@ Criterio de cierre:
 
 ## Orden de Ejecucion Recomendado
 
-1. HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4 y HB-5 ya quedaron cerrados operativos.
-2. Ejecutar HB-6 para formalizar contratos API/versionado antes de tocar rutas consumidas por mobile o integradores.
+1. HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4, HB-5 y HB-6 ya quedaron cerrados operativos.
+2. Ejecutar HB-7 para cerrar storage, secretos y retencion antes de demos con documentos fiscales reales.
 3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
    operativa Compras/CxP/Inventario desde Scan.
-4. Cerrar HB-7 y HB-8 como consolidacion antes de nuevos proyectos o modulos.
+4. Cerrar HB-8 como consolidacion antes de nuevos proyectos o modulos.

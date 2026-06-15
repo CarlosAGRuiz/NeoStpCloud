@@ -59,6 +59,7 @@ public class ReportesFiscalController : ApiControllerBase
 
     [HttpGet("libro-ventas-consumidor/csv")]
     [RequirePermiso("Reportes.Ver")]
+    [Produces("text/csv")]
     public async Task<IActionResult> LibroVentasConsumidorCsv([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
@@ -69,6 +70,7 @@ public class ReportesFiscalController : ApiControllerBase
 
     [HttpGet("libro-ventas-contribuyentes/csv")]
     [RequirePermiso("Reportes.Ver")]
+    [Produces("text/csv")]
     public async Task<IActionResult> LibroVentasContribuyentesCsv([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
@@ -79,6 +81,7 @@ public class ReportesFiscalController : ApiControllerBase
 
     [HttpGet("libro-compras/csv")]
     [RequirePermiso("Reportes.Ver")]
+    [Produces("text/csv")]
     public async Task<IActionResult> LibroComprasCsv([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

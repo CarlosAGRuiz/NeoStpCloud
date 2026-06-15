@@ -50,6 +50,7 @@ public class DteEventosController : ApiControllerBase
 
     [HttpGet("{id:int}/pdf")]
     [RequirePermiso("DTE.Eventos.Ver")]
+    [Produces("application/pdf")]
     public async Task<IActionResult> Pdf(int id, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (ResolveEmpresaId(empresaId) is not int eid) return BadRequest(NoTenant());

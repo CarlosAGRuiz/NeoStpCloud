@@ -15,9 +15,10 @@ sino un cliente ligero sobre la API REST de NeoSTP Cloud.
 > desplegados en `main`. NeoScan soporta `Mock` y Gemini real por configuracion (`x-goog-api-key`, MIME
 > whitelist, timeout, metadata y reintento). Push real FCM sigue pluggable y no cambia el contrato HTTP.
 >
-> **Revision 2026-06-14:** contrato contrastado contra `api_endpoints.dart`, `api_client.dart` y repositorios
+> **Revision 2026-06-15 (HB-6):** contrato contrastado contra `api_endpoints.dart`, `api_client.dart` y repositorios
 > Flutter de auth, DTE, cobros, NeoScan, alertas y POS. AM-0..AM-6 cerrado operativo al 100%; validacion:
-> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 697 unitarias + 9 integracion.
+> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 705 unitarias + 9 integracion.
+> Politica fuente: `docs/API-Contratos-Versionado.md`.
 
 ---
 
@@ -589,7 +590,9 @@ Siempre registra `traceId` en logs locales para soporte.
 - **Offline mínimo:** cachear catálogo de productos/clientes (lookups) para facturar con conexión intermitente;
   la **emisión siempre requiere conexión** (firma+MH en backend). La contingencia es del backend, no del cliente.
 - **Paginación:** scroll infinito usando `page`/`totalPages`.
-- **Versionado:** la app debe tolerar campos nuevos en los DTO (no romper si aparecen propiedades).
+- **Versionado HB-6:** la app debe tolerar campos nuevos en los DTO (no romper si aparecen
+  propiedades). Las rutas mobile se mantienen en `/api/*`; no se moveran a `/api/v1` sin ruta
+  paralela, ventana de migracion y actualizacion coordinada con la app Android.
 
 ---
 

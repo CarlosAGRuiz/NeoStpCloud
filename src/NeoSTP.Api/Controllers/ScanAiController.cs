@@ -46,6 +46,7 @@ public class ScanAiController : ApiControllerBase
 
     [HttpGet("{id:int}/archivo")]
     [RequirePermiso("ScanAI.Ver")]
+    [Produces("application/pdf", "image/jpeg", "image/png", "application/octet-stream")]
     public async Task<IActionResult> Archivo(int id, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

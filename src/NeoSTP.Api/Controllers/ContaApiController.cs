@@ -78,6 +78,7 @@ public class ContaApiController : ApiControllerBase
 
     [HttpGet("balanza/csv")]
     [RequirePermiso("Conta.Ver")]
+    [Produces("text/csv")]
     public async Task<IActionResult> BalanzaCsv([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

@@ -35,11 +35,12 @@ Una demo esta lista cuando:
 Ultima validacion tecnica registrada (2026-06-15):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 701 unitarias + 9 integracion verdes.
-- HB-1, HB-3/HB-4 y HB-5 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
+- `dotnet test NeoSTP.slnx`: 705 unitarias + 9 integracion verdes.
+- HB-1, HB-3/HB-4, HB-5 y HB-6 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
 - `EmpresaPruebaSeederTests`: 5/5 pruebas verdes para seed demo idempotente API/mobile/comercial.
+- `ApiVersioningContractTests`: 4/4 pruebas verdes para politica `/api/*`, `/api/v1`, docs y descargas binarias.
 
 ## Ambientes
 
@@ -115,7 +116,7 @@ Cobertura automatica HB-5:
 | Regresion demo completa | 4-6 h | Antes de release, demo ejecutiva o entrega a cliente |
 | Regresion automatizada | Segun CI | Cada push/PR |
 
-## Baseline Automatizada HB-3/HB-4/HB-5
+## Baseline Automatizada HB-3/HB-4/HB-5/HB-6
 
 La prueba `tests/NeoSTP.Tests.Unit/Api/DemoReadinessContractTests.cs` es obligatoria para aceptar
 cambios que toquen controllers API, controllers Web, permisos, modulos o vistas de demo.
@@ -129,6 +130,8 @@ Cubre:
   integraciones, soporte y portal publico.
 - Metadata de seguridad: `[Authorize]`, `[AllowAnonymous]`, `[RequireModule]` y `[RequirePermiso]`.
 - Existencia de vistas Razor criticas para evitar rutas que compilan pero rompen la demo.
+- Politica HB-6 de versionado: Tier A `/api/*`, NeoConnect `/api/v1`, descargas binarias con
+  content-type real y documentacion enlazada.
 
 Comando enfocado:
 
@@ -140,6 +143,12 @@ Comando enfocado para datos demo:
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter EmpresaPruebaSeederTests
+```
+
+Comando enfocado para versionado/contratos:
+
+```bash
+dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter ApiVersioningContractTests
 ```
 
 ## Preflight Tecnico

@@ -86,6 +86,7 @@ public class ConnectApiV1Controller : ConnectApiControllerBase
 
     /// <summary>Descarga el PDF del DTE.</summary>
     [HttpGet("dte/{id:int}/pdf")]
+    [Produces("application/pdf")]
     public async Task<IActionResult> DescargarPdf(int id, CancellationToken ct)
     {
         if (!TryAuthorize(ConnectScopes.DteRead, out var eid, out var error)) return error!;
@@ -98,6 +99,7 @@ public class ConnectApiV1Controller : ConnectApiControllerBase
 
     /// <summary>Descarga el JSON sellado del DTE.</summary>
     [HttpGet("dte/{id:int}/json")]
+    [Produces("application/json")]
     public async Task<IActionResult> DescargarJson(int id, CancellationToken ct)
     {
         if (!TryAuthorize(ConnectScopes.DteRead, out var eid, out var error)) return error!;

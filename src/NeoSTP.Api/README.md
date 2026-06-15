@@ -192,6 +192,21 @@ Mapeo general:
 | 502 | Firma, Hacienda, email, lote o impresora fallida. |
 | 500 | Fallo critico como desencriptado de secreto. |
 
+## Politica de versionado
+
+Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Contratos-Versionado.md).
+
+- **Tier A (`/api/*`)**: API interna/mobile/demo. No usa version explicita por ahora; se mantiene
+  compatible con cambios aditivos. La app Android debe tolerar campos nuevos, pero no se renombraran
+  rutas/campos existentes sin ruta paralela o plan de migracion.
+- **Tier B (`/api/v1/*`)**: API publica NeoConnect para integradores. Un breaking change externo crea
+  `/api/v2`; `/api/v1` queda operativo durante ventana de deprecacion.
+- **JSON**: siempre `ApiResponse<T>` y listados con `PagedResult<T>`.
+- **Descargas binarias**: PDF/JSON sellado/ticket/CSV/archivo salen como bytes crudos, no como
+  `ApiResponse<T>` en 200 OK; los errores si usan el envelope.
+- Todo cambio de controller estable debe actualizar README/API, documento mobile o NeoConnect segun
+  aplique, y pasar `ApiVersioningContractTests`.
+
 ## Catalogo de endpoints
 
 ### Plataforma
@@ -592,6 +607,7 @@ Plan recurrente para demos Web/API: [`../../docs/Plan-Pruebas-Web-Api-Demos.md`]
 Plan de sprints de hallazgos y bugs: [`../../docs/Plan-Hallazgos-Bugs-Demo.md`](../../docs/Plan-Hallazgos-Bugs-Demo.md).
 Plan especifico de hallazgos API movil: [`../../docs/Plan-Hallazgos-Api-Mobile.md`](../../docs/Plan-Hallazgos-Api-Mobile.md).
 Runbook demo API mobile: [`../../docs/Runbook-Api-Mobile-Demo.md`](../../docs/Runbook-Api-Mobile-Demo.md).
+Politica de contratos y versionado: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Contratos-Versionado.md).
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
@@ -608,6 +624,8 @@ Areas con cobertura relevante:
   rutas Web y vistas Razor protegidas por `DemoReadinessContractTests`.
 - Datos demo HB-5: seed idempotente de DTE, compras/CxP, inventario, tesoreria, portal, CRM,
   RRHH y Profit cubierto por `EmpresaPruebaSeederTests`.
+- Contratos/versionado HB-6: rutas Tier A `/api/*`, NeoConnect `/api/v1`, content-types binarios,
+  docs enlazadas y politica de breaking changes cubiertas por `ApiVersioningContractTests`.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -619,7 +637,7 @@ Areas con cobertura relevante:
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
 Estado actual validado 2026-06-15: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 701 unitarias + 9 integracion. La suite incluye contrato mobile
+`dotnet test NeoSTP.slnx` con 705 unitarias + 9 integracion. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
-(`DemoReadinessContractTests`) y datos demo HB-5 (`EmpresaPruebaSeederTests`) sin cambios breaking
-de API.
+(`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
+(`ApiVersioningContractTests`) sin cambios breaking de API.

@@ -58,6 +58,22 @@ pruebas de Hacienda. Cambiar a `PRODUCCION` activa la emisión real sin cambios 
 
 ---
 
+## Versionado
+
+NeoConnect es la superficie publica para integradores y por eso versiona en path:
+
+- Version actual: `/api/v1`.
+- Cambios compatibles se agregan en `/api/v1`: campos nuevos, filtros opcionales, endpoints nuevos
+  o codigos de error mas especificos.
+- Un breaking change crea `/api/v2`; `/api/v1` queda activo durante una ventana de deprecacion
+  documentada.
+- Nunca se remueven scopes, campos o rutas de `/api/v1` sin reemplazo, fecha objetivo y ejemplos de
+  migracion.
+
+La politica completa esta en `docs/API-Contratos-Versionado.md`.
+
+---
+
 ## Endpoints
 
 ### Emitir un DTE — `POST /api/v1/dte` · scope `DTE:Write`

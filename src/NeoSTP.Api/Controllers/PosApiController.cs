@@ -77,6 +77,7 @@ public class PosApiController : ApiControllerBase
     /// <summary>Ticket de la venta en PDF (formato térmico).</summary>
     [HttpGet("ventas/{id:int}/ticket")]
     [RequirePermiso("Pos.Ver")]
+    [Produces("application/pdf")]
     public async Task<IActionResult> Ticket(int id, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());

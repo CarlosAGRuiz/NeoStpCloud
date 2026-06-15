@@ -101,6 +101,7 @@ public class CatalogosController : ApiControllerBase
 
     [HttpGet("{codigo}/export")]
     [RequirePermiso("Core.Catalogos.Ver")]
+    [Produces("text/csv", "application/json", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     public async Task<IActionResult> Export(
         string codigo,
         [FromQuery] CatalogoFileFormat format = CatalogoFileFormat.Csv,
