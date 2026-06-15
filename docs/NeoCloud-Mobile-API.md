@@ -17,7 +17,7 @@ sino un cliente ligero sobre la API REST de NeoSTP Cloud.
 >
 > **Revision 2026-06-15 (HB-6):** contrato contrastado contra `api_endpoints.dart`, `api_client.dart` y repositorios
 > Flutter de auth, DTE, cobros, NeoScan, alertas y POS. AM-0..AM-6 cerrado operativo al 100%; validacion:
-> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 705 unitarias + 9 integracion.
+> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 709 unitarias + 9 integracion.
 > Politica fuente: `docs/API-Contratos-Versionado.md`.
 
 ---

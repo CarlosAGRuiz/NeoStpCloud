@@ -10,8 +10,8 @@
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
 >
 > Actualizacion 2026-06-15: API mobile AM-0..AM-6 quedo cerrada operativa al 100%. HB-1,
-> HB-3/HB-4, HB-5 y HB-6 tambien quedaron cerrados operativos con build limpio y suite completa verde:
-> 705 unitarias + 9 integracion.
+> HB-3/HB-4, HB-5, HB-6 y HB-7 tambien quedaron cerrados operativos con build limpio y suite completa verde:
+> 709 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -39,26 +39,27 @@ para Web/API.
 | HB-4 | Cerrado operativo 100% | `DemoReadinessContractTests` cubre rutas Web criticas, auth de controllers, portal publico y existencia de vistas Razor. |
 | HB-5 | Cerrado operativo 100% | `EmpresaPruebaSeeder` siembra datos comerciales idempotentes para DTE, compras/CxP, inventario, tesoreria, portal, CRM, RRHH y Profit; prueba enfocada 5/5 verde. |
 | HB-6 | Cerrado operativo 100% | `API-Contratos-Versionado.md`, metadata `Produces` en descargas y `ApiVersioningContractTests` cubren Tier A `/api/*`, NeoConnect `/api/v1` y politica de breaking changes. |
+| HB-7 | Cerrado operativo 100% | `Runbook-Storage-Secretos-Retencion.md`, readiness de storage `Database`/`FileSystem`, guardrail anti-rutas absolutas NeoScan y `Hb7StorageSecretRetentionTests`. |
 
 ## Siguiente Sprint Recomendado
 
-**HB-7 - Storage, Secretos y Retencion.**
+**HB-8 - Runbook de Demo y Release.**
 
-Motivo: con API mobile, HB-1, HB-3/HB-4, HB-5 y HB-6 cerradas, el mayor riesgo pendiente pasa a ser
-operativo: documentos fiscales, archivos NeoScan, certificados, JWT/API keys/webhooks y retencion en
-ambientes demo/productivos.
+Motivo: con API mobile, HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 cerradas, el mayor riesgo pendiente pasa a
+ser la repetibilidad de demos/releases: checklist pre-demo, guion, criterios de no demo, evidencia y
+limpieza post-demo.
 
 Entregables:
 
-- Runbook de storage de scans: cifrado de disco, permisos, backup, retencion y purga.
-- Guardrail para no loggear nombres/rutas sensibles de documentos.
-- Checklist de secretos por entorno: JWT, DTE, Gemini, FCM, WhatsApp, pasarelas, SMTP.
-- Prueba de health/readiness para storage configurado.
+- Checklist pre-demo: build, tests, migraciones, seed, usuarios, puertos, providers y health.
+- Guion comercial problema -> flujo -> resultado -> valor de negocio.
+- Checklist post-demo: limpiar datos temporales, revocar tokens/enlaces y registrar feedback.
+- Criterios de "no demo": tests rojos, health rojo, certificado faltante, usuario sin permisos o docs desalineadas.
 
 Criterio de cierre:
 
-- Ambiente demo/productivo documentado sin secretos en repo y con retencion clara.
-- `/health/ready` cubre storage configurado.
+- Cualquier miembro tecnico puede levantar la demo siguiendo el documento.
+- La evidencia de demo queda registrada por fecha, branch, commit, ambiente y usuarios.
 - Build y suite completa siguen verdes.
 
 ## Roadmap de Sprints
@@ -73,7 +74,7 @@ Criterio de cierre:
 | HB-5 | Media-alta | Datos demo y escenarios comerciales | Cerrado operativo: demo con datos completos, no pantallas vacias |
 | HB-6 | Media-alta | Contratos API y versionado | Cerrado operativo: politica, docs y tests de versionado |
 | AM-0..AM-6 | Alta | API movil Android | Cerrado operativo 100%: contrato, pruebas, datos demo y runbook |
-| HB-7 | Media | Storage, secretos y retencion | Archivos fiscales y secretos operados con guardrails |
+| HB-7 | Media | Storage, secretos y retencion | Cerrado operativo: archivos fiscales y secretos operados con guardrails |
 | HB-8 | Media | Runbook de demo y release | Checklist previo a demo/release ejecutable |
 
 ## Aclaracion de Alcance Movil
@@ -352,6 +353,23 @@ Criterio de cierre:
 
 - Ambiente demo/productivo documentado sin secretos en repo y con retencion clara.
 
+### Cierre Operativo 2026-06-15
+
+- Se agrego `docs/Runbook-Storage-Secretos-Retencion.md` como fuente de verdad para storage
+  NeoScan, backups, secretos por entorno, DataProtection, Gemini/FCM/Meta/pasarelas, health y
+  retencion fiscal/auditoria/logs.
+- `StorageHealthCheck` ahora valida `Scan:Storage:Provider` y prueba escritura en
+  `Scan:Storage:Root` cuando el provider es `FileSystem`; un provider invalido deja readiness
+  unhealthy.
+- `FileSystemScanBlobStorage.LeerAsync` quedo protegido contra traversal, rutas absolutas y escapes
+  fuera del root configurado.
+- `src/NeoSTP.Api/appsettings.Local.example.json` incluye ejemplo de `Scan:Storage` filesystem para
+  demos.
+- `Hb7StorageSecretRetentionTests` cubre readiness `Database`/`FileSystem`, provider invalido,
+  documentacion operativa y enlace desde README/API.
+- Validacion enfocada: `dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter "Hb7StorageSecretRetentionTests|ScanBlobStorageTests"`
+  = verde.
+
 ## HB-8 - Runbook de Demo y Release
 
 Hallazgos:
@@ -388,7 +406,7 @@ Criterio de cierre:
 | HB-009 | Alta | Cerrado HB-4: baseline automatizada de rutas Web, portal publico y vistas Razor + checklist recurrente | HB-4 |
 | HB-010 | Media | Cerrado HB-5: empresa demo deja datos comerciales ricos e idempotentes para reportes y flujos | HB-5 |
 | HB-011 | Media-alta | Cerrado HB-6: versionado API formalizado para `/api/*` y `/api/v1/*` con guardrails automatizados | HB-6 |
-| HB-012 | Media-alta | Storage de documentos fiscales requiere runbook de seguridad/retencion | HB-7 |
+| HB-012 | Media-alta | Cerrado HB-7: storage de documentos fiscales tiene runbook, readiness y guardrail filesystem | HB-7 |
 | HB-013 | Media | Falta runbook especifico de demo/release comercial | HB-8 |
 | AM-001 | Alta | DTE listado/detalle requiere `DTE.Emitir`, pero la app separa consulta con `DTE.Consultar` | AM-1 |
 | AM-002 | Alta | Falta suite contractual que ejecute endpoints reales consumidos por `api_endpoints.dart` | AM-2 |
@@ -410,8 +428,8 @@ Criterio de cierre:
 
 ## Orden de Ejecucion Recomendado
 
-1. HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4, HB-5 y HB-6 ya quedaron cerrados operativos.
-2. Ejecutar HB-7 para cerrar storage, secretos y retencion antes de demos con documentos fiscales reales.
+1. HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 ya quedaron cerrados operativos.
+2. Ejecutar HB-8 para cerrar el runbook de demo/release antes de abrir nuevos proyectos o modulos.
 3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
    operativa Compras/CxP/Inventario desde Scan.
-4. Cerrar HB-8 como consolidacion antes de nuevos proyectos o modulos.
+4. Despues de HB-8, evaluar nuevos proyectos o modulos con base en evidencia comercial.

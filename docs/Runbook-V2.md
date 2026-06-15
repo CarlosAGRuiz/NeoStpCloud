@@ -46,7 +46,7 @@ dotnet ef database update --project src/NeoSTP.Infrastructure --startup-project 
 
 ### 2.3 Smoke post-despliegue
 
-1. `GET /health/live` y `GET /health/ready` en API y Web → 200 (ready valida BD).
+1. `GET /health/live` y `GET /health/ready` en API y Web → 200 (ready valida BD, correo y storage).
 2. Login web + `POST /api/auth/login` con un usuario de la empresa demo.
 3. Emitir un DTE de prueba en ambiente 00 (`POST /api/dte/emitir`) si el entorno tiene certificado de pruebas.
 4. Revisar `logs/neostp-*-.log` (Serilog, rotación diaria, 30 días retenidos) por errores de arranque.
@@ -62,8 +62,11 @@ BACKUP DATABASE [NeoSTP_Cloud] TO DISK = N'D:\Backups\NeoSTP_Cloud_FULL.bak'
   WITH COMPRESSION, CHECKSUM, INIT;
 ```
 
-- Los blobs (logos, firmas, certificados, escaneos, PDF) están **en la BD** en V2, por lo que el
-  backup de BD es suficiente. Si V2.5 mueve blobs a storage externo, añadir ese storage al plan.
+- Los blobs de NeoScan pueden vivir en **BD** (`Scan:Storage:Provider=Database`) o en
+  **filesystem** (`Scan:Storage:Provider=FileSystem`). Si se usa filesystem, respaldar
+  `Scan:Storage:Root` junto con la BD.
+- Ver runbook HB-7 para storage, secretos y retencion:
+  `docs/Runbook-Storage-Secretos-Retencion.md`.
 - Copiar los `.bak` a almacenamiento fuera del servidor (regla 3-2-1).
 
 ### 3.2 Restore (probado como parte del release)
@@ -102,7 +105,8 @@ guarda cifrado. Validar con el botón "Probar correo" del diagnóstico (`/Harden
 
 ## 5. Retención y borrado de datos
 
-- **Auditoría** (`Auditoria_Eventos`): retener mínimo 12 meses; purga por SQL programado si crece.
+- **Auditoría** (`Auditoria_Eventos`): retener mínimo 12 meses; usar `Worker:LimpiezaAuditoria`
+  para purga programada (el servicio no baja de 30 dias).
 - **Logs Serilog**: 30 días en disco (config `Serilog:WriteTo:File`); ampliar solo en staging.
 - **DTE y libros fiscales**: NO se borran — obligación fiscal salvadoreña (≥ 10 años recomendado).
 - **Baja de empresa (offboarding)**: inactivar empresa (corta acceso de inmediato), exportar sus
@@ -118,6 +122,10 @@ guarda cifrado. Validar con el botón "Probar correo" del diagnóstico (`/Harden
 - [ ] SMTP global y por empresa con contraseñas de aplicación, no credenciales personales.
 - [ ] Claves de pasarela (Wompi/PayPal/Stripe) solo en config del entorno; webhooks con secreto validado.
 - [ ] Certificados DTE solo en BD (cifrados); nunca en disco ni en el repo.
+- [ ] `Scan:Gemini:ApiKey`, FCM, WhatsApp Meta y pasarelas solo en config externa.
+- [ ] DataProtection key ring persistente y respaldado; si se pierde, se deben reingresar secretos cifrados.
+- [ ] Si `Scan:Storage:Provider=FileSystem`, `Scan:Storage:Root` tiene ACL minima, cifrado de disco,
+  backup y readiness verde.
 - [ ] `Cors:AllowedOrigins` explícito en producción (no `*`).
 
 ## 7. Checklist de release

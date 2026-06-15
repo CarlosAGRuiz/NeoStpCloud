@@ -43,9 +43,15 @@ public sealed class FileSystemScanBlobStorage : IScanBlobStorage
 
     public async Task<byte[]?> LeerAsync(string path, CancellationToken ct = default)
     {
-        // Solo claves relativas generadas por GuardarAsync; nada de traversal.
+        // Solo claves relativas generadas por GuardarAsync; nada de traversal ni rutas absolutas.
         if (string.IsNullOrWhiteSpace(path) || path.Contains("..")) return null;
-        var completo = Path.Combine(_root, path.Replace('/', Path.DirectorySeparatorChar));
+        var normalizado = path.Replace('/', Path.DirectorySeparatorChar);
+        if (Path.IsPathRooted(normalizado)) return null;
+
+        var root = Path.GetFullPath(_root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var completo = Path.GetFullPath(Path.Combine(root, normalizado));
+        if (!completo.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return null;
+
         return File.Exists(completo) ? await File.ReadAllBytesAsync(completo, ct) : null;
     }
 }

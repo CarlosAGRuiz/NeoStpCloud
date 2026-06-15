@@ -5,19 +5,19 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-1 + HB-3/HB-4 + HB-5 + HB-6 CERRADAS (2026-06-15) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 705 unit + 9 integración
+> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-1 + HB-3/HB-4 + HB-5 + HB-6 + HB-7 CERRADAS (2026-06-15) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 709 unit + 9 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
 
-## Estado actual — 2026-06-15 · FASES V2/V2.5, API MOBILE Y HB-1/HB-3/HB-4/HB-5/HB-6 CERRADAS
+## Estado actual — 2026-06-15 · FASES V2/V2.5, API MOBILE Y HB-1/HB-3/HB-4/HB-5/HB-6/HB-7 CERRADAS
 
 NeoSTP Cloud es un **producto funcionalmente completo**: los 17 modulos licenciables estan
 entregados, el ciclo de negocio opera de punta a punta y todo proveedor externo es pluggable
 por configuracion (los defaults funcionan sin servicios externos).
 
 **Numeros del sistema**: 17 modulos · ~89 tablas · 55 migraciones · 38 controllers API ·
-~45 pantallas web · 8 jobs de Worker · **705 tests unitarios + 9 de integracion** · build local
+~45 pantallas web · 8 jobs de Worker · **709 tests unitarios + 9 de integracion** · build local
 con 0 warnings.
 
 **Lo que el producto hace hoy** (todo probado): emision de 9 tipos de DTE certificados contra
@@ -35,8 +35,8 @@ Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado 
 (`manuelberganza-dev/neocloud_mobile_android`). Backlog V3 en README.
 
 **Prioridad inmediata post-analisis (2026-06-15):** HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4,
-HB-5 y HB-6 ya quedaron cerrados operativos. El siguiente trabajo recomendado es HB-7: storage,
-secretos y retencion para documentos fiscales y ambientes demo/productivos. Ver
+HB-5, HB-6 y HB-7 ya quedaron cerrados operativos. El siguiente trabajo recomendado es HB-8:
+runbook de demo/release comercial repetible. Ver
 `docs/Plan-Hallazgos-Bugs-Demo.md` y `docs/Plan-Pruebas-Web-Api-Demos.md`.
 
 ### Fases del proyecto (historial)
@@ -58,7 +58,7 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 
 ### Todo lo que se ha probado
 
-1. **Suites automatizadas**: 705 unit + 9 integracion, 0 fallos; validacion local 2026-06-15 con
+1. **Suites automatizadas**: 709 unit + 9 integracion, 0 fallos; validacion local 2026-06-15 con
    `dotnet build NeoSTP.slnx` en 0 warnings/0 errores.
    Calculadoras puras con cobertura dedicada (nomina, cobranza, POS, caja, CxP, costo promedio,
    ESC/POS, libro IVA, conciliacion 1:1 y combinaciones, profit, validador de clientes).
@@ -94,6 +94,9 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 11. **HB-6 cerrado**: `docs/API-Contratos-Versionado.md` define Tier A `/api/*`, Tier B `/api/v1/*`,
     reglas de breaking changes/deprecacion, contratos `ApiResponse<T>`/`PagedResult<T>` y descargas
     binarias; `ApiVersioningContractTests` congela rutas y content-types OpenAPI.
+12. **HB-7 cerrado**: `docs/Runbook-Storage-Secretos-Retencion.md` define storage NeoScan,
+    secretos por entorno, DataProtection, Gemini/FCM/Meta/pasarelas y retencion; readiness valida
+    storage `Database`/`FileSystem` y `FileSystemScanBlobStorage` bloquea traversal/rutas absolutas.
 ---
 
 ## Índice

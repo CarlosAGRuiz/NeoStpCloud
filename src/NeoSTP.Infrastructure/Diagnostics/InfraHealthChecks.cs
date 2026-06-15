@@ -38,20 +38,49 @@ public sealed class EmailConfigHealthCheck : IHealthCheck
 /// </summary>
 public sealed class StorageHealthCheck : IHealthCheck
 {
+    private readonly IConfiguration _configuration;
+
+    public StorageHealthCheck(IConfiguration configuration) => _configuration = configuration;
+
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
     {
         try
         {
-            var dir = Path.Combine(AppContext.BaseDirectory, "logs");
-            Directory.CreateDirectory(dir);
-            var probe = Path.Combine(dir, $".health-{Guid.NewGuid():N}.tmp");
-            File.WriteAllText(probe, "ok");
-            File.Delete(probe);
-            return Task.FromResult(HealthCheckResult.Healthy("Almacenamiento local escribible."));
+            var probes = new List<string>
+            {
+                ProbeDirectory(Path.Combine(AppContext.BaseDirectory, "logs"), "logs"),
+            };
+
+            var provider = _configuration["Scan:Storage:Provider"] ?? "Database";
+            if (string.Equals(provider, "FileSystem", StringComparison.OrdinalIgnoreCase))
+            {
+                var root = ResolvePath(_configuration["Scan:Storage:Root"] ?? "scan-blobs");
+                probes.Add(ProbeDirectory(root, "Scan:Storage:Root"));
+            }
+            else if (!string.Equals(provider, "Database", StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromResult(HealthCheckResult.Unhealthy(
+                    $"Scan:Storage:Provider '{provider}' no soportado. Use Database o FileSystem."));
+            }
+
+            return Task.FromResult(HealthCheckResult.Healthy(
+                $"Storage OK ({provider}). {string.Join("; ", probes)}."));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return Task.FromResult(HealthCheckResult.Unhealthy($"No se puede escribir en disco: {ex.Message}"));
         }
+    }
+
+    private static string ResolvePath(string path) =>
+        Path.IsPathRooted(path) ? path : Path.Combine(AppContext.BaseDirectory, path);
+
+    private static string ProbeDirectory(string dir, string label)
+    {
+        Directory.CreateDirectory(dir);
+        var probe = Path.Combine(dir, $".health-{Guid.NewGuid():N}.tmp");
+        File.WriteAllText(probe, "ok");
+        File.Delete(probe);
+        return $"{label} escribible";
     }
 }

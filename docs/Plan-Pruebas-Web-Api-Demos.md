@@ -35,12 +35,14 @@ Una demo esta lista cuando:
 Ultima validacion tecnica registrada (2026-06-15):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 705 unitarias + 9 integracion verdes.
-- HB-1, HB-3/HB-4, HB-5 y HB-6 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
+- `dotnet test NeoSTP.slnx`: 709 unitarias + 9 integracion verdes.
+- HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
 - `EmpresaPruebaSeederTests`: 5/5 pruebas verdes para seed demo idempotente API/mobile/comercial.
 - `ApiVersioningContractTests`: 4/4 pruebas verdes para politica `/api/*`, `/api/v1`, docs y descargas binarias.
+- `Hb7StorageSecretRetentionTests`: 4/4 pruebas verdes para readiness de storage, provider invalido,
+  runbook HB-7 y enlaces documentales.
 
 ## Ambientes
 
@@ -116,7 +118,7 @@ Cobertura automatica HB-5:
 | Regresion demo completa | 4-6 h | Antes de release, demo ejecutiva o entrega a cliente |
 | Regresion automatizada | Segun CI | Cada push/PR |
 
-## Baseline Automatizada HB-3/HB-4/HB-5/HB-6
+## Baseline Automatizada HB-3/HB-4/HB-5/HB-6/HB-7
 
 La prueba `tests/NeoSTP.Tests.Unit/Api/DemoReadinessContractTests.cs` es obligatoria para aceptar
 cambios que toquen controllers API, controllers Web, permisos, modulos o vistas de demo.
@@ -132,6 +134,8 @@ Cubre:
 - Existencia de vistas Razor criticas para evitar rutas que compilan pero rompen la demo.
 - Politica HB-6 de versionado: Tier A `/api/*`, NeoConnect `/api/v1`, descargas binarias con
   content-type real y documentacion enlazada.
+- Politica HB-7 de storage: readiness `Database`/`FileSystem`, provider invalido, runbook de
+  secretos/retencion y guardrail de NeoScan contra rutas absolutas.
 
 Comando enfocado:
 
@@ -151,6 +155,12 @@ Comando enfocado para versionado/contratos:
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter ApiVersioningContractTests
 ```
 
+Comando enfocado para storage/secretos/retencion:
+
+```bash
+dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter "Hb7StorageSecretRetentionTests|ScanBlobStorageTests"
+```
+
 ## Preflight Tecnico
 
 1. Revisar branch y cambios pendientes: `git status --short`.
@@ -161,9 +171,9 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter ApiVersion
 6. Levantar Worker si se prueban jobs: `dotnet run --project src/NeoSTP.Worker`.
 7. Validar:
    - API `/health/live`
-   - API `/health/ready`
+  - API `/health/ready` (BD, correo y storage)
    - Web `/health/live`
-   - Web `/health/ready`
+  - Web `/health/ready` (BD, correo y storage)
    - API `/openapi/v1.json`
    - Scalar `/scalar/v1`
 
@@ -480,12 +490,12 @@ No hacer demo si:
 
 - Build o tests estan rojos.
 - Login ADMIN falla.
-- API `/health/ready` falla por BD.
+- API `/health/ready` falla por BD, correo o storage configurado.
 - Web no carga dashboard.
 - DTE no puede generar al menos un documento en modo mock/apitest.
 - Hay 403 inesperado en rutas comerciales del ADMIN.
 - Portal publico no abre token valido.
-- Hay secretos reales en logs o documentos.
+- Hay secretos reales en logs o documentos, o `Scan:Storage:Root` no esta respaldado cuando se usa filesystem.
 
 ## Cierre de Corrida
 

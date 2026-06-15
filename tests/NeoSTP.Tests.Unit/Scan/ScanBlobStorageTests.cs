@@ -61,6 +61,17 @@ public class ScanBlobStorageTests : IDisposable
         (await storage.LeerAsync(clave)).Should().BeEquivalentTo(contenido);
         (await storage.LeerAsync("../../etc/passwd")).Should().BeNull(); // sin traversal
         (await storage.LeerAsync($"{Empresa}/209901/no-existe.jpg")).Should().BeNull();
+
+        var externo = Path.Combine(Path.GetTempPath(), $"neostp-fuera-{Guid.NewGuid():N}.bin");
+        try
+        {
+            await File.WriteAllBytesAsync(externo, contenido);
+            (await storage.LeerAsync(externo)).Should().BeNull(); // sin rutas absolutas fuera del root
+        }
+        finally
+        {
+            if (File.Exists(externo)) File.Delete(externo);
+        }
     }
 
     [Fact]

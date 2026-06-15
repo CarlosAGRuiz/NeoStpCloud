@@ -80,7 +80,7 @@ Los secretos locales deben vivir en `src/NeoSTP.Api/appsettings.Local.json`, que
 | `WhatsApp` | Proveedor `Mock` o `Meta` (Cloud API: Token, PhoneNumberId; E.164 con +503 por defecto). |
 | `Observability:Otlp:Endpoint` | Exporta trazas y metricas OpenTelemetry (Meter `NeoSTP`); vacio = sin overhead. |
 | `Cache` | Cache distribuida `Memory` (default) o `Redis` para lookups/catalogos con invalidacion. |
-| `Scan:Storage` | Blobs de escaneo en `Database` (default) o `FileSystem` (ruta local/UNC). |
+| `Scan:Storage` | Blobs de escaneo en `Database` (default) o `FileSystem` (ruta local/UNC); `/health/ready` valida el root cuando es filesystem. |
 
 Ejemplo minimo:
 
@@ -105,6 +105,8 @@ Ejemplo minimo:
 ```
 
 Nunca documentar ni commitear claves reales, certificados, passwords SMTP, API keys ni secretos de webhooks.
+Para storage, secretos y retencion de documentos fiscales/NeoScan, seguir el runbook HB-7:
+[`../../docs/Runbook-Storage-Secretos-Retencion.md`](../../docs/Runbook-Storage-Secretos-Retencion.md).
 
 ## Autenticacion
 
@@ -215,7 +217,7 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 |---|---|---|
 | GET | `/health` | Health simple JSON. |
 | GET | `/health/live` | Liveness. |
-| GET | `/health/ready` | Readiness con BD. |
+| GET | `/health/ready` | Readiness con BD, correo y storage configurado. |
 | GET | `/openapi/v1.json` | Especificacion OpenAPI. |
 | GET | `/scalar/v1` | Explorador interactivo. |
 
@@ -608,6 +610,7 @@ Plan de sprints de hallazgos y bugs: [`../../docs/Plan-Hallazgos-Bugs-Demo.md`](
 Plan especifico de hallazgos API movil: [`../../docs/Plan-Hallazgos-Api-Mobile.md`](../../docs/Plan-Hallazgos-Api-Mobile.md).
 Runbook demo API mobile: [`../../docs/Runbook-Api-Mobile-Demo.md`](../../docs/Runbook-Api-Mobile-Demo.md).
 Politica de contratos y versionado: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Contratos-Versionado.md).
+Runbook HB-7 de storage, secretos y retencion: [`../../docs/Runbook-Storage-Secretos-Retencion.md`](../../docs/Runbook-Storage-Secretos-Retencion.md).
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
@@ -626,6 +629,8 @@ Areas con cobertura relevante:
   RRHH y Profit cubierto por `EmpresaPruebaSeederTests`.
 - Contratos/versionado HB-6: rutas Tier A `/api/*`, NeoConnect `/api/v1`, content-types binarios,
   docs enlazadas y politica de breaking changes cubiertas por `ApiVersioningContractTests`.
+- Storage/secretos/retencion HB-7: readiness de storage `Database`/`FileSystem`, provider invalido,
+  runbook operativo y guardrail anti-rutas absolutas en NeoScan cubiertos por `Hb7StorageSecretRetentionTests`.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -637,7 +642,8 @@ Areas con cobertura relevante:
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
 Estado actual validado 2026-06-15: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 705 unitarias + 9 integracion. La suite incluye contrato mobile
+`dotnet test NeoSTP.slnx` con 709 unitarias + 9 integracion. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
-(`ApiVersioningContractTests`) sin cambios breaking de API.
+(`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)
+para storage, secretos y retencion.
