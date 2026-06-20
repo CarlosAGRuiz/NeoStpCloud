@@ -259,6 +259,9 @@ public class EmpresaPruebaSeederTests
         (await db.ContratosLaborales.CountAsync(c => c.EmpresaId == empresaId && c.EstadoCodigo == ContratoEstados.Vigente)).Should().Be(1);
         (await db.PlanillaPeriodos.CountAsync(p => p.EmpresaId == empresaId && p.EstadoCodigo == PlanillaEstados.Calculada)).Should().Be(1);
         (await db.PlanillaDetalles.CountAsync()).Should().Be(1);
+        (await db.PoliticasPrestaciones.CountAsync(p => p.EmpresaId == empresaId)).Should().Be(1);
+        (await db.SolicitudesVacacion.CountAsync(v => v.EmpresaId == empresaId && v.EstadoCodigo == VacacionEstados.Aprobada)).Should().Be(1);
+        (await db.AguinaldosCalculados.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == AguinaldoEstados.Aprobado)).Should().Be(1);
 
         (await db.ProfitCompras.CountAsync(c => c.EmpresaId == empresaId && c.NumeroDocumento == "COMP-DEMO-0001")).Should().Be(1);
         (await db.ProfitGastos.CountAsync(g => g.EmpresaId == empresaId && g.Descripcion == "Alquiler local demo")).Should().Be(1);

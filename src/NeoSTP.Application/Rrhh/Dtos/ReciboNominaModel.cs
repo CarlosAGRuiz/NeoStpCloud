@@ -18,6 +18,9 @@ public sealed class ReciboNominaModel
 
     public decimal SalarioMensual { get; set; }
     public decimal Devengado { get; set; }
+    public decimal PrimaVacacion { get; set; }
+    public decimal Aguinaldo { get; set; }
+    public decimal OtrosIngresos { get; set; }
     public decimal Isss { get; set; }
     public decimal Afp { get; set; }
     public decimal Renta { get; set; }

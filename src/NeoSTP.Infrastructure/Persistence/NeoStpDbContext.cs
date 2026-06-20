@@ -148,6 +148,9 @@ public class NeoStpDbContext : DbContext
     public DbSet<ContratoLaboral> ContratosLaborales => Set<ContratoLaboral>();
     public DbSet<PlanillaPeriodo> PlanillaPeriodos => Set<PlanillaPeriodo>();
     public DbSet<PlanillaDetalle> PlanillaDetalles => Set<PlanillaDetalle>();
+    public DbSet<PoliticaPrestaciones> PoliticasPrestaciones => Set<PoliticaPrestaciones>();
+    public DbSet<SolicitudVacacion> SolicitudesVacacion => Set<SolicitudVacacion>();
+    public DbSet<AguinaldoCalculo> AguinaldosCalculados => Set<AguinaldoCalculo>();
 
     // TesorerÃ­a (NEOTESORERIA â€” V2)
     public DbSet<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria> CuentasTesoreria => Set<NeoSTP.Domain.Core.Tesoreria.CuentaTesoreria>();

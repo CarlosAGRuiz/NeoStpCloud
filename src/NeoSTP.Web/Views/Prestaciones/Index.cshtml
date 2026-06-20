@@ -1,0 +1,216 @@
+@model NeoSTP.Web.Models.PrestacionesViewModel
+@{
+    ViewData["Title"] = "Prestaciones laborales";
+    var solicitudesPendientes = Model.Vacaciones.Count(x => x.EstadoCodigo == "SOLICITADA");
+    var montoAguinaldos = Model.Aguinaldos.Sum(x => x.Monto);
+    string Badge(string estado) => estado switch
+    {
+        "APROBADA" or "APROBADO" or "PAGADO" => "ns-badge--processed",
+        "SOLICITADA" or "CALCULADO" => "ns-badge--contingency",
+        "RECHAZADA" or "CANCELADA" or "ANULADO" => "ns-badge--rejected",
+        _ => "ns-badge--draft"
+    };
+}
+
+<div class="ns-page-head ns-page-head--hero">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Recursos Humanos</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>Prestaciones</span>
+        </nav>
+        <h1 class="ns-page-title">Prestaciones laborales</h1>
+        <p class="ns-page-subtitle">Vacaciones, prima vacacional, aguinaldo y aplicación automática en planilla.</p>
+    </div>
+    <form method="get" class="d-flex align-items-end gap-2">
+        <div>
+            <label for="anio" class="form-label small">Año de aguinaldo</label>
+            <input id="anio" name="anio" type="number" min="2000" max="2100" value="@Model.Anio" class="form-control" />
+        </div>
+        <button class="btn btn-outline-primary" title="Consultar año">
+            <span class="material-symbols-outlined">search</span>
+        </button>
+    </form>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string error) { <div class="alert alert-danger alert-dismissible fade show">@error <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="ns-summary-grid mb-4">
+    <section class="ns-summary-card">
+        <p>Solicitudes pendientes</p>
+        <strong class="ns-mono">@solicitudesPendientes</strong>
+        <span>Requieren resolución</span>
+    </section>
+    <section class="ns-summary-card">
+        <p>Vacaciones registradas</p>
+        <strong class="ns-mono">@Model.Vacaciones.Count</strong>
+        <span>Últimas 100 solicitudes</span>
+    </section>
+    <section class="ns-summary-card">
+        <p>Aguinaldos @Model.Anio</p>
+        <strong class="ns-mono">$ @montoAguinaldos.ToString("N2")</strong>
+        <span>@Model.Aguinaldos.Count empleados calculados</span>
+    </section>
+    <section class="ns-summary-card ns-summary-card--dark">
+        <p>Política vigente</p>
+        <strong class="ns-mono">@Model.Politica.DiasVacacionAnuales días</strong>
+        <span>Prima @Model.Politica.PrimaVacacionPorcentaje.ToString("P0")</span>
+    </section>
+</div>
+
+@if (Model.PuedeGestionar)
+{
+    <section class="mb-4">
+        <div class="ns-card-titlebar px-0">
+            <div>
+                <h2>Nueva solicitud de vacaciones</h2>
+                <p>Los días se cuentan de forma calendario y el saldo se valida antes de aprobar.</p>
+            </div>
+        </div>
+        <form asp-action="Solicitar" method="post" class="row g-3 align-items-end">
+            @Html.AntiForgeryToken()
+            <div class="col-lg-4">
+                <label for="empleadoId" class="form-label">Empleado</label>
+                <select id="empleadoId" name="EmpleadoId" class="form-select" required>
+                    <option value="">Seleccionar</option>
+                    @foreach (var empleado in Model.Empleados)
+                    {
+                        <option value="@empleado.Id">@empleado.Codigo · @empleado.NombreCompleto</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label for="fechaInicio" class="form-label">Desde</label>
+                <input id="fechaInicio" name="FechaInicio" type="date" value="@Model.NuevaVacacion.FechaInicio.ToString("yyyy-MM-dd")" class="form-control" required />
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label for="fechaFin" class="form-label">Hasta</label>
+                <input id="fechaFin" name="FechaFin" type="date" value="@Model.NuevaVacacion.FechaFin.ToString("yyyy-MM-dd")" class="form-control" required />
+            </div>
+            <div class="col-lg-3">
+                <label for="motivo" class="form-label">Motivo</label>
+                <input id="motivo" name="Motivo" maxlength="500" class="form-control" />
+            </div>
+            <div class="col-lg-1">
+                <button class="btn btn-primary w-100" title="Registrar solicitud">
+                    <span class="material-symbols-outlined">add</span>
+                </button>
+            </div>
+        </form>
+    </section>
+}
+
+<div class="card ns-data-card mb-4">
+    <div class="ns-card-titlebar">
+        <div>
+            <h2>Vacaciones</h2>
+            <p>Control de solicitudes, resoluciones y prima aplicada en planilla.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table ns-table-modern m-0 align-middle">
+            <thead><tr><th>Empleado</th><th>Período</th><th class="text-end">Días</th><th class="text-end">Prima</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+            @if (!Model.Vacaciones.Any())
+            {
+                <tr><td colspan="6"><div class="ns-empty"><span class="material-symbols-outlined">event_busy</span><p>No hay vacaciones registradas.</p></div></td></tr>
+            }
+            @foreach (var vacacion in Model.Vacaciones)
+            {
+                <tr>
+                    <td><strong>@vacacion.EmpleadoNombre</strong><br /><span class="ns-code-token">@vacacion.EmpleadoCodigo</span></td>
+                    <td class="ns-mono">@vacacion.FechaInicio.ToString("dd/MM/yyyy") - @vacacion.FechaFin.ToString("dd/MM/yyyy")</td>
+                    <td class="text-end ns-mono">@vacacion.Dias</td>
+                    <td class="text-end ns-mono">$ @vacacion.PrimaMonto.ToString("N2")</td>
+                    <td><span class="ns-badge @Badge(vacacion.EstadoCodigo)">@vacacion.EstadoCodigo</span></td>
+                    <td class="text-end">
+                        @if (Model.PuedeGestionar && vacacion.EstadoCodigo == "SOLICITADA")
+                        {
+                            <form asp-action="AprobarVacacion" asp-route-id="@vacacion.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-sm btn-outline-success" title="Aprobar"><span class="material-symbols-outlined">check</span></button>
+                            </form>
+                            <form asp-action="RechazarVacacion" asp-route-id="@vacacion.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-sm btn-outline-danger" title="Rechazar"><span class="material-symbols-outlined">close</span></button>
+                            </form>
+                        }
+                        @if (Model.PuedeGestionar && vacacion.EstadoCodigo is "SOLICITADA" or "APROBADA" && vacacion.PlanillaPeriodoId is null)
+                        {
+                            <form asp-action="CancelarVacacion" asp-route-id="@vacacion.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-sm btn-outline-secondary" title="Cancelar"><span class="material-symbols-outlined">block</span></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card ns-data-card mb-4">
+    <div class="ns-card-titlebar">
+        <div><h2>Aguinaldo @Model.Anio</h2><p>Cálculo por antigüedad y salario vigente.</p></div>
+        @if (Model.PuedeGestionar)
+        {
+            <div class="d-flex gap-2">
+                <form asp-action="CalcularAguinaldos" method="post">
+                    @Html.AntiForgeryToken()<input type="hidden" name="anio" value="@Model.Anio" />
+                    <button class="btn btn-outline-primary"><span class="material-symbols-outlined">calculate</span> Calcular</button>
+                </form>
+                <form asp-action="AprobarAguinaldos" method="post" onsubmit="return confirm('¿Aprobar los aguinaldos calculados para incluirlos en planilla?');">
+                    @Html.AntiForgeryToken()<input type="hidden" name="anio" value="@Model.Anio" />
+                    <button class="btn btn-success"><span class="material-symbols-outlined">check_circle</span> Aprobar</button>
+                </form>
+            </div>
+        }
+    </div>
+    <div class="table-responsive">
+        <table class="table ns-table-modern m-0 align-middle">
+            <thead><tr><th>Empleado</th><th class="text-end">Antigüedad</th><th class="text-end">Días</th><th class="text-end">Salario base</th><th class="text-end">Monto</th><th>Estado</th></tr></thead>
+            <tbody>
+            @if (!Model.Aguinaldos.Any())
+            {
+                <tr><td colspan="6"><div class="ns-empty"><span class="material-symbols-outlined">payments</span><p>No se ha calculado el aguinaldo de este año.</p></div></td></tr>
+            }
+            @foreach (var item in Model.Aguinaldos)
+            {
+                <tr>
+                    <td><strong>@item.EmpleadoNombre</strong><br /><span class="ns-code-token">@item.EmpleadoCodigo</span></td>
+                    <td class="text-end ns-mono">@item.AntiguedadAnios años</td>
+                    <td class="text-end ns-mono">@item.DiasCalculados.ToString("N2")</td>
+                    <td class="text-end ns-mono">$ @item.SalarioMensual.ToString("N2")</td>
+                    <td class="text-end ns-mono fw-bold">$ @item.Monto.ToString("N2")</td>
+                    <td><span class="ns-badge @Badge(item.EstadoCodigo)">@item.EstadoCodigo</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.PuedeGestionar)
+{
+    <details class="card ns-data-card mb-4">
+        <summary class="ns-card-titlebar" style="cursor:pointer"><div><h2>Política de prestaciones</h2><p>Parámetros vigentes por empresa.</p></div></summary>
+        <form asp-action="ActualizarPolitica" method="post" class="card-body row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="VigenteDesde" value="@Model.Politica.VigenteDesde.ToString("yyyy-MM-dd")" />
+            <div class="col-md-3"><label class="form-label">Meses para vacaciones</label><input name="MesesParaVacacion" type="number" min="1" max="60" value="@Model.Politica.MesesParaVacacion" class="form-control" required /></div>
+            <div class="col-md-3"><label class="form-label">Días anuales</label><input name="DiasVacacionAnuales" type="number" min="1" max="60" value="@Model.Politica.DiasVacacionAnuales" class="form-control" required /></div>
+            <div class="col-md-3"><label class="form-label">Prima (decimal)</label><input name="PrimaVacacionPorcentaje" type="number" min="0" max="2" step="0.01" value="@Model.Politica.PrimaVacacionPorcentaje" class="form-control" required /></div>
+            <div class="col-md-3"><label class="form-label">Fecha de pago</label><div class="input-group"><input name="AguinaldoDiaPago" type="number" min="1" max="31" value="@Model.Politica.AguinaldoDiaPago" class="form-control" required /><input name="AguinaldoMesPago" type="number" min="1" max="12" value="@Model.Politica.AguinaldoMesPago" class="form-control" required /></div></div>
+            <div class="col-md-2"><label class="form-label">Tramo medio (años)</label><input name="AguinaldoAniosTramoMedio" type="number" value="@Model.Politica.AguinaldoAniosTramoMedio" class="form-control" required /></div>
+            <div class="col-md-2"><label class="form-label">Tramo largo (años)</label><input name="AguinaldoAniosTramoLargo" type="number" value="@Model.Politica.AguinaldoAniosTramoLargo" class="form-control" required /></div>
+            <div class="col-md-2"><label class="form-label">Días tramo corto</label><input name="AguinaldoDiasTramoCorto" type="number" step="0.01" value="@Model.Politica.AguinaldoDiasTramoCorto" class="form-control" required /></div>
+            <div class="col-md-2"><label class="form-label">Días tramo medio</label><input name="AguinaldoDiasTramoMedio" type="number" step="0.01" value="@Model.Politica.AguinaldoDiasTramoMedio" class="form-control" required /></div>
+            <div class="col-md-2"><label class="form-label">Días tramo largo</label><input name="AguinaldoDiasTramoLargo" type="number" step="0.01" value="@Model.Politica.AguinaldoDiasTramoLargo" class="form-control" required /></div>
+            <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100">Guardar</button></div>
+        </form>
+    </details>
+}

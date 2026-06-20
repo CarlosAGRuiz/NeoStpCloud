@@ -32,6 +32,8 @@ public class PlanillaPeriodo : AuditableEntity
     public int? ProfitGastoId { get; set; }
 
     public ICollection<PlanillaDetalle> Detalles { get; set; } = new List<PlanillaDetalle>();
+    public ICollection<SolicitudVacacion> VacacionesAplicadas { get; set; } = new List<SolicitudVacacion>();
+    public ICollection<AguinaldoCalculo> AguinaldosAplicados { get; set; } = new List<AguinaldoCalculo>();
 }
 
 /// <summary>Línea de planilla por empleado (snapshot del cálculo del período).</summary>
@@ -46,6 +48,9 @@ public class PlanillaDetalle : AuditableEntity
 
     public decimal SalarioMensual { get; set; }
     public decimal Devengado { get; set; }
+    public decimal PrimaVacacion { get; set; }
+    public decimal Aguinaldo { get; set; }
+    public decimal OtrosIngresos { get; set; }
 
     public decimal Isss { get; set; }
     public decimal Afp { get; set; }

@@ -1,6 +1,6 @@
 # Plan V3 - Expansion Operativa y Enterprise
 
-> Inicio: 2026-06-20. V2/V2.5, API mobile, HB-0..HB-8 y V3-S1/V3-S2 tienen cierre operativo.
+> Inicio: 2026-06-20. V2/V2.5, API mobile, HB-0..HB-8 y V3-S1..V3-S3 tienen cierre operativo.
 > V3 se ejecuta en incrementos API-first con evidencia de negocio, tenant, RBAC, auditoria y pruebas.
 
 ## Objetivo
@@ -41,8 +41,8 @@ Factura/CxP -> Inventario -> Tesoreria usando servicios existentes.
 |---|---|---|
 | V3-S1 | Cerrado operativo 100% | Ordenes de compra API core: borrador, edicion, emision, cancelacion y conversion unica a FacturaCompra/CxP + inventario. |
 | V3-S2 | Cerrado operativo 100% | Recepciones parciales idempotentes, kardex, CxP consolidada y UI Web completa. |
-| V3-S3 | Siguiente | Vacaciones y aguinaldo automatizados en NeoRRHH. |
-| V3-S4 | Pendiente | Catalogo contable personalizable y cierre anual base. |
+| V3-S3 | Cerrado operativo 100% | Vacaciones, prima vacacional y aguinaldo configurables, API/Web y aplicacion en planilla. |
+| V3-S4 | Siguiente | Catalogo contable personalizable y cierre anual base. |
 | V3-S5 | Pendiente | SDKs y ejemplos ejecutables NeoConnect. |
 | V3-S6 | Pendiente | Multi-moneda y tipos de cambio con estrategia de redondeo. |
 | V3-S7 | Pendiente | SSO/SAML, white label avanzado y controles enterprise. |
@@ -142,11 +142,56 @@ Todas las rutas requieren JWT, modulo `COMPRAS` y permisos existentes:
 
 ## V3-S3 - Vacaciones y Aguinaldo NeoRRHH
 
-Siguiente sprint recomendado.
+### Entregado
 
-Alcance inicial:
+- Politica por empresa para meses/dias de vacaciones, prima, tramos de aguinaldo y fecha de pago.
+- Saldo de vacaciones por periodos completos, solicitudes con control de traslape y estados
+  `SOLICITADA`, `APROBADA`, `RECHAZADA` y `CANCELADA`.
+- Prima vacacional calculada en servidor desde salario diario, dias aprobados y porcentaje tenant.
+- Aguinaldo anual por antiguedad con tramos 15/19/21 y proporcionalidad bajo un anio; los valores
+  son configurables para evitar fijar una politica laboral irreversible en codigo.
+- Integracion con planilla: prestaciones aprobadas se vinculan una sola vez, aparecen en detalle,
+  CSV y recibo PDF; el aguinaldo pasa a `PAGADO` al cerrar y la anulacion libera vinculos.
+- API mobile protegida por `NEORRHH` y permisos `Rrhh.Nomina.Ver/Gestionar`.
+- UI Web `/Prestaciones` para solicitud/resolucion, calculo/aprobacion anual y politica.
+- Auditoria de configuracion, solicitudes, resoluciones, cancelaciones y aguinaldo.
+- Seed demo idempotente con politica, vacaciones aprobadas y aguinaldo aprobado.
+- Migracion `V3_S3_PrestacionesRrhh` con tres tablas y desglose monetario en planilla.
 
-- Politicas por empresa para acumulacion, antiguedad y periodos.
-- Solicitud/aprobacion de vacaciones, saldo y calendario.
-- Calculo de aguinaldo segun antiguedad y reglas vigentes de El Salvador.
-- Impacto trazable en planilla, API, UI Web, auditoria, seed y pruebas.
+### API
+
+| Metodo | Ruta | Permiso | Uso |
+|---|---|---|---|
+| GET/PUT | `/api/rrhh/prestaciones/politica` | `Rrhh.Nomina.Ver/Gestionar` | Consultar o actualizar reglas tenant. |
+| GET/POST | `/api/rrhh/vacaciones` | `Rrhh.Nomina.Ver/Gestionar` | Listar o solicitar vacaciones. |
+| GET | `/api/rrhh/vacaciones/empleados/{id}/resumen` | `Rrhh.Nomina.Ver` | Saldo a una fecha de corte. |
+| POST | `/api/rrhh/vacaciones/{id}/aprobar` | `Rrhh.Nomina.Gestionar` | Aprobar y calcular prima. |
+| POST | `/api/rrhh/vacaciones/{id}/rechazar` | `Rrhh.Nomina.Gestionar` | Rechazar solicitud pendiente. |
+| POST | `/api/rrhh/vacaciones/{id}/cancelar` | `Rrhh.Nomina.Gestionar` | Cancelar si aun no esta en planilla. |
+| GET | `/api/rrhh/aguinaldos/{anio}` | `Rrhh.Nomina.Ver` | Consultar calculos del anio. |
+| POST | `/api/rrhh/aguinaldos/{anio}/calcular` | `Rrhh.Nomina.Gestionar` | Calculo idempotente por empleados activos. |
+| POST | `/api/rrhh/aguinaldos/{anio}/aprobar` | `Rrhh.Nomina.Gestionar` | Autorizar inclusion en planilla. |
+
+### Guardrails
+
+- Empleado y contrato vigente deben pertenecer a la empresa.
+- No se acepta fecha anterior al ingreso, rango invertido, traslape ni dias sobre saldo.
+- Solo solicitudes pendientes se aprueban o rechazan.
+- Una prestacion vinculada a planilla no se cancela directamente.
+- Recalcular aguinaldo no modifica registros aprobados o pagados.
+- Los montos son server-side y las acciones significativas se auditan.
+- Los valores laborales por defecto son configurables y deben validarse con asesoria laboral
+  antes de produccion cuando cambie la normativa o la politica de la empresa.
+
+### Validacion
+
+- `PrestacionesCalculatorTests`: aniversarios, devengo, prima, tramos y proporcionalidad.
+- `PrestacionesRrhhServiceTests`: tenant, saldo, traslape, estados, politica e idempotencia.
+- `PlanillaServiceTests`: vinculacion, desglose y liberacion al anular.
+- `RrhhPrestacionesApiContractTests` y `DemoReadinessContractTests`: permisos y superficie Web.
+- `EmpresaPruebaSeederTests`: escenario demo unico tras dos ejecuciones.
+- Build 0 warnings/0 errores y suite 750 unitarias + 9 integracion.
+
+### Siguiente
+
+V3-S4: catalogo contable personalizable y cierre anual base.

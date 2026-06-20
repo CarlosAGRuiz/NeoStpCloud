@@ -163,4 +163,42 @@ public class PlanillaServiceTests
         await profit.Received(1).InactivarGastoAsync(Empresa, 555, "tester", Arg.Any<CancellationToken>());
         (await db.PlanillaPeriodos.FirstAsync()).EstadoCodigo.Should().Be("ANULADA");
     }
+
+    [Fact]
+    public async Task Crear_IncluyePrestacionesAprobadas_YAnularLasLibera()
+    {
+        var db = NewDb(empleados: 1);
+        var empleado = await db.Empleados.FirstAsync();
+        empleado.FechaIngreso = new DateOnly(2024, 1, 1);
+        db.SolicitudesVacacion.Add(new SolicitudVacacion
+        {
+            EmpresaId = Empresa, EmpleadoId = empleado.Id, FechaInicio = new DateOnly(2026, 6, 5),
+            FechaFin = new DateOnly(2026, 6, 9), Dias = 5, PrimaMonto = 50m,
+            EstadoCodigo = VacacionEstados.Aprobada,
+        });
+        db.AguinaldosCalculados.Add(new AguinaldoCalculo
+        {
+            EmpresaId = Empresa, EmpleadoId = empleado.Id, Anio = 2026,
+            FechaCorte = new DateOnly(2026, 6, 12), AntiguedadAnios = 2,
+            SalarioMensual = 1000m, DiasCalculados = 15m, Monto = 500m,
+            EstadoCodigo = AguinaldoEstados.Aprobado,
+        });
+        await db.SaveChangesAsync();
+        var (service, _) = NewSvc(db);
+
+        var creada = await service.CrearAsync(Empresa, Q1(), "tester");
+
+        creada.Value!.Detalles.Should().ContainSingle();
+        creada.Value.Detalles[0].PrimaVacacion.Should().Be(50m);
+        creada.Value.Detalles[0].Aguinaldo.Should().Be(500m);
+        creada.Value.Detalles[0].Devengado.Should().Be(1050m);
+        (await db.SolicitudesVacacion.SingleAsync()).PlanillaPeriodoId.Should().Be(creada.Value.Id);
+
+        await service.AnularAsync(Empresa, creada.Value.Id, "tester");
+
+        (await db.SolicitudesVacacion.SingleAsync()).PlanillaPeriodoId.Should().BeNull();
+        var aguinaldo = await db.AguinaldosCalculados.SingleAsync();
+        aguinaldo.PlanillaPeriodoId.Should().BeNull();
+        aguinaldo.EstadoCodigo.Should().Be(AguinaldoEstados.Aprobado);
+    }
 }

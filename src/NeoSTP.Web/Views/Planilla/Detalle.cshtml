@@ -116,6 +116,7 @@
                     <th>Código</th>
                     <th>Empleado</th>
                     <th class="text-end">Devengado</th>
+                    <th class="text-end">Prestaciones</th>
                     <th class="text-end">ISSS</th>
                     <th class="text-end">AFP</th>
                     <th class="text-end">Renta</th>
@@ -129,7 +130,7 @@
                 @if (!Model.Detalles.Any())
                 {
                     <tr>
-                        <td colspan="10">
+                        <td colspan="11">
                             <div class="ns-empty">
                                 <span class="material-symbols-outlined">receipt_long</span>
                                 <p>Esta corrida no tiene empleados calculados.</p>
@@ -143,6 +144,16 @@
                         <td><span class="ns-code-token">@d.EmpleadoCodigo</span></td>
                         <td><strong>@d.EmpleadoNombre</strong></td>
                         <td class="text-end ns-mono">$ @d.Devengado.ToString("N2")</td>
+                        <td class="text-end ns-mono">
+                            @if (d.OtrosIngresos > 0)
+                            {
+                                <span title="Prima: $ @d.PrimaVacacion.ToString("N2") · Aguinaldo: $ @d.Aguinaldo.ToString("N2")">$ @d.OtrosIngresos.ToString("N2")</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
                         <td class="text-end ns-mono text-danger">- @d.Isss.ToString("N2")</td>
                         <td class="text-end ns-mono text-danger">- @d.Afp.ToString("N2")</td>
                         <td class="text-end ns-mono text-danger">- @d.Renta.ToString("N2")</td>
@@ -161,6 +172,7 @@
                 <tr>
                     <td colspan="2"><strong>Totales</strong></td>
                     <td class="text-end ns-mono fw-bold">$ @Model.TotalDevengado.ToString("N2")</td>
+                    <td></td>
                     <td colspan="3"></td>
                     <td class="text-end ns-mono fw-bold text-danger">$ @Model.TotalDeducciones.ToString("N2")</td>
                     <td class="text-end ns-mono fw-bold">$ @Model.TotalNeto.ToString("N2")</td>

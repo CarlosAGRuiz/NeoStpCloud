@@ -233,6 +233,7 @@ public static class DependencyInjection
         services.Configure<NeoSTP.Application.Rrhh.NominaOptions>(configuration.GetSection(NeoSTP.Application.Rrhh.NominaOptions.SectionName));
         services.AddScoped<NeoSTP.Application.Rrhh.IEmpleadosService, EmpleadosService>();
         services.AddScoped<NeoSTP.Application.Rrhh.IPlanillaService, PlanillaService>();
+        services.AddScoped<NeoSTP.Application.Rrhh.IPrestacionesRrhhService, PrestacionesRrhhService>();
         services.AddScoped<NeoSTP.Application.Rrhh.INominaPdfService, NeoSTP.Infrastructure.Rrhh.NominaPdfService>();
 
         // TesorerÃ­a (NEOTESORERIA â€” V2): cuentas banco/caja + movimientos.

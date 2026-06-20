@@ -35,7 +35,7 @@ Una demo esta lista cuando:
 Ultima validacion tecnica registrada (2026-06-20):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 725 unitarias + 9 integracion verdes.
+- `dotnet test NeoSTP.slnx`: 750 unitarias + 9 integracion verdes.
 - HB-0..HB-8 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
@@ -49,6 +49,8 @@ Ultima validacion tecnica registrada (2026-06-20):
   conversion a CxP/inventario, rutas, modulo y permisos.
 - V3-S2: las suites de ordenes y demo readiness cubren recepciones parciales, limite pendiente,
   idempotencia, no duplicacion de inventario, CxP consolidada y rutas/vistas Web.
+- V3-S3: `PrestacionesCalculatorTests`, `PrestacionesRrhhServiceTests`, `PlanillaServiceTests`,
+  `RrhhPrestacionesApiContractTests` y demo readiness cubren reglas, tenant, estados, nomina y Web.
 
 ## Ambientes
 
@@ -104,7 +106,8 @@ La empresa demo debe tener:
 - 1 scan con archivo y campos extraidos/corregidos.
 - 1 enlace de portal para DTE y 1 estado de cuenta.
 - 1 cuenta bancaria, movimientos y CSV de conciliacion.
-- 1 empleado y 1 planilla cerrada o calculada.
+- 1 empleado con antiguedad, 1 planilla cerrada o calculada, politica de prestaciones,
+  vacaciones aprobadas y aguinaldo aprobado.
 - 1 oportunidad CRM y 1 cotizacion convertible.
 
 Cobertura automatica HB-5:
@@ -236,7 +239,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\demo-preflight.p
 | API-22 | `GET /api/conta/balanza` | CONTADOR | Balanza |
 | API-23 | `GET /api/crm/resumen` | ADMIN | Pipeline |
 | API-24 | `GET /api/alertas/resumen` | ADMIN | Badges |
-| API-25 | `GET /api/v1/ping` | API Key | Key y scopes validos |
+| API-25 | `GET /api/rrhh/prestaciones/politica` | ADMIN | Politica tenant con dias/tramos validos |
+| API-26 | `GET /api/rrhh/vacaciones` | ADMIN | Solicitud demo aprobada y prima visible |
+| API-27 | `GET /api/rrhh/vacaciones/empleados/{id}/resumen` | ADMIN | Devengado, usado y disponible coherentes |
+| API-28 | `POST /api/rrhh/aguinaldos/{anio}/calcular` | ADMIN | Calculo idempotente, sin duplicar aprobados |
+| API-29 | `GET /api/v1/ping` | API Key | Key y scopes validos |
 
 ## Smoke API Mobile
 
@@ -480,6 +487,15 @@ Negativos:
 - Importar estado bancario.
 - Conciliar movimientos.
 
+### ADMIN / RRHH
+
+- Abrir `/Prestaciones` y verificar politica vigente.
+- Registrar solicitud sin traslape y aprobarla; comprobar prima calculada por servidor.
+- Intentar exceder saldo y confirmar error funcional, no 500.
+- Calcular aguinaldos dos veces y confirmar que no se duplican.
+- Aprobar aguinaldos, crear planilla del periodo y verificar prima/aguinaldo en detalle, CSV y PDF.
+- Anular la planilla y confirmar que las prestaciones vuelven a quedar disponibles para recalculo.
+
 ### SUPERADMIN
 
 - Login con MFA si esta obligado.
@@ -507,6 +523,7 @@ Pantallas minimas:
 - Portal publico.
 - Tesoreria conciliacion.
 - Ordenes de compra: listado, formulario y detalle/recepcion.
+- Prestaciones: solicitud, tablas, acciones y politica desplegable.
 
 Viewports:
 

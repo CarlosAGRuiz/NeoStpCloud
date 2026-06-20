@@ -20,15 +20,135 @@ public class RrhhApiController : ApiControllerBase
 {
     private readonly IEmpleadosService _empleados;
     private readonly IPlanillaService _planilla;
+    private readonly IPrestacionesRrhhService _prestaciones;
     private readonly INominaPdfService _pdf;
     private readonly ICurrentUser _currentUser;
 
-    public RrhhApiController(IEmpleadosService empleados, IPlanillaService planilla, INominaPdfService pdf, ICurrentUser currentUser)
+    public RrhhApiController(
+        IEmpleadosService empleados,
+        IPlanillaService planilla,
+        IPrestacionesRrhhService prestaciones,
+        INominaPdfService pdf,
+        ICurrentUser currentUser)
     {
         _empleados = empleados;
         _planilla = planilla;
+        _prestaciones = prestaciones;
         _pdf = pdf;
         _currentUser = currentUser;
+    }
+
+    // Prestaciones laborales
+
+    [HttpGet("prestaciones/politica")]
+    [RequirePermiso("Rrhh.Nomina.Ver")]
+    public async Task<IActionResult> GetPoliticaPrestaciones([FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.GetPoliticaAsync(eid, ct));
+    }
+
+    [HttpPut("prestaciones/politica")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> UpdatePoliticaPrestaciones(
+        [FromBody] UpdatePoliticaPrestacionesRequest request,
+        [FromQuery] int? empresaId,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.UpdatePoliticaAsync(eid, request, _currentUser.Username, ct));
+    }
+
+    [HttpGet("vacaciones")]
+    [RequirePermiso("Rrhh.Nomina.Ver")]
+    public async Task<IActionResult> ListVacaciones(
+        [FromQuery] PagedQuery query,
+        [FromQuery] int? empleadoId,
+        [FromQuery] string? estado,
+        [FromQuery] int? empresaId,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.ListVacacionesAsync(eid, empleadoId, estado, query, ct));
+    }
+
+    [HttpGet("vacaciones/empleados/{empleadoId:int}/resumen")]
+    [RequirePermiso("Rrhh.Nomina.Ver")]
+    public async Task<IActionResult> GetVacacionResumen(
+        int empleadoId,
+        [FromQuery] DateOnly? fechaCorte,
+        [FromQuery] int? empresaId,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.GetVacacionResumenAsync(eid, empleadoId, fechaCorte, ct));
+    }
+
+    [HttpPost("vacaciones")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> SolicitarVacacion(
+        [FromBody] CrearSolicitudVacacionRequest request,
+        [FromQuery] int? empresaId,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.SolicitarVacacionAsync(eid, request, _currentUser.Username, ct));
+    }
+
+    [HttpPost("vacaciones/{id:int}/aprobar")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> AprobarVacacion(
+        int id,
+        [FromBody] ResolverSolicitudVacacionRequest request,
+        [FromQuery] int? empresaId,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.AprobarVacacionAsync(eid, id, request, _currentUser.Username, ct));
+    }
+
+    [HttpPost("vacaciones/{id:int}/rechazar")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> RechazarVacacion(
+        int id,
+        [FromBody] ResolverSolicitudVacacionRequest request,
+        [FromQuery] int? empresaId,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.RechazarVacacionAsync(eid, id, request, _currentUser.Username, ct));
+    }
+
+    [HttpPost("vacaciones/{id:int}/cancelar")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> CancelarVacacion(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.CancelarVacacionAsync(eid, id, _currentUser.Username, ct), "Vacación cancelada.");
+    }
+
+    [HttpGet("aguinaldos/{anio:int}")]
+    [RequirePermiso("Rrhh.Nomina.Ver")]
+    public async Task<IActionResult> ListAguinaldos(int anio, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.ListAguinaldosAsync(eid, anio, ct));
+    }
+
+    [HttpPost("aguinaldos/{anio:int}/calcular")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> CalcularAguinaldos(int anio, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.CalcularAguinaldosAsync(eid, anio, _currentUser.Username, ct));
+    }
+
+    [HttpPost("aguinaldos/{anio:int}/aprobar")]
+    [RequirePermiso("Rrhh.Nomina.Gestionar")]
+    public async Task<IActionResult> AprobarAguinaldos(int anio, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _prestaciones.AprobarAguinaldosAsync(eid, anio, _currentUser.Username, ct));
     }
 
     // ── Empleados ────────────────────────────────────────────────────────────

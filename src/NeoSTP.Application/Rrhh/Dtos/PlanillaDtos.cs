@@ -23,6 +23,9 @@ public sealed class PlanillaDetalleDto
     public string EmpleadoNombre { get; set; } = string.Empty;
     public decimal SalarioMensual { get; set; }
     public decimal Devengado { get; set; }
+    public decimal PrimaVacacion { get; set; }
+    public decimal Aguinaldo { get; set; }
+    public decimal OtrosIngresos { get; set; }
     public decimal Isss { get; set; }
     public decimal Afp { get; set; }
     public decimal Renta { get; set; }
@@ -64,6 +67,9 @@ public sealed class PlanillaExportRow
     public string? AfpInstitucion { get; set; }
     public string? AfpNumero { get; set; }
     public decimal Devengado { get; set; }
+    public decimal PrimaVacacion { get; set; }
+    public decimal Aguinaldo { get; set; }
+    public decimal OtrosIngresos { get; set; }
     public decimal Isss { get; set; }
     public decimal IsssPatronal { get; set; }
     public decimal Afp { get; set; }

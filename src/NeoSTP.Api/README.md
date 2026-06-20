@@ -423,6 +423,15 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | POST | `/api/rrhh/planillas/{id}/cerrar` | Cerrar planilla. |
 | POST | `/api/rrhh/planillas/{id}/anular` | Anular planilla. |
 | GET | `/api/rrhh/planillas/{id}/recibo/{empleadoId}` | Recibo PDF. |
+| GET/PUT | `/api/rrhh/prestaciones/politica` | Politica tenant de vacaciones y aguinaldo. |
+| GET/POST | `/api/rrhh/vacaciones` | Listar o solicitar vacaciones. |
+| GET | `/api/rrhh/vacaciones/empleados/{empleadoId}/resumen` | Saldo devengado, usado y disponible. |
+| POST | `/api/rrhh/vacaciones/{id}/aprobar` | Aprobar y calcular prima vacacional. |
+| POST | `/api/rrhh/vacaciones/{id}/rechazar` | Rechazar solicitud pendiente. |
+| POST | `/api/rrhh/vacaciones/{id}/cancelar` | Cancelar antes de vincular a planilla. |
+| GET | `/api/rrhh/aguinaldos/{anio}` | Calculos de aguinaldo del anio. |
+| POST | `/api/rrhh/aguinaldos/{anio}/calcular` | Calcular/recalcular registros no aprobados. |
+| POST | `/api/rrhh/aguinaldos/{anio}/aprobar` | Aprobar inclusion en planilla. |
 | GET/POST | `/api/scanai/documentos` | Bandeja OCR/IA. |
 | GET | `/api/scanai/documentos/{id}` | Detalle documento. |
 | GET | `/api/scanai/documentos/{id}/archivo` | Archivo original. |
@@ -663,6 +672,8 @@ Areas con cobertura relevante:
   seed demo, rutas y permisos cubiertos por `OrdenCompraServiceTests` y `V3OrdenCompraContractTests`.
 - V3-S2 recepciones: acumulados por linea, estado parcial/completo, idempotencia, kardex enlazado,
   facturacion consolidada y rutas/vistas Web cubiertas por las suites de ordenes y demo readiness.
+- V3-S3 prestaciones RRHH: politica tenant, saldo/traslape de vacaciones, prima y aguinaldo por
+  antiguedad/proporcionalidad; planilla, seed, rutas/permisos y Web cubiertos por las suites V3-S3.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -674,7 +685,7 @@ Areas con cobertura relevante:
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
 Estado actual validado 2026-06-20: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 725 unitarias + 9 integracion. La suite incluye contrato mobile
+`dotnet test NeoSTP.slnx` con 750 unitarias + 9 integracion. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
 (`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(NeoStpDbContext))]
-    partial class NeoStpDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260620131312_V3_S3_PrestacionesRrhh")]
+    partial class V3_S3_PrestacionesRrhh
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

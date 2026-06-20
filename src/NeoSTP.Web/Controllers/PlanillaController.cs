@@ -118,11 +118,11 @@ public class PlanillaController : Controller
         if (result.IsFailure) return NotFound();
         var p = result.Value!;
 
-        var csv = new CsvExporter("Codigo", "Empleado", "SalarioMensual", "Devengado", "ISSS", "AFP", "Renta",
+        var csv = new CsvExporter("Codigo", "Empleado", "SalarioMensual", "Devengado", "PrimaVacacion", "Aguinaldo", "OtrosIngresos", "ISSS", "AFP", "Renta",
             "OtrosDescuentos", "TotalDeducciones", "Neto", "ISSS_Patronal", "AFP_Patronal", "CostoPatronal");
         foreach (var d in p.Detalles)
         {
-            csv.AddRow(d.EmpleadoCodigo, d.EmpleadoNombre, d.SalarioMensual, d.Devengado, d.Isss, d.Afp, d.Renta,
+            csv.AddRow(d.EmpleadoCodigo, d.EmpleadoNombre, d.SalarioMensual, d.Devengado, d.PrimaVacacion, d.Aguinaldo, d.OtrosIngresos, d.Isss, d.Afp, d.Renta,
                 d.OtrosDescuentos, d.TotalDeducciones, d.SalarioNeto, d.IsssPatronal, d.AfpPatronal, d.CostoPatronal);
         }
         return File(csv.ToBytes(), "text/csv", $"planilla_{p.Anio}_{p.Mes:00}_Q{p.Quincena}.csv");

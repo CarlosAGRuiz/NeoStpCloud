@@ -77,7 +77,13 @@ public class NominaPdfService : INominaPdfService
                 row.RelativeItem().Column(c =>
                 {
                     c.Item().Text("Devengos").Bold().FontColor(Primary);
-                    Linea(c, "Salario devengado", r.Devengado);
+                    Linea(c, "Salario ordinario", r.Devengado - r.OtrosIngresos);
+                    if (r.PrimaVacacion > 0) Linea(c, "Prima de vacaciones", r.PrimaVacacion);
+                    if (r.Aguinaldo > 0) Linea(c, "Aguinaldo", r.Aguinaldo);
+                    var otros = r.OtrosIngresos - r.PrimaVacacion - r.Aguinaldo;
+                    if (otros > 0) Linea(c, "Otros ingresos", otros);
+                    c.Item().PaddingTop(2).LineHorizontal(0.5f).LineColor(Line);
+                    Linea(c, "Total devengado", r.Devengado, bold: true);
                 });
                 row.ConstantItem(20);
                 row.RelativeItem().Column(c =>

@@ -44,4 +44,6 @@ public class Empleado : AuditableEntity
     public string NombreCompleto => $"{Nombres} {Apellidos}".Trim();
 
     public ICollection<ContratoLaboral> Contratos { get; set; } = new List<ContratoLaboral>();
+    public ICollection<SolicitudVacacion> Vacaciones { get; set; } = new List<SolicitudVacacion>();
+    public ICollection<AguinaldoCalculo> Aguinaldos { get; set; } = new List<AguinaldoCalculo>();
 }

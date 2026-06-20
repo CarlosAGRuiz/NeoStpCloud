@@ -17,7 +17,7 @@ sino un cliente ligero sobre la API REST de NeoSTP Cloud.
 >
 > **Revision 2026-06-15 (HB-6):** contrato contrastado contra `api_endpoints.dart`, `api_client.dart` y repositorios
 > Flutter de auth, DTE, cobros, NeoScan, alertas y POS. AM-0..AM-6 cerrado operativo al 100%; validacion:
-> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 725 unitarias + 9 integracion.
+> `dotnet build NeoSTP.slnx` con 0 warnings y `dotnet test NeoSTP.slnx` con 750 unitarias + 9 integracion.
 > Politica fuente: `docs/API-Contratos-Versionado.md`.
 
 ---
@@ -462,7 +462,30 @@ clienteNombre, total, pagado, saldo, estadoCobro, diasVencido`.
 > hasta confirmarse. Los recordatorios (WhatsApp/correo) se disparan desde Flutter con los datos del cliente;
 > reenviar la factura por correo: `POST /api/dte/documentos/{id}/reenviar`.
 
-### 8.7 NeoScanAI — `/api/scanai/documentos` ✅ (B-3 entregado)
+### 8.7 NeoRRHH prestaciones — `/api/rrhh` ✅ (V3-S3)
+
+Requiere modulo `NEORRHH`. Lectura con `Rrhh.Nomina.Ver`; cambios con
+`Rrhh.Nomina.Gestionar`. La app no envia montos calculados ni `empresaId`.
+
+| Metodo | Ruta | Uso |
+|---|---|---|
+| `GET` | `/api/rrhh/prestaciones/politica` | Reglas vigentes de vacaciones y aguinaldo. |
+| `GET` | `/api/rrhh/vacaciones?page&pageSize&empleadoId&estado` | Solicitudes paginadas. |
+| `GET` | `/api/rrhh/vacaciones/empleados/{empleadoId}/resumen?fechaCorte` | Dias devengados, aprobados y disponibles. |
+| `POST` | `/api/rrhh/vacaciones` | Solicitar: `{ empleadoId, fechaInicio, fechaFin, motivo? }`. |
+| `POST` | `/api/rrhh/vacaciones/{id}/aprobar` | Aprobar; body `{ nota? }`; servidor calcula la prima. |
+| `POST` | `/api/rrhh/vacaciones/{id}/rechazar` | Rechazar pendiente; body `{ nota? }`. |
+| `POST` | `/api/rrhh/vacaciones/{id}/cancelar` | Cancelar si no esta vinculada a planilla. |
+| `GET` | `/api/rrhh/aguinaldos/{anio}` | Lista anual con dias, monto y estado. |
+| `POST` | `/api/rrhh/aguinaldos/{anio}/calcular` | Calculo idempotente por empleados activos. |
+| `POST` | `/api/rrhh/aguinaldos/{anio}/aprobar` | Autorizar inclusion en planilla. |
+
+Errores funcionales estables: `EMPLEADO_NOT_FOUND`, `VACACION_NOT_FOUND`,
+`VACACION_TRASLAPE`, `VACACION_SALDO_INSUFICIENTE`, `CONTRATO_NOT_FOUND` e `INVALID_STATE`.
+Los DTO de planilla y recibo agregan `primaVacacion`, `aguinaldo` y `otrosIngresos` de forma
+aditiva; clientes existentes deben ignorar propiedades desconocidas.
+
+### 8.8 NeoScanAI — `/api/scanai/documentos` ✅ (B-3 entregado)
 
 Bandeja de documentos capturados (foto/PDF) → extracción → revisión/corrección → conversión a
 **gasto / compra / DTE recibido** (alimenta NeoProfit). Requiere el módulo **NEOSCANAI**.
@@ -501,7 +524,7 @@ ocrIntentos, ocrUltimoIntentoAt, profitGastoId, profitCompraId, dteRecibidoId`.
 > `x-goog-api-key`. **Limite mensual:** si la empresa supera el cupo configurado
 > (`Scan:LimiteMensual`, 0 = sin limite), `POST /documentos` devuelve `409` con `LIMIT_EXCEEDED`.
 
-### 8.8 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)
+### 8.9 Alertas y notificaciones push — `/api/alertas` ✅ (B-4 entregado)
 
 Centro de alertas (DTE rechazado, certificado por vencer, factura vencida) + registro de dispositivos
 (FCM) + preferencias. Para todo usuario de empresa autenticado (sus propias alertas + las de la empresa).
@@ -528,7 +551,7 @@ estadoCodigo (PENDIENTE/LEIDA/RESUELTA), createdAt`. Usa `entidadTipo`+`entidadI
 > (`AlertaGeneracionWorker`, cada `Worker:GeneracionAlertas:IntervaloMinutos`, 60 por defecto) para todas las
 > empresas activas; además puedes dispararla manualmente con `POST /generar`.
 
-### 8.9 Eventos DTE — `/api/dte/eventos`
+### 8.10 Eventos DTE — `/api/dte/eventos`
 
 `GET` lista/detalle/json/pdf; `POST invalidacion | contingencia | retorno | operaciones-especiales`. La
 invalidación (anulación de un DTE procesado) y la contingencia se exponen aquí y en `/api/dte/evento/*`.
@@ -641,6 +664,14 @@ PUT    /api/scanai/documentos/{id}/campos                       # corregir
 POST   /api/scanai/documentos/{id}/reprocesar                   # reintento OCR sin duplicar
 POST   /api/scanai/documentos/{id}/resultado                    # resultado externo OCR
 POST   /api/scanai/documentos/{id}/registrar-gasto | registrar-compra | registrar-dte-recibido | rechazar
+
+# NeoRRHH prestaciones (modulo NEORRHH; Rrhh.Nomina.Ver / Gestionar)
+GET    /api/rrhh/prestaciones/politica
+GET/POST /api/rrhh/vacaciones
+GET    /api/rrhh/vacaciones/empleados/{empleadoId}/resumen
+POST   /api/rrhh/vacaciones/{id}/aprobar | rechazar | cancelar
+GET    /api/rrhh/aguinaldos/{anio}
+POST   /api/rrhh/aguinaldos/{anio}/calcular | aprobar
 
 # Alertas / push (usuario de empresa autenticado)
 GET    /api/alertas | resumen | preferencias

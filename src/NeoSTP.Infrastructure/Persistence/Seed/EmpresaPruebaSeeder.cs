@@ -1332,6 +1332,8 @@ public static class EmpresaPruebaSeeder
         string actor,
         CancellationToken ct)
     {
+        var now = DateTime.UtcNow;
+        var fechaIngresoDemo = new DateOnly(now.Year - 2, 1, 15);
         var empleado = await db.Empleados.FirstOrDefaultAsync(e => e.EmpresaId == empresaId && e.Codigo == "EMP-DEMO-001", ct);
         if (empleado is null)
         {
@@ -1349,7 +1351,7 @@ public static class EmpresaPruebaSeeder
                 AfpInstitucion = "CRECER",
                 AfpNumero = "AFP-000123",
                 FechaNacimiento = new DateOnly(1992, 4, 12),
-                FechaIngreso = DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-10)),
+                FechaIngreso = fechaIngresoDemo,
                 Cargo = "Operador POS",
                 Email = "empleado.demo@demo.local",
                 Telefono = "7000-3000",
@@ -1357,6 +1359,13 @@ public static class EmpresaPruebaSeeder
                 CreatedBy = actor,
             };
             db.Empleados.Add(empleado);
+            await db.SaveChangesAsync(ct);
+        }
+        else if (empleado.FechaIngreso > fechaIngresoDemo)
+        {
+            empleado.FechaIngreso = fechaIngresoDemo;
+            empleado.UpdatedAt = now;
+            empleado.UpdatedBy = actor;
             await db.SaveChangesAsync(ct);
         }
 
@@ -1376,47 +1385,96 @@ public static class EmpresaPruebaSeeder
             await db.SaveChangesAsync(ct);
         }
 
-        var now = DateTime.UtcNow;
         var periodo = await db.PlanillaPeriodos.FirstOrDefaultAsync(p => p.EmpresaId == empresaId && p.Anio == now.Year && p.Mes == now.Month && p.Quincena == 1, ct);
-        if (periodo is not null) return;
-
-        periodo = new PlanillaPeriodo
+        if (periodo is null)
         {
-            EmpresaId = empresaId,
-            Anio = now.Year,
-            Mes = now.Month,
-            Quincena = 1,
-            FechaInicio = new DateOnly(now.Year, now.Month, 1),
-            FechaFin = new DateOnly(now.Year, now.Month, 15),
-            EstadoCodigo = PlanillaEstados.Calculada,
-            TotalDevengado = 450m,
-            TotalDeducciones = 46.13m,
-            TotalNeto = 403.87m,
-            TotalCostoPatronal = 521.99m,
-            CreatedBy = actor,
-            Detalles =
+            periodo = new PlanillaPeriodo
             {
-                new PlanillaDetalle
+                EmpresaId = empresaId,
+                Anio = now.Year,
+                Mes = now.Month,
+                Quincena = 1,
+                FechaInicio = new DateOnly(now.Year, now.Month, 1),
+                FechaFin = new DateOnly(now.Year, now.Month, 15),
+                EstadoCodigo = PlanillaEstados.Calculada,
+                TotalDevengado = 450m,
+                TotalDeducciones = 46.13m,
+                TotalNeto = 403.87m,
+                TotalCostoPatronal = 521.99m,
+                CreatedBy = actor,
+                Detalles =
                 {
-                    EmpleadoId = empleado.Id,
-                    EmpleadoCodigo = empleado.Codigo,
-                    EmpleadoNombre = empleado.NombreCompleto,
-                    SalarioMensual = 900m,
-                    Devengado = 450m,
-                    Isss = 13.50m,
-                    Afp = 32.63m,
-                    Renta = 0m,
-                    OtrosDescuentos = 0m,
-                    TotalDeducciones = 46.13m,
-                    SalarioNeto = 403.87m,
-                    IsssPatronal = 33.75m,
-                    AfpPatronal = 38.25m,
-                    CostoPatronal = 521.99m,
-                    CreatedBy = actor,
+                    new PlanillaDetalle
+                    {
+                        EmpleadoId = empleado.Id,
+                        EmpleadoCodigo = empleado.Codigo,
+                        EmpleadoNombre = empleado.NombreCompleto,
+                        SalarioMensual = 900m,
+                        Devengado = 450m,
+                        Isss = 13.50m,
+                        Afp = 32.63m,
+                        Renta = 0m,
+                        OtrosDescuentos = 0m,
+                        TotalDeducciones = 46.13m,
+                        SalarioNeto = 403.87m,
+                        IsssPatronal = 33.75m,
+                        AfpPatronal = 38.25m,
+                        CostoPatronal = 521.99m,
+                        CreatedBy = actor,
+                    },
                 },
-            },
-        };
-        db.PlanillaPeriodos.Add(periodo);
+            };
+            db.PlanillaPeriodos.Add(periodo);
+            await db.SaveChangesAsync(ct);
+        }
+
+        if (!await db.PoliticasPrestaciones.AnyAsync(x => x.EmpresaId == empresaId, ct))
+        {
+            db.PoliticasPrestaciones.Add(new PoliticaPrestaciones
+            {
+                EmpresaId = empresaId,
+                VigenteDesde = new DateOnly(now.Year, 1, 1),
+                CreatedBy = actor,
+            });
+        }
+
+        var vacacionesDesde = new DateOnly(now.Year, now.Month, 1).AddMonths(1);
+        if (!await db.SolicitudesVacacion.AnyAsync(x => x.EmpresaId == empresaId && x.EmpleadoId == empleado.Id, ct))
+        {
+            db.SolicitudesVacacion.Add(new SolicitudVacacion
+            {
+                EmpresaId = empresaId,
+                EmpleadoId = empleado.Id,
+                FechaInicio = vacacionesDesde,
+                FechaFin = vacacionesDesde.AddDays(4),
+                Dias = 5,
+                PrimaMonto = 45m,
+                EstadoCodigo = VacacionEstados.Aprobada,
+                Motivo = "Vacaciones demo aprobadas",
+                ResolucionNota = "Caso operativo para demostración",
+                ResueltaPor = actor,
+                ResueltaAt = now,
+                CreatedBy = actor,
+            });
+        }
+
+        if (!await db.AguinaldosCalculados.AnyAsync(x => x.EmpresaId == empresaId && x.EmpleadoId == empleado.Id && x.Anio == now.Year, ct))
+        {
+            db.AguinaldosCalculados.Add(new AguinaldoCalculo
+            {
+                EmpresaId = empresaId,
+                EmpleadoId = empleado.Id,
+                Anio = now.Year,
+                FechaCorte = new DateOnly(now.Year, 12, 12),
+                AntiguedadAnios = 2,
+                SalarioMensual = 900m,
+                DiasCalculados = 15m,
+                Monto = 450m,
+                EstadoCodigo = AguinaldoEstados.Aprobado,
+                CreatedBy = actor,
+            });
+        }
+
         await db.SaveChangesAsync(ct);
     }
 

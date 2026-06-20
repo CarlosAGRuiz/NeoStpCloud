@@ -103,7 +103,8 @@ public class PlanillaService : IPlanillaService
 
     public async Task<Result> CerrarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
     {
-        var p = await _db.PlanillaPeriodos.FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
+        var p = await _db.PlanillaPeriodos.Include(x => x.AguinaldosAplicados)
+            .FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
         if (p is null) return Result.Fail("Planilla no encontrada.", "PLANILLA_NOT_FOUND");
         if (p.EstadoCodigo != PlanillaEstados.Calculada)
             return Result.Fail("Solo se puede cerrar una planilla calculada.", "INVALID_STATE");
@@ -122,6 +123,12 @@ public class PlanillaService : IPlanillaService
 
         p.ProfitGastoId = gasto.Value!.Id;
         p.EstadoCodigo = PlanillaEstados.Cerrada;
+        foreach (var aguinaldo in p.AguinaldosAplicados)
+        {
+            aguinaldo.EstadoCodigo = AguinaldoEstados.Pagado;
+            aguinaldo.UpdatedAt = DateTime.UtcNow;
+            aguinaldo.UpdatedBy = actor;
+        }
         p.UpdatedAt = DateTime.UtcNow; p.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "CERRAR_PLANILLA", $"{p.Mes:00}/{p.Anio} Q{p.Quincena} → Gasto #{gasto.Value.Id}", p.Id);
@@ -130,7 +137,8 @@ public class PlanillaService : IPlanillaService
 
     public async Task<Result> AnularAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
     {
-        var p = await _db.PlanillaPeriodos.FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
+        var p = await _db.PlanillaPeriodos.Include(x => x.VacacionesAplicadas).Include(x => x.AguinaldosAplicados)
+            .FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
         if (p is null) return Result.Fail("Planilla no encontrada.", "PLANILLA_NOT_FOUND");
         if (p.EstadoCodigo == PlanillaEstados.Anulada) return Result.Fail("La planilla ya está anulada.", "INVALID_STATE");
 
@@ -139,6 +147,12 @@ public class PlanillaService : IPlanillaService
 
         p.EstadoCodigo = PlanillaEstados.Anulada;
         p.ProfitGastoId = null;
+        foreach (var vacacion in p.VacacionesAplicadas) vacacion.PlanillaPeriodoId = null;
+        foreach (var aguinaldo in p.AguinaldosAplicados)
+        {
+            aguinaldo.PlanillaPeriodoId = null;
+            aguinaldo.EstadoCodigo = AguinaldoEstados.Aprobado;
+        }
         p.UpdatedAt = DateTime.UtcNow; p.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "ANULAR_PLANILLA", $"{p.Mes:00}/{p.Anio} Q{p.Quincena}", p.Id);
@@ -171,6 +185,7 @@ public class PlanillaService : IPlanillaService
             Cargo = empleado?.Cargo, IsssNumero = empleado?.IsssNumero,
             AfpInstitucion = empleado?.AfpInstitucion, AfpNumero = empleado?.AfpNumero,
             SalarioMensual = d.SalarioMensual, Devengado = d.Devengado,
+            PrimaVacacion = d.PrimaVacacion, Aguinaldo = d.Aguinaldo, OtrosIngresos = d.OtrosIngresos,
             Isss = d.Isss, Afp = d.Afp, Renta = d.Renta, OtrosDescuentos = d.OtrosDescuentos,
             TotalDeducciones = d.TotalDeducciones, SalarioNeto = d.SalarioNeto,
         });
@@ -193,6 +208,7 @@ public class PlanillaService : IPlanillaService
                               AfpInstitucion = e != null ? e.AfpInstitucion : null,
                               AfpNumero = e != null ? e.AfpNumero : null,
                               Devengado = d.Devengado, Isss = d.Isss, IsssPatronal = d.IsssPatronal,
+                              PrimaVacacion = d.PrimaVacacion, Aguinaldo = d.Aguinaldo, OtrosIngresos = d.OtrosIngresos,
                               Afp = d.Afp, AfpPatronal = d.AfpPatronal, Renta = d.Renta,
                               TotalDeducciones = d.TotalDeducciones, SalarioNeto = d.SalarioNeto, CostoPatronal = d.CostoPatronal,
                           }).ToListAsync(ct);
@@ -213,20 +229,42 @@ public class PlanillaService : IPlanillaService
             .Where(e => e.Salario > 0)
             .ToListAsync(ct);
 
+        var vacaciones = await _db.SolicitudesVacacion
+            .Where(x => x.EmpresaId == empresaId && x.EstadoCodigo == VacacionEstados.Aprobada
+                && x.FechaInicio >= periodo.FechaInicio && x.FechaInicio <= periodo.FechaFin
+                && (x.PlanillaPeriodoId == null || x.PlanillaPeriodoId == periodo.Id))
+            .ToListAsync(ct);
+        var aguinaldos = await _db.AguinaldosCalculados
+            .Where(x => x.EmpresaId == empresaId && x.EstadoCodigo == AguinaldoEstados.Aprobado
+                && x.FechaCorte >= periodo.FechaInicio && x.FechaCorte <= periodo.FechaFin
+                && (x.PlanillaPeriodoId == null || x.PlanillaPeriodoId == periodo.Id))
+            .ToListAsync(ct);
+
         decimal devengado = 0, deducciones = 0, neto = 0, costo = 0;
         foreach (var e in empleados)
         {
             var r = quincena == 0 ? _calc.CalcularMensual(e.Salario, _nomina) : _calc.CalcularQuincena(e.Salario, _nomina);
+            var vacacionesEmpleado = vacaciones.Where(x => x.EmpleadoId == e.Id).ToList();
+            var aguinaldosEmpleado = aguinaldos.Where(x => x.EmpleadoId == e.Id).ToList();
+            var primaVacacion = vacacionesEmpleado.Sum(x => x.PrimaMonto);
+            var aguinaldo = aguinaldosEmpleado.Sum(x => x.Monto);
+            var otrosIngresos = primaVacacion + aguinaldo;
+            foreach (var item in vacacionesEmpleado) item.PlanillaPeriodo = periodo;
+            foreach (var item in aguinaldosEmpleado) item.PlanillaPeriodo = periodo;
             periodo.Detalles.Add(new PlanillaDetalle
             {
                 EmpleadoId = e.Id, EmpleadoCodigo = e.Codigo, EmpleadoNombre = $"{e.Nombres} {e.Apellidos}",
-                SalarioMensual = e.Salario, Devengado = r.SalarioBruto,
+                SalarioMensual = e.Salario, Devengado = r.SalarioBruto + otrosIngresos,
+                PrimaVacacion = primaVacacion, Aguinaldo = aguinaldo, OtrosIngresos = otrosIngresos,
                 Isss = r.IsssEmpleado, Afp = r.AfpEmpleado, Renta = r.Renta, OtrosDescuentos = 0m,
-                TotalDeducciones = r.TotalDeduccionesEmpleado, SalarioNeto = r.SalarioNeto,
-                IsssPatronal = r.IsssPatronal, AfpPatronal = r.AfpPatronal, CostoPatronal = r.CostoPatronal,
+                TotalDeducciones = r.TotalDeduccionesEmpleado, SalarioNeto = r.SalarioNeto + otrosIngresos,
+                IsssPatronal = r.IsssPatronal, AfpPatronal = r.AfpPatronal, CostoPatronal = r.CostoPatronal + otrosIngresos,
                 CreatedBy = periodo.CreatedBy,
             });
-            devengado += r.SalarioBruto; deducciones += r.TotalDeduccionesEmpleado; neto += r.SalarioNeto; costo += r.CostoPatronal;
+            devengado += r.SalarioBruto + otrosIngresos;
+            deducciones += r.TotalDeduccionesEmpleado;
+            neto += r.SalarioNeto + otrosIngresos;
+            costo += r.CostoPatronal + otrosIngresos;
         }
         periodo.TotalDevengado = devengado;
         periodo.TotalDeducciones = deducciones;
@@ -257,7 +295,8 @@ public class PlanillaService : IPlanillaService
         {
             EmpleadoId = d.EmpleadoId,
             EmpleadoCodigo = d.EmpleadoCodigo, EmpleadoNombre = d.EmpleadoNombre, SalarioMensual = d.SalarioMensual,
-            Devengado = d.Devengado, Isss = d.Isss, Afp = d.Afp, Renta = d.Renta, OtrosDescuentos = d.OtrosDescuentos,
+            Devengado = d.Devengado, PrimaVacacion = d.PrimaVacacion, Aguinaldo = d.Aguinaldo,
+            OtrosIngresos = d.OtrosIngresos, Isss = d.Isss, Afp = d.Afp, Renta = d.Renta, OtrosDescuentos = d.OtrosDescuentos,
             TotalDeducciones = d.TotalDeducciones, SalarioNeto = d.SalarioNeto,
             IsssPatronal = d.IsssPatronal, AfpPatronal = d.AfpPatronal, CostoPatronal = d.CostoPatronal,
         }).ToList(),

@@ -143,6 +143,7 @@ public class DemoReadinessContractTests
             new WebRoute(typeof(NeoSTP.Web.Controllers.InventarioController), "Index", "Inventario/Index.cshtml"),
             new WebRoute(typeof(NeoSTP.Web.Controllers.InventarioController), "Kardex", "Inventario/Kardex.cshtml"),
             new WebRoute(typeof(NeoSTP.Web.Controllers.ProfitController), "Index", "Profit/Index.cshtml"),
+            new WebRoute(typeof(NeoSTP.Web.Controllers.PrestacionesController), "Index", "Prestaciones/Index.cshtml"),
             new WebRoute(typeof(NeoSTP.Web.Controllers.ScanController), "Index", "Scan/Index.cshtml", GetTemplate: ""),
             new WebRoute(typeof(NeoSTP.Web.Controllers.ScanController), "Detalle", "Scan/Detalle.cshtml", GetTemplate: "{id:int}"),
             new WebRoute(typeof(NeoSTP.Web.Controllers.TesoreriaController), "Index", "Tesoreria/Index.cshtml"),

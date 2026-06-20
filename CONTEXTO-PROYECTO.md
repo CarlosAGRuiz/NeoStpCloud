@@ -5,19 +5,19 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-0..HB-8 + V3-S1/V3-S2 CERRADAS (2026-06-20) · 17 módulos completos · 58 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 725 unit + 9 integración
+> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-0..HB-8 + V3-S1..V3-S3 CERRADAS (2026-06-20) · 17 módulos completos · 59 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 750 unit + 9 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
 
-## Estado actual — 2026-06-20 · FASES V2/V2.5, API MOBILE, HB-0..HB-8 Y V3-S1/V3-S2 CERRADAS
+## Estado actual — 2026-06-20 · FASES V2/V2.5, API MOBILE, HB-0..HB-8 Y V3-S1..V3-S3 CERRADAS
 
 NeoSTP Cloud es un **producto funcionalmente completo**: los 17 modulos licenciables estan
 entregados, el ciclo de negocio opera de punta a punta y todo proveedor externo es pluggable
 por configuracion (los defaults funcionan sin servicios externos).
 
-**Numeros del sistema**: 17 modulos · ~93 tablas · 58 migraciones · 38 controllers API ·
-~48 pantallas web · 8 jobs de Worker · **725 tests unitarios + 9 de integracion** · build local
+**Numeros del sistema**: 17 modulos · ~96 tablas · 59 migraciones · 38 controllers API ·
+~49 pantallas web · 8 jobs de Worker · **750 tests unitarios + 9 de integracion** · build local
 con 0 warnings.
 
 **Lo que el producto hace hoy** (todo probado): emision de 9 tipos de DTE certificados contra
@@ -34,8 +34,8 @@ Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado 
 (ambiente 01) por cliente, y mantenimiento del contrato con la app Android en repo aparte
 (`manuelberganza-dev/neocloud_mobile_android`). Backlog V3 en README.
 
-**Prioridad inmediata (2026-06-20):** HB-0..HB-8, API mobile AM-0..AM-6 y V3-S1/V3-S2 quedaron cerrados.
-El siguiente sprint recomendado es V3-S3: vacaciones y aguinaldo en NeoRRHH. Ver
+**Prioridad inmediata (2026-06-20):** HB-0..HB-8, API mobile AM-0..AM-6 y V3-S1..V3-S3 quedaron cerrados.
+El siguiente sprint recomendado es V3-S4: catalogo contable personalizable y cierre anual base. Ver
 `docs/Plan-V3.md` y `docs/Plan-Pruebas-Web-Api-Demos.md`.
 
 ### Fases del proyecto (historial)
@@ -57,7 +57,7 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 
 ### Todo lo que se ha probado
 
-1. **Suites automatizadas**: 725 unit + 9 integracion, 0 fallos; validacion local 2026-06-20 con
+1. **Suites automatizadas**: 750 unit + 9 integracion, 0 fallos; validacion local 2026-06-20 con
    `dotnet build NeoSTP.slnx` en 0 warnings/0 errores.
    Calculadoras puras con cobertura dedicada (nomina, cobranza, POS, caja, CxP, costo promedio,
    ESC/POS, libro IVA, conciliacion 1:1 y combinaciones, profit, validador de clientes).
@@ -103,6 +103,8 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
     conversion unica a FacturaCompra/CxP + inventario; tenant, auditoria, seed y rutas protegidas.
 15. **V3-S2 cerrado**: recepciones parciales idempotentes con kardex enlazado, cantidades
     acumuladas, CxP consolidada sin duplicar inventario y UI Web completa para ordenes.
+16. **V3-S3 cerrado**: politica tenant, saldo/solicitud/aprobacion de vacaciones, prima vacacional,
+    aguinaldo por antiguedad y proporcionalidad, API mobile, UI `/Prestaciones` e integracion en planilla.
 ---
 
 ## Índice
@@ -234,7 +236,7 @@ escenarios, reintentos, snapshots de errores MH, dashboard con barras de progres
 · **Rendimiento (M4):** índices de BD revisados (módulos nuevos ya cubiertos; +índice `Cobros_Pagos(DteDocumentoId, EstadoCodigo)` para el subquery de saldos, migración `M4_IndiceCobrosPagosSaldo`); cola de trabajo en proceso `IBackgroundTaskQueue` (Channel acotado) + `QueuedHostedService` (registrada en Worker) para descargar OCR/push/reportes.
 · **UX (M7):** utilidad `CsvExporter` reutilizable (Shared, escape RFC 4180 + BOM) usada por el export de Auditoría; **encabezado `ns-page-head` unificado en todas las grids** (core + admin + operación) con alerts descartables; Hardening modernizado; **0 emojis residuales** en vistas.
 · **DevEx (M8):** dockerización Web/Api/Worker (Dockerfiles multi-stage) + `docker-compose.yml` (SQL Server + servicios) + `.dockerignore`; doc `docs/M8-DevEx.md`.
-· **ERP/CRM V2:** plan consolidado `docs/Plan-V2-ERP-CRM.md` (app Flutter y NeoScan fuera de este repo; API-first). **NEORRHH (módulo 113) Sprint 1**: `NominaCalculator` puro El Salvador (ISSS/AFP/Renta 2026 parametrizables, `NominaOptions`); entidades `Empleado`/`ContratoLaboral` (`Rrhh_Empleados`/`Rrhh_Contratos`); `IEmpleadosService` (CRUD + contrato vigente + preview de nómina); web `/Empleados` (Index/Detalle/Create/Edit `ns-*`); permisos `Rrhh.Empleados.Ver/Gestionar` (390/391) + `Rrhh.Nomina.Ver` (392); migración `NEORRHH_Schema`; tests (calculator 11 + servicio 5 + controller 7). **Sprint 2 (planilla quincenal)**: `NominaCalculator.CalcularQuincena` (prorrateo 50/50); entidades `PlanillaPeriodo`/`PlanillaDetalle` (`Rrhh_PlanillaPeriodos`/`Rrhh_PlanillaDetalles`, estados BORRADOR/CALCULADA/CERRADA/ANULADA); `IPlanillaService` (crear/recalcular/cerrar→gasto PLANILLA en NeoProfit/anular→revierte gasto); web `/Planilla` (Index/Crear/Detalle `ns-*` + export CSV vía `CsvExporter`); permiso `Rrhh.Nomina.Gestionar` (393); migración `NEORRHH_Planilla`; tests (calculator 2 + servicio 5). **Sprint 3**: recibo PDF por empleado (`INominaPdfService`/`NominaPdfService`, QuestPDF, `GetReciboAsync`); exportes formateados **ISSS/AFP** (`GetExportRowsAsync` + CSV) y recibo desde `/Planilla`; **API REST `RrhhApiController` (`api/rrhh`)** empleados + planilla + recibo PDF (`[RequireModule("NEORRHH")]` + permisos), API-first para la app/web; tests (PDF smoke 1 + servicio 2).
+· **ERP/CRM V2/V3:** NEORRHH (módulo 113) incluye empleados/contratos, planilla quincenal ISSS/AFP/Renta, recibo PDF y exportes; V3-S3 agrega `PoliticaPrestaciones`, `SolicitudVacacion`, `AguinaldoCalculo`, calculadora pura, servicio/API `api/rrhh`, Web `/Prestaciones`, auditoria, seed e integracion de prima/aguinaldo en planilla.
 · **495 tests unit + 7 integración.**
 
 ## 🏆 Certificación contra Hacienda (apitest real) — Sprint 12
@@ -283,7 +285,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 
 # 4. Base de datos
 
-## Tablas actuales (~93)
+## Tablas actuales (~96)
 > El conteo creció con las fases V2/V2.5: a las áreas listadas abajo se suman `Crm_*`, `Tes_*`
 > (incl. `Tes_MovimientosBanco` y `Tes_ConciliacionDetalles`), `Conta_*`, `Rrhh_*`, `Inv_*`,
 > `Compras_*`, `Pos_*`, `Portal_Accesos` y `Cobros_ConfigRecordatorios`. La lista detallada por
@@ -770,7 +772,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 24 | **Onboarding self-service** | ✅ | `IOnboardingService` (5 pasos derivados de datos reales) + checklist dashboard + asistente `/onboarding` | Alta (conversión) |
 | 25 | **Branding** | ✅ | Logo + firma por empresa (`/branding`), usados en PDF (banda+pie) y correo (logo CID) | Media |
 | 26 | **NEOCRM 114** | ✅ V2-C1 — contactos, pipeline kanban, actividades (alerta si vencen), cotizaciones → DTE (`ConvertirCotizacionADteAsync`); `/Crm` + `/api/crm/*` | Email tracking / embudos avanzados (V3) | Alta |
-| 27 | **NEORRHH 113** | ✅ — empleados/contratos, planilla quincenal ISSS/AFP/Renta 2026, recibos PDF, exportes CSV, cierre → gasto | Vacaciones/aguinaldo automatizados | Media |
+| 27 | **NEORRHH 113** | ✅ V3-S3 — empleados/contratos, planilla quincenal, vacaciones/prima, aguinaldo, recibos PDF, CSV y cierre → gasto | Calendario de ausencias avanzado | Media |
 | 28 | **NEOTESORERIA 115** | ✅ + **conciliación bancaria** (V2-D4: import CSV/XLSX, `ConciliacionCalculator` ALTA/MEDIA, conciliar/desconciliar, `/Tesoreria/Conciliacion` + `/api/tesoreria/conciliacion/*`) | Conciliación parcial N:1 (V2.5) | Media-alta |
 | 29 | **COMPRAS 111 / INVENTARIO 110** | ✅ V3-S1/V3-S2 — proveedores, ordenes, recepciones parciales idempotentes, facturas/pagos/CxP, UI Web, existencias, kardex y costo promedio | Aprobaciones por monto/PDF proveedor | Media |
 | 30 | **NEOBI fiscal 105** | ✅ V2-D1 — `LibroIvaCalculator`, libros IVA consumidor/contribuyentes/compras + F-07, CSV; `/NeoBi` + `/api/reportes/fiscal/*` | Retenciones cuando haya volumen DTE 07; PDF | Alta |
