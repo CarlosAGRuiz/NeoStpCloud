@@ -35,7 +35,7 @@ Una demo esta lista cuando:
 Ultima validacion tecnica registrada (2026-06-20):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 721 unitarias + 9 integracion verdes.
+- `dotnet test NeoSTP.slnx`: 725 unitarias + 9 integracion verdes.
 - HB-0..HB-8 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
@@ -47,6 +47,8 @@ Ultima validacion tecnica registrada (2026-06-20):
   plantilla de evidencia y enlaces HB-8.
 - V3-S1: `OrdenCompraServiceTests` + `V3OrdenCompraContractTests` cubren calculo, tenant, estados,
   conversion a CxP/inventario, rutas, modulo y permisos.
+- V3-S2: las suites de ordenes y demo readiness cubren recepciones parciales, limite pendiente,
+  idempotencia, no duplicacion de inventario, CxP consolidada y rutas/vistas Web.
 
 ## Ambientes
 
@@ -97,7 +99,7 @@ La empresa demo debe tener:
 - 1 venta POS con ticket y cierre de caja.
 - 1 factura a credito con saldo pendiente.
 - 1 pago parcial y 1 pago confirmado.
-- 1 proveedor, 1 orden de compra emitida y 1 compra del mes.
+- 1 proveedor, 1 orden de compra parcialmente recibida y 1 compra del mes.
 - Inventario con entrada, salida y ajuste.
 - 1 scan con archivo y campos extraidos/corregidos.
 - 1 enlace de portal para DTE y 1 estado de cuenta.
@@ -223,16 +225,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\demo-preflight.p
 | API-11 | `GET /api/compras/resumen` | CONTADOR | CxP visible |
 | API-12 | `POST /api/compras/ordenes` | CONTADOR | Orden BORRADOR con totales recalculados por servidor |
 | API-13 | `POST /api/compras/ordenes/{id}/emitir` | CONTADOR | Orden EMITIDA e inmutable |
-| API-14 | `POST /api/compras/ordenes/{id}/convertir-factura` | CONTADOR | Factura/CxP creada una sola vez y bienes ingresados a inventario |
-| API-15 | `GET /api/inventario/resumen` | ADMIN | Stock y alertas |
-| API-16 | `GET /api/profit/dashboard` | ADMIN | P&L |
-| API-17 | `GET /api/scanai/documentos` | ADMIN | Bandeja |
-| API-18 | `GET /api/tesoreria/resumen` | CONTADOR | Bancos/caja |
-| API-19 | `GET /api/reportes/fiscal/f07` | CONTADOR | Resumen fiscal |
-| API-20 | `GET /api/conta/balanza` | CONTADOR | Balanza |
-| API-21 | `GET /api/crm/resumen` | ADMIN | Pipeline |
-| API-22 | `GET /api/alertas/resumen` | ADMIN | Badges |
-| API-23 | `GET /api/v1/ping` | API Key | Key y scopes validos |
+| API-14 | `POST /api/compras/ordenes/{id}/recepciones` | CONTADOR | Primera entrega deja PARCIAL y registra kardex con idempotency key |
+| API-15 | `POST /api/compras/ordenes/{id}/recepciones` | CONTADOR | Segunda entrega completa deja RECIBIDA sin exceder pendientes |
+| API-16 | `POST /api/compras/ordenes/{id}/convertir-factura` | CONTADOR | CxP consolidada creada una vez, sin duplicar inventario |
+| API-17 | `GET /api/inventario/resumen` | ADMIN | Stock y alertas |
+| API-18 | `GET /api/profit/dashboard` | ADMIN | P&L |
+| API-19 | `GET /api/scanai/documentos` | ADMIN | Bandeja |
+| API-20 | `GET /api/tesoreria/resumen` | CONTADOR | Bancos/caja |
+| API-21 | `GET /api/reportes/fiscal/f07` | CONTADOR | Resumen fiscal |
+| API-22 | `GET /api/conta/balanza` | CONTADOR | Balanza |
+| API-23 | `GET /api/crm/resumen` | ADMIN | Pipeline |
+| API-24 | `GET /api/alertas/resumen` | ADMIN | Badges |
+| API-25 | `GET /api/v1/ping` | API Key | Key y scopes validos |
 
 ## Smoke API Mobile
 
@@ -345,8 +349,10 @@ Negativos:
 - Crear orden de compra en BORRADOR y comprobar el calculo server-side de subtotal, IVA y total.
 - Editar la orden y emitirla.
 - Confirmar que una orden EMITIDA no admite edicion y una CANCELADA no admite emision.
-- Convertir la orden emitida a factura una sola vez.
-- Confirmar que solo las lineas de bienes generan entrada de inventario.
+- Registrar dos recepciones parciales y verificar acumulado/pendiente por linea.
+- Repetir la primera idempotency key y confirmar que no cambia inventario.
+- Convertir la orden completamente recibida a factura consolidada una sola vez.
+- Confirmar que solo las lineas de bienes generan kardex y la factura no repite entradas.
 - Registrar factura de compra.
 - Confirmar pago proveedor.
 - Ver CxP.
@@ -360,6 +366,8 @@ Negativos:
 Negativos:
 
 - Usar proveedor o producto de otra empresa.
+- Recibir mas que la cantidad pendiente o usar una linea de otra orden.
+- Facturar una orden parcialmente recibida.
 - Convertir dos veces la misma orden.
 - Reimportar CSV duplicado.
 - Conciliar contra signo incorrecto.
@@ -416,18 +424,19 @@ Negativos:
 | WEB-08 | `/PosCaja` o caja POS | OPERADOR | Abrir/cerrar caja |
 | WEB-09 | `/Cobros` | ADMIN | CxC |
 | WEB-10 | `/Compras` | CONTADOR | Compras/CxP |
-| WEB-11 | `/Inventario` | ADMIN | Existencias/kardex |
-| WEB-12 | `/Profit` | ADMIN | P&L |
-| WEB-13 | `/Scan` | ADMIN | Bandeja y preview |
-| WEB-14 | `/DteRecibidos` | CONTADOR | DTE recibidos |
-| WEB-15 | `/Tesoreria` | CONTADOR | Cuentas/movimientos |
-| WEB-16 | `/Tesoreria/Conciliacion` | CONTADOR | Import/sugerencias |
-| WEB-17 | `/NeoBi` | CONTADOR | Libros/F-07 |
-| WEB-18 | `/Conta` | CONTADOR | Asientos/balanza |
-| WEB-19 | `/Crm` | ADMIN | Pipeline |
-| WEB-20 | `/Portal/{token}` | anon | DTE/estado publico |
-| WEB-21 | `/Integraciones` | ADMIN | API keys/webhooks |
-| WEB-22 | `/Soporte/Operacion` | SUPERADMIN | Panel operativo |
+| WEB-11 | `/Compras/Ordenes` | CONTADOR | Crear, emitir, recibir parcialmente y convertir orden |
+| WEB-12 | `/Inventario` | ADMIN | Existencias/kardex |
+| WEB-13 | `/Profit` | ADMIN | P&L |
+| WEB-14 | `/Scan` | ADMIN | Bandeja y preview |
+| WEB-15 | `/DteRecibidos` | CONTADOR | DTE recibidos |
+| WEB-16 | `/Tesoreria` | CONTADOR | Cuentas/movimientos |
+| WEB-17 | `/Tesoreria/Conciliacion` | CONTADOR | Import/sugerencias |
+| WEB-18 | `/NeoBi` | CONTADOR | Libros/F-07 |
+| WEB-19 | `/Conta` | CONTADOR | Asientos/balanza |
+| WEB-20 | `/Crm` | ADMIN | Pipeline |
+| WEB-21 | `/Portal/{token}` | anon | DTE/estado publico |
+| WEB-22 | `/Integraciones` | ADMIN | API keys/webhooks |
+| WEB-23 | `/Soporte/Operacion` | SUPERADMIN | Panel operativo |
 
 ## Regresion Web por Rol
 
@@ -460,6 +469,9 @@ Negativos:
 ### CONTADOR
 
 - Login.
+- Crear, editar y emitir una orden de compra.
+- Registrar dos recepciones y abrir su historial/kardex.
+- Convertir la orden completa a CxP consolidada.
 - Ver compras/CxP.
 - Revisar libro IVA.
 - Generar F-07.
@@ -494,6 +506,7 @@ Pantallas minimas:
 - Scan detalle.
 - Portal publico.
 - Tesoreria conciliacion.
+- Ordenes de compra: listado, formulario y detalle/recepcion.
 
 Viewports:
 

@@ -9,8 +9,8 @@
 > contrato HTTP, permisos, datos demo y pruebas. El plan detallado esta en
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
 >
-> Actualizacion 2026-06-19: API mobile AM-0..AM-6 y HB-0..HB-8 quedaron cerrados operativos.
-> Validacion acumulada al iniciar V3-S1: build limpio y suite completa verde con 721 unitarias + 9 integracion.
+> Actualizacion 2026-06-20: API mobile AM-0..AM-6, HB-0..HB-8 y V3-S1/V3-S2 quedaron cerrados.
+> Validacion acumulada: build limpio y suite completa verde con 725 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -45,9 +45,9 @@ para Web/API.
 
 **No queda otro sprint HB obligatorio.**
 
-API mobile y HB-0..HB-8 dejaron la base lista para V3. La priorizacion se completo y V3-S1 Ordenes
-de compra API core quedo cerrado; el roadmap vigente esta en `docs/Plan-V3.md` y recomienda V3-S2
-recepcion parcial + UI Web.
+API mobile y HB-0..HB-8 dejaron la base lista para V3. V3-S1/V3-S2 cerraron ordenes, recepciones
+parciales, inventario, CxP consolidada y UI Web; el roadmap vigente en `docs/Plan-V3.md` recomienda
+V3-S3 vacaciones y aguinaldo NeoRRHH.
 
 Opciones a evaluar:
 
@@ -404,8 +404,8 @@ Criterio de cierre:
 - Ensayo completo real: 22 checks, 16 PASS, 6 WARN, 0 fallos y decision
   `APTO_CON_ADVERTENCIAS`; build/tests pasaron y las advertencias correspondieron al worktree de
   implementacion, config demo, restore ya resuelto y servicios HTTP no levantados.
-- Validacion HB-8: `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` verdes; el baseline
-  acumulado tras V3-S1 es 721 unitarias + 9 integracion.
+- Validacion acumulada: `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` verdes; el baseline
+  tras V3-S2 es 725 unitarias + 9 integracion.
 
 ## Backlog de Hallazgos
 
@@ -448,4 +448,4 @@ Criterio de cierre:
 2. Ejecutar una ronda de demos usando `scripts/demo-preflight.ps1` y guardar evidencia.
 3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
    operativa Compras/CxP/Inventario desde Scan.
-4. Continuar V3 desde `docs/Plan-V3.md`; siguiente sprint V3-S2.
+4. Continuar V3 desde `docs/Plan-V3.md`; siguiente sprint V3-S3.

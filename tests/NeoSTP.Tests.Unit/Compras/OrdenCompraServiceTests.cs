@@ -6,6 +6,7 @@ using NeoSTP.Application.Compras;
 using NeoSTP.Application.Compras.Dtos;
 using NeoSTP.Domain.Core.Compras;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
@@ -59,7 +60,9 @@ public class OrdenCompraServiceTests
         var compras = Substitute.For<ICompraService>();
         compras.CrearFacturaAsync(Arg.Any<int>(), Arg.Any<CrearFacturaCompraRequest>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result<FacturaCompraDetalleDto>.Ok(new FacturaCompraDetalleDto { Id = 900 }));
-        return (new OrdenCompraService(db, compras, Substitute.For<IAuditoriaService>()), compras);
+        var auditoria = Substitute.For<IAuditoriaService>();
+        var inventario = new InventarioService(db, auditoria);
+        return (new OrdenCompraService(db, compras, inventario, auditoria), compras);
     }
 
     private static GuardarOrdenCompraRequest Request(params GuardarOrdenCompraLineaRequest[] lineas) => new()
@@ -177,6 +180,92 @@ public class OrdenCompraServiceTests
         second.ErrorCode.Should().Be("INVALID_STATE");
         await compras.Received(1).CrearFacturaAsync(Empresa, Arg.Any<CrearFacturaCompraRequest>(), "admin", Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Recibir_ParcialYLuegoCompleta_ActualizaEstadoEInventario()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+        var lineaId = orden.Value.Detalle.Single().Id;
+
+        var parcial = await service.RecibirAsync(Empresa, orden.Value.Id, Recepcion("recepcion-uno", lineaId, 1m), "admin");
+        var completa = await service.RecibirAsync(Empresa, orden.Value.Id, Recepcion("recepcion-dos", lineaId, 1m), "admin");
+        var detalle = await service.GetAsync(Empresa, orden.Value.Id);
+
+        parcial.IsSuccess.Should().BeTrue();
+        completa.IsSuccess.Should().BeTrue();
+        detalle.Value!.EstadoCodigo.Should().Be(OrdenCompraEstados.Recibida);
+        detalle.Value.Recepciones.Should().Be(2);
+        detalle.Value.Detalle.Single().CantidadPendiente.Should().Be(0m);
+        db.ExistenciasProducto.Single(x => x.ProductoId == 100).Cantidad.Should().Be(2m);
+        db.MovimientosInventario.Should().HaveCount(2);
+        db.MovimientosInventario.Should().OnlyContain(x => x.Origen == OrigenesMovimientoInventario.RecepcionCompra);
+    }
+
+    [Fact]
+    public async Task Recibir_ExcedePendiente_NoModificaInventario()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        var result = await service.RecibirAsync(Empresa, orden.Value.Id,
+            Recepcion("recepcion-excede", orden.Value.Detalle.Single().Id, 3m), "admin");
+
+        result.ErrorCode.Should().Be("RECEPCION_EXCEDE_PENDIENTE");
+        db.OrdenCompraRecepciones.Should().BeEmpty();
+        db.MovimientosInventario.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Recibir_MismaIdempotencyKey_NoDuplicaInventario()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+        var request = Recepcion("recepcion-idempotente", orden.Value.Detalle.Single().Id, 1m);
+
+        var first = await service.RecibirAsync(Empresa, orden.Value.Id, request, "admin");
+        var second = await service.RecibirAsync(Empresa, orden.Value.Id, request, "admin");
+
+        second.Value!.Id.Should().Be(first.Value!.Id);
+        db.OrdenCompraRecepciones.Should().ContainSingle();
+        db.MovimientosInventario.Should().ContainSingle();
+        db.ExistenciasProducto.Single().Cantidad.Should().Be(1m);
+    }
+
+    [Fact]
+    public async Task ConvertirAFactura_TrasRecepciones_NoDuplicaEntradaInventario()
+    {
+        var db = NewDb(); var (service, compras) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+        await service.RecibirAsync(Empresa, orden.Value.Id,
+            Recepcion("recepcion-completa", orden.Value.Detalle.Single().Id, 2m), "admin");
+
+        var result = await service.ConvertirAFacturaAsync(Empresa, orden.Value.Id,
+            new ConvertirOrdenCompraRequest { NumeroDocumento = "F-REC-1" }, "admin");
+
+        result.IsSuccess.Should().BeTrue();
+        db.MovimientosInventario.Should().ContainSingle();
+        await compras.Received(1).CrearFacturaAsync(Empresa,
+            Arg.Is<CrearFacturaCompraRequest>(x => x.LineasInventario == null),
+            "admin", Arg.Any<CancellationToken>());
+    }
+
+    private static RegistrarRecepcionOrdenCompraRequest Recepcion(
+        string key, int lineaId, decimal cantidad) => new()
+    {
+        IdempotencyKey = key,
+        Fecha = new DateOnly(2026, 6, 20),
+        Referencia = "ENT-001",
+        Lineas = [new RegistrarRecepcionOrdenCompraLineaRequest
+        {
+            OrdenCompraLineaId = lineaId,
+            Cantidad = cantidad,
+        }],
+    };
 }
 
 internal static class OrdenCompraTestExtensions

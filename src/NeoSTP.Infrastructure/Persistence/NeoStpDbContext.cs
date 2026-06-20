@@ -161,6 +161,8 @@ public class NeoStpDbContext : DbContext
     public DbSet<NeoSTP.Domain.Core.Compras.PagoProveedor> PagosProveedor => Set<NeoSTP.Domain.Core.Compras.PagoProveedor>();
     public DbSet<NeoSTP.Domain.Core.Compras.OrdenCompra> OrdenesCompra => Set<NeoSTP.Domain.Core.Compras.OrdenCompra>();
     public DbSet<NeoSTP.Domain.Core.Compras.OrdenCompraLinea> OrdenCompraLineas => Set<NeoSTP.Domain.Core.Compras.OrdenCompraLinea>();
+    public DbSet<NeoSTP.Domain.Core.Compras.OrdenCompraRecepcion> OrdenCompraRecepciones => Set<NeoSTP.Domain.Core.Compras.OrdenCompraRecepcion>();
+    public DbSet<NeoSTP.Domain.Core.Compras.OrdenCompraRecepcionLinea> OrdenCompraRecepcionLineas => Set<NeoSTP.Domain.Core.Compras.OrdenCompraRecepcionLinea>();
 
     // Punto de venta (NEOPOS â€” V2)
     public DbSet<NeoSTP.Domain.Core.Pos.VentaPos> VentasPos => Set<NeoSTP.Domain.Core.Pos.VentaPos>();

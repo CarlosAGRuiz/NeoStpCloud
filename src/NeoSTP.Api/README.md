@@ -351,13 +351,15 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | GET/PUT | `/api/compras/ordenes/{id}` | Consultar o editar orden en borrador. |
 | POST | `/api/compras/ordenes/{id}/emitir` | Emitir orden de compra. |
 | POST | `/api/compras/ordenes/{id}/cancelar` | Cancelar orden borrador/emitida. |
-| POST | `/api/compras/ordenes/{id}/convertir-factura` | Recibir completa y convertir a CxP/inventario. |
+| POST | `/api/compras/ordenes/{id}/recepciones` | Registrar entrega parcial/completa idempotente e ingresar bienes a inventario. |
+| POST | `/api/compras/ordenes/{id}/convertir-factura` | Crear una CxP consolidada al completar recepciones; no duplica inventario. |
 | GET/POST | `/api/compras/facturas` | Facturas de compra. |
 | GET | `/api/compras/facturas/{id}` | Detalle factura. |
 | POST | `/api/compras/facturas/{id}/anular` | Anular factura. |
 | POST | `/api/compras/pagos` | Registrar pago proveedor. |
 | POST | `/api/compras/pagos/{id}/anular` | Anular pago proveedor. |
 | GET | `/api/compras/resumen` | Resumen CxP. |
+
 | GET/POST/PUT | `/api/tesoreria/cuentas` | Cuentas banco/caja. |
 | POST | `/api/tesoreria/cuentas/{id}/inactivar` | Inactivar cuenta. |
 | POST | `/api/tesoreria/cuentas/{id}/reactivar` | Reactivar cuenta. |
@@ -522,6 +524,16 @@ con token de 256 bits expirable/revocable (solo el hash queda en BD).
 | GET/POST | `/api/v1/clientes` | Listar o crear clientes. |
 | GET/POST | `/api/v1/productos` | Listar o crear productos. |
 
+### Recepciones de orden V3-S2
+
+- `idempotencyKey` es obligatoria (8-64 caracteres) y unica por empresa; repetirla en la misma
+  orden devuelve la recepcion existente sin crear otro movimiento.
+- Cada linea usa `ordenCompraLineaId` y `cantidad`; el servidor calcula el acumulado y bloquea
+  cantidades superiores al pendiente.
+- Los bienes generan kardex `RECEPCION_COMPRA`; los servicios solo quedan en el historial.
+- Con recepciones, `convertir-factura` se habilita al estado `RECIBIDA` y crea una CxP consolidada
+  sin enviar nuevamente lineas a inventario.
+
 ## Ejemplos
 
 Login:
@@ -649,6 +661,8 @@ Areas con cobertura relevante:
   y evidencia sanitizada cubierto por `Hb8DemoReleaseTests`.
 - V3-S1 ordenes de compra: calculo server-side, tenant, estados, conversion unica a CxP/inventario,
   seed demo, rutas y permisos cubiertos por `OrdenCompraServiceTests` y `V3OrdenCompraContractTests`.
+- V3-S2 recepciones: acumulados por linea, estado parcial/completo, idempotencia, kardex enlazado,
+  facturacion consolidada y rutas/vistas Web cubiertas por las suites de ordenes y demo readiness.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -660,7 +674,7 @@ Areas con cobertura relevante:
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
 Estado actual validado 2026-06-20: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 721 unitarias + 9 integracion. La suite incluye contrato mobile
+`dotnet test NeoSTP.slnx` con 725 unitarias + 9 integracion. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
 (`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)

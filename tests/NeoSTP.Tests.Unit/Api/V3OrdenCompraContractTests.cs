@@ -23,6 +23,7 @@ public class V3OrdenCompraContractTests
             new Endpoint(nameof(ComprasApiController.ActualizarOrden), "PUT", "ordenes/{id:int}", "Compras.Gestionar"),
             new Endpoint(nameof(ComprasApiController.EmitirOrden), "POST", "ordenes/{id:int}/emitir", "Compras.Gestionar"),
             new Endpoint(nameof(ComprasApiController.CancelarOrden), "POST", "ordenes/{id:int}/cancelar", "Compras.Gestionar"),
+            new Endpoint(nameof(ComprasApiController.RecibirOrden), "POST", "ordenes/{id:int}/recepciones", "Compras.Gestionar"),
             new Endpoint(nameof(ComprasApiController.ConvertirOrdenAFactura), "POST", "ordenes/{id:int}/convertir-factura", "Compras.Gestionar"),
         };
 

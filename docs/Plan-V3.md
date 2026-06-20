@@ -1,6 +1,6 @@
 # Plan V3 - Expansion Operativa y Enterprise
 
-> Inicio: 2026-06-20. V2/V2.5, API mobile, HB-0..HB-8 y V3-S1 tienen cierre operativo.
+> Inicio: 2026-06-20. V2/V2.5, API mobile, HB-0..HB-8 y V3-S1/V3-S2 tienen cierre operativo.
 > V3 se ejecuta en incrementos API-first con evidencia de negocio, tenant, RBAC, auditoria y pruebas.
 
 ## Objetivo
@@ -40,8 +40,8 @@ Factura/CxP -> Inventario -> Tesoreria usando servicios existentes.
 | Sprint | Estado | Resultado |
 |---|---|---|
 | V3-S1 | Cerrado operativo 100% | Ordenes de compra API core: borrador, edicion, emision, cancelacion y conversion unica a FacturaCompra/CxP + inventario. |
-| V3-S2 | Siguiente | Recepciones parciales, historial y UI Web completa para ordenes. |
-| V3-S3 | Pendiente | Vacaciones y aguinaldo automatizados en NeoRRHH. |
+| V3-S2 | Cerrado operativo 100% | Recepciones parciales idempotentes, kardex, CxP consolidada y UI Web completa. |
+| V3-S3 | Siguiente | Vacaciones y aguinaldo automatizados en NeoRRHH. |
 | V3-S4 | Pendiente | Catalogo contable personalizable y cierre anual base. |
 | V3-S5 | Pendiente | SDKs y ejemplos ejecutables NeoConnect. |
 | V3-S6 | Pendiente | Multi-moneda y tipos de cambio con estrategia de redondeo. |
@@ -106,19 +106,47 @@ Todas las rutas requieren JWT, modulo `COMPRAS` y permisos existentes:
 
 ## V3-S2 - Recepcion Parcial y UI Web
 
+### Entregado
+
+- Entidades `OrdenCompraRecepcion` y `OrdenCompraRecepcionLinea` con tenant, fecha, referencia,
+  observaciones, detalle recibido y movimiento de inventario vinculado.
+- Estado `PARCIAL` y acumulados recibido/pendiente por linea.
+- `POST /api/compras/ordenes/{id}/recepciones` protegido por modulo/permisos.
+- Idempotency key unica por empresa: un reintento devuelve la recepcion existente sin repetir kardex.
+- Validacion de pertenencia, cantidades positivas, fecha y limite pendiente.
+- Transaccion serializable para recepciones y conversion a factura.
+- Bienes generan `RECEPCION_COMPRA` en kardex; servicios quedan trazados sin movimiento fisico.
+- Regla de facturacion consolidada: con recepciones, la CxP solo se crea al completar la orden y no
+  vuelve a registrar inventario. La ruta S1 directa se conserva para clientes sin recepciones.
+- UI Web `/Compras/Ordenes`: listado/filtros, crear/editar borrador, detalle, emitir, cancelar,
+  recibir parcialmente, historial, convertir y abrir la CxP vinculada.
+- Seed demo idempotente con `OC-DEMO-0001` parcial, `RC-DEMO-0001` y kardex enlazado.
+- Migracion `V3_S2_RecepcionesOrdenCompra` aditiva con FKs e indices de idempotencia/trazabilidad.
+
+### Guardrails
+
+- Solo ordenes `EMITIDA` o `PARCIAL` aceptan recepciones.
+- Una recepcion no puede exceder el pendiente de ninguna linea.
+- Una orden parcialmente recibida no puede cancelarse ni facturarse.
+- `RECIBIDA` requiere que todas las lineas alcancen su cantidad ordenada.
+- Una orden completa genera una sola factura/CxP consolidada.
+
+### Validacion
+
+- `OrdenCompraServiceTests`: parcial→completa, exceso bloqueado, reintento idempotente y factura
+  sin duplicar inventario.
+- `V3OrdenCompraContractTests`: endpoint de recepciones, verbos, modulo y permisos.
+- `DemoReadinessContractTests`: rutas y vistas Razor de ordenes.
+- `EmpresaPruebaSeederTests`: recepcion demo y movimiento enlazado unicos tras dos ejecuciones.
+- Build 0 warnings/0 errores y suite 725 unitarias + 9 integracion.
+
+## V3-S3 - Vacaciones y Aguinaldo NeoRRHH
+
 Siguiente sprint recomendado.
 
-Entregables:
+Alcance inicial:
 
-- Recepciones con fecha, referencia, observacion y lineas/cantidades.
-- Acumulado recibido por linea y estados `PARCIAL`/`RECIBIDA`.
-- Entrada de inventario por cada recepcion, sin duplicados.
-- Conversion a factura por recepcion o consolidada, con regla explicita.
-- UI Web: listado, crear/editar, detalle, emitir, recibir, cancelar y abrir CxP vinculada.
-- Datos demo y pruebas Web/API.
-
-Criterio de cierre:
-
-- Una orden puede recibirse en dos entregas sin exceder cantidades ni duplicar inventario.
-- El usuario ADMIN/CONTADOR completa el flujo desde Web con permisos reales.
-- API, Web, auditoria, README y pruebas quedan alineados.
+- Politicas por empresa para acumulacion, antiguedad y periodos.
+- Solicitud/aprobacion de vacaciones, saldo y calendario.
+- Calculo de aguinaldo segun antiguedad y reglas vigentes de El Salvador.
+- Impacto trazable en planilla, API, UI Web, auditoria, seed y pruebas.

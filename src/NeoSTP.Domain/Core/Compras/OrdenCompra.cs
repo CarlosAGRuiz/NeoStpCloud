@@ -1,5 +1,6 @@
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Productos;
 
 namespace NeoSTP.Domain.Core.Compras;
@@ -29,6 +30,7 @@ public class OrdenCompra : AuditableEntity
     public FacturaCompra? FacturaCompra { get; set; }
 
     public ICollection<OrdenCompraLinea> Lineas { get; set; } = new List<OrdenCompraLinea>();
+    public ICollection<OrdenCompraRecepcion> Recepciones { get; set; } = new List<OrdenCompraRecepcion>();
 }
 
 public class OrdenCompraLinea : AuditableEntity
@@ -51,14 +53,53 @@ public class OrdenCompraLinea : AuditableEntity
     public decimal Subtotal { get; set; }
     public decimal Iva { get; set; }
     public decimal Total { get; set; }
+
+    public ICollection<OrdenCompraRecepcionLinea> Recepciones { get; set; } = new List<OrdenCompraRecepcionLinea>();
+}
+
+/// <summary>Entrega fisica parcial o completa asociada a una orden emitida.</summary>
+public class OrdenCompraRecepcion : AuditableEntity
+{
+    public int EmpresaId { get; set; }
+    public Empresa Empresa { get; set; } = null!;
+
+    public int OrdenCompraId { get; set; }
+    public OrdenCompra OrdenCompra { get; set; } = null!;
+
+    public string Numero { get; set; } = null!;
+    public string IdempotencyKey { get; set; } = null!;
+    public DateOnly Fecha { get; set; }
+    public string? Referencia { get; set; }
+    public string? Observaciones { get; set; }
+
+    public ICollection<OrdenCompraRecepcionLinea> Lineas { get; set; } = new List<OrdenCompraRecepcionLinea>();
+}
+
+public class OrdenCompraRecepcionLinea : AuditableEntity
+{
+    public int EmpresaId { get; set; }
+    public Empresa Empresa { get; set; } = null!;
+
+    public int OrdenCompraRecepcionId { get; set; }
+    public OrdenCompraRecepcion Recepcion { get; set; } = null!;
+
+    public int OrdenCompraLineaId { get; set; }
+    public OrdenCompraLinea OrdenCompraLinea { get; set; } = null!;
+
+    public decimal Cantidad { get; set; }
+
+    /// <summary>Entrada de kardex generada para bienes; null para servicios.</summary>
+    public int? MovimientoInventarioId { get; set; }
+    public MovimientoInventario? MovimientoInventario { get; set; }
 }
 
 public static class OrdenCompraEstados
 {
     public const string Borrador = "BORRADOR";
     public const string Emitida = "EMITIDA";
+    public const string Parcial = "PARCIAL";
     public const string Recibida = "RECIBIDA";
     public const string Cancelada = "CANCELADA";
 
-    public static readonly string[] All = [Borrador, Emitida, Recibida, Cancelada];
+    public static readonly string[] All = [Borrador, Emitida, Parcial, Recibida, Cancelada];
 }

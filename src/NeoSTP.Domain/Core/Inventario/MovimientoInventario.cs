@@ -21,7 +21,7 @@ public class MovimientoInventario : AuditableEntity
     /// <summary>Costo unitario del movimiento (relevante en ENTRADA / AJUSTE).</summary>
     public decimal CostoUnitario { get; set; }
 
-    /// <summary>INICIAL | COMPRA | VENTA | AJUSTE | DEVOLUCION.</summary>
+    /// <summary>INICIAL | COMPRA | RECEPCION_COMPRA | VENTA | AJUSTE | DEVOLUCION.</summary>
     public string Origen { get; set; } = OrigenesMovimientoInventario.Ajuste;
     public int? OrigenId { get; set; }
 
@@ -47,9 +47,10 @@ public static class OrigenesMovimientoInventario
 {
     public const string Inicial = "INICIAL";
     public const string Compra = "COMPRA";
+    public const string RecepcionCompra = "RECEPCION_COMPRA";
     public const string Venta = "VENTA";
     public const string Ajuste = "AJUSTE";
     public const string Devolucion = "DEVOLUCION";
 
-    public static readonly string[] All = [Inicial, Compra, Venta, Ajuste, Devolucion];
+    public static readonly string[] All = [Inicial, Compra, RecepcionCompra, Venta, Ajuste, Devolucion];
 }

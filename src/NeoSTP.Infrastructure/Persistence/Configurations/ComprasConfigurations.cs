@@ -123,3 +123,46 @@ public class OrdenCompraLineaConfiguration : IEntityTypeConfiguration<OrdenCompr
         b.HasIndex(x => x.ProductoId);
     }
 }
+
+public class OrdenCompraRecepcionConfiguration : IEntityTypeConfiguration<OrdenCompraRecepcion>
+{
+    public void Configure(EntityTypeBuilder<OrdenCompraRecepcion> b)
+    {
+        b.ToTable("Compras_OrdenRecepciones");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Numero).HasMaxLength(40).IsRequired();
+        b.Property(x => x.IdempotencyKey).HasMaxLength(64).IsRequired();
+        b.Property(x => x.Referencia).HasMaxLength(80);
+        b.Property(x => x.Observaciones).HasMaxLength(500);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.OrdenCompra).WithMany(x => x.Recepciones).HasForeignKey(x => x.OrdenCompraId).OnDelete(DeleteBehavior.Cascade);
+        b.HasMany(x => x.Lineas).WithOne(x => x.Recepcion).HasForeignKey(x => x.OrdenCompraRecepcionId).OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => new { x.EmpresaId, x.Numero }).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.IdempotencyKey }).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.OrdenCompraId, x.Fecha });
+    }
+}
+
+public class OrdenCompraRecepcionLineaConfiguration : IEntityTypeConfiguration<OrdenCompraRecepcionLinea>
+{
+    public void Configure(EntityTypeBuilder<OrdenCompraRecepcionLinea> b)
+    {
+        b.ToTable("Compras_OrdenRecepcionLineas");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Cantidad).HasPrecision(18, 4);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.OrdenCompraLinea).WithMany(x => x.Recepciones).HasForeignKey(x => x.OrdenCompraLineaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.MovimientoInventario).WithMany().HasForeignKey(x => x.MovimientoInventarioId).OnDelete(DeleteBehavior.Restrict);
+
+        b.HasIndex(x => new { x.OrdenCompraRecepcionId, x.OrdenCompraLineaId }).IsUnique();
+        b.HasIndex(x => x.OrdenCompraLineaId);
+        b.HasIndex(x => x.MovimientoInventarioId).IsUnique().HasFilter("[MovimientoInventarioId] IS NOT NULL");
+    }
+}

@@ -133,6 +133,15 @@ public class ComprasApiController : ApiControllerBase
         return Respond(await _ordenes.CancelarAsync(eid, id, _currentUser.Username, ct));
     }
 
+    [HttpPost("ordenes/{id:int}/recepciones")]
+    [RequirePermiso("Compras.Gestionar")]
+    public async Task<IActionResult> RecibirOrden(
+        int id, [FromBody] RegistrarRecepcionOrdenCompraRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.RecibirAsync(eid, id, req, _currentUser.Username, ct));
+    }
+
     [HttpPost("ordenes/{id:int}/convertir-factura")]
     [RequirePermiso("Compras.Gestionar")]
     public async Task<IActionResult> ConvertirOrdenAFactura(

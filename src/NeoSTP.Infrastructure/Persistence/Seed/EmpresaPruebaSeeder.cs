@@ -242,9 +242,9 @@ public static class EmpresaPruebaSeeder
         await EnsureCommercialDteAsync(db, empresa, sucursal?.Id, puntoVenta?.Id, clientes[1], productos[1], credito, actor, ct);
 
         var proveedor = await EnsureCommercialProveedorAsync(db, empresa.Id, actor, ct);
-        await EnsureCommercialOrdenCompraAsync(db, empresa.Id, proveedor, productos, actor, ct);
+        var ordenCompra = await EnsureCommercialOrdenCompraAsync(db, empresa.Id, proveedor, productos, actor, ct);
         var facturaCompra = await EnsureCommercialCompraAsync(db, empresa.Id, proveedor, actor, ct);
-        await EnsureCommercialInventarioAsync(db, empresa.Id, productos, facturaCompra.Id, actor, ct);
+        await EnsureCommercialInventarioAsync(db, empresa.Id, productos, facturaCompra.Id, ordenCompra, actor, ct);
         await EnsureCommercialTesoreriaAsync(db, empresa.Id, credito.Id, facturaCompra.Id, actor, ct);
         await EnsureCommercialPortalAsync(db, empresa.Id, factura.Id, credito.ClienteId ?? clientes[1].Id, actor, ct);
         await EnsureCommercialCrmAsync(db, empresa.Id, clientes[1], productos, actor, ct);
@@ -817,7 +817,7 @@ public static class EmpresaPruebaSeeder
         return factura;
     }
 
-    private static async Task EnsureCommercialOrdenCompraAsync(
+    private static async Task<OrdenCompra> EnsureCommercialOrdenCompraAsync(
         NeoStpDbContext db,
         int empresaId,
         Proveedor proveedor,
@@ -825,8 +825,9 @@ public static class EmpresaPruebaSeeder
         string actor,
         CancellationToken ct)
     {
-        if (await db.OrdenesCompra.AnyAsync(x => x.EmpresaId == empresaId && x.Numero == "OC-DEMO-0001", ct))
-            return;
+        var existente = await db.OrdenesCompra.Include(x => x.Lineas)
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.Numero == "OC-DEMO-0001", ct);
+        if (existente is not null) return existente;
 
         var producto = productos.First(x => x.CodigoInterno == "MOB-USB");
         const decimal cantidad = 12m;
@@ -834,7 +835,7 @@ public static class EmpresaPruebaSeeder
         var subtotal = cantidad * precioUnitario;
         var iva = decimal.Round(subtotal * 0.13m, 2, MidpointRounding.AwayFromZero);
 
-        db.OrdenesCompra.Add(new OrdenCompra
+        var orden = new OrdenCompra
         {
             EmpresaId = empresaId,
             ProveedorId = proveedor.Id,
@@ -866,8 +867,10 @@ public static class EmpresaPruebaSeeder
                     CreatedBy = actor,
                 },
             ],
-        });
+        };
+        db.OrdenesCompra.Add(orden);
         await db.SaveChangesAsync(ct);
+        return orden;
     }
 
     private static async Task EnsureCommercialInventarioAsync(
@@ -875,6 +878,7 @@ public static class EmpresaPruebaSeeder
         int empresaId,
         IReadOnlyList<Producto> productos,
         int facturaCompraId,
+        OrdenCompra ordenCompra,
         string actor,
         CancellationToken ct)
     {
@@ -902,24 +906,98 @@ public static class EmpresaPruebaSeeder
             existencia.UpdatedBy = actor;
         }
 
-        if (!await db.MovimientosInventario.AnyAsync(m => m.EmpresaId == empresaId && m.Referencia == "INV-DEMO-ENTRADA", ct))
+        var entradaDemo = await db.MovimientosInventario.FirstOrDefaultAsync(
+            m => m.EmpresaId == empresaId && m.Referencia == "INV-DEMO-ENTRADA", ct);
+        if (entradaDemo is null)
         {
-            db.MovimientosInventario.Add(new MovimientoInventario
+            entradaDemo = new MovimientoInventario
             {
                 EmpresaId = empresaId,
                 ProductoId = producto.Id,
                 Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)),
                 Tipo = TiposMovimientoInventario.Entrada,
-                Cantidad = 25m,
+                Cantidad = 20m,
                 CostoUnitario = 9.80m,
                 Origen = OrigenesMovimientoInventario.Compra,
                 OrigenId = facturaCompraId,
                 Referencia = "INV-DEMO-ENTRADA",
                 Nota = "Entrada demo desde factura de compra.",
+                SaldoCantidad = 20m,
+                SaldoCostoPromedio = 9.80m,
+                CreatedBy = actor,
+            };
+            db.MovimientosInventario.Add(entradaDemo);
+        }
+        else
+        {
+            entradaDemo.Cantidad = 20m;
+            entradaDemo.SaldoCantidad = 20m;
+            entradaDemo.UpdatedAt = DateTime.UtcNow;
+            entradaDemo.UpdatedBy = actor;
+        }
+
+        var recepcion = await db.OrdenCompraRecepciones.Include(x => x.Lineas)
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.IdempotencyKey == "demo-oc-recepcion-0001", ct);
+        if (recepcion is null)
+        {
+            recepcion = new OrdenCompraRecepcion
+            {
+                EmpresaId = empresaId,
+                OrdenCompraId = ordenCompra.Id,
+                Numero = "RC-DEMO-0001",
+                IdempotencyKey = "demo-oc-recepcion-0001",
+                Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)),
+                Referencia = "ENT-DEMO-0001",
+                Observaciones = "Primera entrega parcial de la orden demo.",
+                CreatedBy = actor,
+                Lineas =
+                [
+                    new OrdenCompraRecepcionLinea
+                    {
+                        EmpresaId = empresaId,
+                        OrdenCompraLineaId = ordenCompra.Lineas.Single().Id,
+                        Cantidad = 5m,
+                        CreatedBy = actor,
+                    },
+                ],
+            };
+            db.OrdenCompraRecepciones.Add(recepcion);
+            ordenCompra.EstadoCodigo = OrdenCompraEstados.Parcial;
+            ordenCompra.UpdatedAt = DateTime.UtcNow;
+            ordenCompra.UpdatedBy = actor;
+            await db.SaveChangesAsync(ct);
+        }
+
+        var movimientoRecepcion = await db.MovimientosInventario.FirstOrDefaultAsync(m =>
+            m.EmpresaId == empresaId && m.Origen == OrigenesMovimientoInventario.RecepcionCompra
+            && m.OrigenId == recepcion.Id && m.ProductoId == producto.Id, ct);
+        if (movimientoRecepcion is null)
+        {
+            movimientoRecepcion = new MovimientoInventario
+            {
+                EmpresaId = empresaId,
+                ProductoId = producto.Id,
+                Fecha = recepcion.Fecha,
+                Tipo = TiposMovimientoInventario.Entrada,
+                Cantidad = 5m,
+                CostoUnitario = 9.80m,
+                Origen = OrigenesMovimientoInventario.RecepcionCompra,
+                OrigenId = recepcion.Id,
+                Referencia = ordenCompra.Numero,
+                Nota = recepcion.Referencia,
                 SaldoCantidad = 25m,
                 SaldoCostoPromedio = 9.80m,
                 CreatedBy = actor,
-            });
+            };
+            db.MovimientosInventario.Add(movimientoRecepcion);
+            await db.SaveChangesAsync(ct);
+        }
+
+        var recepcionLinea = recepcion.Lineas.Single();
+        if (recepcionLinea.MovimientoInventarioId != movimientoRecepcion.Id)
+        {
+            recepcionLinea.MovimientoInventarioId = movimientoRecepcion.Id;
+            await db.SaveChangesAsync(ct);
         }
 
         if (!await db.MovimientosInventario.AnyAsync(m => m.EmpresaId == empresaId && m.Referencia == "INV-DEMO-SALIDA", ct))

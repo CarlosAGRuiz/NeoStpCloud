@@ -1,0 +1,169 @@
+@using NeoSTP.Application.Compras.Dtos
+@model OrdenCompraDetalleDto
+@{
+    ViewData["Title"] = $"Orden {Model.Numero}";
+    var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var tipos = ViewBag.TiposDocumento as string[] ?? Array.Empty<string>();
+    var condiciones = ViewBag.CondicionesPago as string[] ?? Array.Empty<string>();
+    var idempotencyKey = ViewBag.IdempotencyKey as string ?? Guid.NewGuid().ToString("N");
+    var puedeRecibir = puedeGestionar && Model.EstadoCodigo is "EMITIDA" or "PARCIAL";
+    var puedeFacturar = puedeGestionar && Model.EstadoCodigo == "RECIBIDA" && Model.FacturaCompraId is null;
+    string badge = Model.EstadoCodigo switch
+    {
+        "RECIBIDA" => "ns-badge--processed",
+        "PARCIAL" => "ns-badge--contingency",
+        "CANCELADA" => "ns-badge--rejected",
+        _ => "ns-badge--draft",
+    };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Ordenes">Ordenes de compra</a><span class="material-symbols-outlined">chevron_right</span><span>@Model.Numero</span></nav>
+        <div class="d-flex align-items-center gap-2"><h1 class="ns-page-title mb-0">@Model.Numero</h1><span class="ns-badge @badge">@Model.EstadoCodigo</span></div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        @if (puedeGestionar && Model.EstadoCodigo == "BORRADOR")
+        {
+            <a asp-action="EditarOrden" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">edit</span> Editar</a>
+            <form asp-action="EmitirOrden" asp-route-id="@Model.Id" method="post">@Html.AntiForgeryToken()<button class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">send</span> Emitir</button></form>
+        }
+        @if (puedeGestionar && Model.EstadoCodigo is "BORRADOR" or "EMITIDA")
+        {
+            <form asp-action="CancelarOrden" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancelar esta orden de compra?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">cancel</span> Cancelar</button></form>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Proveedor</div><div class="fw-semibold">@Model.ProveedorNombre</div><div class="small text-muted ns-mono">Orden @Model.Fecha.ToString("dd/MM/yyyy")</div></div></div></div>
+    <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Entrega esperada</div><div class="fw-semibold ns-mono">@(Model.FechaEntregaEsperada?.ToString("dd/MM/yyyy") ?? "Sin fecha")</div><div class="small text-muted">@Model.Recepciones recepcion(es)</div></div></div></div>
+    <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="ns-metric-label">Total</div><div class="fw-bold fs-4 ns-mono">$ @Model.Total.ToString("N2")</div><div class="small text-muted">Subtotal @Model.Subtotal.ToString("N2") + IVA @Model.Iva.ToString("N2")</div></div></div></div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Observaciones))
+{
+    <div class="alert alert-light border"><strong>Observaciones:</strong> @Model.Observaciones</div>
+}
+
+<section class="mb-4">
+    <h2 class="h6">Detalle de la orden</h2>
+    <div class="card"><div class="table-responsive">
+        <table class="table table-sm align-middle m-0">
+            <thead><tr><th>Producto</th><th class="text-end">Ordenado</th><th class="text-end">Recibido</th><th class="text-end">Pendiente</th><th class="text-end">Costo</th><th class="text-end">Total</th></tr></thead>
+            <tbody>
+                @foreach (var linea in Model.Detalle)
+                {
+                    <tr>
+                        <td><strong>@linea.Descripcion</strong><div class="small text-muted ns-mono">@linea.ProductoCodigo @(linea.EsServicio ? "- servicio" : "")</div></td>
+                        <td class="text-end ns-mono">@linea.Cantidad.ToString("N4")</td>
+                        <td class="text-end ns-mono text-success">@linea.CantidadRecibida.ToString("N4")</td>
+                        <td class="text-end ns-mono fw-semibold @(linea.CantidadPendiente > 0 ? "text-warning" : "")">@linea.CantidadPendiente.ToString("N4")</td>
+                        <td class="text-end ns-mono">@linea.PrecioUnitario.ToString("N4")</td>
+                        <td class="text-end ns-mono">@linea.Total.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div></div>
+</section>
+
+@if (puedeRecibir)
+{
+    <section class="mb-4">
+        <h2 class="h6">Registrar recepcion</h2>
+        <form asp-action="RecibirOrden" asp-route-id="@Model.Id" method="post" class="card">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="IdempotencyKey" value="@idempotencyKey" />
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3"><label class="form-label">Fecha</label><input type="date" name="Fecha" value="@DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+                    <div class="col-md-4"><label class="form-label">Referencia de entrega</label><input name="Referencia" maxlength="80" class="form-control form-control-sm ns-mono" /></div>
+                    <div class="col-md-5"><label class="form-label">Observaciones</label><input name="Observaciones" maxlength="500" class="form-control form-control-sm" /></div>
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-3">
+                    <thead><tr><th style="width:52px"></th><th>Linea pendiente</th><th class="text-end">Pendiente</th><th style="width:180px">Recibir ahora</th></tr></thead>
+                    <tbody>
+                        @foreach (var linea in Model.Detalle.Where(x => x.CantidadPendiente > 0))
+                        {
+                            <tr>
+                                <td><input type="checkbox" class="form-check-input receive-toggle" checked title="Incluir linea" /></td>
+                                <td>@linea.Descripcion <span class="small text-muted ns-mono">@linea.ProductoCodigo</span></td>
+                                <td class="text-end ns-mono">@linea.CantidadPendiente.ToString("N4")</td>
+                                <td>
+                                    <input type="hidden" name="Lineas.Index" value="@linea.Id" class="receive-field" />
+                                    <input type="hidden" name="Lineas[@linea.Id].OrdenCompraLineaId" value="@linea.Id" class="receive-field" />
+                                    <input type="number" name="Lineas[@linea.Id].Cantidad" value="@linea.CantidadPendiente.ToString(System.Globalization.CultureInfo.InvariantCulture)" min="0.0001" max="@linea.CantidadPendiente.ToString(System.Globalization.CultureInfo.InvariantCulture)" step="0.0001" class="form-control form-control-sm ns-mono receive-field" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+                <button class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">inventory</span> Confirmar recepcion</button>
+            </div>
+        </form>
+    </section>
+}
+
+<section class="mb-4">
+    <h2 class="h6">Historial de recepciones</h2>
+    <div class="card"><div class="table-responsive">
+        <table class="table table-sm align-middle m-0">
+            <thead><tr><th>Recepcion</th><th>Fecha</th><th>Referencia</th><th>Lineas recibidas</th><th>Inventario</th></tr></thead>
+            <tbody>
+                @if (!Model.HistorialRecepciones.Any())
+                {
+                    <tr><td colspan="5"><div class="ns-empty"><span class="material-symbols-outlined">inventory</span><p>La orden aun no tiene recepciones.</p></div></td></tr>
+                }
+                @foreach (var recepcion in Model.HistorialRecepciones)
+                {
+                    <tr>
+                        <td><strong class="ns-mono">@recepcion.Numero</strong></td>
+                        <td class="ns-mono small">@recepcion.Fecha.ToString("dd/MM/yyyy")</td>
+                        <td>@(recepcion.Referencia ?? "-")</td>
+                        <td>@string.Join(", ", recepcion.Lineas.Select(x => $"{x.ProductoCodigo}: {x.Cantidad:N4}"))</td>
+                        <td>@(recepcion.Lineas.Any(x => x.MovimientoInventarioId is not null) ? "Kardex registrado" : "Solo servicios")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div></div>
+</section>
+
+@if (puedeFacturar)
+{
+    <section class="mb-4">
+        <h2 class="h6">Crear cuenta por pagar consolidada</h2>
+        <form asp-action="ConvertirOrden" asp-route-id="@Model.Id" method="post" class="card"><div class="card-body">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-3"><label class="form-label">Numero de documento</label><input name="NumeroDocumento" maxlength="50" required class="form-control form-control-sm ns-mono" /></div>
+                <div class="col-md-2"><label class="form-label">Tipo</label><select name="TipoDocumento" class="form-select form-select-sm">@foreach (var tipo in tipos) { <option value="@tipo">@tipo</option> }</select></div>
+                <div class="col-md-2"><label class="form-label">Emision</label><input name="FechaEmision" type="date" class="form-control form-control-sm" /></div>
+                <div class="col-md-2"><label class="form-label">Vencimiento</label><input name="FechaVencimiento" type="date" class="form-control form-control-sm" /></div>
+                <div class="col-md-3"><label class="form-label">Condicion</label><select name="CondicionPago" class="form-select form-select-sm">@foreach (var condicion in condiciones) { <option value="@condicion">@condicion</option> }</select></div>
+                <div class="col-md-4"><div class="form-check"><input type="checkbox" name="IvaDeducible" value="true" checked class="form-check-input" id="ivaDeducible" /><label class="form-check-label" for="ivaDeducible">IVA deducible</label></div></div>
+                <div class="col-md-4"><div class="form-check"><input type="checkbox" name="RegistrarGastoProfit" value="true" checked class="form-check-input" id="registrarProfit" /><label class="form-check-label" for="registrarProfit">Registrar en NeoProfit</label></div></div>
+                <div class="col-12"><button class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">request_quote</span> Crear CxP por $ @Model.Total.ToString("N2")</button></div>
+            </div>
+        </div></form>
+    </section>
+}
+
+@if (Model.FacturaCompraId is int facturaId)
+{
+    <div class="alert alert-success d-flex align-items-center justify-content-between"><span>Esta orden ya genero la cuenta por pagar.</span><a asp-action="Detalle" asp-route-id="@facturaId" class="btn btn-outline-success btn-sm">Abrir factura</a></div>
+}
+
+<script>
+    document.querySelectorAll('.receive-toggle').forEach(function (toggle) {
+        toggle.addEventListener('change', function () {
+            toggle.closest('tr').querySelectorAll('.receive-field').forEach(function (field) {
+                field.disabled = !toggle.checked;
+            });
+        });
+    });
+</script>

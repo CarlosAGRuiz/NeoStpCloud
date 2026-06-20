@@ -11,5 +11,6 @@ public interface IOrdenCompraService
     Task<Result<OrdenCompraDetalleDto>> ActualizarAsync(int empresaId, int id, GuardarOrdenCompraRequest request, string? actor, CancellationToken ct = default);
     Task<Result<OrdenCompraDetalleDto>> EmitirAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result<OrdenCompraDetalleDto>> CancelarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
+    Task<Result<OrdenCompraRecepcionDto>> RecibirAsync(int empresaId, int id, RegistrarRecepcionOrdenCompraRequest request, string? actor, CancellationToken ct = default);
     Task<Result<OrdenCompraDetalleDto>> ConvertirAFacturaAsync(int empresaId, int id, ConvertirOrdenCompraRequest request, string? actor, CancellationToken ct = default);
 }

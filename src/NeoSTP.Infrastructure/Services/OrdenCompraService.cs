@@ -1,27 +1,37 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Compras;
 using NeoSTP.Application.Compras.Dtos;
+using NeoSTP.Application.Inventario;
+using NeoSTP.Application.Inventario.Dtos;
 using NeoSTP.Domain.Core.Compras;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
 
-/// <summary>V3-S1 - ordenes de compra y conversion controlada a factura/CxP.</summary>
+/// <summary>V3 - ordenes, recepciones parciales y conversion controlada a factura/CxP.</summary>
 public sealed class OrdenCompraService : IOrdenCompraService
 {
     private const string AuditModule = "NEOCOMPRAS";
 
     private readonly NeoStpDbContext _db;
     private readonly ICompraService _compras;
+    private readonly IInventarioService _inventario;
     private readonly IAuditoriaService _auditoria;
 
-    public OrdenCompraService(NeoStpDbContext db, ICompraService compras, IAuditoriaService auditoria)
+    public OrdenCompraService(
+        NeoStpDbContext db,
+        ICompraService compras,
+        IInventarioService inventario,
+        IAuditoriaService auditoria)
     {
         _db = db;
         _compras = compras;
+        _inventario = inventario;
         _auditoria = auditoria;
     }
 
@@ -62,6 +72,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
                 Iva = x.Iva,
                 Total = x.Total,
                 Lineas = x.Lineas.Count,
+                Recepciones = x.Recepciones.Count,
                 FacturaCompraId = x.FacturaCompraId,
             }).ToListAsync(ct);
 
@@ -100,7 +111,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
             EmpresaId = empresaId,
             ProveedorId = proveedor.Id,
             Proveedor = proveedor,
-            Numero = $"OC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..21].ToUpperInvariant(),
+            Numero = $"OC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..28].ToUpperInvariant(),
             Fecha = fecha,
             FechaEntregaEsperada = request.FechaEntregaEsperada,
             EstadoCodigo = OrdenCompraEstados.Borrador,
@@ -168,7 +179,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
         var orden = await QueryDetalle().FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
         if (orden is null)
             return Result<OrdenCompraDetalleDto>.Fail("Orden de compra no encontrada.", "ORDEN_COMPRA_NOT_FOUND");
-        if (orden.EstadoCodigo is OrdenCompraEstados.Recibida or OrdenCompraEstados.Cancelada)
+        if (orden.EstadoCodigo is OrdenCompraEstados.Parcial or OrdenCompraEstados.Recibida or OrdenCompraEstados.Cancelada)
             return Result<OrdenCompraDetalleDto>.Fail("La orden no puede cancelarse en su estado actual.", "INVALID_STATE");
 
         orden.EstadoCodigo = OrdenCompraEstados.Cancelada;
@@ -179,27 +190,145 @@ public sealed class OrdenCompraService : IOrdenCompraService
         return Result<OrdenCompraDetalleDto>.Ok(ToDetalle(orden));
     }
 
+    public async Task<Result<OrdenCompraRecepcionDto>> RecibirAsync(
+        int empresaId, int id, RegistrarRecepcionOrdenCompraRequest request, string? actor, CancellationToken ct = default)
+    {
+        var key = request.IdempotencyKey?.Trim();
+        if (string.IsNullOrWhiteSpace(key) || key.Length is < 8 or > 64)
+            return Result<OrdenCompraRecepcionDto>.Fail("La idempotency key debe tener entre 8 y 64 caracteres.", "VALIDATION");
+        if (request.Lineas is null || request.Lineas.Count == 0)
+            return Result<OrdenCompraRecepcionDto>.Fail("La recepcion requiere al menos una linea.", "VALIDATION");
+        if (request.Lineas.GroupBy(x => x.OrdenCompraLineaId).Any(x => x.Count() > 1))
+            return Result<OrdenCompraRecepcionDto>.Fail("No repita lineas de la orden en una recepcion.", "VALIDATION");
+
+        await using var transaction = _db.Database.IsRelational()
+            ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
+            : null;
+
+        var existente = await _db.OrdenCompraRecepciones
+            .Include(x => x.Lineas).ThenInclude(x => x.OrdenCompraLinea).ThenInclude(x => x.Producto)
+            .FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.IdempotencyKey == key, ct);
+        if (existente is not null)
+        {
+            if (existente.OrdenCompraId != id)
+                return Result<OrdenCompraRecepcionDto>.Fail("La idempotency key ya pertenece a otra orden.", "IDEMPOTENCY_CONFLICT");
+            return Result<OrdenCompraRecepcionDto>.Ok(ToRecepcion(existente));
+        }
+
+        var orden = await QueryDetalle().FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
+        if (orden is null)
+            return Result<OrdenCompraRecepcionDto>.Fail("Orden de compra no encontrada.", "ORDEN_COMPRA_NOT_FOUND");
+        if (orden.EstadoCodigo is not (OrdenCompraEstados.Emitida or OrdenCompraEstados.Parcial))
+            return Result<OrdenCompraRecepcionDto>.Fail("Solo una orden emitida o parcial puede recibirse.", "INVALID_STATE");
+
+        var lineasOrden = orden.Lineas.ToDictionary(x => x.Id);
+        var cantidadesNuevas = new Dictionary<int, decimal>();
+        foreach (var item in request.Lineas)
+        {
+            if (!lineasOrden.TryGetValue(item.OrdenCompraLineaId, out var linea))
+                return Result<OrdenCompraRecepcionDto>.Fail("Una linea no pertenece a la orden.", "ORDEN_LINEA_NOT_FOUND");
+            if (item.Cantidad <= 0)
+                return Result<OrdenCompraRecepcionDto>.Fail("Las cantidades recibidas deben ser mayores que cero.", "VALIDATION");
+
+            var recibida = linea.Recepciones.Sum(x => x.Cantidad);
+            var pendiente = linea.Cantidad - recibida;
+            if (item.Cantidad > pendiente)
+                return Result<OrdenCompraRecepcionDto>.Fail(
+                    $"La recepcion de {linea.Descripcion} excede la cantidad pendiente ({pendiente:N4}).", "RECEPCION_EXCEDE_PENDIENTE");
+            cantidadesNuevas[linea.Id] = item.Cantidad;
+        }
+
+        var fecha = request.Fecha ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        if (fecha < orden.Fecha)
+            return Result<OrdenCompraRecepcionDto>.Fail("La fecha de recepcion no puede ser anterior a la orden.", "VALIDATION");
+        var recepcion = new OrdenCompraRecepcion
+        {
+            EmpresaId = empresaId,
+            OrdenCompraId = orden.Id,
+            OrdenCompra = orden,
+            Numero = $"RC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..28].ToUpperInvariant(),
+            IdempotencyKey = key,
+            Fecha = fecha,
+            Referencia = request.Referencia?.Trim(),
+            Observaciones = request.Observaciones?.Trim(),
+            CreatedBy = actor,
+            Lineas = request.Lineas.Select(item => new OrdenCompraRecepcionLinea
+            {
+                EmpresaId = empresaId,
+                OrdenCompraLineaId = item.OrdenCompraLineaId,
+                OrdenCompraLinea = lineasOrden[item.OrdenCompraLineaId],
+                Cantidad = item.Cantidad,
+                CreatedBy = actor,
+            }).ToList(),
+        };
+        orden.Recepciones.Add(recepcion);
+        await _db.SaveChangesAsync(ct);
+
+        foreach (var lineaRecepcion in recepcion.Lineas.Where(x => !x.OrdenCompraLinea.Producto.EsServicio))
+        {
+            var entrada = await _inventario.RegistrarEntradaAsync(empresaId, new RegistrarMovimientoInventarioRequest
+            {
+                ProductoId = lineaRecepcion.OrdenCompraLinea.ProductoId,
+                Fecha = fecha,
+                Cantidad = lineaRecepcion.Cantidad,
+                CostoUnitario = lineaRecepcion.OrdenCompraLinea.PrecioUnitario,
+                Origen = OrigenesMovimientoInventario.RecepcionCompra,
+                OrigenId = recepcion.Id,
+                Referencia = orden.Numero,
+                Nota = recepcion.Referencia,
+            }, actor, ct);
+            if (entrada.IsFailure)
+                return Result<OrdenCompraRecepcionDto>.Fail(entrada.Error!, entrada.ErrorCode, entrada.ValidationErrors);
+
+            lineaRecepcion.MovimientoInventarioId = await _db.MovimientosInventario
+                .Where(x => x.EmpresaId == empresaId
+                    && x.ProductoId == lineaRecepcion.OrdenCompraLinea.ProductoId
+                    && x.Origen == OrigenesMovimientoInventario.RecepcionCompra
+                    && x.OrigenId == recepcion.Id)
+                .OrderByDescending(x => x.Id)
+                .Select(x => x.Id)
+                .FirstAsync(ct);
+        }
+
+        var completa = orden.Lineas.All(linea =>
+            linea.Recepciones.Sum(x => x.Cantidad) >= linea.Cantidad);
+        orden.EstadoCodigo = completa ? OrdenCompraEstados.Recibida : OrdenCompraEstados.Parcial;
+        orden.UpdatedAt = DateTime.UtcNow;
+        orden.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "RECIBIR_ORDEN_COMPRA",
+            $"{orden.Numero} -> {recepcion.Numero} ({orden.EstadoCodigo})", orden.Id);
+        if (transaction is not null) await transaction.CommitAsync(ct);
+
+        return Result<OrdenCompraRecepcionDto>.Ok(ToRecepcion(recepcion));
+    }
+
     public async Task<Result<OrdenCompraDetalleDto>> ConvertirAFacturaAsync(
         int empresaId, int id, ConvertirOrdenCompraRequest request, string? actor, CancellationToken ct = default)
     {
         await using var transaction = _db.Database.IsRelational()
-            ? await _db.Database.BeginTransactionAsync(ct)
+            ? await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
             : null;
 
         var orden = await QueryDetalle().FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
         if (orden is null)
             return Result<OrdenCompraDetalleDto>.Fail("Orden de compra no encontrada.", "ORDEN_COMPRA_NOT_FOUND");
-        if (orden.EstadoCodigo != OrdenCompraEstados.Emitida || orden.FacturaCompraId is not null)
-            return Result<OrdenCompraDetalleDto>.Fail("Solo una orden emitida y no recibida puede convertirse.", "INVALID_STATE");
+        var tieneRecepciones = orden.Recepciones.Count > 0;
+        var estadoValido = tieneRecepciones
+            ? orden.EstadoCodigo == OrdenCompraEstados.Recibida
+            : orden.EstadoCodigo == OrdenCompraEstados.Emitida;
+        if (!estadoValido || orden.FacturaCompraId is not null)
+            return Result<OrdenCompraDetalleDto>.Fail(
+                "La orden debe estar completamente recibida y sin factura para convertirse.", "INVALID_STATE");
 
-        var inventario = orden.Lineas
+        var inventario = (tieneRecepciones ? [] : orden.Lineas
             .Where(x => !x.Producto.EsServicio)
             .Select(x => new CompraInventarioLineaRequest
             {
                 ProductoId = x.ProductoId,
                 Cantidad = x.Cantidad,
                 CostoUnitario = x.PrecioUnitario,
-            }).ToList();
+            }).ToList());
 
         var factura = await _compras.CrearFacturaAsync(empresaId, new CrearFacturaCompraRequest
         {
@@ -213,7 +342,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
             Iva = orden.Iva,
             IvaDeducible = request.IvaDeducible,
             Descripcion = string.IsNullOrWhiteSpace(request.Descripcion)
-                ? $"Recepcion de {orden.Numero}"
+                ? $"Orden de compra {orden.Numero}"
                 : $"{orden.Numero}: {request.Descripcion.Trim()}",
             RegistrarGastoProfit = request.RegistrarGastoProfit,
             LineasInventario = inventario.Count == 0 ? null : inventario,
@@ -227,7 +356,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
         orden.UpdatedAt = DateTime.UtcNow;
         orden.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "RECIBIR_ORDEN_COMPRA", $"{orden.Numero} -> factura {factura.Value.Id}", orden.Id);
+        await Audit(empresaId, actor, "FACTURAR_ORDEN_COMPRA", $"{orden.Numero} -> factura {factura.Value.Id}", orden.Id);
         if (transaction is not null) await transaction.CommitAsync(ct);
 
         return Result<OrdenCompraDetalleDto>.Ok(ToDetalle(orden));
@@ -305,7 +434,10 @@ public sealed class OrdenCompraService : IOrdenCompraService
 
     private IQueryable<OrdenCompra> QueryDetalle() => _db.OrdenesCompra
         .Include(x => x.Proveedor)
-        .Include(x => x.Lineas).ThenInclude(x => x.Producto);
+        .Include(x => x.Lineas).ThenInclude(x => x.Producto)
+        .Include(x => x.Lineas).ThenInclude(x => x.Recepciones)
+        .Include(x => x.Recepciones).ThenInclude(x => x.Lineas)
+            .ThenInclude(x => x.OrdenCompraLinea).ThenInclude(x => x.Producto);
 
     private static void AplicarTotales(OrdenCompra orden)
     {
@@ -328,6 +460,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
         Iva = orden.Iva,
         Total = orden.Total,
         Lineas = orden.Lineas.Count,
+        Recepciones = orden.Recepciones.Count,
         FacturaCompraId = orden.FacturaCompraId,
         Observaciones = orden.Observaciones,
         Detalle = orden.Lineas.OrderBy(x => x.NumeroLinea).Select(x => new OrdenCompraLineaDto
@@ -340,11 +473,33 @@ public sealed class OrdenCompraService : IOrdenCompraService
             UnidadMedidaCodigo = x.UnidadMedidaCodigo,
             EsServicio = x.Producto?.EsServicio ?? false,
             Cantidad = x.Cantidad,
+            CantidadRecibida = x.Recepciones.Sum(r => r.Cantidad),
+            CantidadPendiente = Math.Max(0m, x.Cantidad - x.Recepciones.Sum(r => r.Cantidad)),
             PrecioUnitario = x.PrecioUnitario,
             AplicaIva = x.AplicaIva,
             Subtotal = x.Subtotal,
             Iva = x.Iva,
             Total = x.Total,
+        }).ToList(),
+        HistorialRecepciones = orden.Recepciones.OrderByDescending(x => x.Fecha).ThenByDescending(x => x.Id)
+            .Select(ToRecepcion).ToList(),
+    };
+
+    private static OrdenCompraRecepcionDto ToRecepcion(OrdenCompraRecepcion recepcion) => new()
+    {
+        Id = recepcion.Id,
+        Numero = recepcion.Numero,
+        Fecha = recepcion.Fecha,
+        Referencia = recepcion.Referencia,
+        Observaciones = recepcion.Observaciones,
+        Lineas = recepcion.Lineas.OrderBy(x => x.OrdenCompraLinea.NumeroLinea).Select(x => new OrdenCompraRecepcionLineaDto
+        {
+            OrdenCompraLineaId = x.OrdenCompraLineaId,
+            ProductoId = x.OrdenCompraLinea.ProductoId,
+            ProductoCodigo = x.OrdenCompraLinea.Producto?.CodigoInterno ?? string.Empty,
+            Descripcion = x.OrdenCompraLinea.Descripcion,
+            Cantidad = x.Cantidad,
+            MovimientoInventarioId = x.MovimientoInventarioId,
         }).ToList(),
     };
 

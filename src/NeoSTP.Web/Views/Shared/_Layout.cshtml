@@ -36,7 +36,12 @@
     var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
 
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var actionName = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
     Func<string, string> active = name => string.Equals(ctrl, name, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    var comprasOrdenActiva = string.Equals(ctrl, "Compras", StringComparison.OrdinalIgnoreCase)
+        && actionName.Contains("Orden", StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    var comprasCxpActiva = string.Equals(ctrl, "Compras", StringComparison.OrdinalIgnoreCase)
+        && !actionName.Contains("Orden", StringComparison.OrdinalIgnoreCase) ? "active" : "";
 
     // Indicador de ambiente: refleja si la transmisión usa Hacienda real (apitest) o mocks.
     var haciendaHttp = string.Equals(Config["Hacienda:Client"], "Http", StringComparison.OrdinalIgnoreCase);
@@ -201,7 +206,8 @@ else
                     }
                     @if (puedeVerCompras)
                     {
-                        <a class="ns-nav-link @active("Compras")" asp-controller="Compras" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Cuentas por pagar</a>
+                        <a class="ns-nav-link @comprasOrdenActiva" asp-controller="Compras" asp-action="Ordenes"><span class="material-symbols-outlined">shopping_cart_checkout</span> Ordenes de compra</a>
+                        <a class="ns-nav-link @comprasCxpActiva" asp-controller="Compras" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Cuentas por pagar</a>
                     }
                 }
 

@@ -1,0 +1,161 @@
+@using System.Globalization
+@using NeoSTP.Application.Compras.Dtos
+@using NeoSTP.Application.Productos.Dtos
+@model GuardarOrdenCompraRequest
+@{
+    var ordenId = ViewBag.OrdenId is int id ? id : 0;
+    var editando = ordenId > 0;
+    ViewData["Title"] = editando ? "Editar orden de compra" : "Nueva orden de compra";
+    var proveedores = ViewBag.Proveedores as List<ProveedorDto> ?? [];
+    var productos = ViewBag.Productos as List<ProductoDto> ?? [];
+    var action = editando ? "EditarOrden" : "CrearOrden";
+    int? formId = editando ? ordenId : null;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><a asp-action="Ordenes">Ordenes de compra</a><span class="material-symbols-outlined">chevron_right</span><span>@(editando ? "Editar" : "Nueva")</span></nav>
+        <h1 class="ns-page-title">@(editando ? "Editar orden de compra" : "Nueva orden de compra")</h1>
+    </div>
+</div>
+
+<form asp-action="@action" asp-route-id="@formId" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="All" class="alert alert-danger py-2"></div>
+
+    <section class="mb-4" style="max-width:980px">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="ProveedorId" class="form-label">Proveedor</label>
+                <select asp-for="ProveedorId" class="form-select">
+                    <option value="">Selecciona un proveedor</option>
+                    @foreach (var proveedor in proveedores)
+                    {
+                        <option value="@proveedor.Id">@proveedor.Codigo - @proveedor.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3"><label asp-for="Fecha" class="form-label">Fecha de orden</label><input asp-for="Fecha" type="date" class="form-control" /></div>
+            <div class="col-md-3"><label asp-for="FechaEntregaEsperada" class="form-label">Entrega esperada</label><input asp-for="FechaEntregaEsperada" type="date" class="form-control" /></div>
+            <div class="col-12"><label asp-for="Observaciones" class="form-label">Observaciones</label><textarea asp-for="Observaciones" rows="2" class="form-control"></textarea></div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h6 mb-0">Productos y servicios</h2>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="lineAdd"><span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Agregar linea</button>
+        </div>
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle m-0">
+                    <thead><tr><th style="min-width:280px">Producto</th><th style="width:130px">Cantidad</th><th style="width:150px">Costo unitario</th><th style="width:90px">IVA</th><th class="text-end" style="width:150px">Total</th><th style="width:52px"></th></tr></thead>
+                    <tbody id="lineBody">
+                        @for (var i = 0; i < Model.Lineas.Count; i++)
+                        {
+                            var linea = Model.Lineas[i];
+                            <tr>
+                                <td>
+                                    <select name="Lineas[@i].ProductoId" class="form-select form-select-sm oc-producto">
+                                        <option value="">Selecciona</option>
+                                        @foreach (var producto in productos)
+                                        {
+                                            <option value="@producto.Id" selected="@(producto.Id == linea.ProductoId)" data-costo="@((producto.CostoUnitario ?? producto.PrecioUnitario).ToString(CultureInfo.InvariantCulture))" data-iva="@(producto.AplicaIva ? "true" : "false")">@producto.CodigoInterno - @producto.Nombre @(producto.EsServicio ? "(servicio)" : "")</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td><input name="Lineas[@i].Cantidad" value="@linea.Cantidad.ToString(CultureInfo.InvariantCulture)" type="number" min="0.0001" step="0.0001" class="form-control form-control-sm ns-mono oc-cantidad" /></td>
+                                <td><input name="Lineas[@i].PrecioUnitario" value="@linea.PrecioUnitario.ToString(CultureInfo.InvariantCulture)" type="number" min="0" step="0.0001" class="form-control form-control-sm ns-mono oc-costo" /></td>
+                                <td>
+                                    <input type="hidden" name="Lineas[@i].AplicaIva" value="false" class="oc-iva-hidden" />
+                                    <input type="checkbox" name="Lineas[@i].AplicaIva" value="true" class="form-check-input oc-iva" checked="@(linea.AplicaIva == true)" title="Aplicar IVA" />
+                                </td>
+                                <td class="text-end ns-mono oc-total">0.00</td>
+                                <td><button type="button" class="btn btn-outline-danger btn-sm oc-remove" title="Quitar"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot><tr><td colspan="4" class="text-end fw-semibold">Total estimado</td><td class="text-end ns-mono fw-bold" id="orderTotal">$ 0.00</td><td></td></tr></tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar borrador</button>
+        <a asp-action="@(editando ? "DetalleOrden" : "Ordenes")" asp-route-id="@formId" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+</form>
+
+<template id="lineTemplate">
+    <tr>
+        <td>
+            <select class="form-select form-select-sm oc-producto">
+                <option value="">Selecciona</option>
+                @foreach (var producto in productos)
+                {
+                    <option value="@producto.Id" data-costo="@((producto.CostoUnitario ?? producto.PrecioUnitario).ToString(CultureInfo.InvariantCulture))" data-iva="@(producto.AplicaIva ? "true" : "false")">@producto.CodigoInterno - @producto.Nombre @(producto.EsServicio ? "(servicio)" : "")</option>
+                }
+            </select>
+        </td>
+        <td><input type="number" min="0.0001" step="0.0001" value="1" class="form-control form-control-sm ns-mono oc-cantidad" /></td>
+        <td><input type="number" min="0" step="0.0001" value="0" class="form-control form-control-sm ns-mono oc-costo" /></td>
+        <td><input type="hidden" value="false" class="oc-iva-hidden" /><input type="checkbox" value="true" class="form-check-input oc-iva" title="Aplicar IVA" /></td>
+        <td class="text-end ns-mono oc-total">0.00</td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm oc-remove" title="Quitar"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
+    </tr>
+</template>
+
+<script>
+    (function () {
+        var body = document.getElementById('lineBody');
+        var template = document.getElementById('lineTemplate');
+        var add = document.getElementById('lineAdd');
+        var total = document.getElementById('orderTotal');
+        if (!body || !template || !add || !total) return;
+
+        function money(value) { return Number(value || 0).toFixed(2); }
+        function recalculate() {
+            var sum = 0;
+            body.querySelectorAll('tr').forEach(function (row) {
+                var quantity = Number(row.querySelector('.oc-cantidad').value || 0);
+                var cost = Number(row.querySelector('.oc-costo').value || 0);
+                var taxable = row.querySelector('.oc-iva').checked;
+                var rowTotal = quantity * cost * (taxable ? 1.13 : 1);
+                row.querySelector('.oc-total').textContent = money(rowTotal);
+                sum += rowTotal;
+            });
+            total.textContent = '$ ' + money(sum);
+        }
+        function reindex() {
+            body.querySelectorAll('tr').forEach(function (row, index) {
+                row.querySelector('.oc-producto').name = 'Lineas[' + index + '].ProductoId';
+                row.querySelector('.oc-cantidad').name = 'Lineas[' + index + '].Cantidad';
+                row.querySelector('.oc-costo').name = 'Lineas[' + index + '].PrecioUnitario';
+                row.querySelector('.oc-iva-hidden').name = 'Lineas[' + index + '].AplicaIva';
+                row.querySelector('.oc-iva').name = 'Lineas[' + index + '].AplicaIva';
+            });
+            recalculate();
+        }
+        function wire(row) {
+            row.querySelector('.oc-remove').addEventListener('click', function () { row.remove(); reindex(); });
+            row.querySelectorAll('input').forEach(function (input) { input.addEventListener('input', recalculate); input.addEventListener('change', recalculate); });
+            row.querySelector('.oc-producto').addEventListener('change', function (event) {
+                var option = event.target.options[event.target.selectedIndex];
+                if (!option) return;
+                row.querySelector('.oc-costo').value = option.dataset.costo || '0';
+                row.querySelector('.oc-iva').checked = option.dataset.iva === 'true';
+                recalculate();
+            });
+        }
+        body.querySelectorAll('tr').forEach(wire);
+        add.addEventListener('click', function () {
+            var row = template.content.cloneNode(true).querySelector('tr');
+            body.appendChild(row);
+            wire(row);
+            reindex();
+        });
+        if (!body.querySelector('tr')) add.click();
+        reindex();
+    })();
+</script>
