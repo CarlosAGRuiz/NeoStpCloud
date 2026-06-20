@@ -10,7 +10,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado actualizado 2026-06-15: Fases V2/V2.5, API mobile AM-0..AM-6, HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 cerrados
+**Estado actualizado 2026-06-19: Fases V2/V2.5, API mobile AM-0..AM-6 y HB-0..HB-8 cerrados
 operativos.** El producto opera el ciclo completo de un
 negocio salvadoreño: emite DTE certificados contra Hacienda, vende por POS, cobra, compra, maneja
 inventario, paga planilla, concilia el banco, lleva libros fiscales y contabilidad mínima, y da
@@ -86,7 +86,7 @@ El recorrido completo de un cliente, de punta a punta:
 | Observabilidad | Health checks (BD/correo/storage), Serilog estructurado, **OpenTelemetry OTLP opcional** + Meter `NeoSTP` |
 | Escala | Caché distribuida Memory/**Redis** para lookups, storage externo opcional para blobs de scan |
 | i18n / a11y | es (default) + en por cookie de cultura; skip-link, focus visible, aria-labels |
-| Tests | xUnit + FluentAssertions + NSubstitute — **709 unitarias + 9 integración**, CI en GitHub Actions |
+| Tests | xUnit + FluentAssertions + NSubstitute — **713 unitarias + 9 integración**, CI en GitHub Actions |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -104,7 +104,7 @@ src/
   NeoSTP.Worker           Tareas en segundo plano (8 jobs)
   NeoSTP.Shared           Utilidades compartidas (ApiResponse, CsvExporter, etc.)
 tests/
-  NeoSTP.Tests.Unit         709 pruebas unitarias
+  NeoSTP.Tests.Unit         713 pruebas unitarias
   NeoSTP.Tests.Integration  9 pruebas de integración (API)
 ```
 
@@ -178,10 +178,10 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **709 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
+- **713 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
-- **Validacion local 2026-06-15:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
-  `dotnet test NeoSTP.slnx` paso con 709 unitarias + 9 integracion. HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 quedaron
+- **Validacion local 2026-06-19:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
+  `dotnet test NeoSTP.slnx` paso con 713 unitarias + 9 integracion. HB-0..HB-8 quedaron
   cerrados operativos.
 - **HB-3/HB-4 demo readiness**: `DemoReadinessContractTests` congela rutas API criticas, permisos,
   modulos licenciables, API publica NeoConnect v1, rutas Web y existencia de vistas Razor para demos.
@@ -192,6 +192,8 @@ dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
   NeoConnect `/api/v1`, content-types de descargas binarias y enlaces documentales.
 - **HB-7 storage/secretos/retencion**: `Hb7StorageSecretRetentionTests` cubre readiness de storage
   `Database`/`FileSystem`, provider invalido, runbook operativo y guardrail anti-rutas absolutas en NeoScan.
+- **HB-8 demo/release**: `scripts/demo-preflight.ps1` valida codigo, secretos, providers, build/tests,
+  health/OpenAPI y genera evidencia JSON; `Hb8DemoReleaseTests` congela runbook, bloqueos y plantilla.
 - **Certificación DTE real**: matriz de escenarios transmitida y PROCESADA contra el ambiente de
   pruebas (apitest) de Hacienda — Sprint 12 y módulo de certificación.
 - **Pruebas tipo cliente** (documentadas): recorrido de ~45 pantallas con sesión real de ADMIN,
@@ -294,6 +296,8 @@ migraciones (`HasData`), nunca a mano. ~89 tablas con prefijo por área (`Core_`
   [`docs/API-Contratos-Versionado.md`](docs/API-Contratos-Versionado.md).
 - **Runbook HB-7 de storage, secretos y retencion**:
   [`docs/Runbook-Storage-Secretos-Retencion.md`](docs/Runbook-Storage-Secretos-Retencion.md).
+- **Runbook HB-8 de demo y release**:
+  [`docs/Runbook-Demo-Release.md`](docs/Runbook-Demo-Release.md).
 
 Áreas: `api/auth`, `api/dte/*`, `api/cobros/*` (incl. recordatorios), `api/portal/*`,
 `api/conta/*`, `api/reportes/fiscal/*`, `api/tesoreria/*` (incl. conciliación), `api/compras/*`,
@@ -314,6 +318,8 @@ y `api/v1/*` (NeoConnect público).
   secretos y release, incidentes comunes): [`docs/Runbook-V2.md`](docs/Runbook-V2.md).
 - **Runbook HB-7** (storage de NeoScan, secretos por entorno, DataProtection, Gemini/FCM/Meta,
   backups, readiness y retencion fiscal): [`docs/Runbook-Storage-Secretos-Retencion.md`](docs/Runbook-Storage-Secretos-Retencion.md).
+- **Preflight HB-8**: `scripts/demo-preflight.ps1` produce decision `APTO_*`/`NO_APTO` y evidencia
+  sanitizada para demos/releases; procedimiento en [`docs/Runbook-Demo-Release.md`](docs/Runbook-Demo-Release.md).
 - **CI**: GitHub Actions (build + tests) en cada push/PR a `main`.
 
 ## Documentación
@@ -330,6 +336,7 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/Plan-Pruebas-Web-Api-Demos.md`](docs/Plan-Pruebas-Web-Api-Demos.md) | Plan recurrente de pruebas Web/API para demos comerciales y técnicas |
 | [`docs/API-Contratos-Versionado.md`](docs/API-Contratos-Versionado.md) | Politica HB-6 de contratos API, versionado, deprecacion y descargas binarias |
 | [`docs/Runbook-Storage-Secretos-Retencion.md`](docs/Runbook-Storage-Secretos-Retencion.md) | Politica HB-7 para storage, secretos, readiness y retencion |
+| [`docs/Runbook-Demo-Release.md`](docs/Runbook-Demo-Release.md) | Preflight, guion, bloqueos, evidencia y cierre de demos/releases HB-8 |
 | [`docs/Runbook-V2.md`](docs/Runbook-V2.md) | Operación: despliegue, backup, rotación, retención |
 | [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) | Pruebas E2E en vivo del cierre V2 |
 | [`docs/Analisis-UX-Cliente.md`](docs/Analisis-UX-Cliente.md) | Recorrido UX completo: bugs encontrados y mejoras |
@@ -338,10 +345,10 @@ y `api/v1/*` (NeoConnect público).
 
 ## Roadmap
 
-Prioridad inmediata antes de nuevos módulos: con API mobile, HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7
-cerrados, ejecutar HB-8 del plan de consolidación
-[`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md): runbook de demo/release
-comercial repetible.
+La consolidacion API/mobile y HB-0..HB-8 esta cerrada. No queda otro sprint HB obligatorio antes de
+evaluar nuevos proyectos o modulos. El siguiente paso recomendado es priorizacion comercial V3 con
+evidencia de demos; HB-2 queda residual solo si se requiere OCR asincrono completo o convertir Scan
+en compra operativa de Compras/CxP/Inventario.
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 

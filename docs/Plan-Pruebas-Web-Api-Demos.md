@@ -32,17 +32,19 @@ Una demo esta lista cuando:
 - El recorrido Web principal termina sin errores 500, 403 inesperados, selects vacios criticos ni pantallas sin accion.
 - Los endpoints API criticos devuelven contratos consistentes y errores esperados en negativos.
 
-Ultima validacion tecnica registrada (2026-06-15):
+Ultima validacion tecnica registrada (2026-06-19):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 709 unitarias + 9 integracion verdes.
-- HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
+- `dotnet test NeoSTP.slnx`: 713 unitarias + 9 integracion verdes.
+- HB-0..HB-8 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
 - `EmpresaPruebaSeederTests`: 5/5 pruebas verdes para seed demo idempotente API/mobile/comercial.
 - `ApiVersioningContractTests`: 4/4 pruebas verdes para politica `/api/*`, `/api/v1`, docs y descargas binarias.
 - `Hb7StorageSecretRetentionTests`: 4/4 pruebas verdes para readiness de storage, provider invalido,
   runbook HB-7 y enlaces documentales.
+- `Hb8DemoReleaseTests`: 4/4 pruebas verdes para preflight, decisiones, sanitizacion, runbook,
+  plantilla de evidencia y enlaces HB-8.
 
 ## Ambientes
 
@@ -118,7 +120,7 @@ Cobertura automatica HB-5:
 | Regresion demo completa | 4-6 h | Antes de release, demo ejecutiva o entrega a cliente |
 | Regresion automatizada | Segun CI | Cada push/PR |
 
-## Baseline Automatizada HB-3/HB-4/HB-5/HB-6/HB-7
+## Baseline Automatizada HB-3/HB-4/HB-5/HB-6/HB-7/HB-8
 
 La prueba `tests/NeoSTP.Tests.Unit/Api/DemoReadinessContractTests.cs` es obligatoria para aceptar
 cambios que toquen controllers API, controllers Web, permisos, modulos o vistas de demo.
@@ -136,6 +138,8 @@ Cubre:
   content-type real y documentacion enlazada.
 - Politica HB-7 de storage: readiness `Database`/`FileSystem`, provider invalido, runbook de
   secretos/retencion y guardrail de NeoScan contra rutas absolutas.
+- Politica HB-8 de demo/release: preflight de codigo/secretos/providers/build/tests/health,
+  decisiones `APTO_*`/`NO_APTO`, runbook y evidencia sanitizada.
 
 Comando enfocado:
 
@@ -161,15 +165,38 @@ Comando enfocado para storage/secretos/retencion:
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter "Hb7StorageSecretRetentionTests|ScanBlobStorageTests"
 ```
 
+Comando enfocado para demo/release:
+
+```bash
+dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj --filter Hb8DemoReleaseTests
+```
+
+## Preflight HB-8
+
+Fuente operativa: `docs/Runbook-Demo-Release.md`.
+
+Antes del smoke manual ejecutar con API/Web levantadas:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\demo-preflight.ps1 `
+  -Profile Demo -RequireServices `
+  -ApiBaseUrl http://localhost:5058 -WebBaseUrl http://localhost:5031 `
+  -EvidencePath tmp\demo-preflight-online.json
+```
+
+- `NO_APTO`: bloquea demo/release.
+- `APTO_CON_ADVERTENCIAS`: cada advertencia debe aceptarse y registrarse.
+- `APTO_DEMO` / `APTO_RELEASE`: habilita continuar con la matriz manual.
+- La evidencia JSON no sustituye capturas, roles ni casos de negocio; los complementa.
+
 ## Preflight Tecnico
 
-1. Revisar branch y cambios pendientes: `git status --short`.
-2. Compilar: `dotnet build NeoSTP.slnx`.
-3. Ejecutar pruebas: `dotnet test NeoSTP.slnx`.
-4. Levantar API: `dotnet run --project src/NeoSTP.Api`.
-5. Levantar Web: `dotnet run --project src/NeoSTP.Web`.
-6. Levantar Worker si se prueban jobs: `dotnet run --project src/NeoSTP.Worker`.
-7. Validar:
+1. Ejecutar `scripts/demo-preflight.ps1`; no continuar con decision `NO_APTO`.
+2. Revisar branch, commit y evidencia generada.
+3. Levantar API: `dotnet run --project src/NeoSTP.Api`.
+4. Levantar Web: `dotnet run --project src/NeoSTP.Web`.
+5. Levantar Worker si se prueban jobs: `dotnet run --project src/NeoSTP.Worker`.
+6. Repetir preflight con `-RequireServices` y validar:
    - API `/health/live`
   - API `/health/ready` (BD, correo y storage)
    - Web `/health/live`

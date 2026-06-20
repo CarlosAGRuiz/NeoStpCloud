@@ -9,9 +9,8 @@
 > contrato HTTP, permisos, datos demo y pruebas. El plan detallado esta en
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
 >
-> Actualizacion 2026-06-15: API mobile AM-0..AM-6 quedo cerrada operativa al 100%. HB-1,
-> HB-3/HB-4, HB-5, HB-6 y HB-7 tambien quedaron cerrados operativos con build limpio y suite completa verde:
-> 709 unitarias + 9 integracion.
+> Actualizacion 2026-06-19: API mobile AM-0..AM-6 y HB-0..HB-8 quedaron cerrados operativos.
+> Validacion acumulada: build limpio y suite completa verde con 713 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -28,7 +27,7 @@ para Web/API.
 - Los proveedores externos deben seguir siendo pluggables: default seguro en `Mock`, activacion real por config.
 - Cada sprint termina con evidencia: tests, capturas o checklist de demo ejecutado.
 
-## Estado de Ejecucion 2026-06-15
+## Estado de Ejecucion 2026-06-19
 
 | Sprint | Estado | Evidencia |
 |---|---|---|
@@ -40,27 +39,28 @@ para Web/API.
 | HB-5 | Cerrado operativo 100% | `EmpresaPruebaSeeder` siembra datos comerciales idempotentes para DTE, compras/CxP, inventario, tesoreria, portal, CRM, RRHH y Profit; prueba enfocada 5/5 verde. |
 | HB-6 | Cerrado operativo 100% | `API-Contratos-Versionado.md`, metadata `Produces` en descargas y `ApiVersioningContractTests` cubren Tier A `/api/*`, NeoConnect `/api/v1` y politica de breaking changes. |
 | HB-7 | Cerrado operativo 100% | `Runbook-Storage-Secretos-Retencion.md`, readiness de storage `Database`/`FileSystem`, guardrail anti-rutas absolutas NeoScan y `Hb7StorageSecretRetentionTests`. |
+| HB-8 | Cerrado operativo 100% | `scripts/demo-preflight.ps1`, `Runbook-Demo-Release.md`, plantilla de evidencia y `Hb8DemoReleaseTests` cubren preflight, bloqueos y cierre de demos/releases. |
 
-## Siguiente Sprint Recomendado
+## Plan de Consolidacion Cerrado
 
-**HB-8 - Runbook de Demo y Release.**
+**No queda otro sprint HB obligatorio.**
 
-Motivo: con API mobile, HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 cerradas, el mayor riesgo pendiente pasa a
-ser la repetibilidad de demos/releases: checklist pre-demo, guion, criterios de no demo, evidencia y
-limpieza post-demo.
+API mobile y HB-0..HB-8 dejan la base lista para demos repetibles y para evaluar nuevos proyectos o
+modulos con evidencia comercial. El siguiente sprint recomendado debe ser de priorizacion V3, no de
+implementacion inmediata: seleccionar una iniciativa por impacto, cliente objetivo, dependencia externa,
+riesgo y esfuerzo.
 
-Entregables:
+Opciones a evaluar:
 
-- Checklist pre-demo: build, tests, migraciones, seed, usuarios, puertos, providers y health.
-- Guion comercial problema -> flujo -> resultado -> valor de negocio.
-- Checklist post-demo: limpiar datos temporales, revocar tokens/enlaces y registrar feedback.
-- Criterios de "no demo": tests rojos, health rojo, certificado faltante, usuario sin permisos o docs desalineadas.
+- HB-2 residual: OCR asincrono/polling o compra operativa Compras/CxP/Inventario desde NeoScan.
+- Nuevos proyectos/modulos del backlog V3, priorizados despues de una ronda de demos.
+- Proveedores reales pendientes solo cuando existan credenciales/contratos del cliente.
 
-Criterio de cierre:
+Criterio para abrir el siguiente sprint:
 
-- Cualquier miembro tecnico puede levantar la demo siguiendo el documento.
-- La evidencia de demo queda registrada por fecha, branch, commit, ambiente y usuarios.
-- Build y suite completa siguen verdes.
+- Problema comercial y usuario objetivo definidos.
+- Alcance, contrato API-first, permisos, tenant, auditoria y pruebas acordados.
+- Dependencias externas disponibles o mock claramente aceptado.
 
 ## Roadmap de Sprints
 
@@ -68,14 +68,14 @@ Criterio de cierre:
 |---|---:|---|---|
 | HB-0 | Alta | Alineacion documental y backlog | Fuente de verdad actualizada y plan accionable |
 | HB-1 | Alta | Limpieza de warnings y bugs menores | Cerrado operativo: build 0 warnings y suite 697 + 9 verde |
-| HB-2 | Alta | NeoScan/Gemini productivo | OCR real mas seguro, asincrono y medible |
+| HB-2 | Alta | NeoScan/Gemini productivo | Cerrado AM-3 para demo; residual V3 asincrono/compra operativa |
 | HB-3 | Alta | Pruebas API de alto valor | Cerrado operativo: contrato automatizado de rutas, permisos, modulos y NeoConnect v1 |
 | HB-4 | Alta | Pruebas Web para demo comercial | Cerrado operativo: contrato automatizado de rutas Web, auth, portal y vistas Razor |
 | HB-5 | Media-alta | Datos demo y escenarios comerciales | Cerrado operativo: demo con datos completos, no pantallas vacias |
 | HB-6 | Media-alta | Contratos API y versionado | Cerrado operativo: politica, docs y tests de versionado |
 | AM-0..AM-6 | Alta | API movil Android | Cerrado operativo 100%: contrato, pruebas, datos demo y runbook |
 | HB-7 | Media | Storage, secretos y retencion | Cerrado operativo: archivos fiscales y secretos operados con guardrails |
-| HB-8 | Media | Runbook de demo y release | Checklist previo a demo/release ejecutable |
+| HB-8 | Media | Runbook de demo y release | Cerrado operativo: preflight, guion, bloqueos y evidencia ejecutables |
 
 ## Aclaracion de Alcance Movil
 
@@ -391,6 +391,23 @@ Criterio de cierre:
 
 - Cualquier miembro tecnico puede levantar la demo siguiendo el documento.
 
+### Cierre Operativo 2026-06-19
+
+- Se agrego `scripts/demo-preflight.ps1`, compatible con Windows PowerShell 5.1, con perfiles
+  `Demo`/`Release`, codigo de salida no cero ante bloqueos y evidencia JSON sanitizada.
+- El preflight valida SDK, Git, archivos sensibles tracked, providers, JWT, seed demo, build/tests,
+  health API/Web y OpenAPI; no serializa passwords, tokens, certificados ni API keys.
+- `docs/Runbook-Demo-Release.md` cubre preparacion, roles, datos, guion comercial, demo tecnica API,
+  mobile, criterios de no demo/release, migraciones, backup, rollback y limpieza posterior.
+- `docs/templates/Evidencia-Demo-Release.md` estandariza branch, commit, ambiente, providers, checks,
+  roles, casos, `traceId`, hallazgos y decision.
+- `Hb8DemoReleaseTests` congela script, decisiones, sanitizacion, runbook, plantilla y enlaces.
+- Ensayo completo real: 22 checks, 16 PASS, 6 WARN, 0 fallos y decision
+  `APTO_CON_ADVERTENCIAS`; build/tests pasaron y las advertencias correspondieron al worktree de
+  implementacion, config demo, restore ya resuelto y servicios HTTP no levantados.
+- Validacion completa: `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` verdes con
+  713 unitarias + 9 integracion.
+
 ## Backlog de Hallazgos
 
 | ID | Severidad | Hallazgo | Sprint |
@@ -407,7 +424,7 @@ Criterio de cierre:
 | HB-010 | Media | Cerrado HB-5: empresa demo deja datos comerciales ricos e idempotentes para reportes y flujos | HB-5 |
 | HB-011 | Media-alta | Cerrado HB-6: versionado API formalizado para `/api/*` y `/api/v1/*` con guardrails automatizados | HB-6 |
 | HB-012 | Media-alta | Cerrado HB-7: storage de documentos fiscales tiene runbook, readiness y guardrail filesystem | HB-7 |
-| HB-013 | Media | Falta runbook especifico de demo/release comercial | HB-8 |
+| HB-013 | Media | Cerrado HB-8: runbook, preflight, bloqueos y evidencia de demo/release operativos | HB-8 |
 | AM-001 | Alta | DTE listado/detalle requiere `DTE.Emitir`, pero la app separa consulta con `DTE.Consultar` | AM-1 |
 | AM-002 | Alta | Falta suite contractual que ejecute endpoints reales consumidos por `api_endpoints.dart` | AM-2 |
 | AM-003 | Alta | NeoScan/Gemini requiere hardening productivo antes de demo comercial OCR | AM-3 |
@@ -428,8 +445,8 @@ Criterio de cierre:
 
 ## Orden de Ejecucion Recomendado
 
-1. HB-0, API mobile AM-0..AM-6, HB-1, HB-3/HB-4, HB-5, HB-6 y HB-7 ya quedaron cerrados operativos.
-2. Ejecutar HB-8 para cerrar el runbook de demo/release antes de abrir nuevos proyectos o modulos.
+1. HB-0..HB-8 y API mobile AM-0..AM-6 ya quedaron cerrados operativos.
+2. Ejecutar una ronda de demos usando `scripts/demo-preflight.ps1` y guardar evidencia.
 3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
    operativa Compras/CxP/Inventario desde Scan.
-4. Despues de HB-8, evaluar nuevos proyectos o modulos con base en evidencia comercial.
+4. Priorizar el siguiente proyecto/modulo V3 con base en evidencia comercial antes de implementarlo.

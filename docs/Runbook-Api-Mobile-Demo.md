@@ -101,13 +101,20 @@ El seeder mobile crea de forma idempotente:
 
 ## Preparacion
 
-1. Restaurar y compilar:
+1. Ejecutar el preflight general HB-8 (ver `docs/Runbook-Demo-Release.md`):
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\demo-preflight.ps1 `
+  -Profile Demo -EvidencePath tmp\demo-preflight-mobile.json
+```
+
+2. Restaurar y compilar si el preflight se ejecuto con `-StaticOnly`:
 
 ```powershell
 dotnet build NeoSTP.slnx
 ```
 
-2. Ejecutar pruebas dirigidas o la suite completa antes de demo:
+3. Ejecutar pruebas dirigidas o la suite completa antes de demo:
 
 ```powershell
 dotnet test NeoSTP.slnx
@@ -115,13 +122,13 @@ dotnet test tests\NeoSTP.Tests.Unit\NeoSTP.Tests.Unit.csproj --filter "FullyQual
 dotnet test tests\NeoSTP.Tests.Integration\NeoSTP.Tests.Integration.csproj --filter "FullyQualifiedName~MobileApiContract"
 ```
 
-3. Levantar API:
+4. Levantar API:
 
 ```powershell
 dotnet run --project src\NeoSTP.Api
 ```
 
-4. Validar:
+5. Validar:
 
 ```text
 GET http://localhost:5058/health
@@ -129,7 +136,7 @@ GET http://localhost:5058/scalar/v1
 GET http://localhost:5058/openapi/v1.json
 ```
 
-5. Si se requiere prueba desde telefono, publicar solo la API:
+6. Si se requiere prueba desde telefono, publicar solo la API:
 
 ```powershell
 cloudflared tunnel --url http://localhost:5058

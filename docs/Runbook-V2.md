@@ -130,6 +130,8 @@ guarda cifrado. Validar con el botón "Probar correo" del diagnóstico (`/Harden
 
 ## 7. Checklist de release
 
+- [ ] Ejecutar `scripts/demo-preflight.ps1 -Profile Release` contra staging; decision distinta de
+  `NO_APTO` y evidencia archivada segun `docs/Runbook-Demo-Release.md`.
 - [ ] `dotnet build NeoSTP.slnx` y `dotnet test` (unit + integration) verdes.
 - [ ] Migraciones nuevas revisadas (sin `DropTable`/`DropColumn` accidental) y aplicadas en staging.
 - [ ] OpenAPI/`src/NeoSTP.Api/README.md` actualizados si cambió la superficie REST.

@@ -611,6 +611,15 @@ Plan especifico de hallazgos API movil: [`../../docs/Plan-Hallazgos-Api-Mobile.m
 Runbook demo API mobile: [`../../docs/Runbook-Api-Mobile-Demo.md`](../../docs/Runbook-Api-Mobile-Demo.md).
 Politica de contratos y versionado: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Contratos-Versionado.md).
 Runbook HB-7 de storage, secretos y retencion: [`../../docs/Runbook-Storage-Secretos-Retencion.md`](../../docs/Runbook-Storage-Secretos-Retencion.md).
+Runbook HB-8 de demo/release: [`../../docs/Runbook-Demo-Release.md`](../../docs/Runbook-Demo-Release.md).
+
+Preflight ejecutable:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\demo-preflight.ps1 `
+  -Profile Demo -RequireServices -ApiBaseUrl http://localhost:5058 `
+  -WebBaseUrl http://localhost:5031 -EvidencePath tmp\demo-preflight.json
+```
 
 ```bash
 dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
@@ -631,6 +640,8 @@ Areas con cobertura relevante:
   docs enlazadas y politica de breaking changes cubiertas por `ApiVersioningContractTests`.
 - Storage/secretos/retencion HB-7: readiness de storage `Database`/`FileSystem`, provider invalido,
   runbook operativo y guardrail anti-rutas absolutas en NeoScan cubiertos por `Hb7StorageSecretRetentionTests`.
+- Demo/release HB-8: preflight de codigo, secretos, providers, build/tests, health/OpenAPI, decision
+  y evidencia sanitizada cubierto por `Hb8DemoReleaseTests`.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -641,9 +652,9 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual validado 2026-06-15: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 709 unitarias + 9 integracion. La suite incluye contrato mobile
+Estado actual validado 2026-06-19: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` con 713 unitarias + 9 integracion. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
 (`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)
-para storage, secretos y retencion.
+para storage/secretos/retencion y HB-8 (`Hb8DemoReleaseTests`) para preflight/demo/release.

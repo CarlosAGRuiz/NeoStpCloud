@@ -27,12 +27,13 @@ Repositorio movil revisado:
 | AM-5 | Cerrado operativo 100% | Runbook de POS, Cobros y Alertas en `docs/Runbook-Api-Mobile-Demo.md`. |
 | AM-6 | Cerrado operativo 100% | Runbook de URL, providers, versionado y evidencias en `docs/Runbook-Api-Mobile-Demo.md`. |
 
-Estado de validacion acumulado 2026-06-15: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` quedo verde con 709 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
+Estado de validacion acumulado 2026-06-19: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` quedo verde con 713 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
 mobile; HB-3/HB-4 agregaron baseline automatizada de demo readiness y HB-5 amplio datos demo
 comerciales sin romper mobile. HB-6 formalizo la politica de versionado que mantiene mobile en
 Tier A `/api/*` y cubre descargas binarias sin envelope JSON. HB-7 cerro storage, secretos y
-retencion sin cambios breaking para la app.
+retencion sin cambios breaking para la app. HB-8 agrego preflight y evidencia repetible para demos
+sin modificar endpoints/DTOs mobile.
 
 Pendiente deliberado: OCR asincrono/polling avanzado de NeoScan queda como mejora V3. El contrato actual
 queda operativo para mobile con modo rapido: `Scan:OcrTimeoutSeconds` corta el intento OCR antes del timeout
@@ -169,15 +170,16 @@ Estos contratos no deben cambiar sin versionar y coordinar con la app Android:
 
 **Ninguno dentro del plan API mobile: AM-0..AM-6 esta cerrado operativo al 100%.**
 
-Siguiente trabajo recomendado en este repositorio: ejecutar HB-8 del plan de hallazgos general
-para cerrar el runbook de demo/release comercial. Mobile queda en modo mantenimiento de contrato: cualquier
+No queda otro sprint HB obligatorio. El siguiente trabajo debe priorizar V3 con evidencia comercial.
+Mobile queda en modo mantenimiento de contrato: cualquier
 cambio futuro debe conservar `ApiResponse<T>`, `PagedResult<T>`, bytes crudos, tenant por JWT,
 providers pluggables, la politica HB-6 de Tier A `/api/*` y el runbook HB-7 de storage/secretos.
-HB-5 ya dejo datos comerciales completos para demos sin requerir cambios Flutter.
+HB-5 ya dejo datos comerciales completos y HB-8 deja preflight/runbook de demo sin requerir cambios Flutter.
 
 Entregables:
 
 - Mantener el runbook de demo API mobile actualizado por ambiente.
+- Ejecutar `scripts/demo-preflight.ps1` antes de una demo API/mobile y guardar evidencia sanitizada.
 - Ejecutar la suite mobile contractual cuando cambien controllers, auth, permisos, DTOs o descargas.
 - Registrar cualquier nuevo hallazgo mobile en este documento antes de tocar Flutter.
 
