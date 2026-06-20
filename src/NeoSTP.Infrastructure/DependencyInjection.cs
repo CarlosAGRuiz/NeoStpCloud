@@ -243,6 +243,7 @@ public static class DependencyInjection
 
         // Compras / CxP (NEOCOMPRAS â€” V2): proveedores + facturas de compra + pagos.
         services.AddScoped<NeoSTP.Application.Compras.ICompraService, CompraService>();
+        services.AddScoped<NeoSTP.Application.Compras.IOrdenCompraService, OrdenCompraService>();
         services.AddScoped<NeoSTP.Application.Crm.ICrmService, CrmService>();
 
         // NeoPortal receptor (V2-C2): enlaces pÃºblicos firmados/expirables.

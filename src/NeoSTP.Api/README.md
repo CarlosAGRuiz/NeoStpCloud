@@ -347,6 +347,11 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | GET/POST/PUT | `/api/compras/proveedores` | Proveedores. |
 | POST | `/api/compras/proveedores/{id}/inactivar` | Inactivar proveedor. |
 | POST | `/api/compras/proveedores/{id}/reactivar` | Reactivar proveedor. |
+| GET/POST | `/api/compras/ordenes` | Listar o crear ordenes de compra. |
+| GET/PUT | `/api/compras/ordenes/{id}` | Consultar o editar orden en borrador. |
+| POST | `/api/compras/ordenes/{id}/emitir` | Emitir orden de compra. |
+| POST | `/api/compras/ordenes/{id}/cancelar` | Cancelar orden borrador/emitida. |
+| POST | `/api/compras/ordenes/{id}/convertir-factura` | Recibir completa y convertir a CxP/inventario. |
 | GET/POST | `/api/compras/facturas` | Facturas de compra. |
 | GET | `/api/compras/facturas/{id}` | Detalle factura. |
 | POST | `/api/compras/facturas/{id}/anular` | Anular factura. |
@@ -642,6 +647,8 @@ Areas con cobertura relevante:
   runbook operativo y guardrail anti-rutas absolutas en NeoScan cubiertos por `Hb7StorageSecretRetentionTests`.
 - Demo/release HB-8: preflight de codigo, secretos, providers, build/tests, health/OpenAPI, decision
   y evidencia sanitizada cubierto por `Hb8DemoReleaseTests`.
+- V3-S1 ordenes de compra: calculo server-side, tenant, estados, conversion unica a CxP/inventario,
+  seed demo, rutas y permisos cubiertos por `OrdenCompraServiceTests` y `V3OrdenCompraContractTests`.
 - Integracion Scan/Profit/DTE recibido y Cobranza/alertas.
 - Recordatorios de cobranza: envio, omision, frecuencia configurable, plantillas e historial.
 - NEOCRM: contactos, pipeline default por empresa, oportunidades, cierre ganado/perdido, actividades y cotizacion a DTE.
@@ -652,8 +659,8 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual validado 2026-06-19: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 713 unitarias + 9 integracion. La suite incluye contrato mobile
+Estado actual validado 2026-06-20: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` con 721 unitarias + 9 integracion. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
 (`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)

@@ -7,8 +7,8 @@
 > **Estado histórico:** rama `main` · Build ✅ 0 errores · **259 tests unit + 2 integración** verde.
 > Documento conservado como referencia antigua; la fuente actual es `CONTEXTO-PROYECTO.md`.
 > Estado actualizado 2026-06-15: V2/V2.5 cerradas, API mobile AM-0..AM-6, HB-1, HB-3/HB-4, HB-5
-> HB-0..HB-8 cerrados, 713 unit + 9 integracion, build 0 warnings, NeoScan con Gemini configurable y
-> siguiente foco en priorizacion comercial V3 segun `docs/Plan-Hallazgos-Bugs-Demo.md`.
+> HB-0..HB-8 y V3-S1 cerrados, 721 unit + 9 integracion, build 0 warnings; siguiente foco
+> V3-S2 recepcion parcial/UI de ordenes segun `docs/Plan-V3.md`.
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 > **Último avance:** Sprints 13–21 + Pagos LATAM + Lookups/hardcodeos + Carga masiva.
 

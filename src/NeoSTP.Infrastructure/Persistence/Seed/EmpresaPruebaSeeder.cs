@@ -242,6 +242,7 @@ public static class EmpresaPruebaSeeder
         await EnsureCommercialDteAsync(db, empresa, sucursal?.Id, puntoVenta?.Id, clientes[1], productos[1], credito, actor, ct);
 
         var proveedor = await EnsureCommercialProveedorAsync(db, empresa.Id, actor, ct);
+        await EnsureCommercialOrdenCompraAsync(db, empresa.Id, proveedor, productos, actor, ct);
         var facturaCompra = await EnsureCommercialCompraAsync(db, empresa.Id, proveedor, actor, ct);
         await EnsureCommercialInventarioAsync(db, empresa.Id, productos, facturaCompra.Id, actor, ct);
         await EnsureCommercialTesoreriaAsync(db, empresa.Id, credito.Id, facturaCompra.Id, actor, ct);
@@ -814,6 +815,59 @@ public static class EmpresaPruebaSeeder
         }
 
         return factura;
+    }
+
+    private static async Task EnsureCommercialOrdenCompraAsync(
+        NeoStpDbContext db,
+        int empresaId,
+        Proveedor proveedor,
+        IReadOnlyList<Producto> productos,
+        string actor,
+        CancellationToken ct)
+    {
+        if (await db.OrdenesCompra.AnyAsync(x => x.EmpresaId == empresaId && x.Numero == "OC-DEMO-0001", ct))
+            return;
+
+        var producto = productos.First(x => x.CodigoInterno == "MOB-USB");
+        const decimal cantidad = 12m;
+        const decimal precioUnitario = 9.80m;
+        var subtotal = cantidad * precioUnitario;
+        var iva = decimal.Round(subtotal * 0.13m, 2, MidpointRounding.AwayFromZero);
+
+        db.OrdenesCompra.Add(new OrdenCompra
+        {
+            EmpresaId = empresaId,
+            ProveedorId = proveedor.Id,
+            Numero = "OC-DEMO-0001",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)),
+            FechaEntregaEsperada = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(4)),
+            EstadoCodigo = OrdenCompraEstados.Emitida,
+            MonedaCodigo = "USD",
+            Subtotal = subtotal,
+            Iva = iva,
+            Total = subtotal + iva,
+            Observaciones = "Orden demo pendiente de recepcion y conversion a CxP.",
+            CreatedBy = actor,
+            Lineas =
+            [
+                new OrdenCompraLinea
+                {
+                    EmpresaId = empresaId,
+                    NumeroLinea = 1,
+                    ProductoId = producto.Id,
+                    Descripcion = producto.Nombre,
+                    UnidadMedidaCodigo = producto.UnidadMedidaCodigo,
+                    Cantidad = cantidad,
+                    PrecioUnitario = precioUnitario,
+                    AplicaIva = true,
+                    Subtotal = subtotal,
+                    Iva = iva,
+                    Total = subtotal + iva,
+                    CreatedBy = actor,
+                },
+            ],
+        });
+        await db.SaveChangesAsync(ct);
     }
 
     private static async Task EnsureCommercialInventarioAsync(

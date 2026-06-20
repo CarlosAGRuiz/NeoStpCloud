@@ -116,7 +116,7 @@ Para demo local/staging:
 }
 ```
 
-El seed debe dejar DTE, CxC, POS/caja, compras/CxP, inventario, tesoreria, portal, NeoScan, CRM,
+El seed debe dejar DTE, CxC, POS/caja, orden de compra emitida, compras/CxP, inventario, tesoreria, portal, NeoScan, CRM,
 RRHH y Profit. Es idempotente; dos arranques no deben duplicar escenarios.
 
 Para release productivo, `EmpresaPrueba.Enabled` y `MobileDemo.Enabled` deben estar deshabilitados.
@@ -162,7 +162,7 @@ El guion sigue problema -> flujo -> resultado -> valor. Duracion objetivo: 45 a 
 | 2. DTE | Facturacion y cumplimiento | Cliente/producto -> emitir -> PDF/JSON -> estado MH | Documento fiscal trazable y listo para entregar. |
 | 3. POS/caja | Venta diaria desconectada | Abrir caja -> vender -> ticket -> promover DTE -> corte | Venta, inventario y facturacion integrados. |
 | 4. Cobros/portal | Cartera y consultas manuales | Saldo -> pago parcial -> QR -> portal receptor | Menos seguimiento manual y autoservicio. |
-| 5. Compras/inventario | CxP y stock separados | Compra -> CxP -> entrada -> kardex -> pago | Costo y existencia actualizados. |
+| 5. Compras/inventario | CxP y stock separados | Orden -> emitir -> convertir a compra/CxP -> entrada -> kardex -> pago | Compra autorizada, costo y existencia actualizados. |
 | 6. NeoScan | Digitacion de comprobantes | Subir -> OCR Mock/Gemini -> corregir -> confirmar | Captura asistida sin perder control humano. |
 | 7. Tesoreria/fiscal | Cierre lento | Importar banco -> conciliar -> libros/F-07 -> balanza | Evidencia financiera y fiscal conectada. |
 | 8. Integraciones/mobile | Sistemas aislados | API Key/scopes/webhook + contrato mobile | Plataforma extensible sin backend paralelo. |
@@ -182,9 +182,9 @@ Orden corto:
 2. Login de usuario de empresa y `/api/auth/me`.
 3. Dashboard/lookups/clientes/productos.
 4. DTE listado/emision/descargas binarias.
-5. POS, Cobros, NeoScan y Alertas.
+5. POS, Cobros, orden de compra -> factura/inventario, NeoScan y Alertas.
 6. NeoConnect `/api/v1/ping` con scope minimo.
-7. Negativos: sin token, permiso faltante, modulo no contratado y tenant cruzado.
+7. Negativos: sin token, permiso faltante, modulo no contratado, tenant cruzado y conversion duplicada de orden.
 
 La matriz completa esta en `docs/Plan-Pruebas-Web-Api-Demos.md` y el contrato Android en
 `docs/Runbook-Api-Mobile-Demo.md`.

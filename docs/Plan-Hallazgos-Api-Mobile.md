@@ -27,13 +27,14 @@ Repositorio movil revisado:
 | AM-5 | Cerrado operativo 100% | Runbook de POS, Cobros y Alertas en `docs/Runbook-Api-Mobile-Demo.md`. |
 | AM-6 | Cerrado operativo 100% | Runbook de URL, providers, versionado y evidencias en `docs/Runbook-Api-Mobile-Demo.md`. |
 
-Estado de validacion acumulado 2026-06-19: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` quedo verde con 713 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
+Estado de validacion acumulado 2026-06-20: `dotnet build NeoSTP.slnx` quedo en 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` quedo verde con 721 unitarias + 9 integracion. HB-1 no cambio contratos HTTP
 mobile; HB-3/HB-4 agregaron baseline automatizada de demo readiness y HB-5 amplio datos demo
 comerciales sin romper mobile. HB-6 formalizo la politica de versionado que mantiene mobile en
 Tier A `/api/*` y cubre descargas binarias sin envelope JSON. HB-7 cerro storage, secretos y
 retencion sin cambios breaking para la app. HB-8 agrego preflight y evidencia repetible para demos
-sin modificar endpoints/DTOs mobile.
+sin modificar endpoints/DTOs mobile. V3-S1 agrego rutas de ordenes bajo Compras sin cambiar el
+contrato consumido por la app Android.
 
 Pendiente deliberado: OCR asincrono/polling avanzado de NeoScan queda como mejora V3. El contrato actual
 queda operativo para mobile con modo rapido: `Scan:OcrTimeoutSeconds` corta el intento OCR antes del timeout

@@ -19,11 +19,13 @@ namespace NeoSTP.Api.Controllers;
 public class ComprasApiController : ApiControllerBase
 {
     private readonly ICompraService _compras;
+    private readonly IOrdenCompraService _ordenes;
     private readonly ICurrentUser _currentUser;
 
-    public ComprasApiController(ICompraService compras, ICurrentUser currentUser)
+    public ComprasApiController(ICompraService compras, IOrdenCompraService ordenes, ICurrentUser currentUser)
     {
         _compras = compras;
+        _ordenes = ordenes;
         _currentUser = currentUser;
     }
 
@@ -78,6 +80,67 @@ public class ComprasApiController : ApiControllerBase
     }
 
     // ── Facturas / CxP ─────────────────────────────────────────────────────────
+
+    [HttpGet("ordenes")]
+    [RequirePermiso("Compras.Ver")]
+    public async Task<IActionResult> ListOrdenes(
+        [FromQuery] PagedQuery query, [FromQuery] string? estado, [FromQuery] int? proveedorId,
+        [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.ListAsync(eid, estado, proveedorId, query, ct));
+    }
+
+    [HttpGet("ordenes/{id:int}")]
+    [RequirePermiso("Compras.Ver")]
+    public async Task<IActionResult> GetOrden(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.GetAsync(eid, id, ct));
+    }
+
+    [HttpPost("ordenes")]
+    [RequirePermiso("Compras.Gestionar")]
+    public async Task<IActionResult> CrearOrden(
+        [FromBody] GuardarOrdenCompraRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.CrearAsync(eid, req, _currentUser.Username, ct));
+    }
+
+    [HttpPut("ordenes/{id:int}")]
+    [RequirePermiso("Compras.Gestionar")]
+    public async Task<IActionResult> ActualizarOrden(
+        int id, [FromBody] GuardarOrdenCompraRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.ActualizarAsync(eid, id, req, _currentUser.Username, ct));
+    }
+
+    [HttpPost("ordenes/{id:int}/emitir")]
+    [RequirePermiso("Compras.Gestionar")]
+    public async Task<IActionResult> EmitirOrden(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.EmitirAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    [HttpPost("ordenes/{id:int}/cancelar")]
+    [RequirePermiso("Compras.Gestionar")]
+    public async Task<IActionResult> CancelarOrden(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.CancelarAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    [HttpPost("ordenes/{id:int}/convertir-factura")]
+    [RequirePermiso("Compras.Gestionar")]
+    public async Task<IActionResult> ConvertirOrdenAFactura(
+        int id, [FromBody] ConvertirOrdenCompraRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.ConvertirAFacturaAsync(eid, id, req, _currentUser.Username, ct));
+    }
 
     [HttpGet("facturas")]
     [RequirePermiso("Compras.Ver")]

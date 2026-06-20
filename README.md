@@ -10,7 +10,7 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado actualizado 2026-06-19: Fases V2/V2.5, API mobile AM-0..AM-6 y HB-0..HB-8 cerrados
+**Estado actualizado 2026-06-20: Fases V2/V2.5, API mobile AM-0..AM-6, HB-0..HB-8 y V3-S1 cerrados
 operativos.** El producto opera el ciclo completo de un
 negocio salvadoreño: emite DTE certificados contra Hacienda, vende por POS, cobra, compra, maneja
 inventario, paga planilla, concilia el banco, lleva libros fiscales y contabilidad mínima, y da
@@ -52,9 +52,9 @@ El recorrido completo de un cliente, de punta a punta:
    configurables por empresa (email + WhatsApp pluggable) con historial, y **portal del receptor**
    (`/portal/{token}`) donde el cliente final consulta su DTE (HTML/JSON/PDF) y estado de cuenta
    sin usuario ni contraseña.
-5. **Compra y controla stock**: proveedores, facturas de compra, CxP, pagos; inventario con
-   kardex y costo promedio ponderado; auto-integración compra→entrada, venta POS→salida, alerta
-   de stock bajo.
+5. **Compra y controla stock**: proveedores, ordenes de compra, facturas/CxP y pagos; una orden
+   emitida se convierte una sola vez en factura y entrada de inventario; kardex, costo promedio,
+   venta POS→salida y alerta de stock bajo.
 6. **Paga planilla**: NeoRRHH con planilla quincenal ISSS/AFP/Renta 2026, recibos PDF, exportes
    CSV y cierre que fluye como gasto.
 7. **Concilia el banco**: importa el estado de cuenta (CSV/Excel), matching automático por
@@ -76,7 +76,7 @@ El recorrido completo de un cliente, de punta a punta:
 | Runtime | .NET 10 |
 | Web | ASP.NET Core MVC + Razor, design system propio `ns-*` (neostp.css), Bootstrap 5, Material Symbols |
 | API | ASP.NET Core Web API + OpenAPI/Scalar (`/scalar/v1`) |
-| Datos | EF Core 10 + SQL Server 2022 (55 migraciones, ~89 tablas) |
+| Datos | EF Core 10 + SQL Server 2022 (57 migraciones, ~91 tablas) |
 | Worker | `BackgroundService` ×8 (contingencia, lotes, tokens, backups, webhooks, alertas, recordatorios, purga auditoría) |
 | PDF | QuestPDF (Community) — facturas, recibos de nómina, tickets térmicos |
 | Correo | MailKit (SMTP) con sender por empresa + fallback global; modo Mock para dev |
@@ -86,7 +86,7 @@ El recorrido completo de un cliente, de punta a punta:
 | Observabilidad | Health checks (BD/correo/storage), Serilog estructurado, **OpenTelemetry OTLP opcional** + Meter `NeoSTP` |
 | Escala | Caché distribuida Memory/**Redis** para lookups, storage externo opcional para blobs de scan |
 | i18n / a11y | es (default) + en por cookie de cultura; skip-link, focus visible, aria-labels |
-| Tests | xUnit + FluentAssertions + NSubstitute — **713 unitarias + 9 integración**, CI en GitHub Actions |
+| Tests | xUnit + FluentAssertions + NSubstitute — **721 unitarias + 9 integración**, CI en GitHub Actions |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -104,7 +104,7 @@ src/
   NeoSTP.Worker           Tareas en segundo plano (8 jobs)
   NeoSTP.Shared           Utilidades compartidas (ApiResponse, CsvExporter, etc.)
 tests/
-  NeoSTP.Tests.Unit         713 pruebas unitarias
+  NeoSTP.Tests.Unit         721 pruebas unitarias
   NeoSTP.Tests.Integration  9 pruebas de integración (API)
 ```
 
@@ -144,7 +144,7 @@ Los módulos se habilitan por plan (Starter → Enterprise). Los 17 están **com
 | 108 | CONTINGENCIA | Contingencia avanzada y lotes (MOMENTO 3 completo) |
 | 109 | EVENTOSDTE | Eventos DTE persistentes (invalidación, contingencia) |
 | 110 | INVENTARIO | Existencias, kardex, costo promedio ponderado, auto-integración |
-| 111 | COMPRAS | Proveedores + cuentas por pagar (CxP) |
+| 111 | COMPRAS | Proveedores, ordenes de compra y cuentas por pagar (CxP) |
 | 112 | GASTOS | Control de gastos (parte de NeoProfit) |
 | 113 | NEORRHH | Recursos humanos + nómina quincenal ES |
 | 114 | NEOCRM | Contactos, pipeline kanban, actividades, cotizaciones → DTE |
@@ -166,6 +166,7 @@ buscador global Ctrl+K y dashboard con KPIs de DTE + negocio (cartera vencida, t
 | **Fase C (V2)** | Comercial: NeoPOS S1–S4, NEOCRM (pipeline + cotización→DTE), NeoPortal | ✅ |
 | **Fase D (V2)** | Cierre fiscal/contable: NeoBI fiscal, NeoConta, recordatorios configurables, conciliación bancaria | ✅ |
 | **Fase E / V2.5** | Conciliación parcial N:1, WhatsApp Meta real, OpenTelemetry + panel operativo + health ampliado, Redis + storage externo, purga de auditoría, i18n es/en + a11y | ✅ |
+| **V3-S1** | Ordenes de compra API core: estados, calculo, conversion a CxP/inventario, auditoria y seed demo | ✅ 2026-06-20 |
 | Recorrido UX | Pruebas como cliente real → 7 bugs corregidos (permisos rotos, selects vacíos, layout) + 5 mejoras (dashboard, Ctrl+K, CTAs, historial recordatorios) | ✅ |
 
 Planes detallados con estados y evidencia: [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md)
@@ -178,10 +179,10 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **713 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
+- **721 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
-- **Validacion local 2026-06-19:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
-  `dotnet test NeoSTP.slnx` paso con 713 unitarias + 9 integracion. HB-0..HB-8 quedaron
+- **Validacion local 2026-06-20:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
+  `dotnet test NeoSTP.slnx` paso con 721 unitarias + 9 integracion. HB-0..HB-8 y V3-S1 quedaron
   cerrados operativos.
 - **HB-3/HB-4 demo readiness**: `DemoReadinessContractTests` congela rutas API criticas, permisos,
   modulos licenciables, API publica NeoConnect v1, rutas Web y existencia de vistas Razor para demos.
@@ -194,6 +195,8 @@ dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
   `Database`/`FileSystem`, provider invalido, runbook operativo y guardrail anti-rutas absolutas en NeoScan.
 - **HB-8 demo/release**: `scripts/demo-preflight.ps1` valida codigo, secretos, providers, build/tests,
   health/OpenAPI y genera evidencia JSON; `Hb8DemoReleaseTests` congela runbook, bloqueos y plantilla.
+- **V3-S1 ordenes de compra**: `OrdenCompraServiceTests` y `V3OrdenCompraContractTests` cubren
+  calculo, tenant, estados, conversion a CxP/inventario, rutas, modulo y permisos.
 - **Certificación DTE real**: matriz de escenarios transmitida y PROCESADA contra el ambiente de
   pruebas (apitest) de Hacienda — Sprint 12 y módulo de certificación.
 - **Pruebas tipo cliente** (documentadas): recorrido de ~45 pantallas con sesión real de ADMIN,
@@ -281,8 +284,8 @@ dotnet ef database update \
   --project src/NeoSTP.Infrastructure --startup-project src/NeoSTP.Api
 ```
 
-55 migraciones acumulativas; el seed (módulos, permisos, planes, catálogos) viaja en las
-migraciones (`HasData`), nunca a mano. ~89 tablas con prefijo por área (`Core_`, `Dte_`, `Pos_`,
+57 migraciones acumulativas; el seed (módulos, permisos, planes, catálogos) viaja en las
+migraciones (`HasData`), nunca a mano. ~91 tablas con prefijo por área (`Core_`, `Dte_`, `Pos_`,
 `Crm_`, `Tes_`, `Conta_`, `Rrhh_`, `Inv_`, `Compras_`, `Cobros_`, `Notif_`, `Scan_`, `Connect_`…).
 
 ## API
@@ -330,6 +333,7 @@ y `api/v1/*` (NeoConnect público).
 | [`src/NeoSTP.Api/README.md`](src/NeoSTP.Api/README.md) | API: auth, formato, catálogo completo de endpoints |
 | [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md) | Fase V2 por sprint con entregado y validación |
 | [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md) | Fase V2.5 (escala/proveedores reales) con evidencia de pruebas |
+| [`docs/Plan-V3.md`](docs/Plan-V3.md) | Roadmap V3 y cierre operativo de V3-S1 Ordenes de compra |
 | [`docs/Plan-Hallazgos-Bugs-Demo.md`](docs/Plan-Hallazgos-Bugs-Demo.md) | Sprints de consolidación para hallazgos, bugs y preparación de demos |
 | [`docs/Plan-Hallazgos-Api-Mobile.md`](docs/Plan-Hallazgos-Api-Mobile.md) | Hallazgos y sprints API contra la app Android existente |
 | [`docs/Runbook-Api-Mobile-Demo.md`](docs/Runbook-Api-Mobile-Demo.md) | Preparacion y checklist de demo API mobile |
@@ -345,10 +349,9 @@ y `api/v1/*` (NeoConnect público).
 
 ## Roadmap
 
-La consolidacion API/mobile y HB-0..HB-8 esta cerrada. No queda otro sprint HB obligatorio antes de
-evaluar nuevos proyectos o modulos. El siguiente paso recomendado es priorizacion comercial V3 con
-evidencia de demos; HB-2 queda residual solo si se requiere OCR asincrono completo o convertir Scan
-en compra operativa de Compras/CxP/Inventario.
+La consolidacion API/mobile y HB-0..HB-8 esta cerrada; V3-S1 Ordenes de compra API core tambien.
+El siguiente sprint recomendado es **V3-S2: recepcion parcial e UI Web de ordenes**, definido en
+[`docs/Plan-V3.md`](docs/Plan-V3.md).
 
 Lo construible está construido; lo pendiente depende de insumos externos o es V3:
 
@@ -357,8 +360,8 @@ Lo construible está construido; lo pendiente depende de insumos externos o es V
   producción (ambiente 01) por cliente.
 - **App Flutter** (`neocloud_mobile_android`): la app ya fue trabajada en repo aparte; aqui se mantiene
   el contrato API, pruebas y datos demo. API mobile AM-0..AM-6 esta cerrada operativa al 100%.
-- **V3 (backlog)**: SSO/SAML, white label, marketplace, SDKs NeoConnect, multi-moneda, BI
-  predictivo, catálogo contable personalizable, órdenes de compra, vacaciones/aguinaldo.
+- **V3 (backlog)**: recepcion parcial/UI de ordenes, SSO/SAML, white label, marketplace, SDKs
+  NeoConnect, multi-moneda, BI predictivo, catálogo contable personalizable y vacaciones/aguinaldo.
 
 ## Convenciones
 

@@ -10,7 +10,7 @@
 > `docs/Plan-Hallazgos-Api-Mobile.md`.
 >
 > Actualizacion 2026-06-19: API mobile AM-0..AM-6 y HB-0..HB-8 quedaron cerrados operativos.
-> Validacion acumulada: build limpio y suite completa verde con 713 unitarias + 9 integracion.
+> Validacion acumulada al iniciar V3-S1: build limpio y suite completa verde con 721 unitarias + 9 integracion.
 
 ## Objetivo
 
@@ -45,10 +45,9 @@ para Web/API.
 
 **No queda otro sprint HB obligatorio.**
 
-API mobile y HB-0..HB-8 dejan la base lista para demos repetibles y para evaluar nuevos proyectos o
-modulos con evidencia comercial. El siguiente sprint recomendado debe ser de priorizacion V3, no de
-implementacion inmediata: seleccionar una iniciativa por impacto, cliente objetivo, dependencia externa,
-riesgo y esfuerzo.
+API mobile y HB-0..HB-8 dejaron la base lista para V3. La priorizacion se completo y V3-S1 Ordenes
+de compra API core quedo cerrado; el roadmap vigente esta en `docs/Plan-V3.md` y recomienda V3-S2
+recepcion parcial + UI Web.
 
 Opciones a evaluar:
 
@@ -405,8 +404,8 @@ Criterio de cierre:
 - Ensayo completo real: 22 checks, 16 PASS, 6 WARN, 0 fallos y decision
   `APTO_CON_ADVERTENCIAS`; build/tests pasaron y las advertencias correspondieron al worktree de
   implementacion, config demo, restore ya resuelto y servicios HTTP no levantados.
-- Validacion completa: `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` verdes con
-  713 unitarias + 9 integracion.
+- Validacion HB-8: `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` verdes; el baseline
+  acumulado tras V3-S1 es 721 unitarias + 9 integracion.
 
 ## Backlog de Hallazgos
 
@@ -449,4 +448,4 @@ Criterio de cierre:
 2. Ejecutar una ronda de demos usando `scripts/demo-preflight.ps1` y guardar evidencia.
 3. Mantener HB-2 como hardening residual de NeoScan si se requiere OCR asincrono completo o compra
    operativa Compras/CxP/Inventario desde Scan.
-4. Priorizar el siguiente proyecto/modulo V3 con base en evidencia comercial antes de implementarlo.
+4. Continuar V3 desde `docs/Plan-V3.md`; siguiente sprint V3-S2.

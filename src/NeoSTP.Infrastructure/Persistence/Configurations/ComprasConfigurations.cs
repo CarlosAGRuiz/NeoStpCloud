@@ -71,3 +71,55 @@ public class PagoProveedorConfiguration : IEntityTypeConfiguration<PagoProveedor
         b.HasIndex(x => new { x.EmpresaId, x.EstadoCodigo });
     }
 }
+
+public class OrdenCompraConfiguration : IEntityTypeConfiguration<OrdenCompra>
+{
+    public void Configure(EntityTypeBuilder<OrdenCompra> b)
+    {
+        b.ToTable("Compras_Ordenes");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Numero).HasMaxLength(40).IsRequired();
+        b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
+        b.Property(x => x.MonedaCodigo).HasMaxLength(3).IsRequired();
+        b.Property(x => x.Observaciones).HasMaxLength(1000);
+        b.Property(x => x.Subtotal).HasPrecision(18, 2);
+        b.Property(x => x.Iva).HasPrecision(18, 2);
+        b.Property(x => x.Total).HasPrecision(18, 2);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Proveedor).WithMany().HasForeignKey(x => x.ProveedorId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.FacturaCompra).WithMany().HasForeignKey(x => x.FacturaCompraId).OnDelete(DeleteBehavior.Restrict);
+        b.HasMany(x => x.Lineas).WithOne(x => x.OrdenCompra).HasForeignKey(x => x.OrdenCompraId).OnDelete(DeleteBehavior.Cascade);
+
+        b.HasIndex(x => new { x.EmpresaId, x.Numero }).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.EstadoCodigo, x.Fecha });
+        b.HasIndex(x => new { x.EmpresaId, x.ProveedorId });
+        b.HasIndex(x => x.FacturaCompraId).IsUnique().HasFilter("[FacturaCompraId] IS NOT NULL");
+    }
+}
+
+public class OrdenCompraLineaConfiguration : IEntityTypeConfiguration<OrdenCompraLinea>
+{
+    public void Configure(EntityTypeBuilder<OrdenCompraLinea> b)
+    {
+        b.ToTable("Compras_OrdenLineas");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Descripcion).HasMaxLength(250).IsRequired();
+        b.Property(x => x.UnidadMedidaCodigo).HasMaxLength(10).IsRequired();
+        b.Property(x => x.Cantidad).HasPrecision(18, 4);
+        b.Property(x => x.PrecioUnitario).HasPrecision(18, 4);
+        b.Property(x => x.Subtotal).HasPrecision(18, 2);
+        b.Property(x => x.Iva).HasPrecision(18, 2);
+        b.Property(x => x.Total).HasPrecision(18, 2);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Producto).WithMany().HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.EmpresaId, x.OrdenCompraId });
+        b.HasIndex(x => new { x.OrdenCompraId, x.NumeroLinea }).IsUnique();
+        b.HasIndex(x => x.ProductoId);
+    }
+}

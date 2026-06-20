@@ -5,19 +5,19 @@
 > catálogos MH, módulos de mantenimiento, plan de trabajo para completar la suite,
 > plan de mejora de UI, skills, y análisis/mejora de código.
 >
-> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-0..HB-8 CERRADAS (2026-06-19) · 17 módulos completos · 55 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 713 unit + 9 integración
+> **Versión:** Fases V2/V2.5 + API mobile AM-0..AM-6 + HB-0..HB-8 + V3-S1 CERRADAS (2026-06-20) · 17 módulos completos · 57 migraciones · **Rama:** `main` · **Build:** ✅ 0 errores / 0 warnings · **Tests:** 721 unit + 9 integración
 > **Repositorio:** `github.com/CarlosAGRuiz/NeoStpCloud`
 
 ---
 
-## Estado actual — 2026-06-19 · FASES V2/V2.5, API MOBILE Y HB-0..HB-8 CERRADAS
+## Estado actual — 2026-06-20 · FASES V2/V2.5, API MOBILE, HB-0..HB-8 Y V3-S1 CERRADAS
 
 NeoSTP Cloud es un **producto funcionalmente completo**: los 17 modulos licenciables estan
 entregados, el ciclo de negocio opera de punta a punta y todo proveedor externo es pluggable
 por configuracion (los defaults funcionan sin servicios externos).
 
-**Numeros del sistema**: 17 modulos · ~89 tablas · 55 migraciones · 38 controllers API ·
-~45 pantallas web · 8 jobs de Worker · **713 tests unitarios + 9 de integracion** · build local
+**Numeros del sistema**: 17 modulos · ~91 tablas · 57 migraciones · 38 controllers API ·
+~45 pantallas web · 8 jobs de Worker · **721 tests unitarios + 9 de integracion** · build local
 con 0 warnings.
 
 **Lo que el producto hace hoy** (todo probado): emision de 9 tipos de DTE certificados contra
@@ -34,10 +34,9 @@ Redis/OTLP collector productivos, credenciales reales de pasarelas, certificado 
 (ambiente 01) por cliente, y mantenimiento del contrato con la app Android en repo aparte
 (`manuelberganza-dev/neocloud_mobile_android`). Backlog V3 en README.
 
-**Prioridad inmediata post-analisis (2026-06-19):** HB-0..HB-8 y API mobile AM-0..AM-6 quedaron
-cerrados operativos. No queda otro HB obligatorio; el siguiente trabajo recomendado es priorizar V3
-con evidencia de demos. HB-2 queda residual solo para OCR asincrono o compra operativa desde Scan. Ver
-`docs/Plan-Hallazgos-Bugs-Demo.md` y `docs/Plan-Pruebas-Web-Api-Demos.md`.
+**Prioridad inmediata (2026-06-20):** HB-0..HB-8, API mobile AM-0..AM-6 y V3-S1 quedaron cerrados.
+El siguiente sprint recomendado es V3-S2: recepcion parcial e UI Web de ordenes de compra. Ver
+`docs/Plan-V3.md` y `docs/Plan-Pruebas-Web-Api-Demos.md`.
 
 ### Fases del proyecto (historial)
 
@@ -58,7 +57,7 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 
 ### Todo lo que se ha probado
 
-1. **Suites automatizadas**: 713 unit + 9 integracion, 0 fallos; validacion local 2026-06-19 con
+1. **Suites automatizadas**: 721 unit + 9 integracion, 0 fallos; validacion local 2026-06-20 con
    `dotnet build NeoSTP.slnx` en 0 warnings/0 errores.
    Calculadoras puras con cobertura dedicada (nomina, cobranza, POS, caja, CxP, costo promedio,
    ESC/POS, libro IVA, conciliacion 1:1 y combinaciones, profit, validador de clientes).
@@ -100,6 +99,8 @@ post-analisis docs/Plan-Hallazgos-Bugs-Demo.md.
 13. **HB-8 cerrado**: `scripts/demo-preflight.ps1` valida codigo, secretos, providers, build/tests,
     health/OpenAPI y genera evidencia JSON; `docs/Runbook-Demo-Release.md` define guion, bloqueos,
     release y post-demo, con contrato automatizado en `Hb8DemoReleaseTests`.
+14. **V3-S1 cerrado**: ordenes de compra API core con borrador/editable, emision, cancelacion y
+    conversion unica a FacturaCompra/CxP + inventario; tenant, auditoria, seed y rutas protegidas.
 ---
 
 ## Índice
@@ -280,7 +281,7 @@ guarda en cookie, `IEmpresaContext` scope los queries).
 
 # 4. Base de datos
 
-## Tablas actuales (~89)
+## Tablas actuales (~91)
 > El conteo creció con las fases V2/V2.5: a las áreas listadas abajo se suman `Crm_*`, `Tes_*`
 > (incl. `Tes_MovimientosBanco` y `Tes_ConciliacionDetalles`), `Conta_*`, `Rrhh_*`, `Inv_*`,
 > `Compras_*`, `Pos_*`, `Portal_Accesos` y `Cobros_ConfigRecordatorios`. La lista detallada por
@@ -769,7 +770,7 @@ catálogo) que deben migrar a estos módulos de mantenimiento.
 | 26 | **NEOCRM 114** | ✅ V2-C1 — contactos, pipeline kanban, actividades (alerta si vencen), cotizaciones → DTE (`ConvertirCotizacionADteAsync`); `/Crm` + `/api/crm/*` | Email tracking / embudos avanzados (V3) | Alta |
 | 27 | **NEORRHH 113** | ✅ — empleados/contratos, planilla quincenal ISSS/AFP/Renta 2026, recibos PDF, exportes CSV, cierre → gasto | Vacaciones/aguinaldo automatizados | Media |
 | 28 | **NEOTESORERIA 115** | ✅ + **conciliación bancaria** (V2-D4: import CSV/XLSX, `ConciliacionCalculator` ALTA/MEDIA, conciliar/desconciliar, `/Tesoreria/Conciliacion` + `/api/tesoreria/conciliacion/*`) | Conciliación parcial N:1 (V2.5) | Media-alta |
-| 29 | **COMPRAS 111 / INVENTARIO 110** | ✅ — proveedores, facturas, pagos, CxP; existencias, kardex, costo promedio; auto-integración compra/venta + alerta stock bajo | Órdenes de compra | Media |
+| 29 | **COMPRAS 111 / INVENTARIO 110** | ✅ V3-S1 — proveedores, ordenes, facturas, pagos, CxP; conversion orden→factura/inventario; existencias, kardex y costo promedio | Recepcion parcial + UI Web (V3-S2) | Alta |
 | 30 | **NEOBI fiscal 105** | ✅ V2-D1 — `LibroIvaCalculator`, libros IVA consumidor/contribuyentes/compras + F-07, CSV; `/NeoBi` + `/api/reportes/fiscal/*` | Retenciones cuando haya volumen DTE 07; PDF | Alta |
 | 31 | **NEOCONTA 116** | ✅ V2-D2 — catálogo mínimo (8 cuentas), asientos automáticos idempotentes con reversa espejo, balanza + CSV; `/Conta` + `/api/conta/*` | Catálogo personalizable, cierre anual (V3) | Media-alta |
 

@@ -230,6 +230,7 @@ public class EmpresaPruebaSeederTests
         (await db.Alertas.CountAsync(a => a.EmpresaId == empresaId && a.EstadoCodigo == AlertaEstados.Resuelta)).Should().Be(1);
 
         (await db.Proveedores.CountAsync(p => p.EmpresaId == empresaId && p.Codigo == "DEM-PROV-01")).Should().Be(1);
+        (await db.OrdenesCompra.CountAsync(o => o.EmpresaId == empresaId && o.Numero == "OC-DEMO-0001" && o.EstadoCodigo == OrdenCompraEstados.Emitida)).Should().Be(1);
         (await db.FacturasCompra.CountAsync(f => f.EmpresaId == empresaId && f.NumeroDocumento == "COMP-DEMO-0001" && f.EstadoCodigo == FacturaCompraEstados.Parcial)).Should().Be(1);
         (await db.PagosProveedor.CountAsync(p => p.EmpresaId == empresaId && p.Referencia == "PAGO-COMP-DEMO-0001" && p.EstadoCodigo == PagoProveedorEstados.Confirmado)).Should().Be(1);
         (await db.ExistenciasProducto.CountAsync(e => e.EmpresaId == empresaId && e.StockMinimo == 8m)).Should().Be(1);

@@ -32,10 +32,10 @@ Una demo esta lista cuando:
 - El recorrido Web principal termina sin errores 500, 403 inesperados, selects vacios criticos ni pantallas sin accion.
 - Los endpoints API criticos devuelven contratos consistentes y errores esperados en negativos.
 
-Ultima validacion tecnica registrada (2026-06-19):
+Ultima validacion tecnica registrada (2026-06-20):
 
 - `dotnet build NeoSTP.slnx`: 0 warnings / 0 errores.
-- `dotnet test NeoSTP.slnx`: 713 unitarias + 9 integracion verdes.
+- `dotnet test NeoSTP.slnx`: 721 unitarias + 9 integracion verdes.
 - HB-0..HB-8 cerrados operativos; API mobile AM-0..AM-6 cerrado operativo al 100%.
 - `DemoReadinessContractTests`: 4/4 pruebas verdes para rutas API criticas, permisos, modulos,
   NeoConnect v1, rutas Web, portal publico y vistas Razor.
@@ -45,6 +45,8 @@ Ultima validacion tecnica registrada (2026-06-19):
   runbook HB-7 y enlaces documentales.
 - `Hb8DemoReleaseTests`: 4/4 pruebas verdes para preflight, decisiones, sanitizacion, runbook,
   plantilla de evidencia y enlaces HB-8.
+- V3-S1: `OrdenCompraServiceTests` + `V3OrdenCompraContractTests` cubren calculo, tenant, estados,
+  conversion a CxP/inventario, rutas, modulo y permisos.
 
 ## Ambientes
 
@@ -95,7 +97,7 @@ La empresa demo debe tener:
 - 1 venta POS con ticket y cierre de caja.
 - 1 factura a credito con saldo pendiente.
 - 1 pago parcial y 1 pago confirmado.
-- 1 proveedor y 1 compra del mes.
+- 1 proveedor, 1 orden de compra emitida y 1 compra del mes.
 - Inventario con entrada, salida y ajuste.
 - 1 scan con archivo y campos extraidos/corregidos.
 - 1 enlace de portal para DTE y 1 estado de cuenta.
@@ -219,15 +221,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\demo-preflight.p
 | API-09 | `GET /api/pos/resumen` | OPERADOR | Resumen del dia |
 | API-10 | `GET /api/cobros/resumen` | ADMIN | CxC visible |
 | API-11 | `GET /api/compras/resumen` | CONTADOR | CxP visible |
-| API-12 | `GET /api/inventario/resumen` | ADMIN | Stock y alertas |
-| API-13 | `GET /api/profit/dashboard` | ADMIN | P&L |
-| API-14 | `GET /api/scanai/documentos` | ADMIN | Bandeja |
-| API-15 | `GET /api/tesoreria/resumen` | CONTADOR | Bancos/caja |
-| API-16 | `GET /api/reportes/fiscal/f07` | CONTADOR | Resumen fiscal |
-| API-17 | `GET /api/conta/balanza` | CONTADOR | Balanza |
-| API-18 | `GET /api/crm/resumen` | ADMIN | Pipeline |
-| API-19 | `GET /api/alertas/resumen` | ADMIN | Badges |
-| API-20 | `GET /api/v1/ping` | API Key | Key y scopes validos |
+| API-12 | `POST /api/compras/ordenes` | CONTADOR | Orden BORRADOR con totales recalculados por servidor |
+| API-13 | `POST /api/compras/ordenes/{id}/emitir` | CONTADOR | Orden EMITIDA e inmutable |
+| API-14 | `POST /api/compras/ordenes/{id}/convertir-factura` | CONTADOR | Factura/CxP creada una sola vez y bienes ingresados a inventario |
+| API-15 | `GET /api/inventario/resumen` | ADMIN | Stock y alertas |
+| API-16 | `GET /api/profit/dashboard` | ADMIN | P&L |
+| API-17 | `GET /api/scanai/documentos` | ADMIN | Bandeja |
+| API-18 | `GET /api/tesoreria/resumen` | CONTADOR | Bancos/caja |
+| API-19 | `GET /api/reportes/fiscal/f07` | CONTADOR | Resumen fiscal |
+| API-20 | `GET /api/conta/balanza` | CONTADOR | Balanza |
+| API-21 | `GET /api/crm/resumen` | ADMIN | Pipeline |
+| API-22 | `GET /api/alertas/resumen` | ADMIN | Badges |
+| API-23 | `GET /api/v1/ping` | API Key | Key y scopes validos |
 
 ## Smoke API Mobile
 
@@ -337,6 +342,11 @@ Negativos:
 ### Compras, Inventario y Tesoreria
 
 - Crear proveedor.
+- Crear orden de compra en BORRADOR y comprobar el calculo server-side de subtotal, IVA y total.
+- Editar la orden y emitirla.
+- Confirmar que una orden EMITIDA no admite edicion y una CANCELADA no admite emision.
+- Convertir la orden emitida a factura una sola vez.
+- Confirmar que solo las lineas de bienes generan entrada de inventario.
 - Registrar factura de compra.
 - Confirmar pago proveedor.
 - Ver CxP.
@@ -349,6 +359,8 @@ Negativos:
 
 Negativos:
 
+- Usar proveedor o producto de otra empresa.
+- Convertir dos veces la misma orden.
 - Reimportar CSV duplicado.
 - Conciliar contra signo incorrecto.
 - Salida de inventario sin stock.
