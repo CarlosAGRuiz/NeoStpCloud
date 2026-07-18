@@ -18,4 +18,13 @@ public interface IProductosService
 
     /// <summary>Carga masiva (upsert por código interno). Soporta dry-run.</summary>
     Task<Result<BulkImportResult>> ImportAsync(int empresaId, BulkImportRequest request, string? actor, CancellationToken ct = default);
+
+    /// <summary>Escalas de precio por volumen y unidades alternativas del producto.</summary>
+    Task<Result<ProductoPreciosDto>> GetPreciosAsync(int empresaId, int productoId, CancellationToken ct = default);
+
+    /// <summary>Reemplaza escalas y unidades alternativas (juego completo).</summary>
+    Task<Result<ProductoPreciosDto>> SetPreciosAsync(int empresaId, int productoId, SetProductoPreciosRequest request, string? actor, CancellationToken ct = default);
+
+    /// <summary>Escalas de precio de varios productos en una sola consulta (POS, formularios de venta).</summary>
+    Task<IReadOnlyDictionary<int, IReadOnlyList<PrecioEscalaDto>>> GetEscalasAsync(int empresaId, IReadOnlyCollection<int> productoIds, CancellationToken ct = default);
 }

@@ -247,6 +247,97 @@ public class ProductosService : IProductosService
         return Result<BulkImportResult>.Ok(result);
     }
 
+    // ─── Precios por volumen y unidades alternativas (Entrega 5) ─────────────
+
+    public async Task<IReadOnlyDictionary<int, IReadOnlyList<PrecioEscalaDto>>> GetEscalasAsync(int empresaId, IReadOnlyCollection<int> productoIds, CancellationToken ct = default)
+    {
+        if (productoIds.Count == 0) return new Dictionary<int, IReadOnlyList<PrecioEscalaDto>>();
+        var rows = await _db.ProductoPreciosEscala.AsNoTracking()
+            .Where(e => e.EmpresaId == empresaId && productoIds.Contains(e.ProductoId))
+            .OrderBy(e => e.CantidadMinima)
+            .ToListAsync(ct);
+        return rows.GroupBy(e => e.ProductoId).ToDictionary(
+            g => g.Key,
+            g => (IReadOnlyList<PrecioEscalaDto>)g
+                .Select(e => new PrecioEscalaDto { CantidadMinima = e.CantidadMinima, PrecioUnitario = e.PrecioUnitario })
+                .ToList());
+    }
+
+    public async Task<Result<ProductoPreciosDto>> GetPreciosAsync(int empresaId, int productoId, CancellationToken ct = default)
+    {
+        var producto = await _db.Productos.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productoId && p.EmpresaId == empresaId, ct);
+        if (producto is null) return Result<ProductoPreciosDto>.Fail("Producto no encontrado.", "PRODUCTO_NOT_FOUND");
+
+        var escalas = await _db.ProductoPreciosEscala.AsNoTracking()
+            .Where(e => e.EmpresaId == empresaId && e.ProductoId == productoId)
+            .OrderBy(e => e.CantidadMinima)
+            .Select(e => new PrecioEscalaDto { CantidadMinima = e.CantidadMinima, PrecioUnitario = e.PrecioUnitario })
+            .ToListAsync(ct);
+        var unidades = await _db.ProductoUnidadesAlternativas.AsNoTracking()
+            .Where(u => u.EmpresaId == empresaId && u.ProductoId == productoId)
+            .OrderBy(u => u.Factor)
+            .Select(u => new UnidadAlternativaDto
+            {
+                UnidadMedidaCodigo = u.UnidadMedidaCodigo, Nombre = u.Nombre,
+                Factor = u.Factor, PrecioUnitario = u.PrecioUnitario,
+            })
+            .ToListAsync(ct);
+
+        return Result<ProductoPreciosDto>.Ok(new ProductoPreciosDto
+        {
+            ProductoId = productoId, PrecioBase = producto.PrecioUnitario,
+            Escalas = escalas, Unidades = unidades,
+        });
+    }
+
+    public async Task<Result<ProductoPreciosDto>> SetPreciosAsync(int empresaId, int productoId, SetProductoPreciosRequest request, string? actor, CancellationToken ct = default)
+    {
+        var producto = await _db.Productos.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == productoId && p.EmpresaId == empresaId, ct);
+        if (producto is null) return Result<ProductoPreciosDto>.Fail("Producto no encontrado.", "PRODUCTO_NOT_FOUND");
+
+        var escalas = (request.Escalas ?? []).Where(e => e.CantidadMinima > 0).ToList();
+        if (escalas.Any(e => e.PrecioUnitario < 0))
+            return Result<ProductoPreciosDto>.Fail("Los precios de escala no pueden ser negativos.", "VALIDATION");
+        if (escalas.GroupBy(e => e.CantidadMinima).Any(g => g.Count() > 1))
+            return Result<ProductoPreciosDto>.Fail("Hay escalas con la misma cantidad mínima.", "VALIDATION");
+
+        var unidades = (request.Unidades ?? []).Where(u => !string.IsNullOrWhiteSpace(u.Nombre)).ToList();
+        if (unidades.Any(u => u.Factor <= 0))
+            return Result<ProductoPreciosDto>.Fail("El factor de una unidad alternativa debe ser mayor que cero.", "VALIDATION");
+        if (unidades.GroupBy(u => u.UnidadMedidaCodigo.Trim(), StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
+            return Result<ProductoPreciosDto>.Fail("Hay unidades alternativas repetidas.", "VALIDATION");
+
+        // Reemplazo del juego completo (semántica simple y auditable).
+        _db.ProductoPreciosEscala.RemoveRange(
+            _db.ProductoPreciosEscala.Where(e => e.EmpresaId == empresaId && e.ProductoId == productoId));
+        _db.ProductoUnidadesAlternativas.RemoveRange(
+            _db.ProductoUnidadesAlternativas.Where(u => u.EmpresaId == empresaId && u.ProductoId == productoId));
+
+        foreach (var e in escalas)
+            _db.ProductoPreciosEscala.Add(new ProductoPrecioEscala
+            {
+                EmpresaId = empresaId, ProductoId = productoId,
+                CantidadMinima = e.CantidadMinima, PrecioUnitario = e.PrecioUnitario,
+                CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+            });
+        foreach (var u in unidades)
+            _db.ProductoUnidadesAlternativas.Add(new ProductoUnidadAlternativa
+            {
+                EmpresaId = empresaId, ProductoId = productoId,
+                UnidadMedidaCodigo = u.UnidadMedidaCodigo.Trim(), Nombre = u.Nombre.Trim(),
+                Factor = u.Factor, PrecioUnitario = u.PrecioUnitario,
+                CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+            });
+
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "PRECIOS", "OK",
+            $"Producto {producto.CodigoInterno}: {escalas.Count} escalas, {unidades.Count} unidades alternativas", productoId);
+
+        return await GetPreciosAsync(empresaId, productoId, ct);
+    }
+
     /// <summary>
     /// Normaliza la categoría y garantiza que exista como ítem del catálogo por empresa
     /// CATEGORIA_PRODUCTO, creando catálogo e ítem si hace falta (se persisten con el

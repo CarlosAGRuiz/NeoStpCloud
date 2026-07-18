@@ -45,3 +45,35 @@ public class UpdateProductoRequest : CreateProductoRequest
 {
     public string EstadoCodigo { get; set; } = "ACTIVO";
 }
+
+// ─── Precios por volumen y unidades alternativas (Entrega 5) ─────────────────
+
+public class PrecioEscalaDto
+{
+    public decimal CantidadMinima { get; set; }
+    public decimal PrecioUnitario { get; set; }
+}
+
+public class UnidadAlternativaDto
+{
+    public string UnidadMedidaCodigo { get; set; } = "59";
+    public string Nombre { get; set; } = null!;
+    public decimal Factor { get; set; }
+    /// <summary>Precio de la unidad alternativa; null = precio base × factor.</summary>
+    public decimal? PrecioUnitario { get; set; }
+}
+
+public class ProductoPreciosDto
+{
+    public int ProductoId { get; set; }
+    public decimal PrecioBase { get; set; }
+    public List<PrecioEscalaDto> Escalas { get; set; } = [];
+    public List<UnidadAlternativaDto> Unidades { get; set; } = [];
+}
+
+/// <summary>Reemplaza el juego completo de escalas y unidades del producto.</summary>
+public class SetProductoPreciosRequest
+{
+    public List<PrecioEscalaDto> Escalas { get; set; } = [];
+    public List<UnidadAlternativaDto> Unidades { get; set; } = [];
+}

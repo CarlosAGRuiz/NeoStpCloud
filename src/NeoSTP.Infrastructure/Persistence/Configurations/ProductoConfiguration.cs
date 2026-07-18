@@ -39,3 +39,39 @@ public class ProductoConfiguration : IEntityTypeConfiguration<Producto>
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class ProductoPrecioEscalaConfiguration : IEntityTypeConfiguration<ProductoPrecioEscala>
+{
+    public void Configure(EntityTypeBuilder<ProductoPrecioEscala> b)
+    {
+        b.ToTable("Prod_PreciosEscala");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.CantidadMinima).HasPrecision(18, 4);
+        b.Property(x => x.PrecioUnitario).HasPrecision(18, 4);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Producto).WithMany().HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.CantidadMinima }).IsUnique();
+    }
+}
+
+public class ProductoUnidadAlternativaConfiguration : IEntityTypeConfiguration<ProductoUnidadAlternativa>
+{
+    public void Configure(EntityTypeBuilder<ProductoUnidadAlternativa> b)
+    {
+        b.ToTable("Prod_UnidadesAlternativas");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.UnidadMedidaCodigo).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Nombre).HasMaxLength(60).IsRequired();
+        b.Property(x => x.Factor).HasPrecision(18, 4);
+        b.Property(x => x.PrecioUnitario).HasPrecision(18, 4);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Producto).WithMany().HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.UnidadMedidaCodigo }).IsUnique();
+    }
+}

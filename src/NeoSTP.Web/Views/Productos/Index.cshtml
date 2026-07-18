@@ -81,6 +81,7 @@
                         <td><span class="@badge">@p.EstadoCodigo</span></td>
                         <td class="text-end">
                             <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-sm btn-outline-primary">Editar</a>
+                            <a asp-action="Precios" asp-route-id="@p.Id" class="btn btn-sm btn-outline-secondary" title="Escalas y unidades alternativas">Precios</a>
                             @if (p.EstadoCodigo == "ACTIVO")
                             {
                                 <form asp-action="Inactivar" asp-route-id="@p.Id" method="post" class="d-inline">

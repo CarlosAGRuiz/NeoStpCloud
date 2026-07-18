@@ -182,6 +182,33 @@ public class ProductosController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Precios(int id, CancellationToken ct)
+    {
+        if (!Has("Productos.Editar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+
+        var precios = await _productos.GetPreciosAsync(eid, id, ct);
+        if (precios.IsFailure) return NotFound();
+        var producto = await _productos.GetByIdAsync(eid, id, ct);
+        ViewBag.Producto = producto.Value!;
+        return View(precios.Value);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Precios(int id, SetProductoPreciosRequest model, CancellationToken ct)
+    {
+        if (!Has("Productos.Editar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+
+        var r = await _productos.SetPreciosAsync(eid, id, model, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess
+            ? $"Precios guardados: {r.Value!.Escalas.Count} escalas, {r.Value.Unidades.Count} unidades."
+            : r.Error;
+        return RedirectToAction(nameof(Precios), new { id });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Inactivar(int id, CancellationToken ct)

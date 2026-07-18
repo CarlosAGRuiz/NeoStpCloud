@@ -66,9 +66,20 @@ public class PosController : Controller
         if (RequireEmpresa() is not int eid) return Json(Array.Empty<object>());
 
         var result = await _productos.GetListAsync(eid, new PagedQuery { Search = term, Page = 1, PageSize = 15 }, ct: ct);
-        var items = (result.Value?.Items ?? (IReadOnlyList<ProductoDto>)Array.Empty<ProductoDto>())
+        var activos = (result.Value?.Items ?? (IReadOnlyList<ProductoDto>)Array.Empty<ProductoDto>())
             .Where(p => p.EstadoCodigo == "ACTIVO")
-            .Select(p => new { id = p.Id, codigo = p.CodigoInterno, nombre = p.Nombre, precio = p.PrecioUnitario, iva = p.AplicaIva });
+            .ToList();
+        var escalas = await _productos.GetEscalasAsync(eid, activos.Select(p => p.Id).ToList(), ct);
+        var items = activos.Select(p =>
+        {
+            IReadOnlyList<NeoSTP.Application.Productos.Dtos.PrecioEscalaDto> esc =
+                escalas.TryGetValue(p.Id, out var e) ? e : Array.Empty<NeoSTP.Application.Productos.Dtos.PrecioEscalaDto>();
+            return new
+            {
+                id = p.Id, codigo = p.CodigoInterno, nombre = p.Nombre, precio = p.PrecioUnitario, iva = p.AplicaIva,
+                escalas = esc.Select(x => new { min = x.CantidadMinima, precio = x.PrecioUnitario }).ToArray(),
+            };
+        });
         return Json(items);
     }
 

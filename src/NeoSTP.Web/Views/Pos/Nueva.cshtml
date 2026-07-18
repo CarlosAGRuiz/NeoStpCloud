@@ -122,8 +122,8 @@
 
     function agregar(p) {
         const ex = cart.find(x => x.productoId === p.id && p.id);
-        if (ex) ex.cantidad += 1;
-        else cart.push({ productoId: p.id || null, codigo: p.codigo, descripcion: p.nombre, cantidad: 1, precio: p.precio, descuento: 0, aplicaIva: p.iva });
+        if (ex) { ex.cantidad += 1; aplicarEscala(ex); }
+        else cart.push({ productoId: p.id || null, codigo: p.codigo, descripcion: p.nombre, cantidad: 1, precio: p.precio, precioBase: p.precio, escalas: p.escalas || [], descuento: 0, aplicaIva: p.iva });
         render();
     }
     function agregarManual() {
@@ -132,7 +132,15 @@
         cart.push({ productoId: null, codigo: '—', descripcion: desc, cantidad: 1, precio: precio, descuento: 0, aplicaIva: true });
         render();
     }
-    function setCant(i, v) { cart[i].cantidad = Math.max(0.0001, parseFloat(v) || 1); render(); }
+    function setCant(i, v) { cart[i].cantidad = Math.max(0.0001, parseFloat(v) || 1); aplicarEscala(cart[i]); render(); }
+
+    // Precio por volumen: aplica la escala de mayor cantidad mínima alcanzada (base si ninguna).
+    function aplicarEscala(l) {
+        if (!l.escalas || !l.escalas.length) return;
+        let precio = l.precioBase, mejorMin = 0;
+        for (const e of l.escalas) if (l.cantidad >= e.min && e.min > mejorMin) { mejorMin = e.min; precio = e.precio; }
+        l.precio = precio;
+    }
     function setPrecio(i, v) { cart[i].precio = Math.max(0, parseFloat(v) || 0); render(); }
     function quitar(i) { cart.splice(i, 1); render(); }
 
