@@ -1,0 +1,143 @@
+@model IReadOnlyList<NeoSTP.Application.Agenda.CitaDto>
+@{
+    ViewData["Title"] = "Agenda";
+    var lunes = (DateOnly)ViewBag.Lunes;
+    var puedeGestionar = ViewBag.PuedeGestionar is bool pg && pg;
+    var clientes = ViewBag.Clientes as System.Collections.IEnumerable;
+    var empleados = ViewBag.Empleados as System.Collections.IEnumerable;
+    var servicios = ViewBag.Servicios as System.Collections.IEnumerable;
+    var dias = Enumerable.Range(0, 7).Select(i => lunes.AddDays(i)).ToList();
+    var hoy = DateOnly.FromDateTime(DateTime.Now);
+    string BadgeEstado(string e) => e switch
+    {
+        "COMPLETADA" => "ns-badge--processed",
+        "CANCELADA" or "NO_ASISTIO" => "ns-badge--rejected",
+        "CONFIRMADA" => "ns-badge--info",
+        _ => "ns-badge--draft",
+    };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Agenda</span></nav>
+        <h1 class="ns-page-title">Agenda de citas</h1>
+        <p class="ns-page-subtitle">Semana del @lunes.ToString("dd/MM") al @lunes.AddDays(6).ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a asp-action="Index" asp-route-fecha="@lunes.AddDays(-7).ToString("yyyy-MM-dd")" class="btn btn-outline-secondary btn-sm">←</a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Hoy</a>
+        <a asp-action="Index" asp-route-fecha="@lunes.AddDays(7).ToString("yyyy-MM-dd")" class="btn btn-outline-secondary btn-sm">→</a>
+        <a asp-action="Comisiones" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">percent</span> Comisiones
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (puedeGestionar)
+{
+    <div class="card ns-data-card mb-4">
+        <div class="card-body">
+            <h2 class="h6 mb-3"><span class="material-symbols-outlined align-middle" style="font-size:18px">add_circle</span> Nueva cita</h2>
+            <form asp-action="Crear" method="post" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="fecha" value="@lunes.ToString("yyyy-MM-dd")" />
+                <div class="col-md-2">
+                    <label class="form-label small">Cliente</label>
+                    <select name="ClienteId" class="form-select form-select-sm">
+                        <option value="">— texto libre —</option>
+                        @foreach (dynamic c in clientes!) { <option value="@c.Id">@c.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">o nombre (walk-in)</label>
+                    <input name="ClienteNombre" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Servicio</label>
+                    <select name="ServicioProductoId" class="form-select form-select-sm">
+                        <option value="">— texto libre —</option>
+                        @foreach (dynamic s in servicios!) { <option value="@s.Id">@s.Nombre ($@s.PrecioUnitario)</option> }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">o servicio libre</label>
+                    <input name="ServicioNombre" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Atiende</label>
+                    <select name="EmpleadoId" class="form-select form-select-sm">
+                        <option value="">—</option>
+                        @foreach (dynamic e in empleados!) { <option value="@e.Id">@e.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Inicio</label>
+                    <input name="FechaInicio" type="datetime-local" class="form-control form-control-sm" required />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small">Minutos</label>
+                    <input name="DuracionMinutos" type="number" min="5" max="480" step="5" value="30" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Nota</label>
+                    <input name="Nota" maxlength="500" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">Agendar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="row g-3">
+    @foreach (var dia in dias)
+    {
+        var citasDia = Model.Where(c => DateOnly.FromDateTime(c.FechaInicio) == dia).ToList();
+        <div class="col-md-6 col-xl">
+            <div class="card h-100 @(dia == hoy ? "border-primary" : "")">
+                <div class="card-header py-2 @(dia == hoy ? "bg-primary text-white" : "")">
+                    <strong>@dia.ToString("ddd dd/MM")</strong>
+                    <span class="float-end small">@citasDia.Count</span>
+                </div>
+                <div class="card-body p-2 d-flex flex-column gap-2">
+                    @if (citasDia.Count == 0)
+                    {
+                        <span class="text-muted small text-center py-3">Sin citas</span>
+                    }
+                    @foreach (var c in citasDia)
+                    {
+                        <div class="border rounded p-2 small">
+                            <div class="d-flex justify-content-between">
+                                <strong class="ns-mono">@c.FechaInicio.ToString("HH:mm")–@c.FechaFin.ToString("HH:mm")</strong>
+                                <span class="ns-badge @BadgeEstado(c.EstadoCodigo)">@c.EstadoCodigo</span>
+                            </div>
+                            <div>@c.ClienteNombre</div>
+                            <div class="text-muted">@c.ServicioNombre · $@c.Precio.ToString("N2")</div>
+                            @if (!string.IsNullOrEmpty(c.EmpleadoNombre)) { <div class="text-muted">@c.EmpleadoNombre</div> }
+                            @if (puedeGestionar && (c.EstadoCodigo == "PROGRAMADA" || c.EstadoCodigo == "CONFIRMADA"))
+                            {
+                                <div class="d-flex gap-1 mt-1 flex-wrap">
+                                    @foreach (var (estado, texto) in new[] { ("CONFIRMADA", "Confirmar"), ("COMPLETADA", "Completar"), ("CANCELADA", "Cancelar"), ("NO_ASISTIO", "No asistió") })
+                                    {
+                                        if (estado == c.EstadoCodigo) { continue; }
+                                        <form asp-action="Estado" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@c.Id" />
+                                            <input type="hidden" name="estado" value="@estado" />
+                                            <input type="hidden" name="fecha" value="@lunes.ToString("yyyy-MM-dd")" />
+                                            <button class="btn btn-sm py-0 px-1 @(estado == "CANCELADA" || estado == "NO_ASISTIO" ? "btn-outline-danger" : "btn-outline-success")" style="font-size:11px">@texto</button>
+                                        </form>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>

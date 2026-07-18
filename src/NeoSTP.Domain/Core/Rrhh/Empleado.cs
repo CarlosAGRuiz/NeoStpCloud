@@ -35,6 +35,9 @@ public class Empleado : AuditableEntity
     public DateOnly? FechaEgreso { get; set; }
 
     public string? Cargo { get; set; }
+
+    /// <summary>Comisión % sobre servicios completados en NEOAGENDA (null = sin comisión).</summary>
+    public decimal? ComisionPorcentaje { get; set; }
     public string? Email { get; set; }
     public string? Telefono { get; set; }
 

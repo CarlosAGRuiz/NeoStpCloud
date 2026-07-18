@@ -375,6 +375,7 @@ internal static partial class SeedData
             Mod(113, "NEORRHH",      "NeoRRHH",           "Recursos humanos y nómina",                          "users",          14),
             Mod(115, "NEOTESORERIA", "Tesorería",         "Cuentas de banco/caja y movimientos",                "account_balance", 15),
             Mod(116, "NEOCONTA",     "NeoConta",          "Asientos contables básicos y balanza",               "book_open",      18),
+            Mod(117, "NEOAGENDA",    "NeoAgenda",         "Citas, calendario y comisiones por servicio",        "calendar_month", 19),
         };
 
         modelBuilder.Entity<Modulo>().HasData(modulos);
@@ -418,10 +419,10 @@ internal static partial class SeedData
             Pm(202, 100), Pm(202, 101), Pm(202, 102), Pm(202, 103), Pm(202, 108), Pm(202, 110), Pm(202, 114),
             // BusinessFull
             Pm(203, 100), Pm(203, 101), Pm(203, 102), Pm(203, 103), Pm(203, 104), Pm(203, 105),
-            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 114), Pm(203, 115), Pm(203, 116),
+            Pm(203, 108), Pm(203, 109), Pm(203, 110), Pm(203, 111), Pm(203, 112), Pm(203, 113), Pm(203, 114), Pm(203, 115), Pm(203, 116), Pm(203, 117),
             // Enterprise (todos)
             Pm(204, 100), Pm(204, 101), Pm(204, 102), Pm(204, 103), Pm(204, 104), Pm(204, 105),
-            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 114), Pm(204, 115), Pm(204, 116),
+            Pm(204, 106), Pm(204, 107), Pm(204, 108), Pm(204, 109), Pm(204, 110), Pm(204, 111), Pm(204, 112), Pm(204, 113), Pm(204, 114), Pm(204, 115), Pm(204, 116), Pm(204, 117),
             // IntegradorAPI
             Pm(205, 100), Pm(205, 101), Pm(205, 106),
             // Contador
@@ -544,6 +545,10 @@ internal static partial class SeedData
             // NEOCONTA (V2-D2)
             Perm(418, "Conta.Ver",       "NEOCONTA", "Ver asientos contables y balanza"),
             Perm(419, "Conta.Gestionar", "NEOCONTA", "Generar asientos automáticos y reversar"),
+
+            // NEOAGENDA (Entrega 6 — verticales). 420 ya lo usa DTE.Diagnostico.
+            Perm(422, "Agenda.Ver",       "NEOAGENDA", "Ver calendario de citas y comisiones"),
+            Perm(423, "Agenda.Gestionar", "NEOAGENDA", "Crear, reprogramar y cambiar estado de citas"),
 
             // Diagnóstico de errores Hacienda (Sprint 17): la UI y el controller ya exigían
             // este código, pero el permiso nunca se sembró — solo SUPERADMIN podía entrar.

@@ -215,6 +215,7 @@ public static class DependencyInjection
         // Onboarding self-service: estado de activación derivado de datos reales
         services.AddScoped<IOnboardingService, OnboardingService>();
         services.AddScoped<NeoSTP.Application.Onboarding.IVerticalTemplateService, VerticalTemplateService>();
+        services.AddScoped<NeoSTP.Application.Agenda.IAgendaService, AgendaService>();
 
         // NeoProfit (Sprint 22): cálculo financiero sobre DTE + gastos/compras
         services.AddScoped<IProfitService, ProfitService>();

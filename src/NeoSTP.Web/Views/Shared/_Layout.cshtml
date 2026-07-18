@@ -64,6 +64,7 @@
     var puedeVerScan = ModuloActivo("NEOSCANAI") && TienePermiso("ScanAI.Ver");
     var puedeVerConta = ModuloActivo("NEOCONTA") && TienePermiso("Conta.Ver");
 
+    var puedeVerAgenda = ModuloActivo("NEOAGENDA") && TienePermiso("Agenda.Ver");
     var puedeVerCrm = ModuloActivo("NEOCRM") && TienePermiso("Crm.Oportunidades.Ver");
     var puedeVerCrmContactos = ModuloActivo("NEOCRM") && TienePermiso("Crm.Contactos.Ver");
     var puedeVerCrmCotizaciones = ModuloActivo("NEOCRM") && TienePermiso("Crm.Cotizaciones.Ver");
@@ -247,6 +248,17 @@ else
                         <a class="ns-nav-link @active("DteRecibidos")" asp-controller="DteRecibidos" asp-action="Index"><span class="material-symbols-outlined">inbox</span> DTE recibidos</a>
                     }
                 }
+
+                    @if (puedeVerAgenda)
+                    {
+                        <div class="ns-nav-group">Agenda</div>
+                        <a class="ns-nav-link @active("Agenda")" asp-controller="Agenda" asp-action="Index">
+                            <span class="material-symbols-outlined">calendar_month</span> Citas
+                        </a>
+                        <a class="ns-nav-link" asp-controller="Agenda" asp-action="Comisiones">
+                            <span class="material-symbols-outlined">percent</span> Comisiones
+                        </a>
+                    }
 
                     @if (puedeVerCrm || puedeVerCrmContactos || puedeVerCrmCotizaciones)
                     {

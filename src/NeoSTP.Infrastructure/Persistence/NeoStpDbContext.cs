@@ -182,6 +182,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<NeoSTP.Domain.Core.Inventario.LoteProducto> LotesProducto => Set<NeoSTP.Domain.Core.Inventario.LoteProducto>();
     public DbSet<NeoSTP.Domain.Core.Productos.ProductoPrecioEscala> ProductoPreciosEscala => Set<NeoSTP.Domain.Core.Productos.ProductoPrecioEscala>();
     public DbSet<NeoSTP.Domain.Core.Productos.ProductoUnidadAlternativa> ProductoUnidadesAlternativas => Set<NeoSTP.Domain.Core.Productos.ProductoUnidadAlternativa>();
+    public DbSet<NeoSTP.Domain.Core.Agenda.Cita> Citas => Set<NeoSTP.Domain.Core.Agenda.Cita>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

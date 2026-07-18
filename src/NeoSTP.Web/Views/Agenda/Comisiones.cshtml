@@ -1,0 +1,55 @@
+@model IReadOnlyList<NeoSTP.Application.Agenda.ComisionEmpleadoDto>
+@{
+    ViewData["Title"] = "Comisiones";
+    var desde = (DateOnly)ViewBag.Desde;
+    var hasta = (DateOnly)ViewBag.Hasta;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Agenda</a><span class="material-symbols-outlined">chevron_right</span><span>Comisiones</span></nav>
+        <h1 class="ns-page-title">Comisiones por servicios</h1>
+        <p class="ns-page-subtitle">Citas completadas del @desde.ToString("dd/MM/yyyy") al @hasta.ToString("dd/MM/yyyy"). El % se configura por empleado en RRHH.</p>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+        <div><label class="form-label small mb-0">Desde</label><input type="date" name="desde" value="@desde.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+        <div><label class="form-label small mb-0">Hasta</label><input type="date" name="hasta" value="@hasta.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+        <button class="btn btn-primary btn-sm">Aplicar</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead><tr><th>Empleado</th><th class="text-end">Citas completadas</th><th class="text-end">Total servicios</th><th class="text-end">%</th><th class="text-end">Comisión</th></tr></thead>
+            <tbody>
+                @if (Model is null || Model.Count == 0)
+                {
+                    <tr><td colspan="5"><div class="ns-empty"><span class="material-symbols-outlined">percent</span><p>Sin citas completadas con empleado en el período.</p></div></td></tr>
+                }
+                @foreach (var c in Model ?? Array.Empty<NeoSTP.Application.Agenda.ComisionEmpleadoDto>())
+                {
+                    <tr>
+                        <td><strong>@c.EmpleadoNombre</strong></td>
+                        <td class="text-end ns-mono">@c.CitasCompletadas</td>
+                        <td class="text-end ns-mono">$@c.TotalServicios.ToString("N2")</td>
+                        <td class="text-end ns-mono">@c.ComisionPorcentaje.ToString("0.##")%</td>
+                        <td class="text-end ns-mono fw-bold">$@c.MontoComision.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            @if (Model is { Count: > 0 })
+            {
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td>Total</td>
+                        <td class="text-end ns-mono">@Model.Sum(c => c.CitasCompletadas)</td>
+                        <td class="text-end ns-mono">$@Model.Sum(c => c.TotalServicios).ToString("N2")</td>
+                        <td></td>
+                        <td class="text-end ns-mono">$@Model.Sum(c => c.MontoComision).ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>

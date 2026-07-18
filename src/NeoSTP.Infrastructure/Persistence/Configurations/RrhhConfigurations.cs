@@ -20,6 +20,7 @@ public class EmpleadoConfiguration : IEntityTypeConfiguration<Empleado>
         b.Property(x => x.AfpInstitucion).HasMaxLength(60);
         b.Property(x => x.AfpNumero).HasMaxLength(30);
         b.Property(x => x.Cargo).HasMaxLength(120);
+        b.Property(x => x.ComisionPorcentaje).HasPrecision(5, 2);
         b.Property(x => x.Email).HasMaxLength(160);
         b.Property(x => x.Telefono).HasMaxLength(30);
         b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
