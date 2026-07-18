@@ -15,6 +15,8 @@ public class ProfitGastoConfiguration : IEntityTypeConfiguration<ProfitGasto>
         b.Property(x => x.Proveedor).HasMaxLength(160);
         b.Property(x => x.Monto).HasPrecision(18, 2);
         b.Property(x => x.IvaMonto).HasPrecision(18, 2);
+        b.Property(x => x.RetencionRentaMonto).HasPrecision(18, 2);
+        b.Property(x => x.IvaImportacionMonto).HasPrecision(18, 2);
         b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
         b.Property(x => x.CreatedBy).HasMaxLength(100);
         b.Property(x => x.UpdatedBy).HasMaxLength(100);

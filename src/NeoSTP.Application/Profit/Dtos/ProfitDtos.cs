@@ -90,6 +90,9 @@ public sealed class ProfitGastoDto
     public decimal Monto { get; set; }
     public decimal IvaMonto { get; set; }
     public bool IvaDeducible { get; set; }
+    public bool ProveedorNoDomiciliado { get; set; }
+    public decimal RetencionRentaMonto { get; set; }
+    public decimal IvaImportacionMonto { get; set; }
     public decimal Total { get; set; }
     public string EstadoCodigo { get; set; } = "ACTIVO";
 }
@@ -103,6 +106,13 @@ public class CreateProfitGastoRequest
     public decimal Monto { get; set; }
     public decimal IvaMonto { get; set; }
     public bool IvaDeducible { get; set; }
+
+    /// <summary>Proveedor no domiciliado (Facebook, Google…): sujeto a ISR 20% art. 158 CT e IVA de importación.</summary>
+    public bool ProveedorNoDomiciliado { get; set; }
+    /// <summary>ISR retenido al no domiciliado, a enterar a Hacienda.</summary>
+    public decimal RetencionRentaMonto { get; set; }
+    /// <summary>IVA 13% autoliquidado por la importación del servicio.</summary>
+    public decimal IvaImportacionMonto { get; set; }
 }
 
 public sealed class UpdateProfitGastoRequest : CreateProfitGastoRequest { }

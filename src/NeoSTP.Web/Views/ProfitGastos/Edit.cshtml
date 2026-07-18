@@ -59,6 +59,42 @@
             </div>
         </div>
     </div>
+
+    <div class="ns-formsection">
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">public</span><h2>Proveedor extranjero (no domiciliado)</h2></div>
+        <div class="ns-formsection-body">
+            <div class="form-check form-switch mb-3">
+                <input asp-for="ProveedorNoDomiciliado" class="form-check-input" id="noDomiciliadoSwitch" />
+                <label asp-for="ProveedorNoDomiciliado" class="form-check-label">
+                    El proveedor no está domiciliado en El Salvador (Facebook, Google, SaaS extranjero…)
+                </label>
+            </div>
+            <div id="noDomiciliadoCampos" style="display:none">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label asp-for="RetencionRentaMonto" class="form-label">ISR retenido (20%)</label>
+                        <input asp-for="RetencionRentaMonto" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="IvaImportacionMonto" class="form-label">IVA importación (13%)</label>
+                        <input asp-for="IvaImportacionMonto" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </form>
 
-@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script>
+        (function () {
+            var sw = document.getElementById('noDomiciliadoSwitch');
+            var campos = document.getElementById('noDomiciliadoCampos');
+            if (!sw || !campos) return;
+            function refresh() { campos.style.display = sw.checked ? '' : 'none'; }
+            sw.addEventListener('change', refresh);
+            refresh();
+        })();
+    </script>
+}

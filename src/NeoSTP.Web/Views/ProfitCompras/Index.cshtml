@@ -18,6 +18,8 @@
 <div class="ns-toolbar">
     <form method="get" class="ns-toolbar-search">
         <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar proveedor, documento o descripción…" />
+        <input type="date" name="desde" value="@((ViewBag.Desde as DateOnly?)?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" title="Desde" />
+        <input type="date" name="hasta" value="@((ViewBag.Hasta as DateOnly?)?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" title="Hasta" />
         <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
     </form>
     @if (puedeGestionar)
@@ -78,7 +80,7 @@
     <nav class="mt-3"><ul class="pagination pagination-sm">
         @for (int i = 1; i <= Model.TotalPages; i++)
         {
-            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a></li>
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search" asp-route-desde="@((ViewBag.Desde as DateOnly?)?.ToString("yyyy-MM-dd"))" asp-route-hasta="@((ViewBag.Hasta as DateOnly?)?.ToString("yyyy-MM-dd"))">@i</a></li>
         }
     </ul></nav>
 }

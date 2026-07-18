@@ -149,4 +149,102 @@ public class ProfitServiceTests
         r.IsFailure.Should().BeTrue();
         r.ErrorCode.Should().Be("VALIDATION");
     }
+
+    // ─── Mejora 5: filtro por rango de fechas en listados ───────────────────────
+
+    [Fact]
+    public async Task ListGastos_FiltraPorRangoDeFechas()
+    {
+        var db = NewDb();
+        db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "A", RazonSocial = "A", EstadoCodigo = "ACTIVA" });
+        db.ProfitGastos.Add(new NeoSTP.Domain.Core.Profit.ProfitGasto
+        {
+            EmpresaId = EmpresaA, Fecha = new DateOnly(2026, 6, 10), Categoria = "SERVICIOS",
+            Descripcion = "Junio", Monto = 10m, EstadoCodigo = "ACTIVO",
+        });
+        db.ProfitGastos.Add(new NeoSTP.Domain.Core.Profit.ProfitGasto
+        {
+            EmpresaId = EmpresaA, Fecha = new DateOnly(2026, 7, 10), Categoria = "SERVICIOS",
+            Descripcion = "Julio", Monto = 20m, EstadoCodigo = "ACTIVO",
+        });
+        await db.SaveChangesAsync();
+        var svc = NewSvc(db);
+
+        var junio = await svc.ListGastosAsync(EmpresaA, new NeoSTP.Application.Common.PagedQuery(),
+            new ProfitPeriodoQuery { Desde = new DateOnly(2026, 6, 1), Hasta = new DateOnly(2026, 6, 30) });
+        var todos = await svc.ListGastosAsync(EmpresaA, new NeoSTP.Application.Common.PagedQuery());
+
+        junio.Value!.Total.Should().Be(1);
+        junio.Value.Items[0].Descripcion.Should().Be("Junio");
+        todos.Value!.Total.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ListCompras_FiltraPorRangoDeFechas()
+    {
+        var db = NewDb();
+        db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "A", RazonSocial = "A", EstadoCodigo = "ACTIVA" });
+        db.ProfitCompras.Add(new NeoSTP.Domain.Core.Profit.ProfitCompra
+        {
+            EmpresaId = EmpresaA, Fecha = new DateOnly(2026, 6, 5), Proveedor = "Prov junio",
+            Subtotal = 100m, EstadoCodigo = "ACTIVO",
+        });
+        db.ProfitCompras.Add(new NeoSTP.Domain.Core.Profit.ProfitCompra
+        {
+            EmpresaId = EmpresaA, Fecha = new DateOnly(2026, 7, 5), Proveedor = "Prov julio",
+            Subtotal = 200m, EstadoCodigo = "ACTIVO",
+        });
+        await db.SaveChangesAsync();
+        var svc = NewSvc(db);
+
+        var julio = await svc.ListComprasAsync(EmpresaA, new NeoSTP.Application.Common.PagedQuery(),
+            new ProfitPeriodoQuery { Desde = new DateOnly(2026, 7, 1) });
+
+        julio.Value!.Total.Should().Be(1);
+        julio.Value.Items[0].Proveedor.Should().Be("Prov julio");
+    }
+
+    // ─── Mejora 2: gasto con proveedor no domiciliado (Facebook, Google…) ───────
+
+    [Fact]
+    public async Task CrearGasto_NoDomiciliado_PersisteRetencionEIvaImportacion()
+    {
+        var db = NewDb();
+        db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "A", RazonSocial = "A", EstadoCodigo = "ACTIVA" });
+        await db.SaveChangesAsync();
+
+        var r = await NewSvc(db).CreateGastoAsync(EmpresaA, new CreateProfitGastoRequest
+        {
+            Descripcion = "Publicidad Facebook",
+            Categoria = "MARKETING",
+            Proveedor = "Meta Platforms",
+            Monto = 100m,
+            ProveedorNoDomiciliado = true,
+            RetencionRentaMonto = 20m,
+            IvaImportacionMonto = 13m,
+        }, "tester");
+
+        r.IsSuccess.Should().BeTrue(r.Error);
+        r.Value!.ProveedorNoDomiciliado.Should().BeTrue();
+        r.Value.RetencionRentaMonto.Should().Be(20m);
+        r.Value.IvaImportacionMonto.Should().Be(13m);
+    }
+
+    [Fact]
+    public async Task CrearGasto_Local_ConRetencion_EsInvalido()
+    {
+        var db = NewDb();
+        db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "A", RazonSocial = "A", EstadoCodigo = "ACTIVA" });
+        await db.SaveChangesAsync();
+
+        var r = await NewSvc(db).CreateGastoAsync(EmpresaA, new CreateProfitGastoRequest
+        {
+            Descripcion = "Alquiler local",
+            Monto = 100m,
+            ProveedorNoDomiciliado = false,
+            RetencionRentaMonto = 20m,
+        }, "tester");
+
+        r.ErrorCode.Should().Be("VALIDATION");
+    }
 }

@@ -72,10 +72,11 @@ public class ProfitController : ApiControllerBase
 
     [HttpGet("gastos")]
     [RequirePermiso("Profit.Ver")]
-    public async Task<IActionResult> ListGastos([FromQuery] NeoSTP.Application.Common.PagedQuery query, [FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> ListGastos([FromQuery] NeoSTP.Application.Common.PagedQuery query, [FromQuery] int? empresaId, [FromQuery] DateOnly? desde, [FromQuery] DateOnly? hasta, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.ListGastosAsync(eid, query, ct));
+        var periodo = desde is null && hasta is null ? null : new ProfitPeriodoQuery { Desde = desde, Hasta = hasta };
+        return Respond(await _service.ListGastosAsync(eid, query, periodo, ct));
     }
 
     [HttpPost("gastos")]
@@ -106,10 +107,11 @@ public class ProfitController : ApiControllerBase
 
     [HttpGet("compras")]
     [RequirePermiso("Profit.Ver")]
-    public async Task<IActionResult> ListCompras([FromQuery] NeoSTP.Application.Common.PagedQuery query, [FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> ListCompras([FromQuery] NeoSTP.Application.Common.PagedQuery query, [FromQuery] int? empresaId, [FromQuery] DateOnly? desde, [FromQuery] DateOnly? hasta, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.ListComprasAsync(eid, query, ct));
+        var periodo = desde is null && hasta is null ? null : new ProfitPeriodoQuery { Desde = desde, Hasta = hasta };
+        return Respond(await _service.ListComprasAsync(eid, query, periodo, ct));
     }
 
     [HttpPost("compras")]

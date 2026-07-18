@@ -18,6 +18,8 @@
 <div class="ns-toolbar">
     <form method="get" class="ns-toolbar-search">
         <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar descripción, categoría o proveedor…" />
+        <input type="date" name="desde" value="@((ViewBag.Desde as DateOnly?)?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" title="Desde" />
+        <input type="date" name="hasta" value="@((ViewBag.Hasta as DateOnly?)?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" title="Hasta" />
         <button type="submit" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar</button>
     </form>
     @if (puedeGestionar)
@@ -47,7 +49,13 @@
                     <tr>
                         <td class="ns-mono">@g.Fecha.ToString("dd/MM/yyyy")</td>
                         <td><span class="ns-badge ns-badge--draft">@g.Categoria</span></td>
-                        <td>@g.Descripcion</td>
+                        <td>
+                            @g.Descripcion
+                            @if (g.ProveedorNoDomiciliado)
+                            {
+                                <span class="ns-badge ns-badge--info ms-1" title="Proveedor no domiciliado: ISR 20% + IVA importación">Ext.</span>
+                            }
+                        </td>
                         <td><small class="text-muted">@(g.Proveedor ?? "—")</small></td>
                         <td class="text-end ns-mono">@g.Monto.ToString("N2")</td>
                         <td class="text-end ns-mono">@g.IvaMonto.ToString("N2") @if (g.IvaDeducible) { <span class="material-symbols-outlined align-middle" style="font-size:14px;color:var(--ns-processed)" title="IVA deducible">verified</span> }</td>
@@ -78,9 +86,26 @@
     <nav class="mt-3"><ul class="pagination pagination-sm">
         @for (int i = 1; i <= Model.TotalPages; i++)
         {
-            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a></li>
+            <li class="page-item @(i == Model.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search" asp-route-desde="@((ViewBag.Desde as DateOnly?)?.ToString("yyyy-MM-dd"))" asp-route-hasta="@((ViewBag.Hasta as DateOnly?)?.ToString("yyyy-MM-dd"))">@i</a></li>
         }
     </ul></nav>
 }
 
 <p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) gastos.</p>
+
+@{
+    var noDom = (Model?.Items ?? Array.Empty<NeoSTP.Application.Profit.Dtos.ProfitGastoDto>())
+        .Where(g => g.ProveedorNoDomiciliado && g.EstadoCodigo == "ACTIVO").ToList();
+}
+@if (noDom.Count > 0)
+{
+    <div class="card mt-2" style="border-left:4px solid var(--ns-secondary)">
+        <div class="card-body py-2 d-flex flex-wrap gap-4 align-items-center">
+            <strong class="small">Proveedores no domiciliados (página actual):</strong>
+            <span class="small">Base: <span class="ns-mono">$@noDom.Sum(g => g.Monto).ToString("N2")</span></span>
+            <span class="small">ISR 20% a enterar: <span class="ns-mono fw-bold">$@noDom.Sum(g => g.RetencionRentaMonto).ToString("N2")</span></span>
+            <span class="small">IVA importación a liquidar: <span class="ns-mono fw-bold">$@noDom.Sum(g => g.IvaImportacionMonto).ToString("N2")</span></span>
+            <span class="small text-muted">Detalle para tu contador (art. 158 CT / IVA importación de servicios).</span>
+        </div>
+    </div>
+}

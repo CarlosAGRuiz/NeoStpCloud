@@ -44,6 +44,30 @@
     </div>
 }
 
+@* ── Resumen simple: mi negocio en tres números ─────────────────── *@
+<div class="card mb-4" style="border-left:4px solid var(--ns-secondary)">
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="material-symbols-outlined" style="color:var(--ns-secondary)">lightbulb</span>
+            <strong>Tu negocio del @Model.Desde.ToString("dd/MM") al @Model.Hasta.ToString("dd/MM"), en simple</strong>
+        </div>
+        <div class="row text-center g-3">
+            <div class="col-md-4">
+                <div class="text-muted small">Vendiste</div>
+                <div class="ns-mono fw-bold fs-3">$@Money(Model.VentaNeta)</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Te costó (productos + gastos)</div>
+                <div class="ns-mono fw-bold fs-3" style="color:var(--ns-rejected)">$@Money(Model.CostoVentas + Model.GastosTotal)</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted small">Te quedó</div>
+                <div class="ns-mono fw-bold fs-3" style="color:@(Model.UtilidadNeta >= 0 ? "var(--ns-processed)" : "var(--ns-rejected)")">$@Money(Model.UtilidadNeta)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @* ── KPIs ───────────────────────────────────────────────────────── *@
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">

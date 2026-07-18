@@ -126,9 +126,11 @@ public class ProfitService : IProfitService
 
     // ─── Gastos CRUD ─────────────────────────────────────────────────────────
 
-    public async Task<Result<PagedResult<ProfitGastoDto>>> ListGastosAsync(int empresaId, PagedQuery query, CancellationToken ct = default)
+    public async Task<Result<PagedResult<ProfitGastoDto>>> ListGastosAsync(int empresaId, PagedQuery query, ProfitPeriodoQuery? periodo = null, CancellationToken ct = default)
     {
         var q = _db.ProfitGastos.AsNoTracking().Where(g => g.EmpresaId == empresaId);
+        if (periodo?.Desde is DateOnly gd) q = q.Where(g => g.Fecha >= gd);
+        if (periodo?.Hasta is DateOnly gh) q = q.Where(g => g.Fecha <= gh);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var s = query.Search.Trim();
@@ -167,6 +169,9 @@ public class ProfitService : IProfitService
             Monto = request.Monto,
             IvaMonto = request.IvaMonto,
             IvaDeducible = request.IvaDeducible,
+            ProveedorNoDomiciliado = request.ProveedorNoDomiciliado,
+            RetencionRentaMonto = request.ProveedorNoDomiciliado ? request.RetencionRentaMonto : 0m,
+            IvaImportacionMonto = request.ProveedorNoDomiciliado ? request.IvaImportacionMonto : 0m,
             EstadoCodigo = EstadoActivo,
             CreatedBy = actor,
         };
@@ -190,6 +195,9 @@ public class ProfitService : IProfitService
         g.Monto = request.Monto;
         g.IvaMonto = request.IvaMonto;
         g.IvaDeducible = request.IvaDeducible;
+        g.ProveedorNoDomiciliado = request.ProveedorNoDomiciliado;
+        g.RetencionRentaMonto = request.ProveedorNoDomiciliado ? request.RetencionRentaMonto : 0m;
+        g.IvaImportacionMonto = request.ProveedorNoDomiciliado ? request.IvaImportacionMonto : 0m;
         g.UpdatedAt = DateTime.UtcNow;
         g.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
@@ -212,9 +220,11 @@ public class ProfitService : IProfitService
 
     // ─── Compras CRUD ────────────────────────────────────────────────────────
 
-    public async Task<Result<PagedResult<ProfitCompraDto>>> ListComprasAsync(int empresaId, PagedQuery query, CancellationToken ct = default)
+    public async Task<Result<PagedResult<ProfitCompraDto>>> ListComprasAsync(int empresaId, PagedQuery query, ProfitPeriodoQuery? periodo = null, CancellationToken ct = default)
     {
         var q = _db.ProfitCompras.AsNoTracking().Where(c => c.EmpresaId == empresaId);
+        if (periodo?.Desde is DateOnly cd) q = q.Where(c => c.Fecha >= cd);
+        if (periodo?.Hasta is DateOnly ch) q = q.Where(c => c.Fecha <= ch);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var s = query.Search.Trim();
@@ -432,6 +442,9 @@ public class ProfitService : IProfitService
     {
         if (string.IsNullOrWhiteSpace(r.Descripcion)) return "La descripción es obligatoria.";
         if (r.Monto < 0 || r.IvaMonto < 0) return "Los montos no pueden ser negativos.";
+        if (r.RetencionRentaMonto < 0 || r.IvaImportacionMonto < 0) return "Los montos no pueden ser negativos.";
+        if (!r.ProveedorNoDomiciliado && (r.RetencionRentaMonto > 0 || r.IvaImportacionMonto > 0))
+            return "La retención de renta y el IVA de importación solo aplican a proveedores no domiciliados.";
         return null;
     }
 
@@ -446,6 +459,9 @@ public class ProfitService : IProfitService
     {
         Id = g.Id, Fecha = g.Fecha, Categoria = g.Categoria, Descripcion = g.Descripcion, Proveedor = g.Proveedor,
         Monto = g.Monto, IvaMonto = g.IvaMonto, IvaDeducible = g.IvaDeducible, Total = g.Monto + g.IvaMonto,
+        ProveedorNoDomiciliado = g.ProveedorNoDomiciliado,
+        RetencionRentaMonto = g.RetencionRentaMonto,
+        IvaImportacionMonto = g.IvaImportacionMonto,
         EstadoCodigo = g.EstadoCodigo,
     };
 

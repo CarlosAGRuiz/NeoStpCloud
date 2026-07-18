@@ -27,13 +27,16 @@ public class ProfitGastosController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken ct = default)
+    public async Task<IActionResult> Index(string? search, DateOnly? desde, DateOnly? hasta, int page = 1, CancellationToken ct = default)
     {
         if (!Has("Profit.Ver")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
-        var result = await _profit.ListGastosAsync(eid, new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
+        var periodo = desde is null && hasta is null ? null : new ProfitPeriodoQuery { Desde = desde, Hasta = hasta };
+        var result = await _profit.ListGastosAsync(eid, new PagedQuery { Search = search, Page = page, PageSize = 20 }, periodo, ct);
         ViewBag.Search = search;
+        ViewBag.Desde = desde;
+        ViewBag.Hasta = hasta;
         ViewBag.PuedeGestionar = Has("Profit.Gestionar");
         return View(result.Value);
     }
@@ -89,6 +92,9 @@ public class ProfitGastosController : Controller
         {
             Fecha = model.Fecha, Categoria = model.Categoria, Descripcion = model.Descripcion,
             Proveedor = model.Proveedor, Monto = model.Monto, IvaMonto = model.IvaMonto, IvaDeducible = model.IvaDeducible,
+            ProveedorNoDomiciliado = model.ProveedorNoDomiciliado,
+            RetencionRentaMonto = model.RetencionRentaMonto,
+            IvaImportacionMonto = model.IvaImportacionMonto,
         };
         var result = await _profit.UpdateGastoAsync(eid, id, update, _currentUser.Username, ct);
         if (result.IsFailure)

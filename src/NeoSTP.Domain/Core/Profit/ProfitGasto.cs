@@ -29,6 +29,19 @@ public class ProfitGasto : AuditableEntity
     /// <summary>True si el IVA del gasto es deducible (crédito fiscal).</summary>
     public bool IvaDeducible { get; set; }
 
+    /// <summary>
+    /// True si el proveedor es un sujeto no domiciliado (Facebook, Google, SaaS extranjero).
+    /// El pago está sujeto a retención definitiva de ISR (art. 158 CT, 20% general) y el
+    /// servicio constituye importación gravada con IVA que se autoliquida.
+    /// </summary>
+    public bool ProveedorNoDomiciliado { get; set; }
+
+    /// <summary>ISR retenido al no domiciliado (a enterar a Hacienda). 0 si no aplica.</summary>
+    public decimal RetencionRentaMonto { get; set; }
+
+    /// <summary>IVA autoliquidado por importación del servicio (acreditable). 0 si no aplica.</summary>
+    public decimal IvaImportacionMonto { get; set; }
+
     /// <summary>ACTIVO / INACTIVO (soft-delete, sin borrado físico).</summary>
     public string EstadoCodigo { get; set; } = "ACTIVO";
 
