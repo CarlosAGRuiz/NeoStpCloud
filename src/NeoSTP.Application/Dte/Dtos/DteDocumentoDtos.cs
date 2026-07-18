@@ -47,6 +47,9 @@ public class DteDocumentoDto
     public string? ReceptorDireccion { get; set; }
     public string? ReceptorCorreo { get; set; }
     public string? ReceptorTelefono { get; set; }
+    public string? ReceptorPaisCodigo { get; set; }
+    public string? ReceptorPaisNombre { get; set; }
+    public int? ReceptorTipoPersona { get; set; }
 
     public string CondicionOperacionCodigo { get; set; } = "1";
     public string? FormaPagoCodigo { get; set; }
@@ -133,6 +136,9 @@ public class CreateDteDocumentoRequest
     public string? FormaPagoCodigo { get; set; }
     public int? PlazoDias { get; set; }
     public string? TipoMonedaCodigo { get; set; }
+    public string? ReceptorPaisCodigo { get; set; }
+    public string? ReceptorPaisNombre { get; set; }
+    public int? ReceptorTipoPersona { get; set; }
 
     // Documento relacionado (NC/ND)
     public int? DocumentoRelacionadoId { get; set; }
@@ -194,6 +200,10 @@ public class ReceptorDto
     public string? Direccion { get; set; }
     public string? Correo { get; set; }
     public string? Telefono { get; set; }
+
+    public string? PaisCodigo { get; set; }
+    public string? PaisNombre { get; set; }
+    public int? TipoPersona { get; set; }
 }
 
 public class DteListQuery

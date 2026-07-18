@@ -18,6 +18,7 @@ public class DteCalculator : IDteCalculator
                          || d.TipoDteCodigo == TipoDteCodigos.NotaDebito;
         var esSujetoExcluido = d.TipoDteCodigo == TipoDteCodigos.FacturaSujetoExcluido;
         var esRetencion = d.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion;
+        var esExportacion = d.TipoDteCodigo == TipoDteCodigos.FacturaExportacion;
 
         decimal totalGravada = 0, totalExenta = 0, totalNoSujeta = 0, ivaTotal = 0, ivaRetenidoTotal = 0;
 
@@ -62,7 +63,13 @@ public class DteCalculator : IDteCalculator
             // Caso normal: gravada
             l.VentaGravada = neto;
 
-            if (esCcfONota)
+            if (esExportacion)
+            {
+                // Factura de Exportación: venta gravada a tasa 0%.
+                // No se registra como exenta ni no sujeta.
+                l.IvaItem = 0;
+            }
+            else if (esCcfONota)
             {
                 // CCF: precio SIN IVA. IVA por línea = gravada * 0.13
                 l.IvaItem = Round2(neto * IvaTasa);
@@ -112,6 +119,16 @@ public class DteCalculator : IDteCalculator
             d.MontoTotalOperacion = d.SubTotal;
             d.TotalNoGravado = 0;
             d.TotalPagar = Round2(d.MontoTotalOperacion - d.ReteRenta);
+        }
+        else if (esExportacion)
+        {
+            // FEX: exportación gravada a IVA 0%.
+            d.IvaTotal = 0;
+            d.IvaRetenido = 0;
+            d.ReteRenta = 0;
+            d.MontoTotalOperacion = d.SubTotal;
+            d.TotalNoGravado = 0;
+            d.TotalPagar = d.MontoTotalOperacion;
         }
         else if (esCcfONota)
         {

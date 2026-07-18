@@ -68,6 +68,9 @@ public class DteDocumento : AuditableEntity
     public string? ReceptorDireccion { get; set; }
     public string? ReceptorCorreo { get; set; }
     public string? ReceptorTelefono { get; set; }
+    public string? ReceptorPaisCodigo { get; set; }
+    public string? ReceptorPaisNombre { get; set; }
+    public int? ReceptorTipoPersona { get; set; }
 
     // --- Operación ---
     public string CondicionOperacionCodigo { get; set; } = "1"; // 1 Contado, 2 Crédito, 3 Otro

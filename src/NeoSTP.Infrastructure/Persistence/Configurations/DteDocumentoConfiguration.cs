@@ -22,7 +22,7 @@ public class DteDocumentoConfiguration : IEntityTypeConfiguration<DteDocumento>
 
         builder.Property(d => d.TipoMonedaCodigo).HasMaxLength(10).IsRequired();
         builder.Property(d => d.CondicionOperacionCodigo).HasMaxLength(5).IsRequired();
-        builder.Property(d => d.FormaPagoCodigo).HasMaxLength(10);
+        builder.Property(d => d.FormaPagoCodigo).HasMaxLength(50);
         builder.Property(d => d.Periodo).HasMaxLength(50);
 
         // Snapshot receptor
@@ -38,6 +38,8 @@ public class DteDocumentoConfiguration : IEntityTypeConfiguration<DteDocumento>
         builder.Property(d => d.ReceptorDireccion).HasMaxLength(500);
         builder.Property(d => d.ReceptorCorreo).HasMaxLength(150);
         builder.Property(d => d.ReceptorTelefono).HasMaxLength(30);
+        builder.Property(d => d.ReceptorPaisCodigo).HasMaxLength(10);
+        builder.Property(d => d.ReceptorPaisNombre).HasMaxLength(100);
 
         builder.Property(d => d.NumeroDocumentoRelacionado).HasMaxLength(40);
         builder.Property(d => d.TipoDteRelacionado).HasMaxLength(4);

@@ -412,20 +412,32 @@ public class DteGeneratorService : IDteGeneratorService
         };
     }
 
-    private static object BuildReceptorExportacion(DteDocumento d) => new
+    private static object BuildReceptorExportacion(DteDocumento d)
     {
-        nombre = d.ReceptorNombre,
-        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "37",
-        numDocumento = d.ReceptorNumeroDocumento,
-        descActividad = d.ReceptorActividadEconomica ?? "Comercio exterior",
-        nombreComercial = (string?)d.ReceptorNombre,
-        codPais = "9539",                // CAT-020: 9539 Estados Unidos (9300=El Salvador)
-        nombrePais = "ESTADOS UNIDOS",
-        complemento = d.ReceptorDireccion ?? "Exterior",
-        tipoPersona = 2,                 // 1=natural, 2=jurídica
-        telefono = d.ReceptorTelefono,
-        correo = d.ReceptorCorreo,
-    };
+        if (string.IsNullOrWhiteSpace(d.ReceptorPaisCodigo))
+            throw new InvalidOperationException("Factura de exportación sin código de país receptor.");
+
+        if (string.IsNullOrWhiteSpace(d.ReceptorPaisNombre))
+            throw new InvalidOperationException("Factura de exportación sin nombre de país receptor.");
+
+        if (!d.ReceptorTipoPersona.HasValue)
+            throw new InvalidOperationException("Factura de exportación sin tipo de persona receptor.");
+
+        return new
+        {
+            nombre = d.ReceptorNombre,
+            tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "37",
+            numDocumento = d.ReceptorNumeroDocumento,
+            descActividad = d.ReceptorActividadEconomica ?? "Comercio exterior",
+            nombreComercial = (string?)d.ReceptorNombre,
+            codPais = d.ReceptorPaisCodigo,
+            nombrePais = d.ReceptorPaisNombre,
+            complemento = d.ReceptorDireccion ?? "Exterior",
+            tipoPersona = d.ReceptorTipoPersona.Value,
+            telefono = d.ReceptorTelefono,
+            correo = d.ReceptorCorreo,
+        };
+    }
 
     // ----------- 15 Comprobante de Donación --------------------------
 

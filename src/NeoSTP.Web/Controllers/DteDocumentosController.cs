@@ -11,6 +11,8 @@ using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Productos;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Web.Models;
+using System.Text.Json;
+using NeoSTP.Application.Catalogos.Dtos;
 
 namespace NeoSTP.Web.Controllers;
 
@@ -137,6 +139,49 @@ public class DteDocumentosController : Controller
         if (model.Lineas.Count == 0)
             ModelState.AddModelError(string.Empty, "Agregue al menos una línea con cantidad y precio.");
 
+        string? receptorPaisCodigoMh = null;
+        string? receptorPaisNombreMh = null;
+
+        if (model.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
+        {
+            if (string.IsNullOrWhiteSpace(model.ReceptorPaisCodigo))
+            {
+                ModelState.AddModelError(nameof(model.ReceptorPaisCodigo), "Seleccione el país del receptor para la factura de exportación.");
+            }
+            else
+            {
+                var paisesResult = await _catalogos.GetItemsAsync("PAIS", eid, ct: ct);
+                var paises = paisesResult.Value ?? new List<CatalogoItemDto>();
+
+                var pais = paises.FirstOrDefault(p =>
+                    p.Activo &&
+                    string.Equals(p.Codigo, model.ReceptorPaisCodigo, StringComparison.OrdinalIgnoreCase));
+
+                if (pais is null)
+                {
+                    ModelState.AddModelError(nameof(model.ReceptorPaisCodigo), "El país seleccionado no existe o está inactivo en el catálogo PAIS.");
+                }
+                else
+                {
+                    receptorPaisCodigoMh = MetadataValue(pais.MetadataJson, "codigoMH") ?? pais.Codigo;
+                    receptorPaisNombreMh = MetadataValue(pais.MetadataJson, "nombreMH") ?? pais.Valor;
+
+                    if (string.IsNullOrWhiteSpace(receptorPaisCodigoMh))
+                        ModelState.AddModelError(nameof(model.ReceptorPaisCodigo), "El país seleccionado no tiene código MH válido.");
+
+                    if (string.IsNullOrWhiteSpace(receptorPaisNombreMh))
+                        ModelState.AddModelError(nameof(model.ReceptorPaisCodigo), "El país seleccionado no tiene nombre MH válido.");
+
+                    receptorPaisNombreMh = receptorPaisNombreMh?.ToUpperInvariant();
+                }
+            }
+
+            if (!model.ReceptorTipoPersona.HasValue)
+            {
+                ModelState.AddModelError(nameof(model.ReceptorTipoPersona), "Seleccione el tipo de persona del receptor.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             await LoadFormDataAsync(eid, ct);
@@ -147,6 +192,11 @@ public class DteDocumentosController : Controller
         {
             TipoDteCodigo = model.TipoDteCodigo,
             ClienteId = model.ClienteId,
+
+            ReceptorPaisCodigo = receptorPaisCodigoMh,
+            ReceptorPaisNombre = receptorPaisNombreMh,
+            ReceptorTipoPersona = model.ReceptorTipoPersona,
+
             ReceptorManual = model.ClienteId is null && !string.IsNullOrEmpty(model.ReceptorNombre) ? new ReceptorDto
             {
                 TipoDocumento = model.ReceptorTipoDocumento,
@@ -162,6 +212,7 @@ public class DteDocumentosController : Controller
                 Correo = model.ReceptorCorreo,
                 Telefono = model.ReceptorTelefono,
             } : null,
+
             CondicionOperacionCodigo = model.CondicionOperacionCodigo,
             FormaPagoCodigo = model.FormaPagoCodigo,
             PlazoDias = model.PlazoDias,
@@ -169,6 +220,7 @@ public class DteDocumentosController : Controller
             TipoDteRelacionado = model.TipoDteRelacionado,
             TipoGeneracionRelacionado = model.TipoGeneracionRelacionado,
             Observaciones = model.Observaciones,
+
             Lineas = model.Lineas.Select(l => new CreateDteDocumentoLineaRequest
             {
                 ProductoId = l.ProductoId,
@@ -385,6 +437,7 @@ public class DteDocumentosController : Controller
         ViewBag.Departamentos = await Items("DEPARTAMENTO_ES");
         ViewBag.TiposDoc = await Items("TIPO_DOC_IDENTIDAD");
         ViewBag.TiposContrib = await Items("TIPO_CONTRIBUYENTE");
+        ViewBag.Paises = await Items("PAIS");
     }
 
     private async Task<CreateDteDocumentoViewModel> BuildCreateModelAsync(int empresaId, string tipo, int? certificacionEscenarioId, CancellationToken ct)
@@ -467,6 +520,26 @@ public class DteDocumentosController : Controller
         if (result.IsFailure && result.ErrorCode != "CERT_PRUEBA_NOT_FOUND")
         {
             TempData["Error"] = result.Error;
+        }
+    }
+
+    private static string? MetadataValue(string? metadataJson, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson))
+            return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(metadataJson);
+
+            if (doc.RootElement.TryGetProperty(propertyName, out var prop))
+                return prop.GetString();
+
+            return null;
+        }
+        catch
+        {
+            return null;
         }
     }
 }

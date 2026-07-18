@@ -236,6 +236,42 @@ public class DteDocumentosService : IDteDocumentosService
             doc.ReceptorTelefono = r.Telefono;
         }
 
+        // Datos específicos de Factura de Exportación.
+        // Vienen resueltos desde catálogo PAIS en el controller/API.
+        if (request.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
+        {
+            var paisCodigo = request.ReceptorPaisCodigo;
+            var paisNombre = request.ReceptorPaisNombre;
+            var tipoPersona = request.ReceptorTipoPersona;
+
+            // Fallback si el receptor manual lo trae dentro del DTO.
+            if (request.ReceptorManual is not null)
+            {
+                paisCodigo = string.IsNullOrWhiteSpace(paisCodigo)
+                    ? request.ReceptorManual.PaisCodigo
+                    : paisCodigo;
+
+                paisNombre = string.IsNullOrWhiteSpace(paisNombre)
+                    ? request.ReceptorManual.PaisNombre
+                    : paisNombre;
+
+                tipoPersona ??= request.ReceptorManual.TipoPersona;
+            }
+
+            if (string.IsNullOrWhiteSpace(paisCodigo))
+                return Result<DteDocumentoDto>.Fail("La factura de exportación requiere país receptor.", "VALIDATION");
+
+            if (string.IsNullOrWhiteSpace(paisNombre))
+                return Result<DteDocumentoDto>.Fail("La factura de exportación requiere nombre de país receptor.", "VALIDATION");
+
+            if (!tipoPersona.HasValue)
+                return Result<DteDocumentoDto>.Fail("La factura de exportación requiere tipo de persona del receptor.", "VALIDATION");
+
+            doc.ReceptorPaisCodigo = paisCodigo;
+            doc.ReceptorPaisNombre = paisNombre.ToUpperInvariant();
+            doc.ReceptorTipoPersona = tipoPersona;
+        }
+
         // Número de control: correlativo atómico por (empresa, tipoDte)
         // UPSERT + incremento en una sola operación SQL para evitar race conditions.
         var correlativoNum = await NextCorrelativoAsync(empresaId, request.TipoDteCodigo, ct);
@@ -1471,6 +1507,26 @@ public class DteDocumentosService : IDteDocumentosService
             if (string.IsNullOrWhiteSpace(r.NumeroDocumentoRelacionado) && r.DocumentoRelacionadoId is null)
                 errors.Add("Nota de crédito/débito requiere documento relacionado.");
         }
+        if (r.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
+        {
+            var tienePaisCodigo = !string.IsNullOrWhiteSpace(r.ReceptorPaisCodigo)
+                || !string.IsNullOrWhiteSpace(r.ReceptorManual?.PaisCodigo);
+
+            var tienePaisNombre = !string.IsNullOrWhiteSpace(r.ReceptorPaisNombre)
+                || !string.IsNullOrWhiteSpace(r.ReceptorManual?.PaisNombre);
+
+            var tieneTipoPersona = r.ReceptorTipoPersona.HasValue
+                || r.ReceptorManual?.TipoPersona.HasValue == true;
+
+            if (!tienePaisCodigo)
+                errors.Add("Factura de exportación requiere país receptor.");
+
+            if (!tienePaisNombre)
+                errors.Add("Factura de exportación requiere nombre de país receptor.");
+
+            if (!tieneTipoPersona)
+                errors.Add("Factura de exportación requiere tipo de persona receptor.");
+        }
 
         return errors;
     }
@@ -1488,6 +1544,19 @@ public class DteDocumentosService : IDteDocumentosService
             errors.Add("CCF requiere NRC del receptor.");
         if (d.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion && string.IsNullOrEmpty(d.ReceptorNrc))
             errors.Add("El Comprobante de Retención requiere NRC del receptor (sujeto de la retención).");
+
+        if (d.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
+        {
+            if (string.IsNullOrWhiteSpace(d.ReceptorPaisCodigo))
+                errors.Add("Factura de exportación sin código de país receptor.");
+
+            if (string.IsNullOrWhiteSpace(d.ReceptorPaisNombre))
+                errors.Add("Factura de exportación sin nombre de país receptor.");
+
+            if (!d.ReceptorTipoPersona.HasValue)
+                errors.Add("Factura de exportación sin tipo de persona receptor.");
+        }
+
         return errors;
     }
 
@@ -1518,9 +1587,13 @@ public class DteDocumentosService : IDteDocumentosService
         ReceptorActividadEconomica = d.ReceptorActividadEconomica,
         ReceptorDepartamentoCodigo = d.ReceptorDepartamentoCodigo,
         ReceptorMunicipioCodigo = d.ReceptorMunicipioCodigo,
+        ReceptorDistritoCodigo = d.ReceptorDistritoCodigo,
         ReceptorDireccion = d.ReceptorDireccion,
         ReceptorCorreo = d.ReceptorCorreo,
         ReceptorTelefono = d.ReceptorTelefono,
+        ReceptorPaisCodigo = d.ReceptorPaisCodigo,
+        ReceptorPaisNombre = d.ReceptorPaisNombre,
+        ReceptorTipoPersona = d.ReceptorTipoPersona,
         CondicionOperacionCodigo = d.CondicionOperacionCodigo,
         FormaPagoCodigo = d.FormaPagoCodigo,
         PlazoDias = d.PlazoDias,

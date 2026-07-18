@@ -256,7 +256,10 @@ else if (esProcesado && !string.IsNullOrEmpty(Model.SelloRecibido))
                         <tr><td>Total no sujeta</td><td class="text-end ns-mono">$ @Model.TotalNoSujeto.ToString("N2")</td></tr>
                         <tr><td>Subtotal ventas</td><td class="text-end ns-mono">$ @Model.SubTotalVentas.ToString("N2")</td></tr>
                         <tr><td>Total descuento</td><td class="text-end ns-mono">$ @Model.TotalDescuento.ToString("N2")</td></tr>
-                        <tr><td>IVA 13%</td><td class="text-end ns-mono">$ @Model.IvaTotal.ToString("N2")</td></tr>
+                        <tr>
+                            <td>@(Model.TipoDteCodigo == "11" ? "IVA exportación 0%" : "IVA 13%")</td>
+                            <td class="text-end ns-mono">$ @Model.IvaTotal.ToString("N2")</td>
+                        </tr>
                         <tr><td>IVA retenido</td><td class="text-end ns-mono">$ @Model.IvaRetenido.ToString("N2")</td></tr>
                         <tr><td>Renta retenida</td><td class="text-end ns-mono">$ @Model.ReteRenta.ToString("N2")</td></tr>
                         <tr class="table-active"><th>Total a pagar</th><th class="text-end ns-mono">$ @Model.TotalPagar.ToString("N2")</th></tr>

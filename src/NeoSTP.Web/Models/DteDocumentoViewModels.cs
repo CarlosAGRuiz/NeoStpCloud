@@ -21,6 +21,8 @@ public class CreateDteDocumentoViewModel
     public string? ReceptorDireccion { get; set; }
     public string? ReceptorCorreo { get; set; }
     public string? ReceptorTelefono { get; set; }
+    public string? ReceptorPaisCodigo { get; set; }
+    public int? ReceptorTipoPersona { get; set; }
 
     [Required] public string CondicionOperacionCodigo { get; set; } = "1";
     public string? FormaPagoCodigo { get; set; }

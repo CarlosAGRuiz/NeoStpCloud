@@ -11,6 +11,10 @@
         ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var tiposDocIdent = ViewBag.TiposDoc as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
         ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var paises = ViewBag.Paises as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>
+?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+
+    var esExportacion = Model.TipoDteCodigo == "11";
     var tiposDocStr = new (string Code, string Label)[]
     {
         ("01", "01 Factura"),
@@ -182,6 +186,31 @@
                         <label class="form-label">Correo</label>
                         <input asp-for="ReceptorCorreo" class="form-control" />
                     </div>
+                    @if (esExportacion)
+                    {
+                        <div class="col-md-4">
+                            <label class="form-label">País receptor</label>
+                            <select asp-for="ReceptorPaisCodigo" class="form-select">
+                                <option value="">— Seleccionar país —</option>
+                                @foreach (var p in paises.Where(x => x.Activo).OrderBy(x => x.Valor))
+                                {
+                                    <option value="@p.Codigo" selected="@(Model.ReceptorPaisCodigo == p.Codigo)">
+                                        @p.Codigo — @p.Valor
+                                    </option>
+                                }
+                            </select>
+                            <small class="text-muted">Se toma del catálogo PAIS.</small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo persona</label>
+                            <select asp-for="ReceptorTipoPersona" class="form-select">
+                                <option value="">— Seleccionar —</option>
+                                <option value="1" selected="@(Model.ReceptorTipoPersona == 1)">Natural</option>
+                                <option value="2" selected="@(Model.ReceptorTipoPersona == 2)">Jurídica</option>
+                            </select>
+                        </div>
+                    }
                 </div>
             </div>
 
@@ -320,6 +349,15 @@
     const totalCell = document.getElementById('total-cell');
     const totalSide = document.getElementById('total-side');
     const countSide = document.getElementById('count-side');
+    const tipoDteSelect = document.getElementById('TipoDteCodigo');
+
+        if (tipoDteSelect) {
+            tipoDteSelect.addEventListener('change', function () {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tipo', this.value);
+                window.location.href = url.toString();
+            });
+        }
 
     function reindex() {
         Array.from(body.querySelectorAll('.linea-row')).forEach((row, idx) => {

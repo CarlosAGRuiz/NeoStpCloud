@@ -1,53 +1,117 @@
+@using Microsoft.EntityFrameworkCore
 @inject NeoSTP.Application.Empresas.IEmpresaContext EmpresaContext
+@inject NeoSTP.Infrastructure.Persistence.NeoStpDbContext Db
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @inject Microsoft.Extensions.Localization.IStringLocalizer<NeoSTP.Web.SharedResource> L
+
 @{
     var idiomaActual = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     var username = User.Identity?.Name;
     var isAuth = User.Identity?.IsAuthenticated ?? false;
     var tipoUsuario = User.FindFirst(NeoSTP.Web.Auth.CookieCurrentUser.ClaimTipoUsuario)?.Value;
     var isSuperAdmin = tipoUsuario == "SUPERADMIN";
+
     var soporteEmpresaNombre = EmpresaContext.SupportEmpresaNombre;
     var enModoSoporte = EmpresaContext.IsSupportMode;
-    var puedeVerCatalogos = isSuperAdmin || User.HasClaim("permiso", "Core.Catalogos.Ver");
-    var puedeVerCertificacion = isSuperAdmin || User.HasClaim("permiso", "Core.Certificacion.Ver");
-    var puedeVerEventos = isSuperAdmin || User.HasClaim("permiso", "DTE.Eventos.Ver");
-    var puedeVerHardening = isSuperAdmin || User.HasClaim("permiso", "Ops.Hardening.Ver");
-    var puedeVerAuditoria = isSuperAdmin || User.HasClaim("permiso", "Core.Auditoria.Ver");
-    var puedeVerIntegraciones = isSuperAdmin || User.HasClaim("permiso", "Connect.ApiKeys.Ver");
-    var puedeVerProfit = isSuperAdmin || User.HasClaim("permiso", "Profit.Ver");
-    var puedeVerScan = isSuperAdmin || User.HasClaim("permiso", "ScanAI.Ver");
-    var puedeVerEmpleados = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Empleados.Ver");
-    var puedeVerNomina = isSuperAdmin || User.HasClaim("permiso", "Rrhh.Nomina.Ver");
-    var puedeVerTesoreria = isSuperAdmin || User.HasClaim("permiso", "Tesoreria.Cuentas.Ver");
-    var puedeVerProveedores = isSuperAdmin || User.HasClaim("permiso", "Compras.Proveedores.Ver");
-    var puedeVerCompras = isSuperAdmin || User.HasClaim("permiso", "Compras.Ver");
-    var puedeVerInventario = isSuperAdmin || User.HasClaim("permiso", "Inventario.Ver");
-    var puedeVerPos = isSuperAdmin || User.HasClaim("permiso", "Pos.Ver");
-    var puedeConfigurarCorreo = isSuperAdmin || User.HasClaim("permiso", "Core.Correo.Configurar");
-    var puedeVerCobros = isSuperAdmin || User.HasClaim("permiso", "Cobros.Ver");
-    var puedeVerCrm = isSuperAdmin || User.HasClaim("permiso", "Crm.Oportunidades.Ver");
-    var puedeVerPortal = isSuperAdmin || User.HasClaim("permiso", "Portal.Enlaces.Ver");
-    var puedeVerReportes = isSuperAdmin || User.HasClaim("permiso", "Reportes.Ver");
-    var puedeVerConta = isSuperAdmin || User.HasClaim("permiso", "Conta.Ver");
-    var puedeVerCrmContactos = isSuperAdmin || User.HasClaim("permiso", "Crm.Contactos.Ver");
-    var puedeVerCrmCotizaciones = isSuperAdmin || User.HasClaim("permiso", "Crm.Cotizaciones.Ver");
-    var puedeVerContingencia = isSuperAdmin || User.HasClaim("permiso", "DTE.Contingencia");
-    var puedeVerDiagnostico = isSuperAdmin || User.HasClaim("permiso", "DTE.Diagnostico");
+    var empresaActualId = EmpresaContext.CurrentEmpresaId;
+
+    var modulosActivos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    if (isAuth)
+    {
+        if (isSuperAdmin)
+        {
+            modulosActivos = (await Db.Modulos
+                    .AsNoTracking()
+                    .Where(m => m.Activo)
+                    .Select(m => m.Codigo)
+                    .ToListAsync())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        else if (empresaActualId.HasValue)
+        {
+            modulosActivos = (await Db.EmpresaModulos
+                    .AsNoTracking()
+                    .Where(em => em.EmpresaId == empresaActualId.Value
+                                 && em.Activo
+                                 && em.FechaInactivacion == null
+                                 && em.Modulo.Activo)
+                    .Select(em => em.Modulo.Codigo)
+                    .ToListAsync())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    bool ModuloActivo(string codigo)
+        => isSuperAdmin || modulosActivos.Contains(codigo);
+
+    bool TienePermiso(string codigo)
+        => isSuperAdmin || User.HasClaim("permiso", codigo);
+
+    var puedeVerDte = ModuloActivo("NEODTE") && (TienePermiso("DTE.Emitir") || TienePermiso("DTE.Consultar"));
+    var puedeVerCobros = ModuloActivo("CORE") && TienePermiso("Cobros.Ver");
+    var puedeVerEventos = ModuloActivo("EVENTOSDTE") && TienePermiso("DTE.Eventos.Ver");
+    var puedeVerContingencia = ModuloActivo("CONTINGENCIA") && TienePermiso("DTE.Contingencia");
+    var puedeVerDiagnostico = ModuloActivo("NEODTE") && TienePermiso("DTE.Diagnostico");
+    var puedeVerCertificacion = ModuloActivo("NEODTE") && TienePermiso("Core.Certificacion.Ver");
+
+    var puedeVerClientes = ModuloActivo("CORE") && TienePermiso("Clientes.Ver");
+    var puedeVerProductos = ModuloActivo("CORE") && TienePermiso("Productos.Ver");
+    var puedeVerCatalogos = ModuloActivo("CORE") && TienePermiso("Core.Catalogos.Ver");
+
+    var puedeVerReportes = ModuloActivo("NEOBI") && TienePermiso("Reportes.Ver");
+    var puedeVerProfit = ModuloActivo("NEOPROFIT") && TienePermiso("Profit.Ver");
+    var puedeVerScan = ModuloActivo("NEOSCANAI") && TienePermiso("ScanAI.Ver");
+    var puedeVerConta = ModuloActivo("NEOCONTA") && TienePermiso("Conta.Ver");
+
+    var puedeVerCrm = ModuloActivo("NEOCRM") && TienePermiso("Crm.Oportunidades.Ver");
+    var puedeVerCrmContactos = ModuloActivo("NEOCRM") && TienePermiso("Crm.Contactos.Ver");
+    var puedeVerCrmCotizaciones = ModuloActivo("NEOCRM") && TienePermiso("Crm.Cotizaciones.Ver");
+
+    var puedeVerPortal = ModuloActivo("NEOPORTAL") && TienePermiso("Portal.Enlaces.Ver");
+
+    var puedeVerPos = ModuloActivo("NEOPOS") && TienePermiso("Pos.Ver");
+    var puedeVerInventario = ModuloActivo("INVENTARIO") && TienePermiso("Inventario.Ver");
+
+    var puedeVerEmpleados = ModuloActivo("NEORRHH") && TienePermiso("Rrhh.Empleados.Ver");
+    var puedeVerNomina = ModuloActivo("NEORRHH") && TienePermiso("Rrhh.Nomina.Ver");
+
+    var puedeVerTesoreria = ModuloActivo("NEOTESORERIA") && TienePermiso("Tesoreria.Cuentas.Ver");
+
+    var puedeVerProveedores = ModuloActivo("COMPRAS") && TienePermiso("Compras.Proveedores.Ver");
+    var puedeVerCompras = ModuloActivo("COMPRAS") && TienePermiso("Compras.Ver");
+
+    var puedeVerIntegraciones = ModuloActivo("NEOCONNECT") && TienePermiso("Connect.ApiKeys.Ver");
+
+    var puedeConfigurarCorreo = ModuloActivo("CORE") && TienePermiso("Core.Correo.Configurar");
+    var puedeVerAuditoria = isSuperAdmin || TienePermiso("Core.Auditoria.Ver");
+    var puedeVerHardening = isSuperAdmin || TienePermiso("Ops.Hardening.Ver");
+
+    var puedeVerAdministracion =
+        isSuperAdmin
+        || TienePermiso("Core.Empresa.Ver")
+        || TienePermiso("Core.Sucursales.Administrar")
+        || TienePermiso("Core.Usuarios.Ver")
+        || TienePermiso("DTE.Configurar")
+        || puedeConfigurarCorreo;
 
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var actionName = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
-    Func<string, string> active = name => string.Equals(ctrl, name, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+
+    Func<string, string> active = name =>
+        string.Equals(ctrl, name, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+
     var comprasOrdenActiva = string.Equals(ctrl, "Compras", StringComparison.OrdinalIgnoreCase)
         && actionName.Contains("Orden", StringComparison.OrdinalIgnoreCase) ? "active" : "";
+
     var comprasCxpActiva = string.Equals(ctrl, "Compras", StringComparison.OrdinalIgnoreCase)
         && !actionName.Contains("Orden", StringComparison.OrdinalIgnoreCase) ? "active" : "";
 
-    // Indicador de ambiente: refleja si la transmisión usa Hacienda real (apitest) o mocks.
     var haciendaHttp = string.Equals(Config["Hacienda:Client"], "Http", StringComparison.OrdinalIgnoreCase);
     var envLabel = haciendaHttp ? "PRUEBAS · HACIENDA" : "MOCK";
     var inicial = string.IsNullOrEmpty(username) ? "?" : username!.Substring(0, 1).ToUpperInvariant();
 }
+
 <!DOCTYPE html>
 <html lang="@idiomaActual">
 <head>
@@ -85,12 +149,32 @@ else
                 </span>
             </a>
 
+@*                 <div style="font-size:11px;color:#fbbf24;padding:8px 12px;border:1px solid #fbbf24;margin:8px;border-radius:8px;line-height:1.4">
+                    <div><strong>DEBUG MENÚ</strong></div>
+                    <div>Usuario: @username</div>
+                    <div>TipoUsuario claim: @(tipoUsuario ?? "NULL")</div>
+                    <div>EmpresaContext.CurrentEmpresaId: @(empresaActualId?.ToString() ?? "NULL")</div>
+                    <div>IsSuperAdmin: @isSuperAdmin</div>
+                    <div>Módulos activos: @string.Join(", ", modulosActivos)</div>
+                    <div>CRM visible: @puedeVerCrm</div>
+                    <div>RRHH visible: @puedeVerEmpleados / @puedeVerNomina</div>
+                    <div>POS visible: @puedeVerPos</div>
+                    <div>Inventario visible: @puedeVerInventario</div>
+                    <div>Tesorería visible: @puedeVerTesoreria</div>
+                    <div>Conta visible: @puedeVerConta</div>
+                </div> *@
+
             <nav class="ns-nav">
                 <div class="ns-nav-group">Operación</div>
                 <a class="ns-nav-link @active("Home")" asp-controller="Home" asp-action="Index"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
                 <a class="ns-nav-link @active("Onboarding")" asp-controller="Onboarding" asp-action="Index"><span class="material-symbols-outlined">rocket_launch</span> Asistente</a>
                 <a class="ns-nav-link @active("Alertas")" asp-controller="Alertas" asp-action="Index"><span class="material-symbols-outlined">notifications</span> Notificaciones</a>
-                <a class="ns-nav-link @active("DteDocumentos")" asp-controller="DteDocumentos" asp-action="Index"><span class="material-symbols-outlined">receipt_long</span> Documentos DTE</a>
+                    @if (puedeVerDte)
+                    {
+                        <a class="ns-nav-link @active("DteDocumentos")" asp-controller="DteDocumentos" asp-action="Index">
+                            <span class="material-symbols-outlined">receipt_long</span> Documentos DTE
+                        </a>
+                    }
                 @if (puedeVerCobros)
                 {
                     <a class="ns-nav-link @active("Cobros")" asp-controller="Cobros" asp-action="Index"><span class="material-symbols-outlined">paid</span> Cobros</a>
@@ -113,13 +197,32 @@ else
                     <a class="ns-nav-link @active("Certificacion")" asp-controller="Certificacion" asp-action="Index"><span class="material-symbols-outlined">verified</span> Certificación</a>
                 }
 
-                <div class="ns-nav-group">Datos maestros</div>
-                <a class="ns-nav-link @active("Clientes")" asp-controller="Clientes" asp-action="Index"><span class="material-symbols-outlined">groups</span> Clientes</a>
-                <a class="ns-nav-link @active("Productos")" asp-controller="Productos" asp-action="Index"><span class="material-symbols-outlined">inventory_2</span> Productos</a>
-                @if (puedeVerCatalogos)
-                {
-                    <a class="ns-nav-link @active("Catalogos")" asp-controller="Catalogos" asp-action="Index"><span class="material-symbols-outlined">menu_book</span> Catálogos</a>
-                }
+                    @if (puedeVerClientes || puedeVerProductos || puedeVerCatalogos)
+                    {
+                        <div class="ns-nav-group">Datos maestros</div>
+
+                        @if (puedeVerClientes)
+                        {
+                            <a class="ns-nav-link @active("Clientes")" asp-controller="Clientes" asp-action="Index">
+                                <span class="material-symbols-outlined">groups</span> Clientes
+                            </a>
+                        }
+
+                        @if (puedeVerProductos)
+                        {
+                            <a class="ns-nav-link @active("Productos")" asp-controller="Productos" asp-action="Index">
+                                <span class="material-symbols-outlined">inventory_2</span> Productos
+                            </a>
+                        }
+
+                        @if (puedeVerCatalogos)
+                        {
+                            <a class="ns-nav-link @active("Catalogos")" asp-controller="Catalogos" asp-action="Index">
+                                <span class="material-symbols-outlined">menu_book</span> Catálogos
+                            </a>
+                        }
+                    }
+
 
                 @if (puedeVerProfit || puedeVerScan || puedeVerReportes || puedeVerConta)
                 {
@@ -145,27 +248,42 @@ else
                     }
                 }
 
-                @if (puedeVerCrm || puedeVerCrmContactos)
-                {
-                    <div class="ns-nav-group">CRM</div>
-                    @if (puedeVerCrm)
+                    @if (puedeVerCrm || puedeVerCrmContactos || puedeVerCrmCotizaciones)
                     {
-                        <a class="ns-nav-link @active("Crm")" asp-controller="Crm" asp-action="Index"><span class="material-symbols-outlined">handshake</span> Pipeline</a>
-                        <a class="ns-nav-link" asp-controller="Crm" asp-action="Actividades"><span class="material-symbols-outlined">checklist</span> Actividades</a>
+                        <div class="ns-nav-group">CRM</div>
+
+                        @if (puedeVerCrm)
+                        {
+                            <a class="ns-nav-link @active("Crm")" asp-controller="Crm" asp-action="Index">
+                                <span class="material-symbols-outlined">handshake</span> Pipeline
+                            </a>
+                            <a class="ns-nav-link" asp-controller="Crm" asp-action="Actividades">
+                                <span class="material-symbols-outlined">checklist</span> Actividades
+                            </a>
+                        }
+
+                        @if (puedeVerCrmContactos)
+                        {
+                            <a class="ns-nav-link" asp-controller="Crm" asp-action="Contactos">
+                                <span class="material-symbols-outlined">group</span> Contactos
+                            </a>
+                        }
+
+                        @if (puedeVerCrmCotizaciones)
+                        {
+                            <a class="ns-nav-link" asp-controller="Crm" asp-action="Cotizaciones">
+                                <span class="material-symbols-outlined">request_quote</span> Cotizaciones
+                            </a>
+                        }
                     }
-                    @if (puedeVerCrmContactos)
-                    {
-                        <a class="ns-nav-link" asp-controller="Crm" asp-action="Contactos"><span class="material-symbols-outlined">group</span> Contactos</a>
-                    }
-                    @if (puedeVerCrmCotizaciones)
-                    {
-                        <a class="ns-nav-link" asp-controller="Crm" asp-action="Cotizaciones"><span class="material-symbols-outlined">request_quote</span> Cotizaciones</a>
-                    }
+
                     @if (puedeVerPortal)
                     {
-                        <a class="ns-nav-link @active("PortalEnlaces")" asp-controller="PortalEnlaces" asp-action="Index"><span class="material-symbols-outlined">public</span> Portal del cliente</a>
+                        <div class="ns-nav-group">Portal</div>
+                        <a class="ns-nav-link @active("PortalEnlaces")" asp-controller="PortalEnlaces" asp-action="Index">
+                            <span class="material-symbols-outlined">public</span> Portal del cliente
+                        </a>
                     }
-                }
 
                 @if (puedeVerPos)
                 {
@@ -218,18 +336,65 @@ else
                     <a class="ns-nav-link @active("Inventario")" asp-controller="Inventario" asp-action="Index"><span class="material-symbols-outlined">inventory_2</span> Existencias</a>
                 }
 
-                <div class="ns-nav-group">Administración</div>
-                <a class="ns-nav-link @active("Empresas")" asp-controller="Empresas" asp-action="Index"><span class="material-symbols-outlined">domain</span> Empresas</a>
-                <a class="ns-nav-link @active("Sucursales")" asp-controller="Sucursales" asp-action="Index"><span class="material-symbols-outlined">store</span> Sucursales</a>
-                <a class="ns-nav-link @active("Usuarios")" asp-controller="Usuarios" asp-action="Index"><span class="material-symbols-outlined">group</span> Usuarios</a>
-                <a class="ns-nav-link @active("Planes")" asp-controller="Planes" asp-action="Index"><span class="material-symbols-outlined">workspace_premium</span> Planes</a>
-                <a class="ns-nav-link @active("DteConfiguracion")" asp-controller="DteConfiguracion" asp-action="Index"><span class="material-symbols-outlined">settings</span> Config DTE</a>
-                <a class="ns-nav-link @active("Branding")" asp-controller="Branding" asp-action="Index"><span class="material-symbols-outlined">palette</span> Logo y firma</a>
-                @if (puedeConfigurarCorreo)
-                {
-                    <a class="ns-nav-link @active("Correo")" asp-controller="Correo" asp-action="Index"><span class="material-symbols-outlined">mail</span> Correo</a>
-                }
-                <a class="ns-nav-link @active("Billing")" asp-controller="Billing" asp-action="Index"><span class="material-symbols-outlined">credit_card</span> Billing</a>
+                    @if (puedeVerAdministracion)
+                    {
+                        <div class="ns-nav-group">Administración</div>
+
+                        @if (isSuperAdmin || TienePermiso("Core.Empresa.Ver"))
+                        {
+                            <a class="ns-nav-link @active("Empresas")" asp-controller="Empresas" asp-action="Index">
+                                <span class="material-symbols-outlined">domain</span> Empresa
+                            </a>
+                        }
+
+                        @if (isSuperAdmin || TienePermiso("Core.Sucursales.Administrar"))
+                        {
+                            <a class="ns-nav-link @active("Sucursales")" asp-controller="Sucursales" asp-action="Index">
+                                <span class="material-symbols-outlined">store</span> Sucursales
+                            </a>
+                        }
+
+                        @if (isSuperAdmin || TienePermiso("Core.Usuarios.Ver"))
+                        {
+                            <a class="ns-nav-link @active("Usuarios")" asp-controller="Usuarios" asp-action="Index">
+                                <span class="material-symbols-outlined">group</span> Usuarios
+                            </a>
+                        }
+
+                        @if (isSuperAdmin || TienePermiso("DTE.Configurar"))
+                        {
+                            <a class="ns-nav-link @active("DteConfiguracion")" asp-controller="DteConfiguracion" asp-action="Index">
+                                <span class="material-symbols-outlined">settings</span> Config DTE
+                            </a>
+                        }
+
+                        @if (isSuperAdmin || TienePermiso("Core.Empresa.Editar"))
+                        {
+                            <a class="ns-nav-link @active("Branding")" asp-controller="Branding" asp-action="Index">
+                                <span class="material-symbols-outlined">palette</span> Logo y firma
+                            </a>
+                        }
+
+                        @if (puedeConfigurarCorreo)
+                        {
+                            <a class="ns-nav-link @active("Correo")" asp-controller="Correo" asp-action="Index">
+                                <span class="material-symbols-outlined">mail</span> Correo
+                            </a>
+                        }
+
+                        @if (isSuperAdmin)
+                        {
+                            <a class="ns-nav-link @active("Planes")" asp-controller="Planes" asp-action="Index">
+                                <span class="material-symbols-outlined">workspace_premium</span> Planes
+                            </a>
+
+                            <a class="ns-nav-link @active("Billing")" asp-controller="Billing" asp-action="Index">
+                                <span class="material-symbols-outlined">credit_card</span> Billing
+                            </a>
+                        }
+                    }
+
+
                 @if (puedeVerIntegraciones)
                 {
                     <a class="ns-nav-link @active("Integraciones")" asp-controller="Integraciones" asp-action="Index"><span class="material-symbols-outlined">hub</span> Integraciones</a>
