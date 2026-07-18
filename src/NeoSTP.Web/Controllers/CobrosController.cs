@@ -167,6 +167,47 @@ public class CobrosController : Controller
         return View(nameof(Index), vm);
     }
 
+    /// <summary>Genera el cobro de una factura con la cuenta predeterminada, desde el botón "Cobrar".</summary>
+    [HttpGet("Cobrar")]
+    public async Task<IActionResult> Cobrar(int dteDocumentoId, CancellationToken ct)
+    {
+        if (!Has("Cobros.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _qr.GenerarQrAsync(eid, new GenerarQrCobroRequest { DteDocumentoId = dteDocumentoId }, ct);
+        if (result.IsFailure)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Index));
+        }
+
+        var vm = await BuildIndexModelAsync(eid, null, false, 1, ct);
+        vm.Qr = result.Value;
+        return View(nameof(Index), vm);
+    }
+
+    [HttpGet("CobrarPdf")]
+    public async Task<IActionResult> CobrarPdf(int? dteDocumentoId, int? cuentaCobroId, decimal? monto, string? referencia, CancellationToken ct)
+    {
+        if (!Has("Cobros.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _qr.GenerarPdfAsync(eid, new GenerarQrCobroRequest
+        {
+            DteDocumentoId = dteDocumentoId,
+            CuentaCobroId = cuentaCobroId,
+            Monto = monto,
+            Referencia = referencia,
+        }, ct);
+        if (result.IsFailure)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Index));
+        }
+
+        return File(result.Value!.Pdf, "application/pdf", result.Value.FileName);
+    }
+
     [HttpGet("Cuentas")]
     public async Task<IActionResult> Cuentas(CancellationToken ct)
     {

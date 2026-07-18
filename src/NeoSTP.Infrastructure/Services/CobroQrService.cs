@@ -118,9 +118,42 @@ public class CobroQrService : ICobroQrService
         {
             Monto = monto,
             Referencia = referencia,
+            CuentaCobroId = cuenta.Id,
             CuentaNombre = cuenta.Nombre,
+            CuentaTipo = cuenta.Tipo,
+            Banco = cuenta.Banco,
+            NumeroCuenta = cuenta.NumeroCuenta,
+            Titular = cuenta.Titular,
+            DteDocumentoId = request.DteDocumentoId,
             Payload = payload,
+            EsLink = payload.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                  || payload.StartsWith("https://", StringComparison.OrdinalIgnoreCase),
             QrPngBase64 = Convert.ToBase64String(GenerarPng(payload)),
+        });
+    }
+
+    public async Task<Result<CobroPdfDto>> GenerarPdfAsync(int empresaId, GenerarQrCobroRequest request, CancellationToken ct = default)
+    {
+        var qr = await GenerarQrAsync(empresaId, request, ct);
+        if (qr.IsFailure) return Result<CobroPdfDto>.Fail(qr.Error!, qr.ErrorCode);
+
+        var empresa = await _db.Empresas.AsNoTracking()
+            .Where(e => e.Id == empresaId)
+            .Select(e => new { e.RazonSocial, e.NombreComercial, e.LogoBlob })
+            .FirstOrDefaultAsync(ct);
+        if (empresa is null) return Result<CobroPdfDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+
+        var pdf = CobroPdfBuilder.Generar(new CobroPdfModel
+        {
+            EmpresaNombre = string.IsNullOrWhiteSpace(empresa.NombreComercial) ? empresa.RazonSocial : empresa.NombreComercial!,
+            LogoPng = empresa.LogoBlob,
+            Cobro = qr.Value!,
+        });
+
+        return Result<CobroPdfDto>.Ok(new CobroPdfDto
+        {
+            FileName = $"cobro-{qr.Value!.Referencia}.pdf",
+            Pdf = pdf,
         });
     }
 

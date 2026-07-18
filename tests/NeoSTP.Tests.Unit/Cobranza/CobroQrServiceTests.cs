@@ -126,4 +126,60 @@ public class CobroQrServiceTests
 
         r.ErrorCode.Should().Be("VALIDATION");
     }
+
+    // ─── Mejora 3: link compartible + PDF de solicitud de cobro ─────────────────
+
+    [Fact]
+    public async Task GenerarQr_CuentaConUrlPago_MarcaEsLink()
+    {
+        var db = NewDb();
+        var svc = NewSvc(db);
+        await svc.CrearCuentaAsync(EmpresaA, Cuenta(url: "https://pagos.example.com/pay?m={monto}&r={referencia}"), "t");
+
+        var r = await svc.GenerarQrAsync(EmpresaA, new GenerarQrCobroRequest { Monto = 99.5m, Referencia = "REF-9" });
+
+        r.IsSuccess.Should().BeTrue();
+        r.Value!.EsLink.Should().BeTrue();
+        r.Value.Payload.Should().Be("https://pagos.example.com/pay?m=99.50&r=REF-9");
+        r.Value.CuentaCobroId.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task GenerarQr_Transferencia_NoEsLink_YExponeDatosDeCuenta()
+    {
+        var db = NewDb();
+        var svc = NewSvc(db);
+        await svc.CrearCuentaAsync(EmpresaA, Cuenta(), "t");
+
+        var r = await svc.GenerarQrAsync(EmpresaA, new GenerarQrCobroRequest { Monto = 10m });
+
+        r.Value!.EsLink.Should().BeFalse();
+        r.Value.Banco.Should().Be("Banco X");
+        r.Value.NumeroCuenta.Should().Be("1234567890");
+        r.Value.Titular.Should().Be("Mi Empresa");
+    }
+
+    [Fact]
+    public async Task GenerarPdf_ProduceDocumentoConNombre()
+    {
+        var db = NewDb();
+        var svc = NewSvc(db);
+        await svc.CrearCuentaAsync(EmpresaA, Cuenta(), "t");
+
+        var r = await svc.GenerarPdfAsync(EmpresaA, new GenerarQrCobroRequest { Monto = 75m, Referencia = "FAC-7" });
+
+        r.IsSuccess.Should().BeTrue(r.Error);
+        r.Value!.FileName.Should().Be("cobro-FAC-7.pdf");
+        Encoding.ASCII.GetString(r.Value.Pdf, 1, 3).Should().Be("PDF");
+    }
+
+    [Fact]
+    public async Task GenerarPdf_SinCuentaActiva_Falla()
+    {
+        var svc = NewSvc(NewDb());
+
+        var r = await svc.GenerarPdfAsync(EmpresaA, new GenerarQrCobroRequest { Monto = 10m });
+
+        r.ErrorCode.Should().Be("CUENTA_NOT_FOUND");
+    }
 }

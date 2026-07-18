@@ -136,6 +136,17 @@ public class CobranzaController : ApiControllerBase
         return Respond(await _qr.GenerarQrAsync(eid, req, ct));
     }
 
+    /// <summary>Solicitud de cobro en PDF (branding + monto + cuenta + QR) para adjuntar o compartir.</summary>
+    [HttpPost("pdf")]
+    [RequirePermiso("Cobros.Ver")]
+    public async Task<IActionResult> GenerarPdf([FromBody] GenerarQrCobroRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        var result = await _qr.GenerarPdfAsync(eid, req, ct);
+        if (result.IsFailure) return Respond(result);
+        return File(result.Value!.Pdf, "application/pdf", result.Value.FileName);
+    }
+
     /// <summary>Ejecuta recordatorios salientes de facturas vencidas (email/WhatsApp).</summary>
     [HttpPost("recordatorios/ejecutar")]
     [RequirePermiso("Cobros.Gestionar")]

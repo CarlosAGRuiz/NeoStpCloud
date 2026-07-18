@@ -41,11 +41,27 @@ public sealed class CobroQrDto
 {
     public decimal Monto { get; set; }
     public string Referencia { get; set; } = string.Empty;
+    public int CuentaCobroId { get; set; }
     public string CuentaNombre { get; set; } = string.Empty;
+    /// <summary>TRANSFERENCIA | WOMPI | PAGADITO | ACH | OTRO.</summary>
+    public string CuentaTipo { get; set; } = "TRANSFERENCIA";
+    public string? Banco { get; set; }
+    public string? NumeroCuenta { get; set; }
+    public string? Titular { get; set; }
+    /// <summary>Factura asociada (si el cobro salió de una).</summary>
+    public int? DteDocumentoId { get; set; }
     /// <summary>Contenido codificado en el QR (URL de pago o texto de transferencia).</summary>
     public string Payload { get; set; } = string.Empty;
+    /// <summary>True si Payload es una URL de pago compartible (link de pasarela).</summary>
+    public bool EsLink { get; set; }
     /// <summary>Imagen PNG del QR en base64 (para mostrar/compartir en la app).</summary>
     public string QrPngBase64 { get; set; } = string.Empty;
+}
+
+public sealed class CobroPdfDto
+{
+    public string FileName { get; set; } = "cobro.pdf";
+    public byte[] Pdf { get; set; } = Array.Empty<byte>();
 }
 
 // ─── Interfaz ────────────────────────────────────────────────────────────────
@@ -63,4 +79,10 @@ public interface ICobroQrService
 
     /// <summary>Genera el QR de pago (payload + PNG base64) para una factura o un monto.</summary>
     Task<Result<CobroQrDto>> GenerarQrAsync(int empresaId, GenerarQrCobroRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Genera la solicitud de cobro en PDF (branding de la empresa + monto + datos de
+    /// cuenta + QR) lista para compartir por correo o WhatsApp.
+    /// </summary>
+    Task<Result<CobroPdfDto>> GenerarPdfAsync(int empresaId, GenerarQrCobroRequest request, CancellationToken ct = default);
 }

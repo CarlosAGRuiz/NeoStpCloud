@@ -111,6 +111,12 @@ else if (esProcesado && !string.IsNullOrEmpty(Model.SelloRecibido))
         <a asp-action="Pdf" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">picture_as_pdf</span> PDF
         </a>
+        @if (Model.EstadoCodigo == "PROCESADO" && Model.TipoDteCodigo is "01" or "03")
+        {
+            <a asp-controller="Cobros" asp-action="Cobrar" asp-route-dteDocumentoId="@Model.Id" class="btn btn-sm btn-success">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">payments</span> Cobrar
+            </a>
+        }
         @if (!string.IsNullOrEmpty(Model.JsonDte))
         {
             <a asp-action="Json" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-dark" target="_blank">

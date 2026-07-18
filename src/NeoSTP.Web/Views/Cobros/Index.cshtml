@@ -46,12 +46,53 @@
                 <div class="col">
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <span class="material-symbols-outlined" style="color:var(--ns-secondary)">qr_code_2</span>
-                        <strong>QR de cobro generado</strong>
+                        <strong>Cobro generado</strong>
+                        <span class="ns-badge ns-badge--info">@Model.Qr.CuentaTipo</span>
                     </div>
                     <div class="small text-muted">Cuenta: <strong>@Model.Qr.CuentaNombre</strong></div>
                     <div class="small text-muted">Referencia: <code class="ns-mono">@Model.Qr.Referencia</code></div>
-                    <div class="small text-muted">Monto: <span class="ns-mono">@Model.Qr.Monto.ToString("N2")</span></div>
-                    <div class="mt-2"><code class="ns-mono small">@Model.Qr.Payload</code></div>
+                    <div class="small text-muted">Monto: <span class="ns-mono">$ @Model.Qr.Monto.ToString("N2")</span></div>
+                    @if (!Model.Qr.EsLink)
+                    {
+                        <div class="small text-muted">
+                            Transferencia: @Model.Qr.Banco @Model.Qr.NumeroCuenta @(string.IsNullOrEmpty(Model.Qr.Titular) ? "" : $"({Model.Qr.Titular})")
+                        </div>
+                    }
+                    <div class="mt-2"><code id="cobroPayload" class="ns-mono small">@Model.Qr.Payload</code></div>
+
+                    @{
+                        var mensajeCobro = Model.Qr.EsLink
+                            ? $"Hola, puede pagar ${Model.Qr.Monto:N2} (ref. {Model.Qr.Referencia}) en este enlace: {Model.Qr.Payload}"
+                            : $"Hola, le comparto los datos para el pago de ${Model.Qr.Monto:N2} (ref. {Model.Qr.Referencia}): {Model.Qr.Payload}";
+                        var waUrl = $"https://wa.me/?text={Uri.EscapeDataString(mensajeCobro)}";
+                        var mailUrl = $"mailto:?subject={Uri.EscapeDataString($"Solicitud de cobro {Model.Qr.Referencia}")}&body={Uri.EscapeDataString(mensajeCobro)}";
+                    }
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                        @if (Model.Qr.EsLink)
+                        {
+                            <a href="@Model.Qr.Payload" target="_blank" rel="noopener" class="btn btn-sm btn-primary">
+                                <span class="material-symbols-outlined align-middle" style="font-size:16px">credit_card</span> Abrir link de pago
+                            </a>
+                        }
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="navigator.clipboard.writeText(document.getElementById('cobroPayload').innerText).then(() => this.innerText = 'Copiado ✓');">
+                            <span class="material-symbols-outlined align-middle" style="font-size:16px">content_copy</span> Copiar
+                        </button>
+                        <a asp-action="CobrarPdf"
+                           asp-route-dteDocumentoId="@Model.Qr.DteDocumentoId"
+                           asp-route-cuentaCobroId="@Model.Qr.CuentaCobroId"
+                           asp-route-monto="@(Model.Qr.DteDocumentoId is null ? Model.Qr.Monto : null)"
+                           asp-route-referencia="@Model.Qr.Referencia"
+                           class="btn btn-sm btn-outline-secondary" target="_blank">
+                            <span class="material-symbols-outlined align-middle" style="font-size:16px">picture_as_pdf</span> Descargar PDF
+                        </a>
+                        <a href="@waUrl" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">
+                            <span class="material-symbols-outlined align-middle" style="font-size:16px">chat</span> WhatsApp
+                        </a>
+                        <a href="@mailUrl" class="btn btn-sm btn-outline-secondary">
+                            <span class="material-symbols-outlined align-middle" style="font-size:16px">mail</span> Correo
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
