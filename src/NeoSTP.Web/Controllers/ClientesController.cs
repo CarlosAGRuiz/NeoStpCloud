@@ -137,6 +137,8 @@ public class ClientesController : Controller
             Direccion = c.Direccion,
             Correo = c.Correo,
             Telefono = c.Telefono,
+            PaisCodigo = c.PaisCodigo,
+            TipoPersona = c.TipoPersona,
             EstadoCodigo = c.EstadoCodigo,
         });
     }
@@ -169,6 +171,8 @@ public class ClientesController : Controller
             Direccion = model.Direccion,
             Correo = model.Correo,
             Telefono = model.Telefono,
+            PaisCodigo = model.PaisCodigo,
+            TipoPersona = model.TipoPersona,
             EstadoCodigo = model.EstadoCodigo,
         };
 
@@ -224,6 +228,8 @@ public class ClientesController : Controller
         Direccion = m.Direccion,
         Correo = m.Correo,
         Telefono = m.Telefono,
+        PaisCodigo = m.PaisCodigo,
+        TipoPersona = m.TipoPersona,
     };
 
     private bool Has(string codigo)
@@ -253,5 +259,6 @@ public class ClientesController : Controller
         ViewBag.Departamentos = await Items("DEPARTAMENTO_ES");
         ViewBag.Municipios = await Items("MUNICIPIO_ES");
         ViewBag.Estados = await Items("ESTADO_GENERICO");
+        ViewBag.Paises = await Items("PAIS");
     }
 }

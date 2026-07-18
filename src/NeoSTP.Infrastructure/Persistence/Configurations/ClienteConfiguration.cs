@@ -12,7 +12,8 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
         builder.HasKey(c => c.Id);
 
         builder.Property(c => c.TipoDocumentoCodigo).HasMaxLength(30).IsRequired();
-        builder.Property(c => c.NumeroDocumento).HasMaxLength(50).IsRequired();
+        builder.Property(c => c.NumeroDocumento).HasMaxLength(50);
+        builder.Property(c => c.PaisCodigo).HasMaxLength(10);
         builder.Property(c => c.Nrc).HasMaxLength(20);
         builder.Property(c => c.Nombre).HasMaxLength(250).IsRequired();
         builder.Property(c => c.NombreComercial).HasMaxLength(250);
@@ -31,8 +32,12 @@ public class ClienteConfiguration : IEntityTypeConfiguration<Cliente>
         builder.Property(c => c.UpdatedBy).HasMaxLength(100);
 
         builder.Ignore(c => c.EsContribuyente);
+        builder.Ignore(c => c.EsExtranjero);
 
-        builder.HasIndex(c => new { c.EmpresaId, c.TipoDocumentoCodigo, c.NumeroDocumento }).IsUnique();
+        // Filtrado: los clientes extranjeros pueden no tener documento y no deben chocar entre sí.
+        builder.HasIndex(c => new { c.EmpresaId, c.TipoDocumentoCodigo, c.NumeroDocumento })
+            .IsUnique()
+            .HasFilter("[NumeroDocumento] IS NOT NULL");
         builder.HasIndex(c => new { c.EmpresaId, c.Nombre });
         builder.HasIndex(c => c.EstadoCodigo);
 

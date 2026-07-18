@@ -228,6 +228,7 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
 .ns-badge--rejected { background: rgba(239,68,68,.12); color: var(--ns-rejected); }
 .ns-badge--draft { background: rgba(100,116,139,.14); color: var(--ns-draft); }
 .ns-badge--contingency { background: rgba(245,158,11,.14); color: #b45309; }
+.ns-badge--info { background: rgba(59,130,246,.12); color: #1d4ed8; }
 
 /* Metric card (Dashboard) */
 .ns-metric { position: relative; overflow: hidden; }

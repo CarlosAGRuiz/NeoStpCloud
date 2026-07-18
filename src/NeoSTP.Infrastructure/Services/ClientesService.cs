@@ -30,7 +30,7 @@ public class ClientesService : IClientesService
         {
             var s = query.Search.Trim();
             q = q.Where(c => EF.Functions.Like(c.Nombre, $"%{s}%")
-                          || EF.Functions.Like(c.NumeroDocumento, $"%{s}%")
+                          || EF.Functions.Like(c.NumeroDocumento ?? string.Empty, $"%{s}%")
                           || EF.Functions.Like(c.Nrc ?? string.Empty, $"%{s}%")
                           || EF.Functions.Like(c.NombreComercial ?? string.Empty, $"%{s}%"));
         }
@@ -65,22 +65,29 @@ public class ClientesService : IClientesService
 
         // Normaliza códigos MH del CAT-022 (13/36/…) al código interno (DUI/NIT/…).
         var tipoDoc = ClienteValidator.NormalizarTipoDocumento(request.TipoDocumentoCodigo);
-        var numero = tipoDoc == "NIT"
-            ? ClienteValidator.NormalizeNit(request.NumeroDocumento)
-            : request.NumeroDocumento.Trim();
+        var numero = NormalizarNumero(tipoDoc, request.NumeroDocumento);
+        var paisCodigo = request.PaisCodigo?.Trim();
 
-        var dup = await _db.Clientes.AnyAsync(c =>
-            c.EmpresaId == empresaId &&
-            c.TipoDocumentoCodigo == tipoDoc &&
-            c.NumeroDocumento == numero, ct);
-        if (dup)
-            return Result<ClienteDto>.Fail($"Ya existe un cliente con {tipoDoc} {numero}.", "CLIENTE_DUPLICATE");
+        if (!string.IsNullOrEmpty(paisCodigo) && !await PaisExisteAsync(paisCodigo, ct))
+            return Result<ClienteDto>.Fail($"El país '{paisCodigo}' no existe en el catálogo PAIS.", "VALIDATION");
+
+        if (numero is not null)
+        {
+            var dup = await _db.Clientes.AnyAsync(c =>
+                c.EmpresaId == empresaId &&
+                c.TipoDocumentoCodigo == tipoDoc &&
+                c.NumeroDocumento == numero, ct);
+            if (dup)
+                return Result<ClienteDto>.Fail($"Ya existe un cliente con {tipoDoc} {numero}.", "CLIENTE_DUPLICATE");
+        }
 
         var cliente = new Cliente
         {
             EmpresaId = empresaId,
             TipoDocumentoCodigo = tipoDoc,
             NumeroDocumento = numero,
+            PaisCodigo = paisCodigo,
+            TipoPersona = request.TipoPersona,
             Nrc = string.IsNullOrWhiteSpace(request.Nrc) ? null : request.Nrc.Trim(),
             Nombre = request.Nombre.Trim(),
             NombreComercial = request.NombreComercial?.Trim(),
@@ -108,9 +115,15 @@ public class ClientesService : IClientesService
         if (errors.Count > 0)
             return Result<ClienteDto>.Fail("Datos del cliente inválidos.", "VALIDATION", errors);
 
+        var paisCodigoUpd = request.PaisCodigo?.Trim();
+        if (!string.IsNullOrEmpty(paisCodigoUpd) && !await PaisExisteAsync(paisCodigoUpd, ct))
+            return Result<ClienteDto>.Fail($"El país '{paisCodigoUpd}' no existe en el catálogo PAIS.", "VALIDATION");
+
         var cliente = await _db.Clientes.FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId, ct);
         if (cliente is null) return Result<ClienteDto>.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
 
+        cliente.PaisCodigo = paisCodigoUpd;
+        cliente.TipoPersona = request.TipoPersona;
         cliente.Nombre = request.Nombre.Trim();
         cliente.NombreComercial = request.NombreComercial?.Trim();
         cliente.TipoContribuyenteCodigo = request.TipoContribuyenteCodigo.Trim().ToUpperInvariant();
@@ -191,7 +204,7 @@ public class ClientesService : IClientesService
 
         var result = new BulkImportResult { DryRun = request.DryRun, Total = rows.Count };
         var existentes = await _db.Clientes
-            .Where(c => c.EmpresaId == empresaId)
+            .Where(c => c.EmpresaId == empresaId && c.NumeroDocumento != null)
             .ToDictionaryAsync(c => $"{c.TipoDocumentoCodigo}|{c.NumeroDocumento}", c => c, ct);
 
         foreach (var row in rows)
@@ -211,17 +224,23 @@ public class ClientesService : IClientesService
                 Direccion = row.Get("direccion"),
                 Correo = row.Get("correo"),
                 Telefono = row.Get("telefono"),
+                PaisCodigo = row.Get("pais") ?? row.Get("paiscodigo"),
+                TipoPersona = int.TryParse(row.Get("tipopersona"), out var tp) ? tp : null,
             };
 
             var errors = ClienteValidator.Validate(req);
+            // El upsert de la carga masiva usa tipo+número como llave, así que aquí
+            // el documento sigue siendo obligatorio aunque el cliente sea extranjero.
+            if (string.IsNullOrWhiteSpace(req.NumeroDocumento))
+                errors.Add("La carga masiva requiere número de documento en cada fila.");
             if (errors.Count > 0)
             {
-                result.Errors.Add(new BulkImportError { Row = row.RowNumber, Key = req.NumeroDocumento, Message = string.Join("; ", errors) });
+                result.Errors.Add(new BulkImportError { Row = row.RowNumber, Key = req.NumeroDocumento ?? "", Message = string.Join("; ", errors) });
                 continue;
             }
 
             var tipoDoc = req.TipoDocumentoCodigo.Trim().ToUpperInvariant();
-            var numero = tipoDoc == "NIT" ? ClienteValidator.NormalizeNit(req.NumeroDocumento) : req.NumeroDocumento.Trim();
+            var numero = NormalizarNumero(tipoDoc, req.NumeroDocumento)!;
             var key = $"{tipoDoc}|{numero}";
 
             if (existentes.TryGetValue(key, out var existing))
@@ -247,11 +266,24 @@ public class ClientesService : IClientesService
         return Result<BulkImportResult>.Ok(result);
     }
 
-    private static Cliente BuildCliente(int empresaId, CreateClienteRequest req, string tipoDoc, string numero, string? actor) => new()
+    /// <summary>Trim + formato canónico de NIT; null si viene vacío (extranjeros sin documento).</summary>
+    private static string? NormalizarNumero(string tipoDoc, string? numero)
+    {
+        if (string.IsNullOrWhiteSpace(numero)) return null;
+        return tipoDoc == "NIT" ? ClienteValidator.NormalizeNit(numero) : numero.Trim();
+    }
+
+    private Task<bool> PaisExisteAsync(string paisCodigo, CancellationToken ct)
+        => _db.CatalogoItems.AnyAsync(i =>
+            i.Catalogo.Codigo == "PAIS" && i.Codigo == paisCodigo && i.Activo, ct);
+
+    private static Cliente BuildCliente(int empresaId, CreateClienteRequest req, string tipoDoc, string? numero, string? actor) => new()
     {
         EmpresaId = empresaId,
         TipoDocumentoCodigo = tipoDoc,
         NumeroDocumento = numero,
+        PaisCodigo = string.IsNullOrWhiteSpace(req.PaisCodigo) ? null : req.PaisCodigo.Trim(),
+        TipoPersona = req.TipoPersona,
         Nrc = string.IsNullOrWhiteSpace(req.Nrc) ? null : req.Nrc.Trim(),
         Nombre = req.Nombre.Trim(),
         NombreComercial = req.NombreComercial?.Trim(),
@@ -269,6 +301,8 @@ public class ClientesService : IClientesService
 
     private static void ApplyUpdate(Cliente c, CreateClienteRequest req, string? actor)
     {
+        c.PaisCodigo = string.IsNullOrWhiteSpace(req.PaisCodigo) ? null : req.PaisCodigo.Trim();
+        c.TipoPersona = req.TipoPersona;
         c.Nombre = req.Nombre.Trim();
         c.NombreComercial = req.NombreComercial?.Trim();
         c.TipoContribuyenteCodigo = req.TipoContribuyenteCodigo.Trim().ToUpperInvariant();
@@ -299,6 +333,9 @@ public class ClientesService : IClientesService
         MunicipioCodigo = c.MunicipioCodigo,
         Direccion = c.Direccion,
         Correo = c.Correo, Telefono = c.Telefono,
+        PaisCodigo = c.PaisCodigo,
+        TipoPersona = c.TipoPersona,
+        EsExtranjero = c.EsExtranjero,
         EstadoCodigo = c.EstadoCodigo,
         Etiqueta = c.Etiqueta,
         CreatedAt = c.CreatedAt,

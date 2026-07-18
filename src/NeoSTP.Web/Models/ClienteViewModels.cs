@@ -7,8 +7,8 @@ public class CreateClienteViewModel
     [Required, Display(Name = "Tipo de documento")]
     public string TipoDocumentoCodigo { get; set; } = "DUI";
 
-    [Required, StringLength(50), Display(Name = "Número de documento")]
-    public string NumeroDocumento { get; set; } = string.Empty;
+    [StringLength(50), Display(Name = "Número de documento")]
+    public string? NumeroDocumento { get; set; }
 
     [StringLength(20), Display(Name = "NRC")]
     public string? Nrc { get; set; }
@@ -42,6 +42,12 @@ public class CreateClienteViewModel
 
     [StringLength(30), Display(Name = "Teléfono")]
     public string? Telefono { get; set; }
+
+    [StringLength(10), Display(Name = "País de residencia")]
+    public string? PaisCodigo { get; set; }
+
+    [Range(1, 2), Display(Name = "Tipo de persona")]
+    public int? TipoPersona { get; set; }
 }
 
 public class EditClienteViewModel : CreateClienteViewModel

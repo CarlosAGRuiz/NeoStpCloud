@@ -14,7 +14,8 @@ public class Cliente : AuditableEntity
 
     /// <summary>Código del catálogo TIPO_DOC_IDENTIDAD: DUI, NIT, PASAPORTE, CARNET_RESIDENTE, OTRO.</summary>
     public string TipoDocumentoCodigo { get; set; } = "DUI";
-    public string NumeroDocumento { get; set; } = null!;
+    /// <summary>Opcional para clientes extranjeros (pasaporte u otro documento del país de origen).</summary>
+    public string? NumeroDocumento { get; set; }
     public string? Nrc { get; set; }
 
     public string Nombre { get; set; } = null!;
@@ -35,6 +36,15 @@ public class Cliente : AuditableEntity
     public string? Correo { get; set; }
     public string? Telefono { get; set; }
 
+    /// <summary>
+    /// País de residencia: código del catálogo PAIS (CAT-020, coincide con el código MH,
+    /// p. ej. 9300 El Salvador). Null equivale a El Salvador.
+    /// </summary>
+    public string? PaisCodigo { get; set; }
+
+    /// <summary>Tipo de persona (CAT-029): 1 natural, 2 jurídica. Requerido por la factura de exportación.</summary>
+    public int? TipoPersona { get; set; }
+
     public string EstadoCodigo { get; set; } = "ACTIVO";
 
     /// <summary>Etiqueta operativa del CRM: VIP | FRECUENTE | null. "Moroso" se deriva de cobranza.</summary>
@@ -42,4 +52,13 @@ public class Cliente : AuditableEntity
 
     public bool EsContribuyente
         => TipoContribuyenteCodigo == "CONTRIBUYENTE" || TipoContribuyenteCodigo == "GRAN_CONTRIBUYENTE";
+
+    public bool EsExtranjero
+        => !string.IsNullOrEmpty(PaisCodigo) && PaisCodigo != PaisCodigos.ElSalvador;
+}
+
+public static class PaisCodigos
+{
+    /// <summary>Código MH de El Salvador en el CAT-020.</summary>
+    public const string ElSalvador = "9300";
 }

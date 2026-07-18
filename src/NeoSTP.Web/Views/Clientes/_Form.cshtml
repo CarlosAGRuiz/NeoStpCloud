@@ -4,9 +4,34 @@
     var tiposContrib = (ViewBag.TiposContrib as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var departamentos = (ViewBag.Departamentos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var municipios = (ViewBag.Municipios as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var paises = (ViewBag.Paises as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 }
 
 <div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="PaisCodigo" class="form-label"></label>
+        <select asp-for="PaisCodigo" id="paisSelect" class="form-select">
+            <option value="">El Salvador (predeterminado)</option>
+            @foreach (var p in paises)
+            {
+                <option value="@p.Codigo" selected="@(p.Codigo == Model.PaisCodigo)">@p.Valor</option>
+            }
+        </select>
+        <div class="form-text" id="paisHint" style="display:none">
+            Cliente extranjero: el documento es opcional y podrá facturarse como exportación sin recapturar datos.
+        </div>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TipoPersona" class="form-label"></label>
+        <select asp-for="TipoPersona" class="form-select">
+            <option value="">—</option>
+            <option value="1" selected="@(Model.TipoPersona == 1)">Persona natural</option>
+            <option value="2" selected="@(Model.TipoPersona == 2)">Persona jurídica</option>
+        </select>
+        <div class="form-text">Usado en la factura de exportación.</div>
+    </div>
+    <div class="col-md-4"></div>
+
     <div class="col-md-4">
         <label asp-for="TipoDocumentoCodigo" class="form-label"></label>
         <select asp-for="TipoDocumentoCodigo" class="form-select">
@@ -18,7 +43,7 @@
     </div>
     <div class="col-md-4">
         <label asp-for="NumeroDocumento" class="form-label"></label>
-        <input asp-for="NumeroDocumento" class="form-control" placeholder="DUI: 12345678-9 / NIT: 0614-010100-101-1" />
+        <input asp-for="NumeroDocumento" id="numeroDocumentoInput" class="form-control" placeholder="DUI: 12345678-9 / NIT: 0614-010100-101-1" />
         <span asp-validation-for="NumeroDocumento" class="text-danger small"></span>
     </div>
     <div class="col-md-4">
@@ -115,5 +140,24 @@
 
     depto.addEventListener('change', filter);
     filter();
+})();
+
+(function() {
+    var pais = document.getElementById('paisSelect');
+    var hint = document.getElementById('paisHint');
+    var numero = document.getElementById('numeroDocumentoInput');
+    if (!pais || !hint || !numero) return;
+
+    var EL_SALVADOR = '9300';
+    function refresh() {
+        var extranjero = pais.value && pais.value !== EL_SALVADOR;
+        hint.style.display = extranjero ? '' : 'none';
+        numero.placeholder = extranjero
+            ? 'Pasaporte u otro documento (opcional)'
+            : 'DUI: 12345678-9 / NIT: 0614-010100-101-1';
+    }
+
+    pais.addEventListener('change', refresh);
+    refresh();
 })();
 </script>

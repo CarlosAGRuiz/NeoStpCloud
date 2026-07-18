@@ -108,7 +108,11 @@
                     <tr class="@(!string.Equals(c.EstadoCodigo, "ACTIVO", StringComparison.OrdinalIgnoreCase) ? "text-muted" : "")">
                         <td>
                             <strong>@c.TipoDocumentoCodigo</strong>
-                            <div class="ns-mono text-muted">@c.NumeroDocumento</div>
+                            <div class="ns-mono text-muted">@(c.NumeroDocumento ?? "--")</div>
+                            @if (c.EsExtranjero)
+                            {
+                                <span class="ns-badge ns-badge--info mt-1">Extranjero @c.PaisCodigo</span>
+                            }
                         </td>
                         <td>
                             <strong>@c.Nombre</strong>

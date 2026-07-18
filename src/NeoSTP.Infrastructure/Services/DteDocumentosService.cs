@@ -8,6 +8,7 @@ using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Dte.Eventos.Dtos;
+using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Eventos;
 using NeoSTP.Infrastructure.Persistence;
@@ -198,9 +199,10 @@ public class DteDocumentosService : IDteDocumentosService
         };
 
         // Receptor snapshot
+        Cliente? cliente = null;
         if (request.ClienteId.HasValue)
         {
-            var cliente = await _db.Clientes.AsNoTracking()
+            cliente = await _db.Clientes.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == request.ClienteId.Value && c.EmpresaId == empresaId, ct);
             if (cliente is null)
                 return Result<DteDocumentoDto>.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
@@ -237,39 +239,11 @@ public class DteDocumentosService : IDteDocumentosService
         }
 
         // Datos específicos de Factura de Exportación.
-        // Vienen resueltos desde catálogo PAIS en el controller/API.
         if (request.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
         {
-            var paisCodigo = request.ReceptorPaisCodigo;
-            var paisNombre = request.ReceptorPaisNombre;
-            var tipoPersona = request.ReceptorTipoPersona;
-
-            // Fallback si el receptor manual lo trae dentro del DTO.
-            if (request.ReceptorManual is not null)
-            {
-                paisCodigo = string.IsNullOrWhiteSpace(paisCodigo)
-                    ? request.ReceptorManual.PaisCodigo
-                    : paisCodigo;
-
-                paisNombre = string.IsNullOrWhiteSpace(paisNombre)
-                    ? request.ReceptorManual.PaisNombre
-                    : paisNombre;
-
-                tipoPersona ??= request.ReceptorManual.TipoPersona;
-            }
-
-            if (string.IsNullOrWhiteSpace(paisCodigo))
-                return Result<DteDocumentoDto>.Fail("La factura de exportación requiere país receptor.", "VALIDATION");
-
-            if (string.IsNullOrWhiteSpace(paisNombre))
-                return Result<DteDocumentoDto>.Fail("La factura de exportación requiere nombre de país receptor.", "VALIDATION");
-
-            if (!tipoPersona.HasValue)
-                return Result<DteDocumentoDto>.Fail("La factura de exportación requiere tipo de persona del receptor.", "VALIDATION");
-
-            doc.ReceptorPaisCodigo = paisCodigo;
-            doc.ReceptorPaisNombre = paisNombre.ToUpperInvariant();
-            doc.ReceptorTipoPersona = tipoPersona;
+            var fex = await AplicarDatosExportacionAsync(doc, request, cliente, ct);
+            if (fex.IsFailure)
+                return Result<DteDocumentoDto>.Fail(fex.Error!, fex.ErrorCode);
         }
 
         // Número de control: correlativo atómico por (empresa, tipoDte)
@@ -1507,7 +1481,9 @@ public class DteDocumentosService : IDteDocumentosService
             if (string.IsNullOrWhiteSpace(r.NumeroDocumentoRelacionado) && r.DocumentoRelacionadoId is null)
                 errors.Add("Nota de crédito/débito requiere documento relacionado.");
         }
-        if (r.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
+        // FEX con ClienteId puede omitir país/tipo de persona: se precargan del
+        // catálogo de clientes en CreateAsync, que valida de nuevo tras la precarga.
+        if (r.TipoDteCodigo == TipoDteCodigos.FacturaExportacion && r.ClienteId is null)
         {
             var tienePaisCodigo = !string.IsNullOrWhiteSpace(r.ReceptorPaisCodigo)
                 || !string.IsNullOrWhiteSpace(r.ReceptorManual?.PaisCodigo);
@@ -1662,6 +1638,80 @@ public class DteDocumentosService : IDteDocumentosService
             Entidad = "DteDocumento", EntidadId = entidadId.ToString(),
             Resultado = resultado, Detalle = detalle,
         });
+
+    /// <summary>
+    /// Resuelve país (código/nombre MH) y tipo de persona del receptor de una FEX.
+    /// Prioridad: request explícito → receptor manual → país de residencia del cliente
+    /// (resuelto contra el catálogo PAIS). Interno para poder probarse en unit tests.
+    /// </summary>
+    internal async Task<Result> AplicarDatosExportacionAsync(
+        DteDocumento doc, CreateDteDocumentoRequest request, Cliente? cliente, CancellationToken ct)
+    {
+        var paisCodigo = request.ReceptorPaisCodigo;
+        var paisNombre = request.ReceptorPaisNombre;
+        var tipoPersona = request.ReceptorTipoPersona;
+
+        // Fallback si el receptor manual lo trae dentro del DTO.
+        if (request.ReceptorManual is not null)
+        {
+            paisCodigo = string.IsNullOrWhiteSpace(paisCodigo)
+                ? request.ReceptorManual.PaisCodigo
+                : paisCodigo;
+
+            paisNombre = string.IsNullOrWhiteSpace(paisNombre)
+                ? request.ReceptorManual.PaisNombre
+                : paisNombre;
+
+            tipoPersona ??= request.ReceptorManual.TipoPersona;
+        }
+
+        // Precarga desde el catálogo de clientes: si el cliente tiene país de
+        // residencia, la FEX se puede emitir sin volver a capturar sus datos.
+        if (string.IsNullOrWhiteSpace(paisCodigo) && !string.IsNullOrEmpty(cliente?.PaisCodigo))
+        {
+            var pais = await _db.CatalogoItems.AsNoTracking()
+                .Where(i => i.Catalogo.Codigo == "PAIS" && i.Codigo == cliente.PaisCodigo && i.Activo)
+                .Select(i => new { i.Codigo, i.Valor, i.MetadataJson })
+                .FirstOrDefaultAsync(ct);
+            if (pais is null)
+                return Result.Fail(
+                    $"El país '{cliente.PaisCodigo}' del cliente no existe o está inactivo en el catálogo PAIS.", "VALIDATION");
+
+            paisCodigo = CatalogoMetadataValue(pais.MetadataJson, "codigoMH") ?? pais.Codigo;
+            paisNombre = CatalogoMetadataValue(pais.MetadataJson, "nombreMH") ?? pais.Valor;
+        }
+
+        if (cliente is not null)
+            tipoPersona ??= cliente.TipoPersona ?? (cliente.EsContribuyente ? 2 : 1);
+
+        if (string.IsNullOrWhiteSpace(paisCodigo))
+            return Result.Fail("La factura de exportación requiere país receptor.", "VALIDATION");
+
+        if (string.IsNullOrWhiteSpace(paisNombre))
+            return Result.Fail("La factura de exportación requiere nombre de país receptor.", "VALIDATION");
+
+        if (!tipoPersona.HasValue)
+            return Result.Fail("La factura de exportación requiere tipo de persona del receptor.", "VALIDATION");
+
+        doc.ReceptorPaisCodigo = paisCodigo;
+        doc.ReceptorPaisNombre = paisNombre.ToUpperInvariant();
+        doc.ReceptorTipoPersona = tipoPersona;
+        return Result.Ok();
+    }
+
+    private static string? CatalogoMetadataValue(string? metadataJson, string key)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(metadataJson);
+            return doc.RootElement.TryGetProperty(key, out var v) ? v.GetString() : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Obtiene el siguiente correlativo de forma atómica usando UPSERT + UPDATE SQL.

@@ -146,7 +146,10 @@ public class DteDocumentosController : Controller
         {
             if (string.IsNullOrWhiteSpace(model.ReceptorPaisCodigo))
             {
-                ModelState.AddModelError(nameof(model.ReceptorPaisCodigo), "Seleccione el país del receptor para la factura de exportación.");
+                // Con cliente del catálogo el país se precarga en el servicio desde
+                // el país de residencia del cliente; solo el receptor manual lo exige aquí.
+                if (model.ClienteId is null)
+                    ModelState.AddModelError(nameof(model.ReceptorPaisCodigo), "Seleccione el país del receptor para la factura de exportación.");
             }
             else
             {
@@ -176,7 +179,7 @@ public class DteDocumentosController : Controller
                 }
             }
 
-            if (!model.ReceptorTipoPersona.HasValue)
+            if (!model.ReceptorTipoPersona.HasValue && model.ClienteId is null)
             {
                 ModelState.AddModelError(nameof(model.ReceptorTipoPersona), "Seleccione el tipo de persona del receptor.");
             }
@@ -424,7 +427,7 @@ public class DteDocumentosController : Controller
         var clientes = await _clientes.GetListAsync(empresaId, new PagedQuery { PageSize = 200 }, ct);
         ViewBag.Clientes = clientes.Value?.Items ?? new List<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
 
-        var productos = await _productos.GetListAsync(empresaId, new PagedQuery { PageSize = 500 }, ct);
+        var productos = await _productos.GetListAsync(empresaId, new PagedQuery { PageSize = 500 }, ct: ct);
         ViewBag.Productos = productos.Value?.Items ?? new List<NeoSTP.Application.Productos.Dtos.ProductoDto>();
 
         async Task<IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>> Items(string c)

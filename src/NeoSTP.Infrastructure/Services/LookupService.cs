@@ -91,7 +91,9 @@ public sealed class LookupService : ILookupService
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = search.Trim();
-            q = q.Where(c => c.Nombre.Contains(s) || c.NumeroDocumento.Contains(s) || (c.Nrc != null && c.Nrc.Contains(s)));
+            q = q.Where(c => c.Nombre.Contains(s)
+                          || (c.NumeroDocumento != null && c.NumeroDocumento.Contains(s))
+                          || (c.Nrc != null && c.Nrc.Contains(s)));
         }
         return await q.OrderBy(c => c.Nombre).Take(Math.Clamp(max, 1, 100))
             .Select(c => new LookupItem(c.Id.ToString(), c.Nombre, c.TipoDocumentoCodigo, c.NumeroDocumento))

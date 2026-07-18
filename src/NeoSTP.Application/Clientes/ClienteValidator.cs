@@ -17,15 +17,26 @@ public static class ClienteValidator
     private static readonly Regex NitNoFormatPattern = new(@"^\d{14}$", RegexOptions.Compiled);
     private static readonly Regex NrcPattern = new(@"^\d{1,7}(-\d)?$", RegexOptions.Compiled);
 
+    /// <summary>Código MH de El Salvador en el catálogo PAIS (CAT-020).</summary>
+    public const string PaisElSalvador = "9300";
+
+    public static bool EsExtranjero(string? paisCodigo)
+        => !string.IsNullOrWhiteSpace(paisCodigo) && paisCodigo.Trim() != PaisElSalvador;
+
     public static List<string> Validate(CreateClienteRequest request)
     {
         var errors = new List<string>();
+        var esExtranjero = EsExtranjero(request.PaisCodigo);
 
         if (string.IsNullOrWhiteSpace(request.Nombre))
             errors.Add("El nombre es obligatorio.");
 
         if (string.IsNullOrWhiteSpace(request.NumeroDocumento))
-            errors.Add("El número de documento es obligatorio.");
+        {
+            // Los clientes extranjeros pueden registrarse sin documento.
+            if (!esExtranjero)
+                errors.Add("El número de documento es obligatorio.");
+        }
         else
         {
             var doc = request.NumeroDocumento.Trim();
@@ -58,7 +69,13 @@ public static class ClienteValidator
             errors.Add($"Tipo de contribuyente inválido: {request.TipoContribuyenteCodigo}");
         }
 
+        if (request.TipoPersona is not null and not 1 and not 2)
+            errors.Add("Tipo de persona inválido: 1 (natural) o 2 (jurídica).");
+
         var esContribuyente = tipoContrib == "CONTRIBUYENTE" || tipoContrib == "GRAN_CONTRIBUYENTE";
+        if (esExtranjero && esContribuyente)
+            errors.Add("Un cliente extranjero no puede ser contribuyente salvadoreño; use CONSUMIDOR_FINAL.");
+
         if (esContribuyente)
         {
             if (string.IsNullOrWhiteSpace(request.Nrc))
