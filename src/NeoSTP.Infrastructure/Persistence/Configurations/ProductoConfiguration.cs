@@ -16,6 +16,7 @@ public class ProductoConfiguration : IEntityTypeConfiguration<Producto>
         builder.Property(p => p.Nombre).HasMaxLength(250).IsRequired();
         builder.Property(p => p.Descripcion).HasMaxLength(1000);
         builder.Property(p => p.TipoItem).HasMaxLength(20).IsRequired();
+        builder.Property(p => p.CategoriaCodigo).HasMaxLength(30);
         builder.Property(p => p.UnidadMedidaCodigo).HasMaxLength(20).IsRequired();
         builder.Property(p => p.PrecioUnitario).HasPrecision(18, 4);
         builder.Property(p => p.CostoUnitario).HasPrecision(18, 4);
@@ -29,6 +30,7 @@ public class ProductoConfiguration : IEntityTypeConfiguration<Producto>
         builder.HasIndex(p => new { p.EmpresaId, p.CodigoInterno }).IsUnique();
         builder.HasIndex(p => new { p.EmpresaId, p.CodigoBarra });
         builder.HasIndex(p => new { p.EmpresaId, p.Nombre });
+        builder.HasIndex(p => new { p.EmpresaId, p.CategoriaCodigo });
         builder.HasIndex(p => p.EstadoCodigo);
 
         builder.HasOne(p => p.Empresa)

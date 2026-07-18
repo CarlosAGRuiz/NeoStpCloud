@@ -133,10 +133,10 @@ public class ConnectApiV1Controller : ConnectApiControllerBase
 
     /// <summary>Lista los productos de la empresa.</summary>
     [HttpGet("productos")]
-    public async Task<IActionResult> ListarProductos([FromQuery] PagedQuery query, CancellationToken ct)
+    public async Task<IActionResult> ListarProductos([FromQuery] PagedQuery query, [FromQuery] string? categoria, CancellationToken ct)
     {
         if (!TryAuthorize(ConnectScopes.ProductosRead, out var eid, out var error)) return error!;
-        return Respond(await _productos.GetListAsync(eid, query, ct));
+        return Respond(await _productos.GetListAsync(eid, query, categoria, ct));
     }
 
     /// <summary>Da de alta un producto.</summary>

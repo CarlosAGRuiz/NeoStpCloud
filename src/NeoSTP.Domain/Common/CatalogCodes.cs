@@ -65,6 +65,10 @@ public static class CatalogCodes
     public const string Incoterms = "INCOTERMS";
     /// <summary>CAT-032 Domicilio Fiscal (Codigo = codigoMH).</summary>
     public const string DomicilioFiscal = "DOMICILIO_FISCAL";
+
+    // ---- Mejoras 4+6 — catálogos por empresa ----
+    /// <summary>Categorías de producto por empresa (SALUD, HIGIENE, …). No es de Hacienda.</summary>
+    public const string CategoriaProducto = "CATEGORIA_PRODUCTO";
 }
 
 /// <summary>

@@ -4,6 +4,7 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Productos;
 using NeoSTP.Application.Productos.Dtos;
 using NeoSTP.Domain.Common;
+using NeoSTP.Domain.Core.Catalogos;
 using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -23,7 +24,7 @@ public class ProductosService : IProductosService
         _auditoria = auditoria;
     }
 
-    public async Task<Result<PagedResult<ProductoDto>>> GetListAsync(int empresaId, PagedQuery query, CancellationToken ct = default)
+    public async Task<Result<PagedResult<ProductoDto>>> GetListAsync(int empresaId, PagedQuery query, string? categoria = null, CancellationToken ct = default)
     {
         var q = _db.Productos.AsNoTracking().Where(p => p.EmpresaId == empresaId);
 
@@ -33,6 +34,12 @@ public class ProductosService : IProductosService
             q = q.Where(p => EF.Functions.Like(p.Nombre, $"%{s}%")
                           || EF.Functions.Like(p.CodigoInterno, $"%{s}%")
                           || EF.Functions.Like(p.CodigoBarra ?? string.Empty, $"%{s}%"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(categoria))
+        {
+            var cat = categoria.Trim().ToUpperInvariant();
+            q = q.Where(p => p.CategoriaCodigo == cat);
         }
 
         var total = await q.CountAsync(ct);
@@ -46,6 +53,27 @@ public class ProductosService : IProductosService
             .ToListAsync(ct);
 
         return Result<PagedResult<ProductoDto>>.Ok(PagedResult<ProductoDto>.Create(items, total, page, pageSize));
+    }
+
+    public async Task<Result<IReadOnlyList<string>>> GetCategoriasAsync(int empresaId, CancellationToken ct = default)
+    {
+        var enUso = await _db.Productos.AsNoTracking()
+            .Where(p => p.EmpresaId == empresaId && p.CategoriaCodigo != null)
+            .Select(p => p.CategoriaCodigo!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var definidas = await _db.CatalogoItems.AsNoTracking()
+            .Where(i => i.Catalogo.Codigo == CatalogCodes.CategoriaProducto
+                     && i.Catalogo.EmpresaId == empresaId
+                     && i.Activo)
+            .Select(i => i.Codigo)
+            .ToListAsync(ct);
+
+        var todas = enUso.Union(definidas, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return Result<IReadOnlyList<string>>.Ok(todas);
     }
 
     public async Task<Result<ProductoDto>> GetByIdAsync(int empresaId, int id, CancellationToken ct = default)
@@ -68,10 +96,12 @@ public class ProductosService : IProductosService
             return Result<ProductoDto>.Fail($"Ya existe un producto con código {codigo}.", "PRODUCTO_DUPLICATE");
 
         var tipo = request.TipoItem.Trim().ToUpperInvariant();
+        var categoriaCodigo = await EnsureCategoriaAsync(empresaId, request.CategoriaCodigo, actor, ct);
         var producto = new Producto
         {
             EmpresaId = empresaId,
             CodigoInterno = codigo,
+            CategoriaCodigo = categoriaCodigo,
             CodigoBarra = string.IsNullOrWhiteSpace(request.CodigoBarra) ? null : request.CodigoBarra.Trim(),
             Nombre = request.Nombre.Trim(),
             Descripcion = request.Descripcion,
@@ -103,6 +133,7 @@ public class ProductosService : IProductosService
         producto.CodigoBarra = string.IsNullOrWhiteSpace(request.CodigoBarra) ? null : request.CodigoBarra.Trim();
         producto.Nombre = request.Nombre.Trim();
         producto.Descripcion = request.Descripcion;
+        producto.CategoriaCodigo = await EnsureCategoriaAsync(empresaId, request.CategoriaCodigo, actor, ct);
         producto.TipoItem = request.TipoItem.Trim().ToUpperInvariant();
         producto.UnidadMedidaCodigo = request.UnidadMedidaCodigo.Trim().ToUpperInvariant();
         producto.PrecioUnitario = request.PrecioUnitario;
@@ -169,6 +200,7 @@ public class ProductosService : IProductosService
                 CodigoBarra = row.Get("codigobarra"),
                 Nombre = row.Get("nombre") ?? string.Empty,
                 Descripcion = row.Get("descripcion"),
+                CategoriaCodigo = row.Get("categoria") ?? row.Get("categoriacodigo"),
                 TipoItem = row.Get("tipo") ?? row.Get("tipoitem") ?? "BIEN",
                 UnidadMedidaCodigo = row.Get("unidadmedida") ?? row.Get("unidadmedidacodigo") ?? "59",
                 PrecioUnitario = precio,
@@ -185,6 +217,11 @@ public class ProductosService : IProductosService
             }
 
             var codigo = req.CodigoInterno.Trim().ToUpperInvariant();
+            // En dry-run no se materializan categorías nuevas; solo se normaliza el código.
+            req.CategoriaCodigo = request.DryRun
+                ? req.CategoriaCodigo?.Trim().ToUpperInvariant()
+                : await EnsureCategoriaAsync(empresaId, req.CategoriaCodigo, actor, ct);
+
             if (existentes.TryGetValue(codigo, out var existing))
             {
                 if (!request.DryRun) ApplyUpdate(existing, req, actor);
@@ -208,10 +245,59 @@ public class ProductosService : IProductosService
         return Result<BulkImportResult>.Ok(result);
     }
 
+    /// <summary>
+    /// Normaliza la categoría y garantiza que exista como ítem del catálogo por empresa
+    /// CATEGORIA_PRODUCTO, creando catálogo e ítem si hace falta (se persisten con el
+    /// mismo SaveChanges del producto).
+    /// </summary>
+    private async Task<string?> EnsureCategoriaAsync(int empresaId, string? categoria, string? actor, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(categoria)) return null;
+        var valor = categoria.Trim();
+        var codigo = valor.ToUpperInvariant();
+
+        var catalogo = _db.Catalogos.Local.FirstOrDefault(
+                c => c.Codigo == CatalogCodes.CategoriaProducto && c.EmpresaId == empresaId)
+            ?? await _db.Catalogos.FirstOrDefaultAsync(
+                c => c.Codigo == CatalogCodes.CategoriaProducto && c.EmpresaId == empresaId, ct);
+        if (catalogo is null)
+        {
+            catalogo = new Catalogo
+            {
+                Codigo = CatalogCodes.CategoriaProducto,
+                Nombre = "Categorías de producto",
+                Descripcion = "Categorías propias de la empresa para clasificar productos.",
+                EsSistema = false,
+                Activo = true,
+                EmpresaId = empresaId,
+                CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+            };
+            _db.Catalogos.Add(catalogo);
+        }
+
+        var existe = _db.CatalogoItems.Local.Any(i => i.Catalogo == catalogo && i.Codigo == codigo)
+            || (catalogo.Id != 0 && await _db.CatalogoItems.AnyAsync(i => i.CatalogoId == catalogo.Id && i.Codigo == codigo, ct));
+        if (!existe)
+        {
+            _db.CatalogoItems.Add(new CatalogoItem
+            {
+                Catalogo = catalogo,
+                Codigo = codigo,
+                Valor = valor,
+                EsSistema = false,
+                Activo = true,
+                CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+            });
+        }
+
+        return codigo;
+    }
+
     private static Producto BuildProducto(int empresaId, CreateProductoRequest req, string codigo, string? actor) => new()
     {
         EmpresaId = empresaId,
         CodigoInterno = codigo,
+        CategoriaCodigo = string.IsNullOrWhiteSpace(req.CategoriaCodigo) ? null : req.CategoriaCodigo,
         CodigoBarra = string.IsNullOrWhiteSpace(req.CodigoBarra) ? null : req.CodigoBarra.Trim(),
         Nombre = req.Nombre.Trim(),
         Descripcion = req.Descripcion,
@@ -227,6 +313,7 @@ public class ProductosService : IProductosService
 
     private static void ApplyUpdate(Producto p, CreateProductoRequest req, string? actor)
     {
+        p.CategoriaCodigo = string.IsNullOrWhiteSpace(req.CategoriaCodigo) ? null : req.CategoriaCodigo;
         p.CodigoBarra = string.IsNullOrWhiteSpace(req.CodigoBarra) ? null : req.CodigoBarra.Trim();
         p.Nombre = req.Nombre.Trim();
         p.Descripcion = req.Descripcion;
@@ -271,6 +358,7 @@ public class ProductosService : IProductosService
         CodigoInterno = p.CodigoInterno, CodigoBarra = p.CodigoBarra,
         Nombre = p.Nombre, Descripcion = p.Descripcion,
         TipoItem = p.TipoItem, EsServicio = p.EsServicio,
+        CategoriaCodigo = p.CategoriaCodigo,
         UnidadMedidaCodigo = p.UnidadMedidaCodigo,
         PrecioUnitario = p.PrecioUnitario, CostoUnitario = p.CostoUnitario,
         AplicaIva = p.AplicaIva, TributoCodigo = p.TributoCodigo,

@@ -10,6 +10,8 @@ public class ProductoDto
     public string? Descripcion { get; set; }
     public string TipoItem { get; set; } = "BIEN";
     public bool EsServicio { get; set; }
+    /// <summary>Categoría del catálogo por empresa CATEGORIA_PRODUCTO.</summary>
+    public string? CategoriaCodigo { get; set; }
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }
@@ -26,6 +28,8 @@ public class CreateProductoRequest
     public string Nombre { get; set; } = null!;
     public string? Descripcion { get; set; }
     public string TipoItem { get; set; } = "BIEN";
+    /// <summary>Categoría (catálogo por empresa CATEGORIA_PRODUCTO). Se crea sola si no existe.</summary>
+    public string? CategoriaCodigo { get; set; }
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }

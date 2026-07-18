@@ -23,10 +23,10 @@ public class ProductosController : ApiControllerBase
 
     [HttpGet]
     [RequirePermiso("Productos.Ver")]
-    public async Task<IActionResult> List([FromQuery] PagedQuery query, [FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> List([FromQuery] PagedQuery query, [FromQuery] int? empresaId, [FromQuery] string? categoria, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _service.GetListAsync(eid, query, ct));
+        return Respond(await _service.GetListAsync(eid, query, categoria, ct));
     }
 
     [HttpGet("{id:int}")]

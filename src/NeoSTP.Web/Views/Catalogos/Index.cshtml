@@ -22,7 +22,7 @@
     </div>
     @if (puedeAdministrar)
     {
-        <a asp-action="Create" class="btn btn-primary disabled" title="Creación inline disponible vía API">
+        <a asp-action="Create" class="btn btn-primary">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">add_circle</span>
             Nuevo catálogo
         </a>
@@ -123,6 +123,12 @@
                                 <a asp-action="Details" asp-route-codigo="@c.Codigo" class="ns-action-btn ns-action-btn--primary" title="Ver detalle del catálogo">
                                     <span class="material-symbols-outlined">visibility</span>
                                 </a>
+                                @if (puedeAdministrar && c.EmpresaId == empresaId)
+                                {
+                                    <a asp-action="Edit" asp-route-codigo="@c.Codigo" class="ns-action-btn" title="Editar catálogo">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </a>
+                                }
                                 <a asp-action="Export" asp-route-codigo="@c.Codigo" asp-route-format="Csv" class="ns-action-btn" title="Exportar CSV">
                                     <span class="material-symbols-outlined">download</span>
                                 </a>

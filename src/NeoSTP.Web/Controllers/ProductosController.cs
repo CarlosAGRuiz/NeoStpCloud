@@ -66,13 +66,15 @@ public class ProductosController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] int page = 1, CancellationToken ct = default)
+    public async Task<IActionResult> Index([FromQuery] string? search, [FromQuery] string? categoria, [FromQuery] int page = 1, CancellationToken ct = default)
     {
         if (!Has("Productos.Ver")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
-        var result = await _productos.GetListAsync(eid, new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
+        var result = await _productos.GetListAsync(eid, new PagedQuery { Search = search, Page = page, PageSize = 20 }, categoria, ct);
         ViewBag.Search = search;
+        ViewBag.Categoria = categoria;
+        ViewBag.Categorias = (await _productos.GetCategoriasAsync(eid, ct)).Value ?? Array.Empty<string>();
         return View(result.Value);
     }
 
@@ -126,6 +128,7 @@ public class ProductosController : Controller
             CodigoBarra = p.CodigoBarra,
             Nombre = p.Nombre,
             Descripcion = p.Descripcion,
+            CategoriaCodigo = p.CategoriaCodigo,
             TipoItem = p.TipoItem,
             UnidadMedidaCodigo = p.UnidadMedidaCodigo,
             PrecioUnitario = p.PrecioUnitario,
@@ -154,6 +157,7 @@ public class ProductosController : Controller
             CodigoBarra = model.CodigoBarra,
             Nombre = model.Nombre,
             Descripcion = model.Descripcion,
+            CategoriaCodigo = model.CategoriaCodigo,
             TipoItem = model.TipoItem,
             UnidadMedidaCodigo = model.UnidadMedidaCodigo,
             PrecioUnitario = model.PrecioUnitario,
@@ -204,6 +208,7 @@ public class ProductosController : Controller
         CodigoBarra = m.CodigoBarra,
         Nombre = m.Nombre,
         Descripcion = m.Descripcion,
+        CategoriaCodigo = m.CategoriaCodigo,
         TipoItem = m.TipoItem,
         UnidadMedidaCodigo = m.UnidadMedidaCodigo,
         PrecioUnitario = m.PrecioUnitario,
@@ -236,5 +241,10 @@ public class ProductosController : Controller
 
         ViewBag.UnidadesMedida = await Items("UNIDAD_MEDIDA");
         ViewBag.Estados = await Items("ESTADO_GENERICO");
+
+        if (_empresaContext.CurrentEmpresaId is int eid)
+            ViewBag.Categorias = (await _productos.GetCategoriasAsync(eid, ct)).Value ?? Array.Empty<string>();
+        else
+            ViewBag.Categorias = Array.Empty<string>();
     }
 }

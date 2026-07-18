@@ -3,6 +3,9 @@
     var catalogo = (NeoSTP.Application.Catalogos.Dtos.CatalogoDto)ViewBag.Catalogo;
     var parent = ViewBag.ParentFilter as string;
     var puedeImportar = ViewBag.PuedeImportar is bool pi && pi;
+    var puedeAdministrar = ViewBag.PuedeAdministrar is bool pa && pa;
+    var esEditable = ViewBag.EsEditable is bool ee && ee;
+    var puedeEditarItems = puedeAdministrar && esEditable;
     var activos = Model.Count(i => i.Activo);
     var conPadre = Model.Count(i => !string.IsNullOrWhiteSpace(i.ParentCodigo));
     ViewData["Title"] = $"Catálogo: {catalogo.Codigo}";
@@ -36,6 +39,13 @@
         </div>
     </div>
     <div class="ns-page-actions">
+        @if (puedeEditarItems)
+        {
+            <a asp-action="Edit" asp-route-codigo="@catalogo.Codigo" class="btn btn-outline-secondary">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">edit</span>
+                Editar catálogo
+            </a>
+        }
         @if (puedeImportar)
         {
             <a asp-action="Import" asp-route-codigo="@catalogo.Codigo" class="btn @(catalogo.EsSistema ? "btn-outline-secondary" : "btn-primary")">
@@ -60,6 +70,45 @@
 @if (TempData["Success"] is string ok)
 {
     <div class="alert alert-success alert-dismissible fade show">@ok <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show">@err <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (puedeEditarItems)
+{
+    <div class="card ns-data-card mb-4">
+        <div class="card-body">
+            <h2 class="h6 mb-3"><span class="material-symbols-outlined align-middle" style="font-size:18px">add_circle</span> Agregar ítem</h2>
+            <form asp-action="CreateItem" asp-route-codigo="@catalogo.Codigo" method="post" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="col-md-2">
+                    <label class="form-label small">Código</label>
+                    <input name="Codigo" class="form-control text-uppercase" required maxlength="30" placeholder="SALUD" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Valor</label>
+                    <input name="Valor" class="form-control" required maxlength="250" placeholder="Salud" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Descripción</label>
+                    <input name="Descripcion" class="form-control" maxlength="500" />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small">Orden</label>
+                    <input name="Orden" type="number" class="form-control" value="0" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small">Padre</label>
+                    <input name="ParentCodigo" class="form-control" maxlength="30" placeholder="(opcional)" />
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">Agregar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 }
 
 @if (catalogo.EsSistema)
@@ -103,13 +152,17 @@
                     <th style="width:12%">Padre</th>
                     <th class="text-center" style="width:10%">Origen</th>
                     <th class="text-center" style="width:9%">Estado</th>
+                    @if (puedeEditarItems)
+                    {
+                        <th class="text-end" style="width:10%">Acciones</th>
+                    }
                 </tr>
             </thead>
             <tbody>
                 @if (Model.Count == 0)
                 {
                     <tr>
-                        <td colspan="7">
+                        <td colspan="@(puedeEditarItems ? 8 : 7)">
                             <div class="ns-empty">
                                 <span class="material-symbols-outlined">menu_book</span>
                                 <p>Sin ítems para los criterios indicados.</p>
@@ -149,6 +202,26 @@
                         <td class="text-center">
                             <span class="ns-status-dot @(i.Activo ? "ns-status-dot--on" : "")" title="@(i.Activo ? "Activo" : "Inactivo")"></span>
                         </td>
+                        @if (puedeEditarItems)
+                        {
+                            <td class="text-end">
+                                <span class="ns-row-actions">
+                                    <a asp-action="EditItem" asp-route-codigo="@catalogo.Codigo" asp-route-itemId="@i.Id" class="ns-action-btn" title="Editar ítem">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </a>
+                                    @if (!i.EsSistema)
+                                    {
+                                        <form asp-action="DeleteItem" asp-route-codigo="@catalogo.Codigo" asp-route-itemId="@i.Id" method="post" class="d-inline"
+                                              onsubmit="return confirm('¿Eliminar el ítem @i.Codigo?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="ns-action-btn" title="Eliminar ítem" style="border:none;background:none">
+                                                <span class="material-symbols-outlined">delete</span>
+                                            </button>
+                                        </form>
+                                    }
+                                </span>
+                            </td>
+                        }
                     </tr>
                 }
             </tbody>

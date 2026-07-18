@@ -2,6 +2,7 @@
 @{
     var unidades = (ViewBag.UnidadesMedida as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var tipos = new[] { "BIEN", "SERVICIO" };
+    var categorias = (ViewBag.Categorias as IReadOnlyList<string>) ?? Array.Empty<string>();
 }
 
 <div class="row g-3">
@@ -21,10 +22,18 @@
         </select>
     </div>
 
-    <div class="col-md-12">
+    <div class="col-md-8">
         <label asp-for="Nombre" class="form-label"></label>
         <input asp-for="Nombre" class="form-control" />
         <span asp-validation-for="Nombre" class="text-danger small"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="CategoriaCodigo" class="form-label"></label>
+        <input asp-for="CategoriaCodigo" class="form-control text-uppercase" list="categoriasList" placeholder="SALUD, HIGIENE…" />
+        <datalist id="categoriasList">
+            @foreach (var c in categorias) { <option value="@c"></option> }
+        </datalist>
+        <div class="form-text">Escribe una nueva o elige una existente; se guarda en tu catálogo de categorías.</div>
     </div>
     <div class="col-md-12">
         <label asp-for="Descripcion" class="form-label"></label>

@@ -329,7 +329,7 @@ public class ComprasController : Controller
 
     private async Task CargarProductosInventarioAsync(int eid, CancellationToken ct)
     {
-        var prods = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct);
+        var prods = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct: ct);
         ViewBag.Productos = prods.Value?.Items
             .Where(p => p.EstadoCodigo == "ACTIVO" && !p.EsServicio).ToList() ?? new List<ProductoDto>();
     }
@@ -337,7 +337,7 @@ public class ComprasController : Controller
     private async Task CargarCatalogosOrdenAsync(int eid, CancellationToken ct)
     {
         await CargarProveedoresAsync(eid, ct);
-        var prods = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct);
+        var prods = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct: ct);
         ViewBag.Productos = prods.Value?.Items.Where(p => p.EstadoCodigo == "ACTIVO").ToList()
             ?? new List<ProductoDto>();
     }

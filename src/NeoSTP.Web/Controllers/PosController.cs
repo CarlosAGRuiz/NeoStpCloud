@@ -65,7 +65,7 @@ public class PosController : Controller
         if (!Has("Pos.Vender")) return Forbid();
         if (RequireEmpresa() is not int eid) return Json(Array.Empty<object>());
 
-        var result = await _productos.GetListAsync(eid, new PagedQuery { Search = term, Page = 1, PageSize = 15 }, ct);
+        var result = await _productos.GetListAsync(eid, new PagedQuery { Search = term, Page = 1, PageSize = 15 }, ct: ct);
         var items = (result.Value?.Items ?? (IReadOnlyList<ProductoDto>)Array.Empty<ProductoDto>())
             .Where(p => p.EstadoCodigo == "ACTIVO")
             .Select(p => new { id = p.Id, codigo = p.CodigoInterno, nombre = p.Nombre, precio = p.PrecioUnitario, iva = p.AplicaIva });

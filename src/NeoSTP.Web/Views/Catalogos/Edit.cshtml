@@ -1,0 +1,47 @@
+@model NeoSTP.Web.Models.EditCatalogoViewModel
+@{
+    ViewData["Title"] = $"Editar {Model.Codigo}";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb">
+            <a asp-controller="Home" asp-action="Index">Inicio</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <a asp-action="Index">Catálogos</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+            <span>@Model.Codigo</span>
+        </nav>
+        <h1 class="ns-page-title">Editar catálogo <code class="ns-code-token">@Model.Codigo</code></h1>
+    </div>
+</div>
+
+<div class="card ns-data-card" style="max-width:720px">
+    <div class="card-body">
+        <div asp-validation-summary="All" class="text-danger small mb-3"></div>
+        <form asp-action="Edit" asp-route-codigo="@Model.Codigo" method="post">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label asp-for="Nombre" class="form-label"></label>
+                    <input asp-for="Nombre" class="form-control" />
+                    <span asp-validation-for="Nombre" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                        <input asp-for="Activo" class="form-check-input" type="checkbox" />
+                        <label asp-for="Activo" class="form-check-label"></label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Descripcion" class="form-label"></label>
+                    <textarea asp-for="Descripcion" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                <a asp-action="Details" asp-route-codigo="@Model.Codigo" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>

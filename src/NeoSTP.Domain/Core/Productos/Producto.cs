@@ -19,6 +19,12 @@ public class Producto : AuditableEntity
     /// <summary>BIEN o SERVICIO.</summary>
     public string TipoItem { get; set; } = "BIEN";
 
+    /// <summary>
+    /// Categoría del producto: código de ítem del catálogo por empresa
+    /// CATEGORIA_PRODUCTO (p. ej. SALUD, HIGIENE en una farmacia). Libre por rubro.
+    /// </summary>
+    public string? CategoriaCodigo { get; set; }
+
     /// <summary>Código MH del catálogo CAT-014 UNIDAD_MEDIDA (59=Unidad, 58=Docena, 22=Galón…).</summary>
     public string UnidadMedidaCodigo { get; set; } = "59";
 

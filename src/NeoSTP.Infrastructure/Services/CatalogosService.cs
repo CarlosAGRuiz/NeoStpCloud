@@ -61,6 +61,8 @@ public class CatalogosService : ICatalogosService
 
         var dto = await _db.Catalogos.AsNoTracking()
             .Where(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId))
+            // El catálogo propio de la empresa gana sobre el global del sistema.
+            .OrderByDescending(c => c.EmpresaId != null)
             .Select(c => new CatalogoDto
             {
                 Id = c.Id,
@@ -87,7 +89,9 @@ public class CatalogosService : ICatalogosService
         if (codigo is null) return Result<IReadOnlyList<CatalogoItemDto>>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
 
         var catalogo = await _db.Catalogos.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId), ct);
+            .Where(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId))
+            .OrderByDescending(c => c.EmpresaId != null)
+            .FirstOrDefaultAsync(ct);
         if (catalogo is null)
         {
             return Result<IReadOnlyList<CatalogoItemDto>>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
@@ -144,6 +148,15 @@ public class CatalogosService : ICatalogosService
         if (await _db.Catalogos.AnyAsync(c => c.Codigo == codigo && c.EmpresaId == empresaId && c.Version == version, ct))
         {
             return Result<CatalogoDto>.Fail($"Ya existe un catÃ¡logo {codigo} v{version} en este Ã¡mbito.", "CAT_DUPLICATE");
+        }
+
+        // Una empresa no puede reutilizar el código de un catálogo del sistema:
+        // taparía un catálogo fiscal (PAIS, TRIBUTO, …) para toda su operación.
+        if (empresaId is not null
+            && await _db.Catalogos.AnyAsync(c => c.Codigo == codigo && c.EmpresaId == null, ct))
+        {
+            return Result<CatalogoDto>.Fail(
+                $"El código {codigo} pertenece a un catálogo del sistema. Usa otro código.", "CAT_SYSTEM_CODE");
         }
 
         var catalogo = new Catalogo
@@ -469,7 +482,9 @@ public class CatalogosService : ICatalogosService
         if (codigo is null) return Result<CatalogoExportFile>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
 
         var catalogo = await _db.Catalogos.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId), ct);
+            .Where(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId))
+            .OrderByDescending(c => c.EmpresaId != null)
+            .FirstOrDefaultAsync(ct);
         if (catalogo is null) return Result<CatalogoExportFile>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
 
         var items = await _db.CatalogoItems.AsNoTracking()

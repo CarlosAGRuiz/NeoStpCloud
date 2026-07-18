@@ -325,7 +325,7 @@ public class CrmController : Controller
 
     private async Task CargarProductosAsync(int eid, CancellationToken ct)
     {
-        var productos = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct);
+        var productos = await _productos.GetListAsync(eid, new PagedQuery { Page = 1, PageSize = 1000 }, ct: ct);
         ViewBag.Productos = productos.Value?.Items
             .Where(p => p.EstadoCodigo == "ACTIVO").ToList() ?? new List<NeoSTP.Application.Productos.Dtos.ProductoDto>();
     }

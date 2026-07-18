@@ -16,6 +16,9 @@ public class CreateProductoViewModel
     [StringLength(1000), Display(Name = "Descripción")]
     public string? Descripcion { get; set; }
 
+    [StringLength(30), Display(Name = "Categoría")]
+    public string? CategoriaCodigo { get; set; }
+
     [Required, Display(Name = "Tipo")]
     public string TipoItem { get; set; } = "BIEN";
 

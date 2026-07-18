@@ -2,6 +2,8 @@
 @{
     ViewData["Title"] = "Productos";
     var search = ViewBag.Search as string;
+    var categoria = ViewBag.Categoria as string;
+    var categorias = (ViewBag.Categorias as IReadOnlyList<string>) ?? Array.Empty<string>();
 }
 
 <div class="ns-page-head">
@@ -25,6 +27,13 @@
 <div class="ns-toolbar">
     <form method="get" class="ns-toolbar-search">
         <input name="search" value="@search" class="form-control form-control-sm" style="min-width:280px" placeholder="Buscar código, nombre o barra…" />
+        <select name="categoria" class="form-select form-select-sm" style="max-width:220px" onchange="this.form.submit()">
+            <option value="">Todas las categorías</option>
+            @foreach (var c in categorias)
+            {
+                <option value="@c" selected="@(string.Equals(c, categoria, StringComparison.OrdinalIgnoreCase))">@c</option>
+            }
+        </select>
         <button type="submit" class="btn btn-outline-secondary btn-sm">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">search</span> Buscar
         </button>
@@ -57,7 +66,14 @@
                     var tipoBadge = p.EsServicio ? "bg-warning text-dark" : "bg-info";
                     <tr>
                         <td><strong>@p.CodigoInterno</strong>@(p.CodigoBarra is null ? "" : $" / {p.CodigoBarra}")</td>
-                        <td>@p.Nombre<br /><small class="text-muted">@p.Descripcion</small></td>
+                        <td>
+                            @p.Nombre
+                            @if (!string.IsNullOrEmpty(p.CategoriaCodigo))
+                            {
+                                <span class="ns-badge ns-badge--info ms-1">@p.CategoriaCodigo</span>
+                            }
+                            <br /><small class="text-muted">@p.Descripcion</small>
+                        </td>
                         <td><span class="badge @tipoBadge">@p.TipoItem</span></td>
                         <td><small>@p.UnidadMedidaCodigo</small></td>
                         <td class="text-end">@p.PrecioUnitario.ToString("N4")</td>
@@ -93,7 +109,7 @@
         @for (int i = 1; i <= Model.TotalPages; i++)
         {
             <li class="page-item @(i == Model.Page ? "active" : "")">
-                <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search">@i</a>
+                <a class="page-link" asp-action="Index" asp-route-page="@i" asp-route-search="@search" asp-route-categoria="@categoria">@i</a>
             </li>
         }
     </ul></nav>
