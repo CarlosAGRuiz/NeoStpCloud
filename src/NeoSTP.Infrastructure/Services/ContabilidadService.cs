@@ -217,7 +217,9 @@ public class ContabilidadService : IContabilidadService
         {
             EmpresaId = empresaId,
             Numero = $"ASI-{correlativo + 1:000000}",
-            Fecha = DateOnly.FromDateTime(DateTime.UtcNow),
+            // La reversa se registra en el período del original para que la balanza
+            // de ese período siempre netee (no existe cierre de períodos).
+            Fecha = original.Fecha,
             Concepto = $"Reversa de {original.Numero}" + (string.IsNullOrWhiteSpace(motivo) ? "" : $": {motivo.Trim()}"),
             Origen = OrigenesAsiento.Reversa,
             OrigenId = original.Id,
