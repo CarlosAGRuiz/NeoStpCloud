@@ -42,6 +42,10 @@ builder.Services.AddBackgroundTaskQueue();
 
 var host = builder.Build();
 
+// Fail-fast: en Producción no se arranca con providers Mock (whatsapp, push, etc.).
+NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(
+    builder.Configuration, builder.Environment);
+
 try
 {
     Log.Information("Iniciando NeoSTP.Worker host");

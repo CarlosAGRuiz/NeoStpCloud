@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Cobranza;
@@ -107,7 +107,7 @@ public class RecordatorioCobroService : IRecordatorioCobroService
     {
         if (!request.Forzar)
         {
-            // Ventana de frecuencia: omite si ya se enviÃ³ dentro de los Ãºltimos N dÃ­as.
+            // Ventana de frecuencia: omite si ya se envió dentro de los últimos N días.
             var frecuencia = Math.Clamp(request.FrecuenciaDias, 1, 60);
             var desde = fecha.AddDays(-(frecuencia - 1));
             var yaExiste = await _db.RecordatoriosCobro.AsNoTracking()
@@ -250,7 +250,7 @@ public class RecordatorioCobroService : IRecordatorioCobroService
         Motivo = motivo,
     };
 
-    // â”€â”€ ConfiguraciÃ³n por empresa (V2-D3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Configuración por empresa (V2-D3) ────────────────────────────────────
 
     public async Task<Result<RecordatorioCobroResumenDto>> EjecutarSegunConfiguracionAsync(int empresaId, string? actor, CancellationToken ct = default)
     {
@@ -258,7 +258,7 @@ public class RecordatorioCobroService : IRecordatorioCobroService
             .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
         if (config is null || !config.Activo)
             return Result<RecordatorioCobroResumenDto>.Fail(
-                "Los recordatorios automÃ¡ticos no estÃ¡n activos para esta empresa.", "RECORDATORIOS_DESHABILITADOS");
+                "Los recordatorios automáticos no están activos para esta empresa.", "RECORDATORIOS_DESHABILITADOS");
 
         return await EjecutarAsync(empresaId, new EjecutarRecordatoriosCobroRequest
         {

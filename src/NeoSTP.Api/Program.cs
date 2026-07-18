@@ -92,6 +92,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Fail-fast: en Producción no se arranca con providers Mock (correo, billing, scan, whatsapp, push).
+NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(app.Configuration, app.Environment);
+
 // Aplicar migraciones + seed inicial al arrancar
 await DatabaseSeeder.SeedAsync(app.Services);
 // Provisioning idempotente de la empresa de pruebas (Sprint 11) — solo si EmpresaPrueba:Enabled=true

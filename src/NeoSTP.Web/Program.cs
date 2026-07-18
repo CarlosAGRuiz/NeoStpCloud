@@ -65,6 +65,9 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Fail-fast: en Producción no se arranca con providers Mock (correo, billing, scan, push).
+NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(app.Configuration, app.Environment);
+
 // Aplicar migraciones + seed al arrancar (idempotente). Garantiza que la Web tenga el
 // esquema al día aunque se ejecute sin la API; EF serializa con __EFMigrationsLock.
 await NeoSTP.Infrastructure.Persistence.Seed.DatabaseSeeder.SeedAsync(app.Services);

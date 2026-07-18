@@ -31,4 +31,12 @@ jobs:
         run: dotnet build NeoSTP.slnx -c Release --no-restore
 
       - name: Test (unit + integración)
-        run: dotnet test NeoSTP.slnx -c Release --no-build --verbosity normal
+        run: dotnet test NeoSTP.slnx -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+      - name: Publicar cobertura como artefacto
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura
+          path: coverage/**/coverage.cobertura.xml
+          retention-days: 30

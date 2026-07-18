@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Catalogos.Dtos;
@@ -57,7 +57,7 @@ public class CatalogosService : ICatalogosService
     public async Task<Result<CatalogoDto>> GetByCodigoAsync(string codigoCatalogo, int? empresaId, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
-        if (codigo is null) return Result<CatalogoDto>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
+        if (codigo is null) return Result<CatalogoDto>.Fail("Código de catálogo requerido.", "VALIDATION");
 
         var dto = await _db.Catalogos.AsNoTracking()
             .Where(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId))
@@ -79,14 +79,14 @@ public class CatalogosService : ICatalogosService
             .FirstOrDefaultAsync(ct);
 
         return dto is null
-            ? Result<CatalogoDto>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND")
+            ? Result<CatalogoDto>.Fail($"Catálogo {codigo} no encontrado.", "CAT_NOT_FOUND")
             : Result<CatalogoDto>.Ok(dto);
     }
 
     public async Task<Result<IReadOnlyList<CatalogoItemDto>>> GetItemsAsync(string codigoCatalogo, int? empresaId, string? parentCodigo = null, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
-        if (codigo is null) return Result<IReadOnlyList<CatalogoItemDto>>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
+        if (codigo is null) return Result<IReadOnlyList<CatalogoItemDto>>.Fail("Código de catálogo requerido.", "VALIDATION");
 
         var catalogo = await _db.Catalogos.AsNoTracking()
             .Where(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId))
@@ -94,7 +94,7 @@ public class CatalogosService : ICatalogosService
             .FirstOrDefaultAsync(ct);
         if (catalogo is null)
         {
-            return Result<IReadOnlyList<CatalogoItemDto>>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
+            return Result<IReadOnlyList<CatalogoItemDto>>.Fail($"Catálogo {codigo} no encontrado.", "CAT_NOT_FOUND");
         }
 
         var q = _db.CatalogoItems.AsNoTracking().Where(i => i.CatalogoId == catalogo.Id);
@@ -102,7 +102,7 @@ public class CatalogosService : ICatalogosService
         if (parentCodigo is not null)
         {
             var parent = parentCodigo.Trim();
-            // ConvenciÃ³n: ?parent=__ROOT__ â†’ solo Ã­tems sin padre. Cadena vacÃ­a == sin filtro.
+            // Convención: ?parent=__ROOT__ → solo ítems sin padre. Cadena vacía == sin filtro.
             if (parent.Equals("__ROOT__", StringComparison.OrdinalIgnoreCase))
             {
                 q = q.Where(i => i.ParentCodigo == null);
@@ -133,21 +133,21 @@ public class CatalogosService : ICatalogosService
         return Result<IReadOnlyList<CatalogoItemDto>>.Ok(items);
     }
 
-    // -------------------------------------------------------- CRUD catÃ¡logos
+    // -------------------------------------------------------- CRUD catálogos
 
     public async Task<Result<CatalogoDto>> CreateAsync(int? empresaId, CreateCatalogoRequest request, string? actor, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(request.Codigo);
         if (codigo is null || string.IsNullOrWhiteSpace(request.Nombre))
         {
-            return Result<CatalogoDto>.Fail("CÃ³digo y nombre son obligatorios.", "VALIDATION");
+            return Result<CatalogoDto>.Fail("Código y nombre son obligatorios.", "VALIDATION");
         }
 
         var version = request.Version <= 0 ? 1 : request.Version;
 
         if (await _db.Catalogos.AnyAsync(c => c.Codigo == codigo && c.EmpresaId == empresaId && c.Version == version, ct))
         {
-            return Result<CatalogoDto>.Fail($"Ya existe un catÃ¡logo {codigo} v{version} en este Ã¡mbito.", "CAT_DUPLICATE");
+            return Result<CatalogoDto>.Fail($"Ya existe un catálogo {codigo} v{version} en este ámbito.", "CAT_DUPLICATE");
         }
 
         // Una empresa no puede reutilizar el código de un catálogo del sistema:
@@ -174,7 +174,7 @@ public class CatalogosService : ICatalogosService
         };
         _db.Catalogos.Add(catalogo);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "CREATE", $"CatÃ¡logo {catalogo.Codigo} v{catalogo.Version} creado", "Catalogo", catalogo.Id);
+        await Audit(empresaId, actor, "CREATE", $"Catálogo {catalogo.Codigo} v{catalogo.Version} creado", "Catalogo", catalogo.Id);
         await InvalidarLookupsAsync(ct);
 
         return Result<CatalogoDto>.Ok(ToDto(catalogo, 0));
@@ -185,20 +185,20 @@ public class CatalogosService : ICatalogosService
         var codigo = NormalizeCodigo(codigoCatalogo);
         if (codigo is null || string.IsNullOrWhiteSpace(request.Nombre))
         {
-            return Result<CatalogoDto>.Fail("CÃ³digo y nombre son obligatorios.", "VALIDATION");
+            return Result<CatalogoDto>.Fail("Código y nombre son obligatorios.", "VALIDATION");
         }
 
         var catalogo = await _db.Catalogos.FirstOrDefaultAsync(c => c.Codigo == codigo && c.EmpresaId == empresaId, ct);
-        if (catalogo is null) return Result<CatalogoDto>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
+        if (catalogo is null) return Result<CatalogoDto>.Fail($"Catálogo {codigo} no encontrado.", "CAT_NOT_FOUND");
 
         catalogo.Nombre = request.Nombre.Trim();
         catalogo.Descripcion = request.Descripcion?.Trim();
         if (request.Activo is bool act)
         {
-            // Bloquear inactivar catÃ¡logos del sistema (regla: no se eliminan/desactivan).
+            // Bloquear inactivar catálogos del sistema (regla: no se eliminan/desactivan).
             if (catalogo.EsSistema && !act)
             {
-                return Result<CatalogoDto>.Fail("Los catÃ¡logos del sistema no pueden inactivarse.", "CAT_SYSTEM_NOT_EDITABLE");
+                return Result<CatalogoDto>.Fail("Los catálogos del sistema no pueden inactivarse.", "CAT_SYSTEM_NOT_EDITABLE");
             }
             catalogo.Activo = act;
         }
@@ -207,32 +207,32 @@ public class CatalogosService : ICatalogosService
         catalogo.UpdatedAt = DateTime.UtcNow;
         catalogo.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "UPDATE", $"CatÃ¡logo {catalogo.Codigo} v{catalogo.Version} actualizado", "Catalogo", catalogo.Id);
+        await Audit(empresaId, actor, "UPDATE", $"Catálogo {catalogo.Codigo} v{catalogo.Version} actualizado", "Catalogo", catalogo.Id);
         await InvalidarLookupsAsync(ct);
 
         var totalItems = await _db.CatalogoItems.AsNoTracking().CountAsync(i => i.CatalogoId == catalogo.Id && i.Activo, ct);
         return Result<CatalogoDto>.Ok(ToDto(catalogo, totalItems));
     }
 
-    // ------------------------------------------------------------ CRUD Ã­tems
+    // ------------------------------------------------------------ CRUD ítems
 
     public async Task<Result<CatalogoItemDto>> CreateItemAsync(int? empresaId, string codigoCatalogo, CreateCatalogoItemRequest request, string? actor, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
         if (codigo is null || string.IsNullOrWhiteSpace(request.Codigo) || string.IsNullOrWhiteSpace(request.Valor))
         {
-            return Result<CatalogoItemDto>.Fail("CÃ³digo y valor son obligatorios.", "VALIDATION");
+            return Result<CatalogoItemDto>.Fail("Código y valor son obligatorios.", "VALIDATION");
         }
 
         var catalogo = await _db.Catalogos.FirstOrDefaultAsync(c => c.Codigo == codigo && c.EmpresaId == empresaId, ct);
-        if (catalogo is null) return Result<CatalogoItemDto>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
+        if (catalogo is null) return Result<CatalogoItemDto>.Fail($"Catálogo {codigo} no encontrado.", "CAT_NOT_FOUND");
 
         var itemCodigo = request.Codigo.Trim();
         var parent = string.IsNullOrWhiteSpace(request.ParentCodigo) ? null : request.ParentCodigo.Trim();
 
         if (await _db.CatalogoItems.AnyAsync(i => i.CatalogoId == catalogo.Id && i.Codigo == itemCodigo, ct))
         {
-            return Result<CatalogoItemDto>.Fail($"Ya existe un Ã­tem {itemCodigo} en el catÃ¡logo {catalogo.Codigo}.", "CAT_ITEM_DUPLICATE");
+            return Result<CatalogoItemDto>.Fail($"Ya existe un ítem {itemCodigo} en el catálogo {catalogo.Codigo}.", "CAT_ITEM_DUPLICATE");
         }
 
         if (parent is not null && !await _db.CatalogoItems.AnyAsync(i => i.CatalogoId == catalogo.Id && i.Codigo == parent, ct))
@@ -247,7 +247,7 @@ public class CatalogosService : ICatalogosService
             Valor = request.Valor.Trim(),
             Descripcion = request.Descripcion?.Trim(),
             Orden = request.Orden,
-            EsSistema = false, // sÃ³lo el seeder crea Ã­tems del sistema
+            EsSistema = false, // sólo el seeder crea ítems del sistema
             Activo = true,
             ParentCodigo = parent,
             MetadataJson = request.MetadataJson,
@@ -256,7 +256,7 @@ public class CatalogosService : ICatalogosService
         };
         _db.CatalogoItems.Add(item);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "CREATE_ITEM", $"Ãtem {catalogo.Codigo}/{item.Codigo} creado", "CatalogoItem", item.Id);
+        await Audit(empresaId, actor, "CREATE_ITEM", $"Ítem {catalogo.Codigo}/{item.Codigo} creado", "CatalogoItem", item.Id);
         await InvalidarLookupsAsync(ct);
 
         return Result<CatalogoItemDto>.Ok(ToDto(item));
@@ -265,12 +265,12 @@ public class CatalogosService : ICatalogosService
     public async Task<Result<CatalogoItemDto>> UpdateItemAsync(int? empresaId, string codigoCatalogo, int itemId, UpdateCatalogoItemRequest request, string? actor, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
-        if (codigo is null) return Result<CatalogoItemDto>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
+        if (codigo is null) return Result<CatalogoItemDto>.Fail("Código de catálogo requerido.", "VALIDATION");
 
         var item = await _db.CatalogoItems
             .Include(i => i.Catalogo)
             .FirstOrDefaultAsync(i => i.Id == itemId && i.Catalogo.Codigo == codigo && i.Catalogo.EmpresaId == empresaId, ct);
-        if (item is null) return Result<CatalogoItemDto>.Fail("Ãtem no encontrado.", "CAT_ITEM_NOT_FOUND");
+        if (item is null) return Result<CatalogoItemDto>.Fail("Ítem no encontrado.", "CAT_ITEM_NOT_FOUND");
 
         if (string.IsNullOrWhiteSpace(request.Valor))
         {
@@ -288,7 +288,7 @@ public class CatalogosService : ICatalogosService
             var parent = string.IsNullOrWhiteSpace(request.ParentCodigo) ? null : request.ParentCodigo.Trim();
             if (parent is not null && parent.Equals(item.Codigo, StringComparison.OrdinalIgnoreCase))
             {
-                return Result<CatalogoItemDto>.Fail("Un Ã­tem no puede ser su propio padre.", "CAT_PARENT_SELF");
+                return Result<CatalogoItemDto>.Fail("Un ítem no puede ser su propio padre.", "CAT_PARENT_SELF");
             }
             if (parent is not null && !await _db.CatalogoItems.AnyAsync(i => i.CatalogoId == item.CatalogoId && i.Codigo == parent, ct))
             {
@@ -300,7 +300,7 @@ public class CatalogosService : ICatalogosService
         item.UpdatedAt = DateTime.UtcNow;
         item.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "UPDATE_ITEM", $"Ãtem {item.Catalogo.Codigo}/{item.Codigo} actualizado", "CatalogoItem", item.Id);
+        await Audit(empresaId, actor, "UPDATE_ITEM", $"Ítem {item.Catalogo.Codigo}/{item.Codigo} actualizado", "CatalogoItem", item.Id);
         await InvalidarLookupsAsync(ct);
 
         return Result<CatalogoItemDto>.Ok(ToDto(item));
@@ -309,27 +309,27 @@ public class CatalogosService : ICatalogosService
     public async Task<Result> DeleteItemAsync(int? empresaId, string codigoCatalogo, int itemId, string? actor, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
-        if (codigo is null) return Result.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
+        if (codigo is null) return Result.Fail("Código de catálogo requerido.", "VALIDATION");
 
         var item = await _db.CatalogoItems
             .Include(i => i.Catalogo)
             .FirstOrDefaultAsync(i => i.Id == itemId && i.Catalogo.Codigo == codigo && i.Catalogo.EmpresaId == empresaId, ct);
-        if (item is null) return Result.Fail("Ãtem no encontrado.", "CAT_ITEM_NOT_FOUND");
+        if (item is null) return Result.Fail("Ítem no encontrado.", "CAT_ITEM_NOT_FOUND");
 
         if (item.EsSistema)
         {
-            return Result.Fail("Los Ã­tems del sistema no se eliminan fÃ­sicamente. InactÃ­velos en su lugar.", "CAT_ITEM_SYSTEM");
+            return Result.Fail("Los ítems del sistema no se eliminan físicamente. Inactívelos en su lugar.", "CAT_ITEM_SYSTEM");
         }
 
-        // Bloquear borrado si tiene hijos (cascada referencial por cÃ³digo).
+        // Bloquear borrado si tiene hijos (cascada referencial por código).
         if (await _db.CatalogoItems.AnyAsync(i => i.CatalogoId == item.CatalogoId && i.ParentCodigo == item.Codigo, ct))
         {
-            return Result.Fail($"El Ã­tem {item.Codigo} tiene hijos. ReasÃ­gnelos o elimÃ­nelos primero.", "CAT_ITEM_HAS_CHILDREN");
+            return Result.Fail($"El ítem {item.Codigo} tiene hijos. Reasígnelos o elimínelos primero.", "CAT_ITEM_HAS_CHILDREN");
         }
 
         _db.CatalogoItems.Remove(item);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "DELETE_ITEM", $"Ãtem {item.Catalogo.Codigo}/{item.Codigo} eliminado", "CatalogoItem", item.Id);
+        await Audit(empresaId, actor, "DELETE_ITEM", $"Ítem {item.Catalogo.Codigo}/{item.Codigo} eliminado", "CatalogoItem", item.Id);
         await InvalidarLookupsAsync(ct);
         return Result.Ok();
     }
@@ -339,10 +339,10 @@ public class CatalogosService : ICatalogosService
     public async Task<Result<CatalogoImportResult>> ImportItemsAsync(int? empresaId, string codigoCatalogo, CatalogoImportRequest request, string? actor, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
-        if (codigo is null) return Result<CatalogoImportResult>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
+        if (codigo is null) return Result<CatalogoImportResult>.Fail("Código de catálogo requerido.", "VALIDATION");
 
         var catalogo = await _db.Catalogos.FirstOrDefaultAsync(c => c.Codigo == codigo && c.EmpresaId == empresaId, ct);
-        if (catalogo is null) return Result<CatalogoImportResult>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
+        if (catalogo is null) return Result<CatalogoImportResult>.Fail($"Catálogo {codigo} no encontrado.", "CAT_NOT_FOUND");
 
         IReadOnlyList<CatalogoItemRow> rows;
         try
@@ -377,7 +377,7 @@ public class CatalogosService : ICatalogosService
                 result.Errors.Add(new CatalogoImportError
                 {
                     Row = row.RowNumber, Codigo = row.Codigo,
-                    Message = "CÃ³digo y valor son obligatorios.",
+                    Message = "Código y valor son obligatorios.",
                 });
                 continue;
             }
@@ -393,7 +393,7 @@ public class CatalogosService : ICatalogosService
                 result.Errors.Add(new CatalogoImportError
                 {
                     Row = row.RowNumber, Codigo = rowCodigo,
-                    Message = $"Padre '{parent}' no existe en el catÃ¡logo.",
+                    Message = $"Padre '{parent}' no existe en el catálogo.",
                 });
                 continue;
             }
@@ -407,13 +407,13 @@ public class CatalogosService : ICatalogosService
                 }
                 if (item.EsSistema)
                 {
-                    // SÃ³lo se permite refrescar Valor/Descripcion/Orden/Metadata/Activo del sistema.
+                    // Sólo se permite refrescar Valor/Descripcion/Orden/Metadata/Activo del sistema.
                     item.Valor = row.Valor!.Trim();
                     item.Descripcion = row.Descripcion?.Trim();
                     if (row.Orden is int o) item.Orden = o;
                     if (row.Activo is bool a) item.Activo = a;
                     if (row.MetadataJson is not null) item.MetadataJson = row.MetadataJson;
-                    // No tocamos ParentCodigo de Ã­tems del sistema desde import.
+                    // No tocamos ParentCodigo de ítems del sistema desde import.
                     item.UpdatedAt = ahora;
                     item.UpdatedBy = actor;
                 }
@@ -458,7 +458,7 @@ public class CatalogosService : ICatalogosService
 
         if (request.DryRun)
         {
-            // Descartar cambios en memoria (sÃ³lo si tenemos updates pendientes).
+            // Descartar cambios en memoria (sólo si tenemos updates pendientes).
             foreach (var entry in _db.ChangeTracker.Entries<CatalogoItem>().ToList())
             {
                 entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
@@ -479,13 +479,13 @@ public class CatalogosService : ICatalogosService
     public async Task<Result<CatalogoExportFile>> ExportItemsAsync(int? empresaId, string codigoCatalogo, CatalogoFileFormat format, CancellationToken ct = default)
     {
         var codigo = NormalizeCodigo(codigoCatalogo);
-        if (codigo is null) return Result<CatalogoExportFile>.Fail("CÃ³digo de catÃ¡logo requerido.", "VALIDATION");
+        if (codigo is null) return Result<CatalogoExportFile>.Fail("Código de catálogo requerido.", "VALIDATION");
 
         var catalogo = await _db.Catalogos.AsNoTracking()
             .Where(c => c.Codigo == codigo && (c.EmpresaId == null || c.EmpresaId == empresaId))
             .OrderByDescending(c => c.EmpresaId != null)
             .FirstOrDefaultAsync(ct);
-        if (catalogo is null) return Result<CatalogoExportFile>.Fail($"CatÃ¡logo {codigo} no encontrado.", "CAT_NOT_FOUND");
+        if (catalogo is null) return Result<CatalogoExportFile>.Fail($"Catálogo {codigo} no encontrado.", "CAT_NOT_FOUND");
 
         var items = await _db.CatalogoItems.AsNoTracking()
             .Where(i => i.CatalogoId == catalogo.Id)
