@@ -12,6 +12,8 @@ public class ProductoDto
     public bool EsServicio { get; set; }
     /// <summary>Categoría del catálogo por empresa CATEGORIA_PRODUCTO.</summary>
     public string? CategoriaCodigo { get; set; }
+    /// <summary>True si el inventario se maneja por lotes con vencimiento (FEFO).</summary>
+    public bool ControlaLote { get; set; }
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }
@@ -30,6 +32,8 @@ public class CreateProductoRequest
     public string TipoItem { get; set; } = "BIEN";
     /// <summary>Categoría (catálogo por empresa CATEGORIA_PRODUCTO). Se crea sola si no existe.</summary>
     public string? CategoriaCodigo { get; set; }
+    /// <summary>True si el inventario se maneja por lotes con vencimiento (FEFO).</summary>
+    public bool ControlaLote { get; set; }
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
     public decimal? CostoUnitario { get; set; }

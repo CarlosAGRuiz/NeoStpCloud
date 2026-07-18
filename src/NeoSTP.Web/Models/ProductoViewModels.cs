@@ -19,6 +19,9 @@ public class CreateProductoViewModel
     [StringLength(30), Display(Name = "Categoría")]
     public string? CategoriaCodigo { get; set; }
 
+    [Display(Name = "Controla lote y vencimiento")]
+    public bool ControlaLote { get; set; }
+
     [Required, Display(Name = "Tipo")]
     public string TipoItem { get; set; } = "BIEN";
 

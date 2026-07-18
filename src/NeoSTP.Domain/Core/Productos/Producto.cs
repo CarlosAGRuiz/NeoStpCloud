@@ -25,6 +25,12 @@ public class Producto : AuditableEntity
     /// </summary>
     public string? CategoriaCodigo { get; set; }
 
+    /// <summary>
+    /// True si el inventario del producto se maneja por lotes con vencimiento
+    /// (farmacia/alimentos): las entradas exigen número de lote y las salidas consumen FEFO.
+    /// </summary>
+    public bool ControlaLote { get; set; }
+
     /// <summary>Código MH del catálogo CAT-014 UNIDAD_MEDIDA (59=Unidad, 58=Docena, 22=Galón…).</summary>
     public string UnidadMedidaCodigo { get; set; } = "59";
 

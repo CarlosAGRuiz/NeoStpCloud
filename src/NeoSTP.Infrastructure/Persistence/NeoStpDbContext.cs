@@ -179,6 +179,7 @@ public class NeoStpDbContext : DbContext
     // Inventario (INVENTARIO — V2)
     public DbSet<NeoSTP.Domain.Core.Inventario.ExistenciaProducto> ExistenciasProducto => Set<NeoSTP.Domain.Core.Inventario.ExistenciaProducto>();
     public DbSet<NeoSTP.Domain.Core.Inventario.MovimientoInventario> MovimientosInventario => Set<NeoSTP.Domain.Core.Inventario.MovimientoInventario>();
+    public DbSet<NeoSTP.Domain.Core.Inventario.LoteProducto> LotesProducto => Set<NeoSTP.Domain.Core.Inventario.LoteProducto>();
 
     // Auditoría
     public DbSet<Auditoria> Auditoria => Set<Auditoria>();

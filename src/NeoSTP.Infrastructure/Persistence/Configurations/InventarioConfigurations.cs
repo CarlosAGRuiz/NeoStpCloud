@@ -39,7 +39,26 @@ public class MovimientoInventarioConfiguration : IEntityTypeConfiguration<Movimi
         b.Property(x => x.CreatedBy).HasMaxLength(100);
         b.Property(x => x.UpdatedBy).HasMaxLength(100);
 
+        b.Property(x => x.NumeroLote).HasMaxLength(40);
+
         b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.Fecha });
         b.HasIndex(x => new { x.EmpresaId, x.Origen, x.OrigenId });
+    }
+}
+
+public class LoteProductoConfiguration : IEntityTypeConfiguration<LoteProducto>
+{
+    public void Configure(EntityTypeBuilder<LoteProducto> b)
+    {
+        b.ToTable("Inv_Lotes");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.NumeroLote).HasMaxLength(40).IsRequired();
+        b.Property(x => x.Cantidad).HasPrecision(18, 4);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+
+        b.HasOne(x => x.Producto).WithMany().HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.NumeroLote }).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.FechaVencimiento });
     }
 }

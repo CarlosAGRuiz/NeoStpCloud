@@ -83,11 +83,40 @@ public class InventarioService : IInventarioService
         var (prod, exist, err) = await CargarAsync(empresaId, request.ProductoId, ct);
         if (err is not null) return err;
 
-        var costo = request.CostoUnitario ?? (prod!.CostoUnitario ?? exist!.CostoPromedio);
+        string? numeroLote = null;
+        if (prod!.ControlaLote)
+        {
+            numeroLote = request.NumeroLote?.Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(numeroLote))
+                return Result<ExistenciaDto>.Fail(
+                    $"El producto {prod.CodigoInterno} controla lote: indica el número de lote de la entrada.", "LOTE_REQUERIDO");
+
+            var lote = await _db.LotesProducto.FirstOrDefaultAsync(
+                l => l.EmpresaId == empresaId && l.ProductoId == prod.Id && l.NumeroLote == numeroLote, ct);
+            if (lote is null)
+            {
+                lote = new LoteProducto
+                {
+                    EmpresaId = empresaId, ProductoId = prod.Id, NumeroLote = numeroLote,
+                    FechaVencimiento = request.FechaVencimiento, Cantidad = 0m,
+                    CreatedAt = DateTime.UtcNow, CreatedBy = actor,
+                };
+                _db.LotesProducto.Add(lote);
+            }
+            else if (request.FechaVencimiento is not null)
+            {
+                lote.FechaVencimiento = request.FechaVencimiento;
+            }
+            lote.Cantidad += request.Cantidad;
+            lote.UpdatedAt = DateTime.UtcNow; lote.UpdatedBy = actor;
+        }
+
+        var costo = request.CostoUnitario ?? (prod.CostoUnitario ?? exist!.CostoPromedio);
         var saldo = CostoPromedioCalculator.Entrada(new(exist!.Cantidad, exist.CostoPromedio), request.Cantidad, costo);
-        await AplicarAsync(empresaId, prod!, exist, saldo, TiposMovimientoInventario.Entrada, request.Cantidad, costo,
-            NormalizarOrigen(request.Origen), request.OrigenId, request.Fecha, request.Referencia, request.Nota, actor, ct);
-        return Result<ExistenciaDto>.Ok(ToDto(prod!.Id, prod.CodigoInterno, prod.Nombre, exist.Cantidad, exist.CostoPromedio, exist.StockMinimo));
+        await AplicarAsync(empresaId, prod, exist, saldo, TiposMovimientoInventario.Entrada, request.Cantidad, costo,
+            NormalizarOrigen(request.Origen), request.OrigenId, request.Fecha, request.Referencia, request.Nota, actor, ct,
+            numeroLote: numeroLote);
+        return Result<ExistenciaDto>.Ok(ToDto(prod.Id, prod.CodigoInterno, prod.Nombre, exist.Cantidad, exist.CostoPromedio, exist.StockMinimo));
     }
 
     public async Task<Result<ExistenciaDto>> RegistrarSalidaAsync(int empresaId, RegistrarMovimientoInventarioRequest request, string? actor, CancellationToken ct = default)
@@ -98,10 +127,115 @@ public class InventarioService : IInventarioService
         if (request.Cantidad > exist!.Cantidad)
             return Result<ExistenciaDto>.Fail($"Stock insuficiente (disponible {exist.Cantidad:N2}).", "STOCK_INSUFICIENTE");
 
+        string? numeroLote = null;
+        string? notaLotes = null;
+        if (prod!.ControlaLote)
+        {
+            var consumo = await ConsumirLotesAsync(empresaId, prod.Id, request.Cantidad,
+                request.NumeroLote?.Trim().ToUpperInvariant(), actor, ct);
+            if (consumo.IsFailure)
+                return Result<ExistenciaDto>.Fail(consumo.Error!, consumo.ErrorCode);
+            (numeroLote, notaLotes) = consumo.Value;
+        }
+
+        var nota = string.IsNullOrEmpty(notaLotes)
+            ? request.Nota
+            : string.IsNullOrWhiteSpace(request.Nota) ? notaLotes : $"{request.Nota} | {notaLotes}";
+
         var saldo = CostoPromedioCalculator.Salida(new(exist.Cantidad, exist.CostoPromedio), request.Cantidad);
-        await AplicarAsync(empresaId, prod!, exist, saldo, TiposMovimientoInventario.Salida, request.Cantidad, exist.CostoPromedio,
-            NormalizarOrigen(request.Origen), request.OrigenId, request.Fecha, request.Referencia, request.Nota, actor, ct, actualizarCostoProducto: false);
-        return Result<ExistenciaDto>.Ok(ToDto(prod!.Id, prod.CodigoInterno, prod.Nombre, exist.Cantidad, exist.CostoPromedio, exist.StockMinimo));
+        await AplicarAsync(empresaId, prod, exist, saldo, TiposMovimientoInventario.Salida, request.Cantidad, exist.CostoPromedio,
+            NormalizarOrigen(request.Origen), request.OrigenId, request.Fecha, request.Referencia, nota, actor, ct,
+            actualizarCostoProducto: false, numeroLote: numeroLote);
+        return Result<ExistenciaDto>.Ok(ToDto(prod.Id, prod.CodigoInterno, prod.Nombre, exist.Cantidad, exist.CostoPromedio, exist.StockMinimo));
+    }
+
+    /// <summary>
+    /// Consume el saldo por lotes: con número de lote explícito descuenta de ese lote;
+    /// sin él aplica FEFO (vence primero → sale primero; lotes sin vencimiento al final).
+    /// Devuelve el número de lote del movimiento ("FEFO" si cruzó varios) y la nota de detalle.
+    /// </summary>
+    private async Task<Result<(string NumeroLote, string? Nota)>> ConsumirLotesAsync(
+        int empresaId, int productoId, decimal cantidad, string? loteSolicitado, string? actor, CancellationToken ct)
+    {
+        if (!string.IsNullOrEmpty(loteSolicitado))
+        {
+            var lote = await _db.LotesProducto.FirstOrDefaultAsync(
+                l => l.EmpresaId == empresaId && l.ProductoId == productoId && l.NumeroLote == loteSolicitado, ct);
+            if (lote is null)
+                return Result<(string, string?)>.Fail($"El lote {loteSolicitado} no existe.", "LOTE_NOT_FOUND");
+            if (lote.Cantidad < cantidad)
+                return Result<(string, string?)>.Fail(
+                    $"El lote {loteSolicitado} solo tiene {lote.Cantidad:N2} unidades.", "LOTE_INSUFICIENTE");
+
+            lote.Cantidad -= cantidad;
+            lote.UpdatedAt = DateTime.UtcNow; lote.UpdatedBy = actor;
+            return Result<(string, string?)>.Ok((loteSolicitado, null));
+        }
+
+        var lotes = await _db.LotesProducto
+            .Where(l => l.EmpresaId == empresaId && l.ProductoId == productoId && l.Cantidad > 0)
+            .OrderBy(l => l.FechaVencimiento == null)
+            .ThenBy(l => l.FechaVencimiento)
+            .ThenBy(l => l.Id)
+            .ToListAsync(ct);
+
+        var restante = cantidad;
+        var consumidos = new List<string>();
+        foreach (var lote in lotes)
+        {
+            if (restante <= 0) break;
+            var tomar = Math.Min(lote.Cantidad, restante);
+            lote.Cantidad -= tomar;
+            lote.UpdatedAt = DateTime.UtcNow; lote.UpdatedBy = actor;
+            restante -= tomar;
+            consumidos.Add($"{lote.NumeroLote}:{tomar:0.##}");
+        }
+
+        // Stock previo a activar el control de lotes: se descarga sin lote y se deja rastro.
+        if (restante > 0)
+        {
+            if (consumidos.Count == 0)
+                return Result<(string, string?)>.Ok(("SIN_LOTE", null));
+            consumidos.Add($"sin lote:{restante:0.##}");
+            return Result<(string, string?)>.Ok(("FEFO", $"Lotes: {string.Join(", ", consumidos)}"));
+        }
+
+        return consumidos.Count == 1
+            ? Result<(string, string?)>.Ok((consumidos[0].Split(':')[0], null))
+            : Result<(string, string?)>.Ok(("FEFO", $"Lotes: {string.Join(", ", consumidos)}"));
+    }
+
+    public async Task<Result<IReadOnlyList<LoteDto>>> ListLotesAsync(int empresaId, int? productoId = null,
+        bool soloPorVencer = false, int diasUmbral = 30, CancellationToken ct = default)
+    {
+        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        var q = from l in _db.LotesProducto.AsNoTracking()
+                join p in _db.Productos.AsNoTracking() on l.ProductoId equals p.Id
+                where l.EmpresaId == empresaId && l.Cantidad > 0
+                select new { l, p.CodigoInterno, p.Nombre };
+        if (productoId is int pid) q = q.Where(x => x.l.ProductoId == pid);
+
+        var rows = await q.OrderBy(x => x.l.FechaVencimiento == null)
+            .ThenBy(x => x.l.FechaVencimiento).ThenBy(x => x.Nombre)
+            .ToListAsync(ct);
+
+        var items = rows.Select(x =>
+        {
+            int? dias = x.l.FechaVencimiento is DateOnly v ? v.DayNumber - hoy.DayNumber : null;
+            return new LoteDto
+            {
+                Id = x.l.Id, ProductoId = x.l.ProductoId,
+                ProductoCodigo = x.CodigoInterno, ProductoNombre = x.Nombre,
+                NumeroLote = x.l.NumeroLote, FechaVencimiento = x.l.FechaVencimiento,
+                Cantidad = x.l.Cantidad, DiasParaVencer = dias,
+                Vencido = dias < 0, PorVencer = dias >= 0 && dias <= diasUmbral,
+            };
+        }).ToList();
+
+        if (soloPorVencer)
+            items = items.Where(i => i.Vencido || i.PorVencer).ToList();
+
+        return Result<IReadOnlyList<LoteDto>>.Ok(items);
     }
 
     public async Task<Result<ExistenciaDto>> AjustarAsync(int empresaId, AjusteStockRequest request, string? actor, CancellationToken ct = default)
@@ -158,7 +292,7 @@ public class InventarioService : IInventarioService
     private async Task AplicarAsync(int empresaId, Domain.Core.Productos.Producto prod, ExistenciaProducto exist,
         CostoPromedioCalculator.Saldo saldo, string tipo, decimal cantidad, decimal costoMovimiento,
         string origen, int? origenId, DateOnly? fecha, string? referencia, string? nota, string? actor,
-        CancellationToken ct, bool actualizarCostoProducto = true)
+        CancellationToken ct, bool actualizarCostoProducto = true, string? numeroLote = null)
     {
         exist.Cantidad = saldo.Cantidad;
         exist.CostoPromedio = saldo.CostoPromedio;
@@ -174,7 +308,7 @@ public class InventarioService : IInventarioService
         {
             EmpresaId = empresaId, ProductoId = prod.Id, Fecha = fecha ?? DateOnly.FromDateTime(DateTime.UtcNow),
             Tipo = tipo, Cantidad = cantidad, CostoUnitario = costoMovimiento, Origen = origen, OrigenId = origenId,
-            Referencia = referencia?.Trim(), Nota = nota?.Trim(),
+            Referencia = referencia?.Trim(), Nota = nota?.Trim(), NumeroLote = numeroLote,
             SaldoCantidad = saldo.Cantidad, SaldoCostoPromedio = saldo.CostoPromedio, CreatedBy = actor,
         });
         await _db.SaveChangesAsync(ct);
@@ -195,6 +329,7 @@ public class InventarioService : IInventarioService
     {
         Id = m.Id, ProductoId = m.ProductoId, Fecha = m.Fecha, Tipo = m.Tipo, Cantidad = m.Cantidad,
         CostoUnitario = m.CostoUnitario, Origen = m.Origen, OrigenId = m.OrigenId, Referencia = m.Referencia, Nota = m.Nota,
+        NumeroLote = m.NumeroLote,
         SaldoCantidad = m.SaldoCantidad, SaldoCostoPromedio = m.SaldoCostoPromedio,
     };
 

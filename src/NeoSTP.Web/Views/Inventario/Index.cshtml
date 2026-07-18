@@ -12,6 +12,11 @@
         <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Inventario</span></nav>
         <h1 class="ns-page-title">Existencias</h1>
     </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Lotes" class="btn btn-outline-secondary btn-sm">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">event_available</span> Lotes y vencimientos
+        </a>
+    </div>
 </div>
 
 @if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }

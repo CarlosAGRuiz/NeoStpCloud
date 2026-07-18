@@ -20,4 +20,12 @@ public interface IInventarioService
     Task<Result<ExistenciaDto>> SetStockMinimoAsync(int empresaId, SetStockMinimoRequest request, string? actor, CancellationToken ct = default);
 
     Task<Result<InventarioResumenDto>> ResumenAsync(int empresaId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Lotes con saldo de la empresa (opcionalmente de un producto). Con
+    /// <paramref name="soloPorVencer"/> filtra vencidos o por vencer dentro de
+    /// <paramref name="diasUmbral"/> días.
+    /// </summary>
+    Task<Result<IReadOnlyList<LoteDto>>> ListLotesAsync(int empresaId, int? productoId = null,
+        bool soloPorVencer = false, int diasUmbral = 30, CancellationToken ct = default);
 }

@@ -52,6 +52,18 @@ public class InventarioController : Controller
         return View(kardex.Value);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Lotes(int? productoId, bool soloPorVencer = false, CancellationToken ct = default)
+    {
+        if (!Has("Inventario.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+
+        var result = await _inv.ListLotesAsync(eid, productoId, soloPorVencer, diasUmbral: 30, ct);
+        ViewBag.ProductoId = productoId;
+        ViewBag.SoloPorVencer = soloPorVencer;
+        return View(result.Value);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Entrada(RegistrarMovimientoInventarioRequest model, CancellationToken ct)

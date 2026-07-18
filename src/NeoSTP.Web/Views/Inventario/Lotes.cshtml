@@ -1,0 +1,63 @@
+@model IReadOnlyList<NeoSTP.Application.Inventario.Dtos.LoteDto>
+@{
+    ViewData["Title"] = "Lotes y vencimientos";
+    var soloPorVencer = ViewBag.SoloPorVencer is bool s && s;
+    var productoId = ViewBag.ProductoId as int?;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-action="Index">Inventario</a><span class="material-symbols-outlined">chevron_right</span><span>Lotes</span></nav>
+        <h1 class="ns-page-title">Lotes y vencimientos</h1>
+        <p class="ns-page-subtitle">Saldo por lote de los productos con control de lote. Las salidas consumen FEFO: primero lo que vence primero.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Lotes" asp-route-productoId="@productoId" asp-route-soloPorVencer="@(!soloPorVencer)"
+           class="btn btn-sm @(soloPorVencer ? "btn-warning" : "btn-outline-warning")">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">event_busy</span>
+            @(soloPorVencer ? "Ver todos" : "Solo por vencer / vencidos")
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Producto</th><th>Lote</th><th>Vence</th>
+                    <th class="text-end">Días</th><th class="text-end">Cantidad</th><th>Estado</th><th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model is null || Model.Count == 0)
+                {
+                    <tr><td colspan="7"><div class="ns-empty"><span class="material-symbols-outlined">inventory</span><p>Sin lotes con saldo. Marca "controla lote" en el producto y registra entradas con lote.</p></div></td></tr>
+                }
+                @foreach (var l in Model ?? Array.Empty<NeoSTP.Application.Inventario.Dtos.LoteDto>())
+                {
+                    <tr class="@(l.Vencido ? "table-danger" : l.PorVencer ? "table-warning" : "")">
+                        <td><strong>@l.ProductoCodigo</strong> <span class="text-muted">@l.ProductoNombre</span></td>
+                        <td><code class="ns-code-token">@l.NumeroLote</code></td>
+                        <td class="ns-mono">@(l.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td class="text-end ns-mono">@(l.DiasParaVencer?.ToString() ?? "—")</td>
+                        <td class="text-end ns-mono fw-bold">@l.Cantidad.ToString("N2")</td>
+                        <td>
+                            @if (l.Vencido) { <span class="ns-badge ns-badge--rejected">Vencido</span> }
+                            else if (l.PorVencer) { <span class="ns-badge ns-badge--contingency">Por vencer</span> }
+                            else { <span class="ns-badge ns-badge--processed">Vigente</span> }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Kardex" asp-route-productoId="@l.ProductoId" class="btn btn-sm btn-outline-primary">Kardex</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<p class="text-muted small mt-2">Total: @(Model?.Count ?? 0) lotes con saldo.</p>

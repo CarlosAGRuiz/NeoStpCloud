@@ -17,6 +17,7 @@ namespace NeoSTP.Infrastructure.Services;
 public class AlertaGeneracionService : IAlertaGeneracionService
 {
     private const int DiasAvisoCertificado = 30;
+    private const int DiasAvisoLote = 30;
 
     private readonly NeoStpDbContext _db;
     private readonly IAlertaService _alertas;
@@ -92,6 +93,31 @@ public class AlertaGeneracionService : IAlertaGeneracionService
                     Mensaje = $"{f.ClienteNombre}: {f.NumeroControl} vencida hace {f.DiasVencido} día(s), saldo $ {f.Saldo:N2}.",
                     EntidadTipo = "DteDocumento", EntidadId = f.DteDocumentoId,
                 });
+        }
+
+        // 4b) Lotes vencidos o por vencer (productos con ControlaLote)
+        var hoyLotes = DateOnly.FromDateTime(DateTime.UtcNow);
+        var umbralLotes = hoyLotes.AddDays(DiasAvisoLote);
+        var lotesPorVencer = await (
+                from l in _db.LotesProducto.AsNoTracking()
+                join p in _db.Productos.AsNoTracking() on l.ProductoId equals p.Id
+                where l.EmpresaId == empresaId && l.Cantidad > 0
+                      && l.FechaVencimiento != null && l.FechaVencimiento <= umbralLotes
+                orderby l.FechaVencimiento
+                select new { l.Id, l.NumeroLote, l.FechaVencimiento, l.Cantidad, p.Nombre })
+            .Take(100).ToListAsync(ct);
+        foreach (var l in lotesPorVencer)
+        {
+            var vencido = l.FechaVencimiento < hoyLotes;
+            await Crear($"{AlertaTipos.LotePorVencer}:{l.Id}", new CrearAlertaRequest
+            {
+                TipoCodigo = AlertaTipos.LotePorVencer,
+                Severidad = vencido ? AlertaSeveridades.Critica : AlertaSeveridades.Advertencia,
+                Titulo = vencido ? "Lote vencido con existencias" : "Lote próximo a vencer",
+                Mensaje = $"{l.Nombre} — lote {l.NumeroLote} ({l.Cantidad:N2} uds) " +
+                          (vencido ? $"venció el {l.FechaVencimiento:dd/MM/yyyy}." : $"vence el {l.FechaVencimiento:dd/MM/yyyy}."),
+                EntidadTipo = "LoteProducto", EntidadId = l.Id,
+            });
         }
 
         // 4) Actividades CRM vencidas (pendientes con fecha programada pasada)

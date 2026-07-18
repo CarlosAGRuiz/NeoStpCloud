@@ -28,6 +28,12 @@ public class MovimientoInventario : AuditableEntity
     public string? Referencia { get; set; }
     public string? Nota { get; set; }
 
+    /// <summary>
+    /// Lote afectado (productos con ControlaLote). En salidas FEFO que cruzan varios
+    /// lotes queda "FEFO" y el detalle por lote va en <see cref="Nota"/>.
+    /// </summary>
+    public string? NumeroLote { get; set; }
+
     /// <summary>Saldo de cantidad después de aplicar el movimiento (snapshot).</summary>
     public decimal SaldoCantidad { get; set; }
     /// <summary>Costo promedio después de aplicar el movimiento (snapshot).</summary>

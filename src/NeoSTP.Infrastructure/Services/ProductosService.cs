@@ -102,6 +102,7 @@ public class ProductosService : IProductosService
             EmpresaId = empresaId,
             CodigoInterno = codigo,
             CategoriaCodigo = categoriaCodigo,
+            ControlaLote = request.ControlaLote,
             CodigoBarra = string.IsNullOrWhiteSpace(request.CodigoBarra) ? null : request.CodigoBarra.Trim(),
             Nombre = request.Nombre.Trim(),
             Descripcion = request.Descripcion,
@@ -134,6 +135,7 @@ public class ProductosService : IProductosService
         producto.Nombre = request.Nombre.Trim();
         producto.Descripcion = request.Descripcion;
         producto.CategoriaCodigo = await EnsureCategoriaAsync(empresaId, request.CategoriaCodigo, actor, ct);
+        producto.ControlaLote = request.ControlaLote;
         producto.TipoItem = request.TipoItem.Trim().ToUpperInvariant();
         producto.UnidadMedidaCodigo = request.UnidadMedidaCodigo.Trim().ToUpperInvariant();
         producto.PrecioUnitario = request.PrecioUnitario;
@@ -298,6 +300,7 @@ public class ProductosService : IProductosService
         EmpresaId = empresaId,
         CodigoInterno = codigo,
         CategoriaCodigo = string.IsNullOrWhiteSpace(req.CategoriaCodigo) ? null : req.CategoriaCodigo,
+        ControlaLote = req.ControlaLote,
         CodigoBarra = string.IsNullOrWhiteSpace(req.CodigoBarra) ? null : req.CodigoBarra.Trim(),
         Nombre = req.Nombre.Trim(),
         Descripcion = req.Descripcion,
@@ -314,6 +317,7 @@ public class ProductosService : IProductosService
     private static void ApplyUpdate(Producto p, CreateProductoRequest req, string? actor)
     {
         p.CategoriaCodigo = string.IsNullOrWhiteSpace(req.CategoriaCodigo) ? null : req.CategoriaCodigo;
+        p.ControlaLote = req.ControlaLote;
         p.CodigoBarra = string.IsNullOrWhiteSpace(req.CodigoBarra) ? null : req.CodigoBarra.Trim();
         p.Nombre = req.Nombre.Trim();
         p.Descripcion = req.Descripcion;
@@ -359,6 +363,7 @@ public class ProductosService : IProductosService
         Nombre = p.Nombre, Descripcion = p.Descripcion,
         TipoItem = p.TipoItem, EsServicio = p.EsServicio,
         CategoriaCodigo = p.CategoriaCodigo,
+        ControlaLote = p.ControlaLote,
         UnidadMedidaCodigo = p.UnidadMedidaCodigo,
         PrecioUnitario = p.PrecioUnitario, CostoUnitario = p.CostoUnitario,
         AplicaIva = p.AplicaIva, TributoCodigo = p.TributoCodigo,

@@ -26,6 +26,7 @@ public class MovimientoInventarioDto
     public int? OrigenId { get; set; }
     public string? Referencia { get; set; }
     public string? Nota { get; set; }
+    public string? NumeroLote { get; set; }
     public decimal SaldoCantidad { get; set; }
     public decimal SaldoCostoPromedio { get; set; }
 }
@@ -49,6 +50,28 @@ public class RegistrarMovimientoInventarioRequest
     public int? OrigenId { get; set; }
     [StringLength(80)] public string? Referencia { get; set; }
     [StringLength(250)] public string? Nota { get; set; }
+
+    /// <summary>
+    /// Lote (productos con ControlaLote). ENTRADA: obligatorio, crea/acumula el lote.
+    /// SALIDA: opcional — con lote consume ese lote; sin lote consume FEFO.
+    /// </summary>
+    [StringLength(40)] public string? NumeroLote { get; set; }
+    /// <summary>Vencimiento del lote (solo ENTRADA; null = lote sin vencimiento).</summary>
+    public DateOnly? FechaVencimiento { get; set; }
+}
+
+public class LoteDto
+{
+    public int Id { get; set; }
+    public int ProductoId { get; set; }
+    public string ProductoCodigo { get; set; } = null!;
+    public string ProductoNombre { get; set; } = null!;
+    public string NumeroLote { get; set; } = null!;
+    public DateOnly? FechaVencimiento { get; set; }
+    public decimal Cantidad { get; set; }
+    public int? DiasParaVencer { get; set; }
+    public bool Vencido { get; set; }
+    public bool PorVencer { get; set; }
 }
 
 public class AjusteStockRequest

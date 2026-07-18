@@ -47,6 +47,8 @@
                                 <input type="hidden" name="Origen" value="COMPRA" />
                                 <div class="mb-2"><label class="form-label small">Cantidad</label><input name="Cantidad" type="number" step="0.0001" min="0.0001" class="form-control form-control-sm ns-mono" required /></div>
                                 <div class="mb-2"><label class="form-label small">Costo unitario</label><input name="CostoUnitario" type="number" step="0.0001" min="0" value="@e.CostoPromedio.ToString("0.00##")" class="form-control form-control-sm ns-mono" /></div>
+                                <div class="mb-2"><label class="form-label small">Lote (si el producto controla lote)</label><input name="NumeroLote" maxlength="40" class="form-control form-control-sm text-uppercase" placeholder="L-2026-01" /></div>
+                                <div class="mb-2"><label class="form-label small">Vencimiento del lote</label><input name="FechaVencimiento" type="date" class="form-control form-control-sm" /></div>
                                 <div class="mb-2"><label class="form-label small">Referencia</label><input name="Referencia" class="form-control form-control-sm" /></div>
                                 <button class="btn btn-success btn-sm w-100">Registrar entrada</button>
                             </form>
@@ -57,6 +59,7 @@
                                 <input type="hidden" name="ProductoId" value="@e.ProductoId" />
                                 <input type="hidden" name="Origen" value="AJUSTE" />
                                 <div class="mb-2"><label class="form-label small">Cantidad</label><input name="Cantidad" type="number" step="0.0001" min="0.0001" max="@e.Cantidad" class="form-control form-control-sm ns-mono" required /></div>
+                                <div class="mb-2"><label class="form-label small">Lote (vacío = FEFO automático)</label><input name="NumeroLote" maxlength="40" class="form-control form-control-sm text-uppercase" /></div>
                                 <div class="mb-2"><label class="form-label small">Referencia</label><input name="Referencia" class="form-control form-control-sm" /></div>
                                 <button class="btn btn-outline-danger btn-sm w-100">Registrar salida</button>
                             </form>
