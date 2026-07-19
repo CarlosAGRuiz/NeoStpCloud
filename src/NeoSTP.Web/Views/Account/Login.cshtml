@@ -22,6 +22,10 @@
             <p class="text-muted text-center mb-4">Inicia sesión para continuar</p>
 
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
+            @if (ViewBag.Error is string errorLogin)
+            {
+                <div class="alert alert-warning" role="alert">@errorLogin</div>
+            }
 
             <form asp-action="Login" method="post" autocomplete="on">
                 <input type="hidden" asp-for="ReturnUrl" />

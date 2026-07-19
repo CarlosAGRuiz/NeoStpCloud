@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using NeoSTP.Application;
 using NeoSTP.Application.Auth.Abstractions;
@@ -88,6 +89,31 @@ app.UseRequestLocalization();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enforcement comercial: una empresa no ACTIVA (suspendida/vencida) no navega la web.
+// Se cierra la sesión y se regresa al login con el motivo.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var esExento = path.StartsWith("/Account", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                || path.Contains('.');
+    if (!esExento && context.User.Identity?.IsAuthenticated == true)
+    {
+        var currentUser = context.RequestServices.GetRequiredService<NeoSTP.Application.Auth.Abstractions.ICurrentUser>();
+        if (currentUser.TipoUsuarioCodigo != "SUPERADMIN" && currentUser.EmpresaId is int empresaId)
+        {
+            var licencia = context.RequestServices.GetRequiredService<NeoSTP.Application.Licenciamiento.ILicenciaGuardService>();
+            if (!await licencia.EmpresaOperativaAsync(empresaId, context.RequestAborted))
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                context.Response.Redirect("/Account/Login?motivo=suspendida");
+                return;
+            }
+        }
+    }
+    await next(context);
+});
 
 app.MapStaticAssets();
 

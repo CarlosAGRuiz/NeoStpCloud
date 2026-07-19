@@ -1,5 +1,6 @@
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Connect;
+using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Shared;
 
 namespace NeoSTP.Api.Middlewares;
@@ -26,7 +27,7 @@ public class CurrentTenantMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, ICurrentUser currentUser)
+    public async Task InvokeAsync(HttpContext context, ICurrentUser currentUser, ILicenciaGuardService licencia)
     {
         var path = context.Request.Path.Value ?? string.Empty;
         if (BypassPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
@@ -35,9 +36,16 @@ public class CurrentTenantMiddleware
             return;
         }
 
-        // Petición autenticada con API Key de NeoConnect — tenant ya resuelto.
-        if (context.Items.ContainsKey(ApiKeyAuthMiddleware.ContextItemKey))
+        // Petición autenticada con API Key de NeoConnect — tenant ya resuelto,
+        // pero la empresa suspendida tampoco opera vía integradores.
+        if (context.Items.TryGetValue(ApiKeyAuthMiddleware.ContextItemKey, out var apiCtx)
+            && apiCtx is ConnectApiKeyContext keyCtx)
         {
+            if (!await licencia.EmpresaOperativaAsync(keyCtx.EmpresaId, context.RequestAborted))
+            {
+                await EscribirSuspendidaAsync(context);
+                return;
+            }
             await _next(context);
             return;
         }
@@ -48,8 +56,20 @@ public class CurrentTenantMiddleware
             return;
         }
 
-        if (currentUser.TipoUsuarioCodigo == "SUPERADMIN" || currentUser.EmpresaId is not null)
+        if (currentUser.TipoUsuarioCodigo == "SUPERADMIN")
         {
+            await _next(context);
+            return;
+        }
+
+        if (currentUser.EmpresaId is int empresaId)
+        {
+            // Enforcement comercial: SUSPENDIDA/VENCIDA/INACTIVA no operan.
+            if (!await licencia.EmpresaOperativaAsync(empresaId, context.RequestAborted))
+            {
+                await EscribirSuspendidaAsync(context);
+                return;
+            }
             await _next(context);
             return;
         }
@@ -58,6 +78,15 @@ public class CurrentTenantMiddleware
         await context.Response.WriteAsJsonAsync(ApiResponse.Fail(
             "El usuario no tiene empresa asignada.",
             new[] { "AUTH_NO_TENANT" },
+            context.TraceIdentifier));
+    }
+
+    private static async Task EscribirSuspendidaAsync(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(ApiResponse.Fail(
+            "La empresa está suspendida o inactiva. Contacta a soporte o regulariza tu suscripción.",
+            new[] { "EMPRESA_SUSPENDIDA" },
             context.TraceIdentifier));
     }
 }

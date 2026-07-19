@@ -45,6 +45,7 @@ public partial class DteDocumentosService : IDteDocumentosService
     private readonly IAuditoriaService _auditoria;
     private readonly IConnectWebhookDispatcher _webhookDispatcher;
     private readonly NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? _metrics;
+    private readonly NeoSTP.Application.Licenciamiento.ILicenciaGuardService? _licenciaGuard;
 
     public DteDocumentosService(
         NeoStpDbContext db,
@@ -60,9 +61,11 @@ public partial class DteDocumentosService : IDteDocumentosService
         ITenantEmailSender email,
         IAuditoriaService auditoria,
         IConnectWebhookDispatcher webhookDispatcher,
-        NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null)
+        NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null,
+        NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null)
     {
         _metrics = metrics;
+        _licenciaGuard = licenciaGuard;
         _db = db;
         _calculator = calculator;
         _generator = generator;
@@ -145,6 +148,14 @@ public partial class DteDocumentosService : IDteDocumentosService
         var validation = ValidateRequest(request);
         if (validation.Count > 0)
             return Result<DteDocumentoDto>.Fail("Datos del documento inválidos.", "VALIDATION", validation);
+
+        // Enforcement comercial: límite mensual de documentos del plan.
+        if (_licenciaGuard is not null)
+        {
+            var limite = await _licenciaGuard.ValidarLimiteAsync(empresaId,
+                NeoSTP.Application.Licenciamiento.RecursoLimitado.DteMensual, ct);
+            if (limite.IsFailure) return Result<DteDocumentoDto>.Fail(limite.Error!, limite.ErrorCode);
+        }
 
         var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
         if (empresa is null)

@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<ISucursalesService, SucursalesService>();
         services.AddScoped<IPuntosVentaService, PuntosVentaService>();
         services.AddScoped<IPlanesService, PlanesService>();
+        services.AddScoped<NeoSTP.Application.Licenciamiento.ILicenciaGuardService, LicenciaGuardService>();
         services.AddScoped<IModulosService, ModulosService>();
         services.AddScoped<IClientesService, ClientesService>();
         services.AddScoped<IProductosService, ProductosService>();

@@ -17,13 +17,16 @@ public class UsuariosService : IUsuariosService
     private readonly IPasswordHasher _hasher;
     private readonly IAuditoriaService _auditoria;
     private readonly IPasswordPolicy _passwordPolicy;
+    private readonly NeoSTP.Application.Licenciamiento.ILicenciaGuardService? _licenciaGuard;
 
-    public UsuariosService(NeoStpDbContext db, IPasswordHasher hasher, IAuditoriaService auditoria, IPasswordPolicy passwordPolicy)
+    public UsuariosService(NeoStpDbContext db, IPasswordHasher hasher, IAuditoriaService auditoria, IPasswordPolicy passwordPolicy,
+        NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null)
     {
         _db = db;
         _hasher = hasher;
         _auditoria = auditoria;
         _passwordPolicy = passwordPolicy;
+        _licenciaGuard = licenciaGuard;
     }
 
     public async Task<Result<PagedResult<UsuarioDto>>> GetListAsync(int? empresaId, PagedQuery query, CancellationToken ct = default)
@@ -67,6 +70,14 @@ public class UsuariosService : IUsuariosService
     {
         var validation = ValidateCreate(request);
         if (validation.IsFailure) return Result<UsuarioDto>.Fail(validation.Error!, validation.ErrorCode, validation.ValidationErrors);
+
+        // Enforcement comercial: límite de usuarios del plan (usuarios globales de SuperAdmin no cuentan).
+        if (_licenciaGuard is not null && empresaId is int empresaLic)
+        {
+            var limite = await _licenciaGuard.ValidarLimiteAsync(empresaLic,
+                NeoSTP.Application.Licenciamiento.RecursoLimitado.Usuarios, ct);
+            if (limite.IsFailure) return Result<UsuarioDto>.Fail(limite.Error!, limite.ErrorCode);
+        }
 
         var exists = await _db.Usuarios.AnyAsync(u => u.EmpresaId == empresaId &&
             (u.Username == request.Username || u.Email == request.Email), ct);

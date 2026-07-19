@@ -29,11 +29,15 @@ public class AccountController : Controller
 
     [HttpGet]
     [AllowAnonymous]
-    public IActionResult Login(string? returnUrl = null)
+    public IActionResult Login(string? returnUrl = null, string? motivo = null)
     {
         if (User.Identity?.IsAuthenticated == true)
         {
             return RedirectSafe(returnUrl);
+        }
+        if (motivo == "suspendida")
+        {
+            ViewBag.Error = "La empresa está suspendida o inactiva. Regulariza tu suscripción o contacta a soporte.";
         }
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
