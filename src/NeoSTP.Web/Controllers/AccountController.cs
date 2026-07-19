@@ -104,6 +104,50 @@ public class AccountController : Controller
         return RedirectSafe(model.ReturnUrl);
     }
 
+    /// <summary>Cambia la empresa activa (membresías E1): reemite la cookie con los claims de esa empresa.</summary>
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CambiarEmpresa(int empresaId, CancellationToken ct)
+    {
+        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(idClaim, out var userId)) return RedirectToAction(nameof(Login));
+
+        var result = await _auth.CambiarEmpresaAsync(userId, empresaId, new AuthContext
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString(),
+            TraceId = HttpContext.TraceIdentifier,
+        }, ct);
+
+        if (result.IsFailure)
+        {
+            TempData["Error"] = result.Error;
+            return Redirect("/");
+        }
+
+        var user = result.Value!.User;
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Username),
+            new(ClaimTypes.Email, user.Email),
+            new(CookieCurrentUser.ClaimTipoUsuario, user.TipoUsuarioCodigo),
+        };
+        if (user.EmpresaId is not null)
+        {
+            claims.Add(new Claim(CookieCurrentUser.ClaimEmpresaId, user.EmpresaId.Value.ToString()));
+        }
+        foreach (var rol in user.Roles) claims.Add(new Claim(ClaimTypes.Role, rol));
+        foreach (var permiso in user.Permisos) claims.Add(new Claim(CookieCurrentUser.ClaimPermiso, permiso));
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+
+        TempData["Success"] = $"Ahora operas en otra empresa.";
+        return Redirect("/");
+    }
+
     [HttpPost]
     [Authorize]
     [ValidateAntiForgeryToken]

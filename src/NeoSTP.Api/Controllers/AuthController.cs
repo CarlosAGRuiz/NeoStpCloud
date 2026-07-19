@@ -51,6 +51,36 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse.Ok("Sesión cerrada.", HttpContext.TraceIdentifier));
     }
 
+    /// <summary>Empresas donde el usuario puede operar (principal + membresías E1).</summary>
+    [HttpGet("empresas")]
+    [Authorize]
+    public async Task<IActionResult> Empresas(CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+            return Unauthorized(ApiResponse.Fail("Sesión inválida.", null, HttpContext.TraceIdentifier));
+        var result = await _auth.ListarEmpresasDisponiblesAsync(userId, ct);
+        return ToActionResult(result);
+    }
+
+    /// <summary>
+    /// Cambia la empresa activa: emite un token nuevo con los permisos del rol
+    /// del usuario en esa empresa. El token anterior sigue vigente hasta expirar.
+    /// </summary>
+    [HttpPost("cambiar-empresa")]
+    [Authorize]
+    public async Task<IActionResult> CambiarEmpresa([FromBody] CambiarEmpresaRequest request, CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+            return Unauthorized(ApiResponse.Fail("Sesión inválida.", null, HttpContext.TraceIdentifier));
+        var result = await _auth.CambiarEmpresaAsync(userId, request.EmpresaId, BuildContext(), ct);
+        return ToActionResult(result);
+    }
+
+    public sealed class CambiarEmpresaRequest
+    {
+        public int EmpresaId { get; set; }
+    }
+
     [HttpPost("change-password")]
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)

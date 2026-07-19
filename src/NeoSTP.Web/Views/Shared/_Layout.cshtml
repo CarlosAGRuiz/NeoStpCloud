@@ -479,6 +479,59 @@ else
                             @(enModoSoporte ? soporteEmpresaNombre : "Modo soporte")
                         </a>
                     }
+                    @* Selector de empresa activa (membresías E1): visible solo con más de una empresa. *@
+                    @if (!isSuperAdmin && User.Identity?.IsAuthenticated == true)
+                    {
+                        var uidClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                        if (int.TryParse(uidClaim, out var uidSel))
+                        {
+                            var misEmpresas = await Db.UsuarioEmpresas.AsNoTracking()
+                                .Where(m => m.UsuarioId == uidSel && m.EstadoCodigo == "ACTIVO" && m.Empresa.EstadoCodigo == "ACTIVA")
+                                .Select(m => new { m.EmpresaId, Nombre = m.Empresa.NombreComercial ?? m.Empresa.RazonSocial })
+                                .ToListAsync();
+                            var empresaActualId = EmpresaContext.CurrentEmpresaId;
+                            var empresaPrincipal = await Db.Usuarios.AsNoTracking()
+                                .Where(u => u.Id == uidSel && u.EmpresaId != null)
+                                .Select(u => new { EmpresaId = u.EmpresaId!.Value, Nombre = u.Empresa!.NombreComercial ?? u.Empresa.RazonSocial })
+                                .FirstOrDefaultAsync();
+                            if (misEmpresas.Count > 0)
+                            {
+                                var actualNombre = empresaActualId == empresaPrincipal?.EmpresaId
+                                    ? empresaPrincipal?.Nombre
+                                    : misEmpresas.FirstOrDefault(e => e.EmpresaId == empresaActualId)?.Nombre;
+                                <div class="dropdown">
+                                    <button class="ns-chip" data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar de empresa">
+                                        <span class="material-symbols-outlined" style="font-size:16px">domain</span>
+                                        @(actualNombre ?? "Empresa")
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        @if (empresaPrincipal is not null)
+                                        {
+                                            <li>
+                                                <form asp-controller="Account" asp-action="CambiarEmpresa" method="post">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="empresaId" value="@empresaPrincipal.EmpresaId" />
+                                                    <button type="submit" class="dropdown-item @(empresaActualId == empresaPrincipal.EmpresaId ? "active" : "")">
+                                                        @empresaPrincipal.Nombre <span class="text-muted small">(principal)</span>
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        }
+                                        @foreach (var e in misEmpresas)
+                                        {
+                                            <li>
+                                                <form asp-controller="Account" asp-action="CambiarEmpresa" method="post">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="empresaId" value="@e.EmpresaId" />
+                                                    <button type="submit" class="dropdown-item @(empresaActualId == e.EmpresaId ? "active" : "")">@e.Nombre</button>
+                                                </form>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                        }
+                    }
                     @await Component.InvokeAsync("AlertasBadge")
                     <div class="dropdown">
                         <button class="ns-icon-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="@L["MenuUsuario"]">

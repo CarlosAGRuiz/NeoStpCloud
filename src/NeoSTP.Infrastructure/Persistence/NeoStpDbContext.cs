@@ -42,6 +42,7 @@ public class NeoStpDbContext : DbContext
 
     // Seguridad
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<UsuarioEmpresa> UsuarioEmpresas => Set<UsuarioEmpresa>();
     public DbSet<Rol> Roles => Set<Rol>();
     public DbSet<Permiso> Permisos => Set<Permiso>();
     public DbSet<RolPermiso> RolPermisos => Set<RolPermiso>();

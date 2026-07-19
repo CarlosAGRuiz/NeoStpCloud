@@ -103,3 +103,73 @@
 }
 
 <p class="text-muted small mt-2">Total: @(Model?.Total ?? 0) usuarios.</p>
+
+@* ── Miembros externos (membresías E1): contadores/asesores con su propio login ── *@
+@{
+    var miembros = (ViewBag.MiembrosExternos as IReadOnlyList<NeoSTP.Application.Usuarios.MiembroExternoDto>)
+        ?? Array.Empty<NeoSTP.Application.Usuarios.MiembroExternoDto>();
+    var rolesInvitar = (ViewBag.RolesInvitar as IReadOnlyList<NeoSTP.Application.Roles.Dtos.RolDto>)
+        ?? Array.Empty<NeoSTP.Application.Roles.Dtos.RolDto>();
+    var puedeGestionarMiembros = ViewBag.PuedeGestionarMiembros is bool pgm && pgm;
+}
+<div class="card ns-data-card mt-4">
+    <div class="card-body">
+        <h2 class="h6 mb-1"><span class="material-symbols-outlined align-middle" style="font-size:18px">supervisor_account</span> Miembros externos</h2>
+        <p class="text-muted small mb-3">Usuarios de otra empresa (tu contador, un asesor) que acceden a esta con un rol acotado y su propio login. No consumen los usuarios de tu plan.</p>
+
+        @if (puedeGestionarMiembros)
+        {
+            <form asp-action="AgregarMiembro" method="post" class="row g-2 align-items-end mb-3">
+                @Html.AntiForgeryToken()
+                <div class="col-md-4">
+                    <label class="form-label small">Email o username del usuario</label>
+                    <input name="EmailOUsername" class="form-control form-control-sm" required placeholder="contador@despacho.com" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Rol en esta empresa</label>
+                    <select name="RolId" class="form-select form-select-sm" required>
+                        @foreach (var r in rolesInvitar.Where(r => r.Activo))
+                        {
+                            <option value="@r.Id">@r.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">Agregar miembro</button>
+                </div>
+            </form>
+        }
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover m-0 align-middle">
+                <thead><tr><th>Nombre</th><th>Usuario</th><th>Email</th><th>Rol</th>@if (puedeGestionarMiembros) { <th class="text-end"></th> }</tr></thead>
+                <tbody>
+                    @if (miembros.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-muted small text-center py-3">Sin miembros externos.</td></tr>
+                    }
+                    @foreach (var m in miembros)
+                    {
+                        <tr>
+                            <td><strong>@m.NombreCompleto</strong></td>
+                            <td class="ns-mono">@m.Username</td>
+                            <td class="small">@m.Email</td>
+                            <td><span class="ns-badge ns-badge--info">@m.RolNombre</span></td>
+                            @if (puedeGestionarMiembros)
+                            {
+                                <td class="text-end">
+                                    <form asp-action="QuitarMiembro" method="post" class="d-inline"
+                                          onsubmit="return confirm('¿Revocar el acceso de @m.NombreCompleto a esta empresa?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="usuarioId" value="@m.UsuarioId" />
+                                        <button class="btn btn-sm btn-outline-danger">Revocar</button>
+                                    </form>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

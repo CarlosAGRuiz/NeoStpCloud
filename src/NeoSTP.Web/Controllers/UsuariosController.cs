@@ -18,19 +18,22 @@ public class UsuariosController : Controller
     private readonly ICurrentUser _currentUser;
     private readonly NeoSTP.Application.Empresas.IEmpresaContext _empresaContext;
     private readonly ILegalDocumentService _legal;
+    private readonly IUsuarioEmpresaService _miembros;
 
     public UsuariosController(
         IUsuariosService usuarios,
         IRolesService roles,
         ICurrentUser currentUser,
         NeoSTP.Application.Empresas.IEmpresaContext empresaContext,
-        ILegalDocumentService legal)
+        ILegalDocumentService legal,
+        IUsuarioEmpresaService miembros)
     {
         _usuarios = usuarios;
         _roles = roles;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
         _legal = legal;
+        _miembros = miembros;
     }
 
     /// <summary>EmpresaId efectivo: si SuperAdmin en modo soporte, lo de cookie; si no, el del usuario.</summary>
@@ -44,7 +47,43 @@ public class UsuariosController : Controller
         var result = await _usuarios.GetListAsync(Empresa,
             new PagedQuery { Search = search, Page = page, PageSize = 20 }, ct);
         ViewBag.Search = search;
+
+        // Miembros externos (membresías E1) + roles para invitar.
+        if (Empresa is int eidMiembros)
+        {
+            ViewBag.MiembrosExternos = (await _miembros.ListarAsync(eidMiembros, ct)).Value
+                ?? Array.Empty<NeoSTP.Application.Usuarios.MiembroExternoDto>();
+            ViewBag.RolesInvitar = (await _roles.GetListAsync(eidMiembros, ct)).Value
+                ?? Array.Empty<NeoSTP.Application.Roles.Dtos.RolDto>();
+            ViewBag.PuedeGestionarMiembros = HasPermiso("Core.Usuarios.Crear");
+        }
         return View(result.Value);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AgregarMiembro(NeoSTP.Application.Usuarios.AgregarMiembroRequest model, CancellationToken ct)
+    {
+        if (!HasPermiso("Core.Usuarios.Crear")) return Forbid();
+        if (Empresa is not int eid) return Forbid();
+
+        var r = await _miembros.AgregarAsync(eid, model, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess
+            ? $"{r.Value!.NombreCompleto} ahora es miembro externo con rol {r.Value.RolNombre}."
+            : r.Error;
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> QuitarMiembro(int usuarioId, CancellationToken ct)
+    {
+        if (!HasPermiso("Core.Usuarios.Crear")) return Forbid();
+        if (Empresa is not int eid) return Forbid();
+
+        var r = await _miembros.QuitarAsync(eid, usuarioId, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Membresía revocada." : r.Error;
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]

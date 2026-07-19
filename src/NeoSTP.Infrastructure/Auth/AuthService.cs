@@ -141,6 +141,102 @@ public class AuthService : IAuthService
         });
     }
 
+    public async Task<Result<IReadOnlyList<EmpresaDisponibleDto>>> ListarEmpresasDisponiblesAsync(int userId, CancellationToken ct = default)
+    {
+        var usuario = await _db.Usuarios.AsNoTracking()
+            .Include(u => u.Empresa)
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (usuario is null)
+            return Result<IReadOnlyList<EmpresaDisponibleDto>>.Fail("Usuario no encontrado.", "USER_NOT_FOUND");
+
+        var lista = new List<EmpresaDisponibleDto>();
+        if (usuario.EmpresaId is not null && usuario.Empresa is not null)
+        {
+            lista.Add(new EmpresaDisponibleDto
+            {
+                EmpresaId = usuario.EmpresaId.Value,
+                Nombre = usuario.Empresa.NombreComercial ?? usuario.Empresa.RazonSocial,
+                EsPrincipal = true,
+                RolNombre = null,
+            });
+        }
+
+        var membresias = await _db.UsuarioEmpresas.AsNoTracking()
+            .Include(m => m.Empresa)
+            .Include(m => m.Rol)
+            .Where(m => m.UsuarioId == userId && m.EstadoCodigo == "ACTIVO"
+                     && m.Empresa.EstadoCodigo == "ACTIVA")
+            .OrderBy(m => m.Empresa.RazonSocial)
+            .ToListAsync(ct);
+        lista.AddRange(membresias.Select(m => new EmpresaDisponibleDto
+        {
+            EmpresaId = m.EmpresaId,
+            Nombre = m.Empresa.NombreComercial ?? m.Empresa.RazonSocial,
+            EsPrincipal = false,
+            RolNombre = m.Rol.Nombre,
+        }));
+
+        return Result<IReadOnlyList<EmpresaDisponibleDto>>.Ok(lista);
+    }
+
+    public async Task<Result<LoginResponse>> CambiarEmpresaAsync(int userId, int empresaId, AuthContext context, CancellationToken ct = default)
+    {
+        var usuario = await _db.Usuarios
+            .Include(u => u.Roles).ThenInclude(ur => ur.Rol).ThenInclude(r => r.Permisos).ThenInclude(rp => rp.Permiso)
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (usuario is null)
+            return Result<LoginResponse>.Fail("Usuario no encontrado.", "USER_NOT_FOUND");
+        if (usuario.EstadoCodigo != EstadoCodes.Activo)
+            return Result<LoginResponse>.Fail("El usuario no está activo.", "AUTH_USER_DISABLED");
+
+        UserInfo userInfo;
+        if (usuario.EmpresaId == empresaId)
+        {
+            // Volver a la empresa principal: roles y permisos propios.
+            userInfo = ToUserInfo(usuario);
+        }
+        else
+        {
+            var membresia = await _db.UsuarioEmpresas.AsNoTracking()
+                .Include(m => m.Empresa)
+                .Include(m => m.Rol).ThenInclude(r => r.Permisos).ThenInclude(rp => rp.Permiso)
+                .FirstOrDefaultAsync(m => m.UsuarioId == userId && m.EmpresaId == empresaId
+                                       && m.EstadoCodigo == "ACTIVO", ct);
+            if (membresia is null)
+                return Result<LoginResponse>.Fail("No tienes acceso a esa empresa.", "EMPRESA_NO_MEMBRESIA");
+            if (membresia.Empresa.EstadoCodigo != "ACTIVA")
+                return Result<LoginResponse>.Fail("La empresa está suspendida o inactiva.", "EMPRESA_SUSPENDIDA");
+
+            userInfo = ToUserInfo(usuario);
+            userInfo.EmpresaId = empresaId;
+            userInfo.Roles = new[] { membresia.Rol.Codigo };
+            userInfo.Permisos = membresia.Rol.Permisos.Select(rp => rp.Permiso.Codigo).Distinct().ToList();
+        }
+
+        var (accessToken, accessExpires) = _jwt.CreateAccessToken(userInfo);
+        var refreshTokenValue = _jwt.CreateRefreshToken();
+        var refreshExpires = DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpiryDays);
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UsuarioId = usuario.Id,
+            Token = refreshTokenValue,
+            ExpiresAt = refreshExpires,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByIp = context.IpAddress,
+        });
+        await _db.SaveChangesAsync(ct);
+        await AuditAsync(context, usuario, "CAMBIAR_EMPRESA", "OK", $"Empresa activa → {empresaId}");
+
+        return Result<LoginResponse>.Ok(new LoginResponse
+        {
+            AccessToken = accessToken,
+            AccessTokenExpiresAt = accessExpires,
+            RefreshToken = refreshTokenValue,
+            RefreshTokenExpiresAt = refreshExpires,
+            User = userInfo,
+        });
+    }
+
     public async Task<Result<LoginResponse>> RefreshAsync(string refreshToken, AuthContext context, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
