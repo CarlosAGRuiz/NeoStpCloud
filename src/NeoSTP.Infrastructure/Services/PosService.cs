@@ -158,7 +158,7 @@ public class PosService : IPosService
             if (l.ProductoId is int pid && productos.TryGetValue(pid, out var p) && p.bien)
                 await _inventario.RegistrarSalidaAsync(empresaId, new RegistrarMovimientoInventarioRequest
                 {
-                    ProductoId = pid, Cantidad = l.Cantidad,
+                    ProductoId = pid, Cantidad = l.Cantidad, SucursalId = venta.SucursalId,
                     Origen = OrigenesMovimientoInventario.Venta, OrigenId = venta.Id, Referencia = venta.Numero,
                 }, actor, ct);
         }
@@ -183,11 +183,12 @@ public class PosService : IPosService
         var salidas = await _db.MovimientosInventario.AsNoTracking()
             .Where(m => m.EmpresaId == empresaId && m.Origen == OrigenesMovimientoInventario.Venta
                 && m.OrigenId == v.Id && m.Tipo == TiposMovimientoInventario.Salida)
-            .Select(m => new { m.ProductoId, m.Cantidad, m.CostoUnitario }).ToListAsync(ct);
+            .Select(m => new { m.ProductoId, m.Cantidad, m.CostoUnitario, m.SucursalId }).ToListAsync(ct);
         foreach (var m in salidas)
             await _inventario.RegistrarEntradaAsync(empresaId, new RegistrarMovimientoInventarioRequest
             {
                 ProductoId = m.ProductoId, Cantidad = m.Cantidad, CostoUnitario = m.CostoUnitario,
+                SucursalId = m.SucursalId,
                 Origen = OrigenesMovimientoInventario.Devolucion, OrigenId = v.Id, Referencia = v.Numero,
             }, actor, ct);
 

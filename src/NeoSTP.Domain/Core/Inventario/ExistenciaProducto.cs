@@ -16,6 +16,9 @@ public class ExistenciaProducto : AuditableEntity
     public int ProductoId { get; set; }
     public Producto Producto { get; set; } = null!;
 
+    /// <summary>Sucursal del saldo (E2). Null = bodega central / sin sucursal.</summary>
+    public int? SucursalId { get; set; }
+
     public decimal Cantidad { get; set; }
 
     /// <summary>Costo promedio ponderado unitario.</summary>

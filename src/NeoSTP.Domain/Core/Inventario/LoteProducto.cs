@@ -14,6 +14,9 @@ public class LoteProducto : AuditableEntity
     public int ProductoId { get; set; }
     public Producto Producto { get; set; } = null!;
 
+    /// <summary>Sucursal donde vive el saldo del lote (E2). Null = bodega central.</summary>
+    public int? SucursalId { get; set; }
+
     public string NumeroLote { get; set; } = null!;
 
     /// <summary>Null para lotes sin vencimiento (se consumen al final en FEFO).</summary>

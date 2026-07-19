@@ -10,14 +10,18 @@ namespace NeoSTP.Application.Inventario;
 /// </summary>
 public interface IInventarioService
 {
-    Task<Result<PagedResult<ExistenciaDto>>> ListExistenciasAsync(int empresaId, bool soloStockBajo, PagedQuery query, CancellationToken ct = default);
-    Task<Result<ExistenciaDto>> GetExistenciaAsync(int empresaId, int productoId, CancellationToken ct = default);
-    Task<Result<PagedResult<MovimientoInventarioDto>>> GetKardexAsync(int empresaId, int productoId, PagedQuery query, CancellationToken ct = default);
+    /// <summary>Existencias: consolidadas por producto (sucursalId null) o de una sucursal (E2).</summary>
+    Task<Result<PagedResult<ExistenciaDto>>> ListExistenciasAsync(int empresaId, bool soloStockBajo, PagedQuery query, int? sucursalId = null, CancellationToken ct = default);
+    Task<Result<ExistenciaDto>> GetExistenciaAsync(int empresaId, int productoId, int? sucursalId = null, CancellationToken ct = default);
+    Task<Result<PagedResult<MovimientoInventarioDto>>> GetKardexAsync(int empresaId, int productoId, PagedQuery query, int? sucursalId = null, CancellationToken ct = default);
 
     Task<Result<ExistenciaDto>> RegistrarEntradaAsync(int empresaId, RegistrarMovimientoInventarioRequest request, string? actor, CancellationToken ct = default);
     Task<Result<ExistenciaDto>> RegistrarSalidaAsync(int empresaId, RegistrarMovimientoInventarioRequest request, string? actor, CancellationToken ct = default);
     Task<Result<ExistenciaDto>> AjustarAsync(int empresaId, AjusteStockRequest request, string? actor, CancellationToken ct = default);
     Task<Result<ExistenciaDto>> SetStockMinimoAsync(int empresaId, SetStockMinimoRequest request, string? actor, CancellationToken ct = default);
+
+    /// <summary>Traslado atómico entre sucursales: salida en origen + entrada en destino con kardex TRASLADO (E2).</summary>
+    Task<Result> TrasladarAsync(int empresaId, TrasladoInventarioRequest request, string? actor, CancellationToken ct = default);
 
     Task<Result<InventarioResumenDto>> ResumenAsync(int empresaId, CancellationToken ct = default);
 

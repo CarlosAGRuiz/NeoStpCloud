@@ -29,26 +29,35 @@ public class InventarioApiController : ApiControllerBase
 
     [HttpGet("existencias")]
     [RequirePermiso("Inventario.Ver")]
-    public async Task<IActionResult> ListExistencias([FromQuery] PagedQuery query, [FromQuery] bool soloStockBajo, [FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> ListExistencias([FromQuery] PagedQuery query, [FromQuery] bool soloStockBajo, [FromQuery] int? empresaId, [FromQuery] int? sucursalId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _inv.ListExistenciasAsync(eid, soloStockBajo, query, ct));
+        return Respond(await _inv.ListExistenciasAsync(eid, soloStockBajo, query, sucursalId, ct));
     }
 
     [HttpGet("existencias/{productoId:int}")]
     [RequirePermiso("Inventario.Ver")]
-    public async Task<IActionResult> GetExistencia(int productoId, [FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> GetExistencia(int productoId, [FromQuery] int? empresaId, [FromQuery] int? sucursalId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _inv.GetExistenciaAsync(eid, productoId, ct));
+        return Respond(await _inv.GetExistenciaAsync(eid, productoId, sucursalId, ct));
     }
 
     [HttpGet("kardex/{productoId:int}")]
     [RequirePermiso("Inventario.Ver")]
-    public async Task<IActionResult> Kardex(int productoId, [FromQuery] PagedQuery query, [FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> Kardex(int productoId, [FromQuery] PagedQuery query, [FromQuery] int? empresaId, [FromQuery] int? sucursalId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
-        return Respond(await _inv.GetKardexAsync(eid, productoId, query, ct));
+        return Respond(await _inv.GetKardexAsync(eid, productoId, query, sucursalId, ct));
+    }
+
+    /// <summary>Traslado atómico entre sucursales (E2): salida en origen + entrada en destino.</summary>
+    [HttpPost("traslados")]
+    [RequirePermiso("Inventario.Gestionar")]
+    public async Task<IActionResult> Traslado([FromBody] TrasladoInventarioRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _inv.TrasladarAsync(eid, req, _currentUser.Username, ct), "Traslado aplicado.");
     }
 
     [HttpPost("entradas")]

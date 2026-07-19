@@ -35,6 +35,20 @@
 <div class="ns-toolbar">
     <form method="get" class="ns-toolbar-search">
         <input name="search" value="@search" class="form-control form-control-sm" style="min-width:260px" placeholder="Buscar código o nombre…" />
+        @{
+            var sucursalesFiltro = (ViewBag.Sucursales as IReadOnlyList<(int Id, string Nombre)>) ?? Array.Empty<(int, string)>();
+            var sucursalIdActual = ViewBag.SucursalId as int?;
+        }
+        @if (sucursalesFiltro.Count > 0)
+        {
+            <select name="sucursalId" class="form-select form-select-sm" style="max-width:220px" onchange="this.form.submit()">
+                <option value="">Consolidado (todas)</option>
+                @foreach (var s in sucursalesFiltro)
+                {
+                    <option value="@s.Id" selected="@(sucursalIdActual == s.Id)">@s.Nombre</option>
+                }
+            </select>
+        }
         <div class="form-check ms-2">
             <input class="form-check-input" type="checkbox" name="soloStockBajo" value="true" id="sb" @(soloStockBajo ? "checked" : "") onchange="this.form.submit()" />
             <label class="form-check-label small" for="sb">Solo bajo mínimo</label>

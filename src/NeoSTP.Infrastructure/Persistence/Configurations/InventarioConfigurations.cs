@@ -18,7 +18,9 @@ public class ExistenciaProductoConfiguration : IEntityTypeConfiguration<Existenc
 
         b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId).OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Producto).WithMany().HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Cascade);
-        b.HasIndex(x => new { x.EmpresaId, x.ProductoId }).IsUnique();
+        // Un saldo por producto y sucursal; SucursalId NULL (central) también es único
+        // porque SQL Server trata los NULL como iguales en índices únicos.
+        b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.SucursalId }).IsUnique();
     }
 }
 
@@ -58,7 +60,7 @@ public class LoteProductoConfiguration : IEntityTypeConfiguration<LoteProducto>
         b.Property(x => x.UpdatedBy).HasMaxLength(100);
 
         b.HasOne(x => x.Producto).WithMany().HasForeignKey(x => x.ProductoId).OnDelete(DeleteBehavior.Cascade);
-        b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.NumeroLote }).IsUnique();
+        b.HasIndex(x => new { x.EmpresaId, x.ProductoId, x.SucursalId, x.NumeroLote }).IsUnique();
         b.HasIndex(x => new { x.EmpresaId, x.FechaVencimiento });
     }
 }

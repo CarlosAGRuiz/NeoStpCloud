@@ -38,6 +38,7 @@
                         <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tEntrada" type="button">Entrada</button></li>
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tSalida" type="button">Salida</button></li>
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tAjuste" type="button">Ajuste</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tTraslado" type="button">Traslado</button></li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane fade show active" id="tEntrada">
@@ -47,6 +48,19 @@
                                 <input type="hidden" name="Origen" value="COMPRA" />
                                 <div class="mb-2"><label class="form-label small">Cantidad</label><input name="Cantidad" type="number" step="0.0001" min="0.0001" class="form-control form-control-sm ns-mono" required /></div>
                                 <div class="mb-2"><label class="form-label small">Costo unitario</label><input name="CostoUnitario" type="number" step="0.0001" min="0" value="@e.CostoPromedio.ToString("0.00##")" class="form-control form-control-sm ns-mono" /></div>
+                                @{
+                                    var sucursalesForm = (ViewBag.Sucursales as IReadOnlyList<(int Id, string Nombre)>) ?? Array.Empty<(int, string)>();
+                                    var sucKardex = ViewBag.SucursalId as int?;
+                                }
+                                @if (sucursalesForm.Count > 0)
+                                {
+                                    <div class="mb-2"><label class="form-label small">Sucursal</label>
+                                        <select name="SucursalId" class="form-select form-select-sm">
+                                            <option value="">Bodega central</option>
+                                            @foreach (var s in sucursalesForm) { <option value="@s.Id" selected="@(sucKardex == s.Id)">@s.Nombre</option> }
+                                        </select>
+                                    </div>
+                                }
                                 <div class="mb-2"><label class="form-label small">Lote (si el producto controla lote)</label><input name="NumeroLote" maxlength="40" class="form-control form-control-sm text-uppercase" placeholder="L-2026-01" /></div>
                                 <div class="mb-2"><label class="form-label small">Vencimiento del lote</label><input name="FechaVencimiento" type="date" class="form-control form-control-sm" /></div>
                                 <div class="mb-2"><label class="form-label small">Referencia</label><input name="Referencia" class="form-control form-control-sm" /></div>
@@ -59,6 +73,15 @@
                                 <input type="hidden" name="ProductoId" value="@e.ProductoId" />
                                 <input type="hidden" name="Origen" value="AJUSTE" />
                                 <div class="mb-2"><label class="form-label small">Cantidad</label><input name="Cantidad" type="number" step="0.0001" min="0.0001" max="@e.Cantidad" class="form-control form-control-sm ns-mono" required /></div>
+                                @if (((ViewBag.Sucursales as IReadOnlyList<(int Id, string Nombre)>) ?? Array.Empty<(int, string)>()).Count > 0)
+                                {
+                                    <div class="mb-2"><label class="form-label small">Sucursal</label>
+                                        <select name="SucursalId" class="form-select form-select-sm">
+                                            <option value="">Bodega central</option>
+                                            @foreach (var s in (IReadOnlyList<(int Id, string Nombre)>)ViewBag.Sucursales) { <option value="@s.Id">@s.Nombre</option> }
+                                        </select>
+                                    </div>
+                                }
                                 <div class="mb-2"><label class="form-label small">Lote (vacío = FEFO automático)</label><input name="NumeroLote" maxlength="40" class="form-control form-control-sm text-uppercase" /></div>
                                 <div class="mb-2"><label class="form-label small">Referencia</label><input name="Referencia" class="form-control form-control-sm" /></div>
                                 <button class="btn btn-outline-danger btn-sm w-100">Registrar salida</button>
@@ -80,6 +103,38 @@
                                 <div class="flex-grow-1"><label class="form-label small">Stock mínimo</label><input name="StockMinimo" type="number" step="0.01" min="0" value="@e.StockMinimo.ToString("0.##")" class="form-control form-control-sm ns-mono" /></div>
                                 <button class="btn btn-outline-secondary btn-sm">Guardar</button>
                             </form>
+                        </div>
+                        <div class="tab-pane fade" id="tTraslado">
+                            @{
+                                var sucTraslado = (ViewBag.Sucursales as IReadOnlyList<(int Id, string Nombre)>) ?? Array.Empty<(int, string)>();
+                            }
+                            @if (sucTraslado.Count == 0)
+                            {
+                                <p class="text-muted small py-2">Crea sucursales en la configuración de la empresa para trasladar mercadería.</p>
+                            }
+                            else
+                            {
+                                <form asp-action="Traslado" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="ProductoId" value="@e.ProductoId" />
+                                    <div class="mb-2"><label class="form-label small">Cantidad</label><input name="Cantidad" type="number" step="0.0001" min="0.0001" class="form-control form-control-sm ns-mono" required /></div>
+                                    <div class="mb-2"><label class="form-label small">De</label>
+                                        <select name="SucursalOrigenId" class="form-select form-select-sm">
+                                            <option value="">Bodega central</option>
+                                            @foreach (var s in sucTraslado) { <option value="@s.Id">@s.Nombre</option> }
+                                        </select>
+                                    </div>
+                                    <div class="mb-2"><label class="form-label small">Hacia</label>
+                                        <select name="SucursalDestinoId" class="form-select form-select-sm">
+                                            <option value="">Bodega central</option>
+                                            @foreach (var s in sucTraslado) { <option value="@s.Id">@s.Nombre</option> }
+                                        </select>
+                                    </div>
+                                    <div class="mb-2"><label class="form-label small">Lote (vacío = FEFO)</label><input name="NumeroLote" maxlength="40" class="form-control form-control-sm text-uppercase" /></div>
+                                    <div class="mb-2"><label class="form-label small">Nota</label><input name="Nota" maxlength="250" class="form-control form-control-sm" /></div>
+                                    <button class="btn btn-outline-primary btn-sm w-100">Trasladar</button>
+                                </form>
+                            }
                         </div>
                     </div>
                 </div>

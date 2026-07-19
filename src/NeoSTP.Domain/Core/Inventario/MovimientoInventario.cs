@@ -11,6 +11,9 @@ public class MovimientoInventario : AuditableEntity
     public int EmpresaId { get; set; }
     public int ProductoId { get; set; }
 
+    /// <summary>Sucursal afectada (E2). Null = bodega central.</summary>
+    public int? SucursalId { get; set; }
+
     public DateOnly Fecha { get; set; }
 
     /// <summary>ENTRADA | SALIDA | AJUSTE.</summary>
@@ -57,6 +60,7 @@ public static class OrigenesMovimientoInventario
     public const string Venta = "VENTA";
     public const string Ajuste = "AJUSTE";
     public const string Devolucion = "DEVOLUCION";
+    public const string Traslado = "TRASLADO";
 
-    public static readonly string[] All = [Inicial, Compra, RecepcionCompra, Venta, Ajuste, Devolucion];
+    public static readonly string[] All = [Inicial, Compra, RecepcionCompra, Venta, Ajuste, Devolucion, Traslado];
 }
