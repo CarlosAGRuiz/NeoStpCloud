@@ -550,6 +550,9 @@ internal static partial class SeedData
             Perm(422, "Agenda.Ver",       "NEOAGENDA", "Ver calendario de citas y comisiones"),
             Perm(423, "Agenda.Gestionar", "NEOAGENDA", "Crear, reprogramar y cambiar estado de citas"),
 
+            // E4 — aprobaciones de compras
+            Perm(424, "Compras.Aprobar", "COMPRAS", "Aprobar o rechazar órdenes de compra sobre el umbral"),
+
             // Diagnóstico de errores Hacienda (Sprint 17): la UI y el controller ya exigían
             // este código, pero el permiso nunca se sembró — solo SUPERADMIN podía entrar.
             Perm(420, "DTE.Diagnostico", "NEODTE", "Ver y resolver el diagnóstico de errores de Hacienda"),

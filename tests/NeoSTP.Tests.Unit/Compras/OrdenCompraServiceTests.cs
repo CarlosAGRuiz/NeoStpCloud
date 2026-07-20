@@ -254,6 +254,117 @@ public class OrdenCompraServiceTests
             "admin", Arg.Any<CancellationToken>());
     }
 
+    // ── E4: aprobación de órdenes por monto ──────────────────────────────────
+
+    [Fact]
+    public async Task Emitir_SobreUmbral_EnviaAPorAprobar()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        (await service.SetUmbralAprobacionAsync(Empresa, 100m, "admin")).IsSuccess.Should().BeTrue();
+        var orden = await service.CrearAsync(Empresa, Request(), "admin"); // total 226 ≥ 100
+
+        var result = await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.EstadoCodigo.Should().Be(OrdenCompraEstados.PorAprobar);
+    }
+
+    [Fact]
+    public async Task Emitir_BajoUmbral_EmiteDirecto()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        await service.SetUmbralAprobacionAsync(Empresa, 500m, "admin");
+        var orden = await service.CrearAsync(Empresa, Request(), "admin"); // total 226 < 500
+
+        var result = await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        result.Value!.EstadoCodigo.Should().Be(OrdenCompraEstados.Emitida);
+    }
+
+    [Fact]
+    public async Task Emitir_SinUmbral_EmiteDirecto()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+
+        var result = await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        result.Value!.EstadoCodigo.Should().Be(OrdenCompraEstados.Emitida);
+    }
+
+    [Fact]
+    public async Task Aprobar_PorAprobar_PasaAEmitida()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        await service.SetUmbralAprobacionAsync(Empresa, 100m, "admin");
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        var result = await service.AprobarAsync(Empresa, orden.Value.Id, "jefe");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.EstadoCodigo.Should().Be(OrdenCompraEstados.Emitida);
+    }
+
+    [Fact]
+    public async Task Aprobar_OrdenEnBorrador_Falla()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+
+        var result = await service.AprobarAsync(Empresa, orden.Value!.Id, "jefe");
+
+        result.ErrorCode.Should().Be("INVALID_STATE");
+    }
+
+    [Fact]
+    public async Task Rechazar_PorAprobar_RegresaABorradorConMotivo()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        await service.SetUmbralAprobacionAsync(Empresa, 100m, "admin");
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        var result = await service.RechazarAsync(Empresa, orden.Value.Id, "excede presupuesto", "jefe");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.EstadoCodigo.Should().Be(OrdenCompraEstados.Borrador);
+        result.Value.Observaciones.Should().Contain("excede presupuesto");
+    }
+
+    [Fact]
+    public async Task Rechazar_OrdenEnBorrador_Falla()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        var orden = await service.CrearAsync(Empresa, Request(), "admin");
+
+        var result = await service.RechazarAsync(Empresa, orden.Value!.Id, "motivo", "jefe");
+
+        result.ErrorCode.Should().Be("INVALID_STATE");
+    }
+
+    [Fact]
+    public async Task SetUmbral_Negativo_Falla()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+
+        var result = await service.SetUmbralAprobacionAsync(Empresa, -1m, "admin");
+
+        result.ErrorCode.Should().Be("VALIDATION");
+    }
+
+    [Fact]
+    public async Task SetUmbral_Cero_DesactivaAprobacion()
+    {
+        var db = NewDb(); var (service, _) = NewService(db);
+        await service.SetUmbralAprobacionAsync(Empresa, 100m, "admin");
+
+        var result = await service.SetUmbralAprobacionAsync(Empresa, 0m, "admin");
+
+        result.IsSuccess.Should().BeTrue();
+        db.Empresas.Single(e => e.Id == Empresa).UmbralAprobacionCompras.Should().BeNull();
+    }
+
     private static RegistrarRecepcionOrdenCompraRequest Recepcion(
         string key, int lineaId, decimal cantidad) => new()
     {

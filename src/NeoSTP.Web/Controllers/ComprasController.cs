@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Compras;
@@ -27,6 +28,7 @@ public class ComprasController : Controller
     private readonly IProductosService _productos;
     private readonly ICurrentUser _currentUser;
     private readonly IEmpresaContext _empresaContext;
+    private readonly NeoSTP.Infrastructure.Persistence.NeoStpDbContext _db;
 
     public ComprasController(
         ICompraService compras,
@@ -34,7 +36,8 @@ public class ComprasController : Controller
         ITesoreriaService tesoreria,
         IProductosService productos,
         ICurrentUser currentUser,
-        IEmpresaContext empresaContext)
+        IEmpresaContext empresaContext,
+        NeoSTP.Infrastructure.Persistence.NeoStpDbContext db)
     {
         _compras = compras;
         _ordenes = ordenes;
@@ -42,6 +45,7 @@ public class ComprasController : Controller
         _productos = productos;
         _currentUser = currentUser;
         _empresaContext = empresaContext;
+        _db = db;
     }
 
     [HttpGet]
@@ -65,6 +69,9 @@ public class ComprasController : Controller
         ViewBag.ProveedorId = proveedorId;
         ViewBag.Estados = OrdenCompraEstados.All;
         ViewBag.PuedeGestionar = Has("Compras.Gestionar");
+        ViewBag.PuedeAprobar = Has("Compras.Aprobar");
+        ViewBag.UmbralAprobacion = await _db.Empresas.AsNoTracking()
+            .Where(e => e.Id == eid).Select(e => e.UmbralAprobacionCompras).FirstOrDefaultAsync(ct);
         return View(result.Value);
     }
 
@@ -171,6 +178,7 @@ public class ComprasController : Controller
         var result = await _ordenes.GetAsync(eid, id, ct);
         if (result.IsFailure) return NotFound();
         ViewBag.PuedeGestionar = Has("Compras.Gestionar");
+        ViewBag.PuedeAprobar = Has("Compras.Aprobar");
         ViewBag.TiposDocumento = TiposDocumento;
         ViewBag.CondicionesPago = CondicionesPago;
         ViewBag.IdempotencyKey = Guid.NewGuid().ToString("N");
@@ -188,6 +196,39 @@ public class ComprasController : Controller
     public async Task<IActionResult> CancelarOrden(int id, CancellationToken ct)
         => await EjecutarAccionOrden(id, "Orden cancelada.",
             (eid, actor, token) => _ordenes.CancelarAsync(eid, id, actor, token), ct);
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AprobarOrden(int id, CancellationToken ct)
+    {
+        if (!Has("Compras.Aprobar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var r = await _ordenes.AprobarAsync(eid, id, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Orden aprobada y emitida." : r.Error;
+        return RedirectToAction(nameof(DetalleOrden), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RechazarOrden(int id, string? motivo, CancellationToken ct)
+    {
+        if (!Has("Compras.Aprobar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var r = await _ordenes.RechazarAsync(eid, id, motivo, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Orden rechazada; regresó a borrador." : r.Error;
+        return RedirectToAction(nameof(DetalleOrden), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UmbralAprobacion(decimal? umbral, CancellationToken ct)
+    {
+        if (!Has("Compras.Aprobar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var r = await _ordenes.SetUmbralAprobacionAsync(eid, umbral, _currentUser.Username, ct);
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Umbral de aprobación actualizado." : r.Error;
+        return RedirectToAction(nameof(Ordenes));
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]

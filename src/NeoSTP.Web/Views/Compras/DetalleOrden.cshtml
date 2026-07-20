@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = $"Orden {Model.Numero}";
     var puedeGestionar = ViewBag.PuedeGestionar is bool g && g;
+    var puedeAprobar = ViewBag.PuedeAprobar is bool ap && ap;
     var tipos = ViewBag.TiposDocumento as string[] ?? Array.Empty<string>();
     var condiciones = ViewBag.CondicionesPago as string[] ?? Array.Empty<string>();
     var idempotencyKey = ViewBag.IdempotencyKey as string ?? Guid.NewGuid().ToString("N");
@@ -12,6 +13,7 @@
     {
         "RECIBIDA" => "ns-badge--processed",
         "PARCIAL" => "ns-badge--contingency",
+        "POR_APROBAR" => "ns-badge--contingency",
         "CANCELADA" => "ns-badge--rejected",
         _ => "ns-badge--draft",
     };
@@ -28,7 +30,27 @@
             <a asp-action="EditarOrden" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">edit</span> Editar</a>
             <form asp-action="EmitirOrden" asp-route-id="@Model.Id" method="post">@Html.AntiForgeryToken()<button class="btn btn-primary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">send</span> Emitir</button></form>
         }
-        @if (puedeGestionar && Model.EstadoCodigo is "BORRADOR" or "EMITIDA")
+        @if (Model.EstadoCodigo == "POR_APROBAR")
+        {
+            @if (puedeAprobar)
+            {
+                <form asp-action="AprobarOrden" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-success btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">check_circle</span> Aprobar y emitir</button>
+                </form>
+                <form asp-action="RechazarOrden" asp-route-id="@Model.Id" method="post" class="d-flex gap-1"
+                      onsubmit="const m = prompt('Motivo del rechazo (opcional):'); if (m === null) return false; this.querySelector('[name=motivo]').value = m; return true;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="motivo" value="" />
+                    <button class="btn btn-outline-danger btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">block</span> Rechazar</button>
+                </form>
+            }
+            else
+            {
+                <span class="ns-badge ns-badge--contingency align-self-center">Esperando aprobación</span>
+            }
+        }
+        @if (puedeGestionar && Model.EstadoCodigo is "BORRADOR" or "EMITIDA" or "POR_APROBAR")
         {
             <form asp-action="CancelarOrden" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Cancelar esta orden de compra?');">@Html.AntiForgeryToken()<button class="btn btn-outline-danger btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:18px">cancel</span> Cancelar</button></form>
         }

@@ -24,6 +24,12 @@ public class Empresa : AuditableEntity
     /// <summary>Imagen del logo (PNG/JPG) embebida; se muestra en el PDF y el correo.</summary>
     public byte[]? LogoBlob { get; set; }
     public string? LogoContentType { get; set; }
+
+    /// <summary>
+    /// Umbral de aprobación de compras (E4): las órdenes con total mayor o igual pasan a
+    /// POR_APROBAR y requieren el permiso Compras.Aprobar. Null = sin flujo de aprobación.
+    /// </summary>
+    public decimal? UmbralAprobacionCompras { get; set; }
     /// <summary>Imagen de la firma autorizada (PNG/JPG) para el pie del DTE.</summary>
     public byte[]? FirmaBlob { get; set; }
     public string? FirmaContentType { get; set; }

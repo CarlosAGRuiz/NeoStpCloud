@@ -125,6 +125,29 @@ public class ComprasApiController : ApiControllerBase
         return Respond(await _ordenes.EmitirAsync(eid, id, _currentUser.Username, ct));
     }
 
+    /// <summary>Aprueba una orden POR_APROBAR y la emite (E4).</summary>
+    [HttpPost("ordenes/{id:int}/aprobar")]
+    [RequirePermiso("Compras.Aprobar")]
+    public async Task<IActionResult> AprobarOrden(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.AprobarAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    /// <summary>Rechaza una orden POR_APROBAR: regresa a borrador con el motivo (E4).</summary>
+    [HttpPost("ordenes/{id:int}/rechazar")]
+    [RequirePermiso("Compras.Aprobar")]
+    public async Task<IActionResult> RechazarOrden(int id, [FromBody] RechazarOrdenRequest? req, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _ordenes.RechazarAsync(eid, id, req?.Motivo, _currentUser.Username, ct));
+    }
+
+    public sealed class RechazarOrdenRequest
+    {
+        public string? Motivo { get; set; }
+    }
+
     [HttpPost("ordenes/{id:int}/cancelar")]
     [RequirePermiso("Compras.Gestionar")]
     public async Task<IActionResult> CancelarOrden(int id, [FromQuery] int? empresaId, CancellationToken ct)

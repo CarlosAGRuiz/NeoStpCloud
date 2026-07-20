@@ -168,10 +168,78 @@ public sealed class OrdenCompraService : IOrdenCompraService
         return Result<OrdenCompraDetalleDto>.Ok(ToDetalle(orden));
     }
 
-    public Task<Result<OrdenCompraDetalleDto>> EmitirAsync(
+    public async Task<Result<OrdenCompraDetalleDto>> EmitirAsync(
         int empresaId, int id, string? actor, CancellationToken ct = default)
-        => CambiarEstadoAsync(empresaId, id, OrdenCompraEstados.Borrador, OrdenCompraEstados.Emitida,
-            "EMITIR_ORDEN_COMPRA", actor, ct);
+    {
+        // E4: sobre el umbral de la empresa, la orden requiere aprobación antes de emitirse.
+        var umbral = await _db.Empresas.AsNoTracking()
+            .Where(e => e.Id == empresaId)
+            .Select(e => e.UmbralAprobacionCompras)
+            .FirstOrDefaultAsync(ct);
+
+        var orden = await QueryDetalle().FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
+        if (orden is null)
+            return Result<OrdenCompraDetalleDto>.Fail("Orden de compra no encontrada.", "ORDEN_COMPRA_NOT_FOUND");
+        if (orden.EstadoCodigo != OrdenCompraEstados.Borrador)
+            return Result<OrdenCompraDetalleDto>.Fail($"La orden debe estar en estado {OrdenCompraEstados.Borrador}.", "INVALID_STATE");
+
+        var requiereAprobacion = umbral is decimal u && u > 0 && orden.Total >= u;
+        orden.EstadoCodigo = requiereAprobacion ? OrdenCompraEstados.PorAprobar : OrdenCompraEstados.Emitida;
+        orden.UpdatedAt = DateTime.UtcNow;
+        orden.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor,
+            requiereAprobacion ? "ENVIAR_APROBACION_ORDEN_COMPRA" : "EMITIR_ORDEN_COMPRA",
+            requiereAprobacion ? $"{orden.Numero} (total {orden.Total:N2} ≥ umbral {umbral:N2})" : orden.Numero,
+            orden.Id);
+        return Result<OrdenCompraDetalleDto>.Ok(ToDetalle(orden));
+    }
+
+    public Task<Result<OrdenCompraDetalleDto>> AprobarAsync(
+        int empresaId, int id, string? actor, CancellationToken ct = default)
+        => CambiarEstadoAsync(empresaId, id, OrdenCompraEstados.PorAprobar, OrdenCompraEstados.Emitida,
+            "APROBAR_ORDEN_COMPRA", actor, ct);
+
+    public async Task<Result<OrdenCompraDetalleDto>> RechazarAsync(
+        int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default)
+    {
+        var orden = await QueryDetalle().FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
+        if (orden is null)
+            return Result<OrdenCompraDetalleDto>.Fail("Orden de compra no encontrada.", "ORDEN_COMPRA_NOT_FOUND");
+        if (orden.EstadoCodigo != OrdenCompraEstados.PorAprobar)
+            return Result<OrdenCompraDetalleDto>.Fail($"La orden debe estar en estado {OrdenCompraEstados.PorAprobar}.", "INVALID_STATE");
+
+        orden.EstadoCodigo = OrdenCompraEstados.Borrador;
+        if (!string.IsNullOrWhiteSpace(motivo))
+        {
+            var nota = $"[Rechazada {DateTime.UtcNow:dd/MM/yyyy}] {motivo.Trim()}";
+            orden.Observaciones = string.IsNullOrWhiteSpace(orden.Observaciones)
+                ? nota : $"{orden.Observaciones}\n{nota}";
+        }
+        orden.UpdatedAt = DateTime.UtcNow;
+        orden.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "RECHAZAR_ORDEN_COMPRA",
+            $"{orden.Numero}{(string.IsNullOrWhiteSpace(motivo) ? "" : $": {motivo.Trim()}")}", orden.Id);
+        return Result<OrdenCompraDetalleDto>.Ok(ToDetalle(orden));
+    }
+
+    public async Task<Result> SetUmbralAprobacionAsync(int empresaId, decimal? umbral, string? actor, CancellationToken ct = default)
+    {
+        if (umbral is < 0)
+            return Result.Fail("El umbral no puede ser negativo.", "VALIDATION");
+
+        var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
+        if (empresa is null) return Result.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
+
+        empresa.UmbralAprobacionCompras = umbral is 0 ? null : umbral;
+        empresa.UpdatedAt = DateTime.UtcNow;
+        empresa.UpdatedBy = actor;
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "UMBRAL_APROBACION",
+            empresa.UmbralAprobacionCompras is decimal v ? $"Umbral = {v:N2}" : "Sin aprobaciones", empresaId);
+        return Result.Ok();
+    }
 
     public async Task<Result<OrdenCompraDetalleDto>> CancelarAsync(
         int empresaId, int id, string? actor, CancellationToken ct = default)

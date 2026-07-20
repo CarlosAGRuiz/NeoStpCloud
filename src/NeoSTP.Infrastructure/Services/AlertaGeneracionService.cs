@@ -120,6 +120,21 @@ public class AlertaGeneracionService : IAlertaGeneracionService
             });
         }
 
+        // 4c) Órdenes de compra esperando aprobación (E4)
+        var porAprobar = await _db.OrdenesCompra.AsNoTracking()
+            .Where(o => o.EmpresaId == empresaId && o.EstadoCodigo == Domain.Core.Compras.OrdenCompraEstados.PorAprobar)
+            .OrderBy(o => o.Id).Take(100)
+            .Select(o => new { o.Id, o.Numero, o.Total })
+            .ToListAsync(ct);
+        foreach (var o in porAprobar)
+            await Crear($"{AlertaTipos.OcPorAprobar}:{o.Id}", new CrearAlertaRequest
+            {
+                TipoCodigo = AlertaTipos.OcPorAprobar, Severidad = AlertaSeveridades.Advertencia,
+                Titulo = "Orden de compra por aprobar",
+                Mensaje = $"La orden {o.Numero} por $ {o.Total:N2} espera aprobación.",
+                EntidadTipo = "OrdenCompra", EntidadId = o.Id,
+            });
+
         // 4) Actividades CRM vencidas (pendientes con fecha programada pasada)
         var ahora = DateTime.UtcNow;
         var vencidasCrm = await _db.ActividadesCrm.AsNoTracking()

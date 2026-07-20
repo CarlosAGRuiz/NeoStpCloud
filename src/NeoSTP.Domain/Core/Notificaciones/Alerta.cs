@@ -47,6 +47,7 @@ public static class AlertaTipos
     public const string StockBajo = "STOCK_BAJO";
     public const string ActividadCrmVencida = "ACTIVIDAD_CRM_VENCIDA";
     public const string LotePorVencer = "LOTE_POR_VENCER";
+    public const string OcPorAprobar = "OC_POR_APROBAR";
 }
 
 public static class AlertaSeveridades

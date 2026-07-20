@@ -96,10 +96,12 @@ public class OrdenCompraRecepcionLinea : AuditableEntity
 public static class OrdenCompraEstados
 {
     public const string Borrador = "BORRADOR";
+    /// <summary>El total superó el umbral de aprobación de la empresa; espera a un aprobador (E4).</summary>
+    public const string PorAprobar = "POR_APROBAR";
     public const string Emitida = "EMITIDA";
     public const string Parcial = "PARCIAL";
     public const string Recibida = "RECIBIDA";
     public const string Cancelada = "CANCELADA";
 
-    public static readonly string[] All = [Borrador, Emitida, Parcial, Recibida, Cancelada];
+    public static readonly string[] All = [Borrador, PorAprobar, Emitida, Parcial, Recibida, Cancelada];
 }
