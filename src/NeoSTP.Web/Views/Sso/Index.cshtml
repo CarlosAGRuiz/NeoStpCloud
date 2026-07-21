@@ -1,0 +1,140 @@
+@using NeoSTP.Application.Auth.Dtos
+@model EmpresaSsoDto
+@{
+    ViewData["Title"] = "SSO corporativo";
+    var roles = ViewBag.Roles as IEnumerable<NeoSTP.Application.Roles.Dtos.RolDto> ?? Array.Empty<NeoSTP.Application.Roles.Dtos.RolDto>();
+    var proveedores = ViewBag.Proveedores as string[] ?? Array.Empty<string>();
+    var ssoGlobal = ViewBag.SsoGlobalHabilitado is bool sg && sg;
+    var microsoftListo = ViewBag.MicrosoftListo is bool ml && ml;
+    var googleListo = ViewBag.GoogleListo is bool gl && gl;
+    string ProveedorLabel(string p) => p switch { "ENTRA" => "Microsoft Entra ID", "GOOGLE" => "Google Workspace", _ => p };
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>SSO corporativo</span></nav>
+        <h1 class="ns-page-title">Inicio de sesión con SSO</h1>
+    </div>
+</div>
+
+@if (TempData["Success"] is string ok) { <div class="alert alert-success alert-dismissible fade show">@ok <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@if (!ssoGlobal)
+{
+    <div class="alert alert-info">
+        <span class="material-symbols-outlined align-middle" style="font-size:18px">info</span>
+        El SSO aún no está activado a nivel de plataforma. Puedes dejar tu configuración lista; los usuarios podrán entrar por SSO cuando NeoSTP habilite el proveedor.
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-action="Guardar" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Proveedor de identidad</label>
+                        <select name="ProveedorCodigo" class="form-select">
+                            @foreach (var p in proveedores)
+                            {
+                                <option value="@p" selected="@(Model.ProveedorCodigo == p)">@ProveedorLabel(p)</option>
+                            }
+                        </select>
+                        <div class="form-text">
+                            Entra ID: @(microsoftListo ? "credenciales listas" : "pendiente de credenciales") ·
+                            Google: @(googleListo ? "credenciales listas" : "pendiente de credenciales")
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Dominio de correo corporativo</label>
+                        <input name="DominioCorreo" value="@Model.DominioCorreo" class="form-control ns-mono" placeholder="contoso.com" />
+                        <div class="form-text">Los usuarios cuyo correo termina en este dominio se asocian a tu empresa al entrar por SSO.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Tenant ID de Entra <span class="text-muted small">(opcional)</span></label>
+                        <input name="TenantIdExterno" value="@Model.TenantIdExterno" class="form-control ns-mono" placeholder="00000000-0000-0000-0000-000000000000" />
+                        <div class="form-text">Si lo indicas, solo se aceptan usuarios de ese directorio de Microsoft Entra.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input name="Habilitado" value="true" class="form-check-input" type="checkbox" id="habilitado" checked="@Model.Habilitado" />
+                        <input type="hidden" name="Habilitado" value="false" />
+                        <label class="form-check-label" for="habilitado">SSO habilitado para esta empresa</label>
+                    </div>
+
+                    <hr />
+
+                    <div class="form-check form-switch mb-3">
+                        <input name="AutoProvisionar" value="true" class="form-check-input" type="checkbox" id="autoprov" checked="@Model.AutoProvisionar" />
+                        <input type="hidden" name="AutoProvisionar" value="false" />
+                        <label class="form-check-label" for="autoprov">Crear usuarios automáticamente en el primer inicio de sesión</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Rol por defecto (auto-aprovisionamiento)</label>
+                        <select name="RolPorDefectoId" class="form-select">
+                            <option value="">— Sin rol (requerido si auto-aprovisionas) —</option>
+                            @foreach (var r in roles)
+                            {
+                                <option value="@r.Id" selected="@(Model.RolPorDefectoId == r.Id)">@r.Nombre</option>
+                            }
+                        </select>
+                        <div class="form-text">Se asigna a las cuentas creadas por SSO. Sin auto-aprovisionamiento, cada usuario debe existir de antemano (se vincula por correo).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Notas <span class="text-muted small">(opcional)</span></label>
+                        <textarea name="Notas" class="form-control" rows="2" placeholder="Referencia interna, contacto de TI del cliente, etc.">@Model.Notas</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"><span class="material-symbols-outlined align-middle" style="font-size:18px">save</span> Guardar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 fw-semibold"><span class="material-symbols-outlined align-middle" style="font-size:18px">key</span> Cómo funciona</h2>
+                <ol class="small text-muted ps-3 mb-0">
+                    <li class="mb-2">El usuario elige <strong>Microsoft Entra ID</strong> o <strong>Google</strong> en la pantalla de login.</li>
+                    <li class="mb-2">Si su correo ya existe como usuario, se <strong>vincula</strong> automáticamente.</li>
+                    <li class="mb-2">Si no existe y activas el auto-aprovisionamiento, se <strong>crea</strong> con el rol por defecto.</li>
+                    <li>Los permisos siguen viniendo del rol: el SSO solo reemplaza la contraseña.</li>
+                </ol>
+            </div>
+        </div>
+        @if (Model.Configurado)
+        {
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h2 class="h6 fw-semibold mb-2">Estado actual</h2>
+                    <div class="small">
+                        <div class="d-flex justify-content-between"><span class="text-muted">Proveedor</span><strong>@ProveedorLabel(Model.ProveedorCodigo)</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Dominio</span><strong class="ns-mono">@Model.DominioCorreo</strong></div>
+                        <div class="d-flex justify-content-between"><span class="text-muted">Estado</span>
+                            @if (Model.Habilitado)
+                            {
+                                <span class="ns-badge ns-badge--processed">Habilitado</span>
+                            }
+                            else
+                            {
+                                <span class="ns-badge ns-badge--draft">Deshabilitado</span>
+                            }
+                        </div>
+                        @if (Model.AutoProvisionar)
+                        {
+                            <div class="d-flex justify-content-between"><span class="text-muted">Rol nuevos</span><strong>@Model.RolPorDefectoNombre</strong></div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

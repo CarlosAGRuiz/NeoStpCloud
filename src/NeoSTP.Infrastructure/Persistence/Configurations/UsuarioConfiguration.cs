@@ -25,9 +25,18 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         builder.Property(u => u.MfaSecretoCifrado).HasMaxLength(500);
         builder.Property(u => u.MfaRecoveryCodesJson).HasColumnType("nvarchar(max)");
 
+        // SSO federado (E3)
+        builder.Property(u => u.SsoProveedor).HasMaxLength(20);
+        builder.Property(u => u.SsoSubject).HasMaxLength(200);
+
         builder.HasIndex(u => new { u.EmpresaId, u.Username }).IsUnique();
         builder.HasIndex(u => new { u.EmpresaId, u.Email }).IsUnique();
         builder.HasIndex(u => u.EstadoCodigo);
+
+        // Un sujeto federado se vincula a una sola cuenta local (filtrado: solo cuentas SSO).
+        builder.HasIndex(u => new { u.SsoProveedor, u.SsoSubject })
+            .IsUnique()
+            .HasFilter("[SsoProveedor] IS NOT NULL AND [SsoSubject] IS NOT NULL");
 
         builder.HasOne(u => u.Empresa)
             .WithMany()

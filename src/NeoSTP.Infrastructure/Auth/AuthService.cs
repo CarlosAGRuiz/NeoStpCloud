@@ -237,6 +237,129 @@ public class AuthService : IAuthService
         });
     }
 
+    public async Task<Result<LoginResponse>> LoginExternoAsync(ExternalLoginInfo info, AuthContext context, CancellationToken ct = default)
+    {
+        if (info is null || string.IsNullOrWhiteSpace(info.Subject) || string.IsNullOrWhiteSpace(info.Proveedor))
+            return Result<LoginResponse>.Fail("Información de SSO incompleta.", "SSO_BAD_INPUT");
+        if (!SsoProveedores.EsValido(info.Proveedor))
+            return Result<LoginResponse>.Fail("Proveedor de SSO no soportado.", "SSO_PROVIDER_INVALID");
+
+        var email = info.Email?.Trim().ToLowerInvariant();
+
+        // 1) Sujeto federado ya vinculado a una cuenta local.
+        var usuario = await _db.Usuarios
+            .Include(u => u.Roles).ThenInclude(ur => ur.Rol).ThenInclude(r => r.Permisos).ThenInclude(rp => rp.Permiso)
+            .FirstOrDefaultAsync(u => u.SsoProveedor == info.Proveedor && u.SsoSubject == info.Subject, ct);
+
+        if (usuario is null)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Result<LoginResponse>.Fail("El proveedor no entregó un correo para vincular la cuenta.", "SSO_SIN_CORREO");
+
+            // 2) Cuenta local con ese correo → vincular la identidad federada.
+            usuario = await _db.Usuarios
+                .Include(u => u.Roles).ThenInclude(ur => ur.Rol).ThenInclude(r => r.Permisos).ThenInclude(rp => rp.Permiso)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email, ct);
+            if (usuario is not null)
+            {
+                usuario.SsoProveedor = info.Proveedor;
+                usuario.SsoSubject = info.Subject;
+                usuario.UpdatedAt = DateTime.UtcNow;
+                usuario.UpdatedBy = "SSO";
+            }
+            else
+            {
+                // 3) Sin cuenta local: auto-aprovisionar según la config de la empresa dueña del dominio.
+                var provision = await ProvisionarPorDominioAsync(info, email, ct);
+                if (provision.IsFailure)
+                    return Result<LoginResponse>.Fail(provision.Error!, provision.ErrorCode);
+                usuario = provision.Value!;
+                _db.Usuarios.Add(usuario);
+            }
+        }
+
+        if (usuario.EstadoCodigo != EstadoCodes.Activo)
+        {
+            await AuditAsync(context, usuario, "LOGIN_SSO", "FAIL", $"Estado: {usuario.EstadoCodigo}");
+            return Result<LoginResponse>.Fail("Usuario inactivo o bloqueado.", "AUTH_USER_INACTIVE");
+        }
+
+        usuario.IntentosFallidos = 0;
+        usuario.BloqueadoHasta = null;
+        usuario.UltimoLogin = DateTime.UtcNow;
+
+        var userInfo = ToUserInfo(usuario);
+        var (accessToken, accessExpires) = _jwt.CreateAccessToken(userInfo);
+        var refreshTokenValue = _jwt.CreateRefreshToken();
+        var refreshExpires = DateTime.UtcNow.AddDays(_jwtOptions.RefreshTokenExpiryDays);
+        _db.RefreshTokens.Add(new RefreshToken
+        {
+            UsuarioId = usuario.Id,
+            Token = refreshTokenValue,
+            ExpiresAt = refreshExpires,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByIp = context.IpAddress,
+        });
+
+        await _db.SaveChangesAsync(ct);
+        await AuditAsync(context, usuario, "LOGIN_SSO", "OK", $"SSO {info.Proveedor}");
+
+        return Result<LoginResponse>.Ok(new LoginResponse
+        {
+            AccessToken = accessToken,
+            AccessTokenExpiresAt = accessExpires,
+            RefreshToken = refreshTokenValue,
+            RefreshTokenExpiresAt = refreshExpires,
+            User = userInfo,
+        });
+    }
+
+    private async Task<Result<Usuario>> ProvisionarPorDominioAsync(ExternalLoginInfo info, string email, CancellationToken ct)
+    {
+        var arroba = email.IndexOf('@');
+        if (arroba < 0 || arroba == email.Length - 1)
+            return Result<Usuario>.Fail("Correo de SSO inválido.", "SSO_SIN_CORREO");
+        var dominio = email[(arroba + 1)..];
+
+        var config = await _db.EmpresaSso
+            .Include(c => c.Empresa)
+            .FirstOrDefaultAsync(c => c.DominioCorreo == dominio && c.Habilitado, ct);
+        if (config is null)
+            return Result<Usuario>.Fail("No hay una cuenta asociada a este correo. Contacta al administrador.", "SSO_SIN_CUENTA");
+        if (!string.Equals(config.ProveedorCodigo, info.Proveedor, StringComparison.Ordinal))
+            return Result<Usuario>.Fail("El proveedor de SSO no coincide con el configurado para tu empresa.", "SSO_PROVEEDOR_NO_COINCIDE");
+        if (!string.IsNullOrWhiteSpace(config.TenantIdExterno)
+            && !string.Equals(config.TenantIdExterno, info.TenantIdExterno, StringComparison.OrdinalIgnoreCase))
+            return Result<Usuario>.Fail("Tu directorio corporativo no está autorizado para esta empresa.", "SSO_TENANT_NO_COINCIDE");
+        if (config.Empresa is null || config.Empresa.EstadoCodigo != "ACTIVA")
+            return Result<Usuario>.Fail("La empresa está suspendida o inactiva.", "EMPRESA_SUSPENDIDA");
+        if (!config.AutoProvisionar || config.RolPorDefectoId is null)
+            return Result<Usuario>.Fail("No hay una cuenta asociada a este correo. Contacta al administrador.", "SSO_SIN_CUENTA");
+
+        var rol = await _db.Roles
+            .Include(r => r.Permisos).ThenInclude(rp => rp.Permiso)
+            .FirstOrDefaultAsync(r => r.Id == config.RolPorDefectoId.Value, ct);
+        if (rol is null)
+            return Result<Usuario>.Fail("El rol por defecto de SSO no existe.", "SSO_ROL_INVALIDO");
+
+        var usuario = new Usuario
+        {
+            EmpresaId = config.EmpresaId,
+            Username = email,
+            Email = email,
+            NombreCompleto = string.IsNullOrWhiteSpace(info.NombreCompleto) ? email : info.NombreCompleto.Trim(),
+            // Contraseña aleatoria inutilizable: la cuenta solo entra por SSO.
+            PasswordHash = _passwordHasher.Hash(Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")),
+            TipoUsuarioCodigo = "OPERADOR",
+            EstadoCodigo = EstadoCodes.Activo,
+            SsoProveedor = info.Proveedor,
+            SsoSubject = info.Subject,
+            CreatedBy = "SSO",
+            Roles = new List<UsuarioRol> { new() { RolId = rol.Id, Rol = rol } },
+        };
+        return Result<Usuario>.Ok(usuario);
+    }
+
     public async Task<Result<LoginResponse>> RefreshAsync(string refreshToken, AuthContext context, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))

@@ -9,6 +9,8 @@
   <ItemGroup>
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <!-- E3: SSO OIDC (Entra/Google) — esquemas OpenID Connect adicionales al cookie. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

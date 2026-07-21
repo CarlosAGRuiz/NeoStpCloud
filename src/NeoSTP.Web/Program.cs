@@ -47,6 +47,10 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 builder.Services.AddScoped<ICurrentUser, CookieCurrentUser>();
 builder.Services.AddScoped<NeoSTP.Application.Empresas.IEmpresaContext, NeoSTP.Web.Auth.WebEmpresaContext>();
 
+// E3: SSO OIDC. Deshabilitado por defecto; solo registra esquemas si Sso:Enabled + credenciales.
+var ssoOptions = builder.Configuration.GetSection(NeoSTP.Application.Auth.SsoOptions.SectionName)
+    .Get<NeoSTP.Application.Auth.SsoOptions>() ?? new NeoSTP.Application.Auth.SsoOptions();
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -60,7 +64,8 @@ builder.Services
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
-    });
+    })
+    .AddNeoStpSso(ssoOptions);
 
 builder.Services.AddAuthorization();
 

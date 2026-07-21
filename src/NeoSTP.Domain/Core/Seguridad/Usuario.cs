@@ -36,5 +36,12 @@ public class Usuario : AuditableEntity
     /// <summary>Códigos de recuperación (hash) serializados en JSON.</summary>
     public string? MfaRecoveryCodesJson { get; set; }
 
+    // SSO federado (E3). Vincula la cuenta local con una identidad OIDC estable.
+    /// <summary>Proveedor OIDC con el que se vinculó la cuenta: ENTRA | GOOGLE. Null si es cuenta local.</summary>
+    public string? SsoProveedor { get; set; }
+
+    /// <summary>Identificador estable del sujeto en el proveedor (claim "sub"/"oid"). Único por proveedor.</summary>
+    public string? SsoSubject { get; set; }
+
     public ICollection<UsuarioRol> Roles { get; set; } = new List<UsuarioRol>();
 }

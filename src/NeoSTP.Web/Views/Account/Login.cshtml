@@ -49,6 +49,36 @@
 
                 <button type="submit" class="btn btn-lg w-100 text-white" style="background:#131b2e;">Entrar</button>
             </form>
+
+            @{
+                var ssoMicrosoft = ViewBag.SsoMicrosoft is bool m && m;
+                var ssoGoogle = ViewBag.SsoGoogle is bool g && g;
+            }
+            @if (ssoMicrosoft || ssoGoogle)
+            {
+                <div class="d-flex align-items-center gap-2 my-3 text-muted small">
+                    <hr class="flex-grow-1 m-0" /><span>o continúa con</span><hr class="flex-grow-1 m-0" />
+                </div>
+                @if (ssoMicrosoft)
+                {
+                    <a asp-action="ExternalLogin" asp-route-provider="Microsoft" asp-route-returnUrl="@Model.ReturnUrl"
+                       class="btn btn-outline-secondary btn-lg w-100 mb-2 d-flex align-items-center justify-content-center gap-2">
+                        <span class="material-symbols-outlined" style="font-size:20px">window</span> Microsoft Entra ID
+                    </a>
+                }
+                @if (ssoGoogle)
+                {
+                    <a asp-action="ExternalLogin" asp-route-provider="Google" asp-route-returnUrl="@Model.ReturnUrl"
+                       class="btn btn-outline-secondary btn-lg w-100 mb-2 d-flex align-items-center justify-content-center gap-2">
+                        <span class="material-symbols-outlined" style="font-size:20px">account_circle</span> Google Workspace
+                    </a>
+                }
+            }
+
+            @if (TempData["Error"] is string ssoError)
+            {
+                <div class="alert alert-warning mt-2" role="alert">@ssoError</div>
+            }
             <p class="text-center text-muted small mt-4 mb-0">© @DateTime.Now.Year NeoSTP — Plataforma SaaS DTE</p>
         </div>
     </div>

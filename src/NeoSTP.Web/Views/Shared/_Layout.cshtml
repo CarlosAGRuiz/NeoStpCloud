@@ -94,6 +94,7 @@
         || TienePermiso("Core.Sucursales.Administrar")
         || TienePermiso("Core.Usuarios.Ver")
         || TienePermiso("DTE.Configurar")
+        || TienePermiso("Seguridad.Sso.Gestionar")
         || puedeConfigurarCorreo;
 
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
@@ -384,6 +385,13 @@ else
                         {
                             <a class="ns-nav-link @active("Branding")" asp-controller="Branding" asp-action="Index">
                                 <span class="material-symbols-outlined">palette</span> Logo y firma
+                            </a>
+                        }
+
+                        @if (isSuperAdmin || TienePermiso("Seguridad.Sso.Gestionar"))
+                        {
+                            <a class="ns-nav-link @active("Sso")" asp-controller="Sso" asp-action="Index">
+                                <span class="material-symbols-outlined">key</span> SSO corporativo
                             </a>
                         }
 

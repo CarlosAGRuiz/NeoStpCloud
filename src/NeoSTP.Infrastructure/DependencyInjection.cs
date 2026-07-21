@@ -57,6 +57,9 @@ public static class DependencyInjection
         services.Configure<NeoSTP.Application.Auth.SecurityOptions>(configuration.GetSection(NeoSTP.Application.Auth.SecurityOptions.SectionName));
         services.AddScoped<IPasswordPolicy, PasswordPolicy>();
         services.AddScoped<IAuthService, AuthService>();
+        // SSO federado OIDC (E3): configuración por empresa (dominio→empresa, auto-provisión).
+        services.Configure<NeoSTP.Application.Auth.SsoOptions>(configuration.GetSection(NeoSTP.Application.Auth.SsoOptions.SectionName));
+        services.AddScoped<ISsoConfigService, SsoConfigService>();
         services.AddScoped<IUsuariosService, UsuariosService>();
         services.AddScoped<IRolesService, RolesService>();
         services.AddScoped<ICatalogosService, CatalogosService>();

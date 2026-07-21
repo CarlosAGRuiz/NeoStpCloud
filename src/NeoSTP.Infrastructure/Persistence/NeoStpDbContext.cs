@@ -48,6 +48,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<RolPermiso> RolPermisos => Set<RolPermiso>();
     public DbSet<UsuarioRol> UsuarioRoles => Set<UsuarioRol>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<EmpresaSso> EmpresaSso => Set<EmpresaSso>();
 
     // Licenciamiento
     public DbSet<Modulo> Modulos => Set<Modulo>();

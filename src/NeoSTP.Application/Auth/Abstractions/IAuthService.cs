@@ -25,4 +25,11 @@ public interface IAuthService
     /// nuevas (token/claims) con los permisos del rol de esa empresa.
     /// </summary>
     Task<Result<LoginResponse>> CambiarEmpresaAsync(int userId, int empresaId, AuthContext context, CancellationToken ct = default);
+
+    /// <summary>
+    /// Inicia sesión con una identidad federada (SSO OIDC, E3). Vincula por sujeto
+    /// estable, o por correo con una cuenta existente, o auto-aprovisiona según la
+    /// configuración SSO de la empresa dueña del dominio. No usa contraseña.
+    /// </summary>
+    Task<Result<LoginResponse>> LoginExternoAsync(ExternalLoginInfo info, AuthContext context, CancellationToken ct = default);
 }
