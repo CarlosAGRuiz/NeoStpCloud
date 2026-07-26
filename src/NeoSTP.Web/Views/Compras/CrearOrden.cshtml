@@ -19,6 +19,22 @@
     </div>
 </div>
 
+@* Sin proveedores no hay orden posible: un desplegable vacío deja al usuario atorado
+   sin saber qué falta. Se le dice y se le da el enlace para crearlo. *@
+@if (proveedores.Count == 0)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2">
+        <span class="material-symbols-outlined">local_shipping</span>
+        <div class="flex-grow-1">
+            <strong>Primero registra un proveedor.</strong>
+            Una orden de compra siempre va dirigida a un proveedor, y todavía no tienes ninguno.
+        </div>
+        <a asp-controller="Proveedores" asp-action="Index" class="btn btn-sm btn-warning text-nowrap">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Crear proveedor
+        </a>
+    </div>
+}
+
 <form asp-action="@action" asp-route-id="@formId" method="post">
     @Html.AntiForgeryToken()
     <div asp-validation-summary="All" class="alert alert-danger py-2"></div>

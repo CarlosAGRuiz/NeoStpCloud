@@ -17,17 +17,41 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Services(services)
     .Enrich.FromLogContext());
 
-builder.Services.AddControllersWithViews()
+builder.Services.AddControllersWithViews(options =>
+    {
+        // Mensajes de binding en español y con el nombre del campo. Por defecto ASP.NET
+        // responde "The value '' is invalid." — en inglés y sin decir qué campo, lo que
+        // deja al usuario adivinando en un formulario largo como el de emisión de DTE.
+        var m = options.ModelBindingMessageProvider;
+        static string Campo(string? nombre) =>
+            string.IsNullOrWhiteSpace(nombre) ? "un campo obligatorio" : $"el campo {nombre}";
+        m.SetValueMustNotBeNullAccessor(campo => $"Falta {Campo(campo)}.");
+        m.SetMissingBindRequiredValueAccessor(campo => $"Falta {Campo(campo)}.");
+        m.SetAttemptedValueIsInvalidAccessor((valor, campo) =>
+            string.IsNullOrEmpty(valor)
+                ? $"Falta {Campo(campo)}. Revisa que las cantidades y montos no estén vacíos."
+                : $"El valor '{valor}' no es válido para {Campo(campo)}.");
+        m.SetUnknownValueIsInvalidAccessor(campo => $"El valor indicado en {campo} no es válido.");
+        m.SetValueIsInvalidAccessor(valor => $"El valor {valor} no es válido.");
+        m.SetNonPropertyAttemptedValueIsInvalidAccessor(valor => $"El valor '{valor}' no es válido.");
+        m.SetMissingKeyOrValueAccessor(() => "Este campo es obligatorio.");
+    })
     .AddViewLocalization();
 builder.Services.AddHttpContextAccessor();
 
 // V2.5-S6: i18n base es/en. Español por defecto; el idioma se persiste en la cookie
 // estándar de cultura (acción Home/CambiarIdioma).
+//
+// OJO con la cultura: debe ser es-SV (El Salvador), no el "es" genérico. El Salvador usa
+// punto decimal y dólar; el "es" genérico usa coma decimal y euro. Como los <input type="number">
+// del navegador SIEMPRE envían el punto decimal (lo exige el estándar HTML), con "es" el binder
+// leía 3.25 como 325 — es decir, multiplicaba por 100 los precios capturados en los formularios.
+// Los códigos de recursos siguen resolviendo (.es.resx) porque es-SV cae a "es" por herencia.
 builder.Services.AddLocalization(o => o.ResourcesPath = "Resources");
 builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>(o =>
 {
-    var cultures = new[] { "es", "en" };
-    o.SetDefaultCulture("es");
+    var cultures = new[] { "es-SV", "en-US" };
+    o.SetDefaultCulture("es-SV");
     o.AddSupportedCultures(cultures);
     o.AddSupportedUICultures(cultures);
 });

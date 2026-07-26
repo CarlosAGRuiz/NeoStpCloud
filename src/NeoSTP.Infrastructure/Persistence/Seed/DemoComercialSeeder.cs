@@ -3,13 +3,16 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Compras;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Onboarding;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Cobranza;
+using NeoSTP.Domain.Core.Compras;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Pos;
 using NeoSTP.Domain.Core.Productos;
@@ -307,6 +310,27 @@ public static class DemoComercialSeeder
 
         var productos = ProductosDelRubro(empresa.Id, def.Rubro);
         db.Productos.AddRange(productos);
+
+        // Proveedores: sin ellos el módulo de compras no se puede ni demostrar
+        // (no hay orden de compra posible sin proveedor).
+        var proveedores = new[]
+        {
+            new Proveedor
+            {
+                EmpresaId = empresa.Id, Codigo = "PROV-001", Nombre = "Suministros Generales, S.A. de C.V.",
+                Nit = "06142509887001", Nrc = "155221-2", Contacto = "Mario Guevara",
+                Telefono = "2260-1100", Email = "ventas@suministros.demo",
+                Direccion = "San Salvador", EstadoCodigo = ProveedorEstados.Activo, CreatedBy = Actor,
+            },
+            new Proveedor
+            {
+                EmpresaId = empresa.Id, Codigo = "PROV-002", Nombre = "Importaciones del Istmo, S.A.",
+                Nit = "06142509887002", Nrc = "201884-6", Contacto = "Cecilia Mejía",
+                Telefono = "2260-2200", Email = "compras@istmo.demo",
+                Direccion = "Antiguo Cuscatlán", EstadoCodigo = ProveedorEstados.Activo, CreatedBy = Actor,
+            },
+        };
+        db.Proveedores.AddRange(proveedores);
         await db.SaveChangesAsync(ct);
 
         var hoy = DateTime.UtcNow.Date;
@@ -345,6 +369,25 @@ public static class DemoComercialSeeder
             });
         }
 
+        // Existencias: un inventario en cero no demuestra nada. Se cargan cantidades
+        // con costo, y el último producto queda bajo el mínimo para que se vea la alerta.
+        if (def.PlanCodigo is not ("STARTER" or "PYME"))
+        {
+            for (var i = 0; i < productos.Length; i++)
+            {
+                var p = productos[i];
+                var bajoMinimo = i == productos.Length - 1;
+                db.ExistenciasProducto.Add(new ExistenciaProducto
+                {
+                    EmpresaId = empresa.Id, ProductoId = p.Id, SucursalId = null,
+                    Cantidad = bajoMinimo ? 3m : 40m + i * 15m,
+                    CostoPromedio = p.CostoUnitario ?? 0m,
+                    StockMinimo = bajoMinimo ? 10m : 5m,
+                    CreatedBy = Actor,
+                });
+            }
+        }
+
         // Ventas de mostrador para los planes con POS.
         if (def.PlanCodigo is not "STARTER")
         {
@@ -368,6 +411,55 @@ public static class DemoComercialSeeder
             }
         }
 
+        await db.SaveChangesAsync(ct);
+        await SembrarComprasAsync(db, empresa, proveedores[0], productos, def, ct);
+    }
+
+    /// <summary>
+    /// Umbral de aprobación (E4) y una orden ya detenida esperando visto bueno, para que
+    /// el flujo se pueda mostrar sin tener que construirlo en vivo.
+    /// </summary>
+    private static async Task SembrarComprasAsync(
+        NeoStpDbContext db, Empresa empresa, Proveedor proveedor,
+        Producto[] productos, EmpresaDemo def, CancellationToken ct)
+    {
+        if (def.PlanCodigo is not ("BUSINESSFULL" or "ENTERPRISE")) return;
+
+        const decimal umbral = 500m;
+        empresa.UmbralAprobacionCompras = umbral;
+
+        var producto = productos[0];
+        var precio = producto.CostoUnitario ?? 5m;
+        // La cantidad se deriva del umbral: la orden tiene que superarlo de verdad, si no
+        // el estado "por aprobar" no cuadra con el monto y la demo se cae sola.
+        var cantidad = Math.Ceiling(umbral * 1.5m / precio);
+        var calculo = OrdenCompraCalculator.CalcularLinea(cantidad, precio, producto.AplicaIva);
+
+        var orden = new OrdenCompra
+        {
+            EmpresaId = empresa.Id,
+            ProveedorId = proveedor.Id,
+            Numero = $"OC-{DateTime.UtcNow:yyyyMMdd}-DEMO01",
+            Fecha = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-2)),
+            FechaEntregaEsperada = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(5)),
+            EstadoCodigo = OrdenCompraEstados.PorAprobar,
+            MonedaCodigo = "USD",
+            Observaciones = "Reabastecimiento mensual. Supera el umbral: requiere aprobación.",
+            Subtotal = calculo.Subtotal, Iva = calculo.Iva, Total = calculo.Total,
+            CreatedBy = Actor,
+            Lineas =
+            [
+                new OrdenCompraLinea
+                {
+                    EmpresaId = empresa.Id, NumeroLinea = 1, ProductoId = producto.Id,
+                    Descripcion = producto.Nombre, UnidadMedidaCodigo = producto.UnidadMedidaCodigo,
+                    Cantidad = cantidad, PrecioUnitario = precio, AplicaIva = producto.AplicaIva,
+                    Subtotal = calculo.Subtotal, Iva = calculo.Iva, Total = calculo.Total,
+                    CreatedBy = Actor,
+                },
+            ],
+        };
+        db.OrdenesCompra.Add(orden);
         await db.SaveChangesAsync(ct);
     }
 

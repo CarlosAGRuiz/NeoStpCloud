@@ -1,4 +1,4 @@
-﻿@model NeoSTP.Application.Empresas.Dtos.UpdateSucursalRequest
+@model NeoSTP.Application.Empresas.Dtos.UpdateSucursalRequest
 @{
     ViewData["Title"] = "Editar Sucursal";
 }
@@ -27,13 +27,13 @@
                 <span asp-validation-for="Nombre" class="text-danger small"></span>
             </div>
             <div class="col-md-6">
-                <label asp-for="CodigoEstablecimientoMh" class="form-label">CÃ³d. Establecimiento MH</label>
+                <label asp-for="CodigoEstablecimientoMh" class="form-label">Cód. Establecimiento MH</label>
                 <input asp-for="CodigoEstablecimientoMh" class="form-control" />
             </div>
             <div class="col-md-6">
                 <label asp-for="TipoEstablecimientoCodigo" class="form-label">Tipo Establecimiento</label>
                 <select asp-for="TipoEstablecimientoCodigo" class="form-select">
-                    <option value="">â€” Seleccionar â€”</option>
+                    <option value="">— Seleccionar —</option>
                     <option value="01">01 - Sucursal / Agencia</option>
                     <option value="02">02 - Casa Matriz</option>
                     <option value="07">07 - Comercio Virtual</option>
@@ -41,11 +41,11 @@
                 </select>
             </div>
             <div class="col-12">
-                <label asp-for="Direccion" class="form-label">DirecciÃ³n</label>
+                <label asp-for="Direccion" class="form-label">Dirección</label>
                 <input asp-for="Direccion" class="form-control" />
             </div>
             <div class="col-md-6">
-                <label asp-for="Telefono" class="form-label">TelÃ©fono</label>
+                <label asp-for="Telefono" class="form-label">Teléfono</label>
                 <input asp-for="Telefono" class="form-control" />
             </div>
             <partial name="_SelectorTerritorial" model="new NeoSTP.Web.Models.TerritorialSelectorViewModel

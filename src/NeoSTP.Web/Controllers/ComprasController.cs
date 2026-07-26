@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Web.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +15,7 @@ using NeoSTP.Domain.Core.Tesoreria;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOCOMPRAS â€” facturas de compra y cuentas por pagar. Permisos Compras.Ver / Compras.Gestionar.</summary>
+/// <summary>NEOCOMPRAS — facturas de compra y cuentas por pagar. Permisos Compras.Ver / Compras.Gestionar.</summary>
 [Authorize]
 [RequireModulo("COMPRAS")]
 public class ComprasController : Controller
@@ -217,7 +217,7 @@ public class ComprasController : Controller
         if (!Has("Compras.Aprobar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var r = await _ordenes.RechazarAsync(eid, id, motivo, _currentUser.Username, ct);
-        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Orden rechazada; regresÃ³ a borrador." : r.Error;
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Orden rechazada; regresó a borrador." : r.Error;
         return RedirectToAction(nameof(DetalleOrden), new { id });
     }
 
@@ -228,7 +228,7 @@ public class ComprasController : Controller
         if (!Has("Compras.Aprobar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var r = await _ordenes.SetUmbralAprobacionAsync(eid, umbral, _currentUser.Username, ct);
-        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Umbral de aprobaciÃ³n actualizado." : r.Error;
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Umbral de aprobación actualizado." : r.Error;
         return RedirectToAction(nameof(Ordenes));
     }
 

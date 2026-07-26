@@ -108,7 +108,7 @@ public class HomeController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult CambiarIdioma(string cultura, string? returnUrl)
     {
-        if (cultura is "es" or "en")
+        if (cultura is "es-SV" or "en-US")
         {
             Response.Cookies.Append(
                 Microsoft.AspNetCore.Localization.CookieRequestCultureProvider.DefaultCookieName,

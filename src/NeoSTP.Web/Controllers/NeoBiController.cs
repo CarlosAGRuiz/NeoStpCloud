@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
@@ -7,7 +7,7 @@ using NeoSTP.Application.Reportes;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOBI fiscal â€” libros IVA + F-07. Permiso Reportes.Ver.</summary>
+/// <summary>NEOBI fiscal — libros IVA + F-07. Permiso Reportes.Ver.</summary>
 [Authorize]
 [RequireModulo("NEOBI")]
 public class NeoBiController : Controller
@@ -57,7 +57,7 @@ public class NeoBiController : Controller
             "consumidor" => await _reportes.LibroVentasConsumidorCsvAsync(eid, anio, mes, ct),
             "contribuyentes" => await _reportes.LibroVentasContribuyentesCsvAsync(eid, anio, mes, ct),
             "compras" => await _reportes.LibroComprasCsvAsync(eid, anio, mes, ct),
-            _ => NeoSTP.Application.Common.Result<byte[]>.Fail("Libro invÃ¡lido.", "VALIDATION"),
+            _ => NeoSTP.Application.Common.Result<byte[]>.Fail("Libro inválido.", "VALIDATION"),
         };
         if (r.IsFailure)
         {

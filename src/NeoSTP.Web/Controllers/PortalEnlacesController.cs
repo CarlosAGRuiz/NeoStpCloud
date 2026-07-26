@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
@@ -9,7 +9,7 @@ using NeoSTP.Application.Portal;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOPORTAL â€” gestiÃ³n interna de enlaces pÃºblicos. Permisos Portal.Enlaces.*.</summary>
+/// <summary>NEOPORTAL — gestión interna de enlaces públicos. Permisos Portal.Enlaces.*.</summary>
 [Authorize]
 [RequireModulo("NEOPORTAL")]
 public class PortalEnlacesController : Controller
@@ -81,9 +81,9 @@ public class PortalEnlacesController : Controller
     {
         if (ok && token is not null)
         {
-            // El token solo se muestra una vez: se compone la URL pÃºblica completa.
+            // El token solo se muestra una vez: se compone la URL pública completa.
             TempData["EnlaceGenerado"] = $"{Request.Scheme}://{Request.Host}/portal/{token}";
-            TempData["Success"] = "Enlace generado. CÃ³pialo ahora: no volverÃ¡ a mostrarse.";
+            TempData["Success"] = "Enlace generado. Cópialo ahora: no volverá a mostrarse.";
         }
         else
         {

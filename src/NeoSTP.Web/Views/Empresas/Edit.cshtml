@@ -1,4 +1,4 @@
-﻿@model NeoSTP.Web.Models.EditEmpresaViewModel
+@model NeoSTP.Web.Models.EditEmpresaViewModel
 @{
     ViewData["Title"] = $"Editar {Model.RazonSocial}";
     var estados = new[] { "ACTIVA", "INACTIVA", "SUSPENDIDA", "VENCIDA" };
@@ -21,7 +21,7 @@
     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert" style="display:@(ViewData.ModelState.IsValid ? "none" : "block")"></div>
 
     <div class="ns-formsection">
-        <div class="ns-formsection-head"><span class="material-symbols-outlined">domain</span><h2>Datos de la empresa Â· <span class="text-muted ns-mono">@Model.Nit</span></h2></div>
+        <div class="ns-formsection-head"><span class="material-symbols-outlined">domain</span><h2>Datos de la empresa · <span class="text-muted ns-mono">@Model.Nit</span></h2></div>
         <div class="ns-formsection-body row g-3">
         <div class="col-md-4">
             <label class="form-label">NIT</label>

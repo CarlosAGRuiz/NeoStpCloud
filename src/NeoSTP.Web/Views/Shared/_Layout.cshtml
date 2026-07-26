@@ -563,8 +563,8 @@ else
                                 <form asp-controller="Home" asp-action="CambiarIdioma" method="post" class="px-3 py-1 d-flex gap-2">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
-                                    <button type="submit" name="cultura" value="es" class="btn btn-sm @(idiomaActual == "es" ? "btn-secondary" : "btn-outline-secondary")">ES</button>
-                                    <button type="submit" name="cultura" value="en" class="btn btn-sm @(idiomaActual == "en" ? "btn-secondary" : "btn-outline-secondary")">EN</button>
+                                    <button type="submit" name="cultura" value="es-SV" class="btn btn-sm @(idiomaActual.StartsWith("es") ? "btn-secondary" : "btn-outline-secondary")">ES</button>
+                                    <button type="submit" name="cultura" value="en-US" class="btn btn-sm @(idiomaActual.StartsWith("en") ? "btn-secondary" : "btn-outline-secondary")">EN</button>
                                 </form>
                             </li>
                             <li><hr class="dropdown-divider" /></li>
