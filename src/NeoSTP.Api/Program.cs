@@ -99,6 +99,8 @@ NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(
 await DatabaseSeeder.SeedAsync(app.Services);
 // Provisioning idempotente de la empresa de pruebas (Sprint 11) — solo si EmpresaPrueba:Enabled=true
 await EmpresaPruebaSeeder.SeedAsync(app.Services);
+// Ambiente de demostración comercial (DemoComercial:Enabled). Apagado por defecto.
+await DemoComercialSeeder.SeedAsync(app.Services);
 
 app.UseSerilogRequestLogging();
 

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/NeoSTP.Web/NeoSTP.Web.csproj", "--urls", "https://localhost:5443"],
+      "port": 5443,
+      "url": "https://localhost:5443"
+    }
+  ]
+}

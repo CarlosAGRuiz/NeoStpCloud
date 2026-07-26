@@ -78,6 +78,8 @@ NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(
 // esquema al día aunque se ejecute sin la API; EF serializa con __EFMigrationsLock.
 await NeoSTP.Infrastructure.Persistence.Seed.DatabaseSeeder.SeedAsync(app.Services);
 await NeoSTP.Infrastructure.Persistence.Seed.EmpresaPruebaSeeder.SeedAsync(app.Services);
+// Ambiente de demostración comercial (DemoComercial:Enabled). Apagado por defecto.
+await NeoSTP.Infrastructure.Persistence.Seed.DemoComercialSeeder.SeedAsync(app.Services);
 
 app.UseSerilogRequestLogging();
 
