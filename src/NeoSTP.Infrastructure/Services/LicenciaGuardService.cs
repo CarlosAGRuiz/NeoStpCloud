@@ -76,7 +76,7 @@ public class LicenciaGuardService : ILicenciaGuardService
             .Where(e => e.Id == empresaId)
             .Select(e => e.EstadoCodigo)
             .FirstOrDefaultAsync(ct);
-        var operativa = estado == "ACTIVA";
+        var operativa = estado == NeoSTP.Domain.Common.EmpresaEstados.Activa;
         EstadoCache[empresaId] = (operativa, DateTime.UtcNow.Add(EstadoTtl));
         return operativa;
     }

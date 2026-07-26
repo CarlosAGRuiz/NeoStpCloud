@@ -1,0 +1,172 @@
+@using NeoSTP.Application.Dashboard.Dtos
+@model GrupoDashboardDto
+@{
+    ViewData["Title"] = "Consolidado de grupo";
+    var periodo = new DateTime(Model.Anio, Model.Mes, 1).ToString("MMMM yyyy");
+    var mesActual = new DateTime(Model.Anio, Model.Mes, 1);
+    var anterior = mesActual.AddMonths(-1);
+    var siguiente = mesActual.AddMonths(1);
+    var haySiguiente = siguiente <= DateTime.UtcNow.Date;
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Consolidado de grupo</span></nav>
+        <h1 class="ns-page-title">Consolidado de grupo</h1>
+        <p class="text-muted small mb-0">@Model.EmpresasTotal empresas &mdash; <span class="text-uppercase" style="letter-spacing:.06em">@periodo</span></p>
+    </div>
+    <div class="ns-page-actions d-flex gap-2 align-items-center">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-anio="@anterior.Year" asp-route-mes="@anterior.Month" title="Mes anterior">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">chevron_left</span>
+        </a>
+        <a class="btn btn-outline-secondary btn-sm @(haySiguiente ? "" : "disabled")" asp-action="Index" asp-route-anio="@siguiente.Year" asp-route-mes="@siguiente.Month" title="Mes siguiente">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">chevron_right</span>
+        </a>
+    </div>
+</div>
+
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+@* ── KPIs del grupo ─────────────────────────────────────────── *@
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip"><span class="material-symbols-outlined">payments</span></span></div>
+            <p class="ns-kpi-label">Ventas del período</p>
+            <h2 class="ns-kpi-value">$ @Model.VentasMes.ToString("N2")</h2>
+            <small class="text-muted">@Model.DteMes DTE emitidos</small>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">account_balance</span></span></div>
+            <p class="ns-kpi-label">IVA débito del período</p>
+            <h2 class="ns-kpi-value">$ @Model.IvaDebitoMes.ToString("N2")</h2>
+            <small class="text-muted">Documentos procesados</small>
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip"><span class="material-symbols-outlined">request_quote</span></span></div>
+            <p class="ns-kpi-label">Por cobrar</p>
+            <h2 class="ns-kpi-value">$ @Model.PorCobrar.ToString("N2")</h2>
+            @if (Model.Vencido > 0)
+            {
+                <small class="text-danger">$ @Model.Vencido.ToString("N2") vencido (@Model.FacturasVencidas fact.)</small>
+            }
+            else
+            {
+                <small class="text-muted">Sin cartera vencida</small>
+            }
+        </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card h-100"><div class="card-body ns-kpi">
+            <div class="ns-kpi-top"><span class="ns-kpi-chip @(Model.EmpresasConPendientes > 0 ? "ns-kpi-chip--violet" : "")"><span class="material-symbols-outlined">notification_important</span></span></div>
+            <p class="ns-kpi-label">Empresas por atender</p>
+            <h2 class="ns-kpi-value">@Model.EmpresasConPendientes</h2>
+            <small class="text-muted">@Model.Rechazados rechazados &middot; @Model.AlertasActivas alertas</small>
+        </div></div>
+    </div>
+</div>
+
+@* ── Detalle por empresa ────────────────────────────────────── *@
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover m-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Empresa</th>
+                    <th class="text-end">DTE</th>
+                    <th class="text-end">Ventas</th>
+                    <th class="text-end">IVA débito</th>
+                    <th class="text-end">Por cobrar</th>
+                    <th class="text-end">Vencido</th>
+                    <th class="text-center">Rechazados</th>
+                    <th class="text-center">Alertas</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Empresas)
+                {
+                    <tr class="@(e.RequiereAtencion ? "table-warning" : "")">
+                        <td>
+                            <strong>@e.Nombre</strong>
+                            @if (e.EsPrincipal)
+                            {
+                                <span class="ns-badge ns-badge--info ms-1">principal</span>
+                            }
+                            @if (!e.Activa)
+                            {
+                                <span class="ns-badge ns-badge--rejected ms-1">suspendida</span>
+                            }
+                            @if (e.RolNombre is not null)
+                            {
+                                <div class="text-muted small">@e.RolNombre</div>
+                            }
+                        </td>
+                        <td class="text-end ns-mono">@e.DteMes</td>
+                        <td class="text-end ns-mono fw-semibold">$ @e.VentasMes.ToString("N2")</td>
+                        <td class="text-end ns-mono">$ @e.IvaDebitoMes.ToString("N2")</td>
+                        <td class="text-end ns-mono">$ @e.PorCobrar.ToString("N2")</td>
+                        <td class="text-end ns-mono @(e.Vencido > 0 ? "text-danger fw-semibold" : "text-muted")">
+                            @(e.Vencido > 0 ? $"$ {e.Vencido:N2}" : "—")
+                        </td>
+                        <td class="text-center">
+                            @if (e.Rechazados > 0)
+                            {
+                                <span class="ns-badge ns-badge--rejected">@e.Rechazados</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td class="text-center">
+                            @if (e.AlertasActivas > 0)
+                            {
+                                <span class="ns-badge ns-badge--contingency">@e.AlertasActivas</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (e.Activa)
+                            {
+                                <form asp-controller="Account" asp-action="CambiarEmpresa" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="empresaId" value="@e.EmpresaId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Operar en esta empresa">
+                                        <span class="material-symbols-outlined align-middle" style="font-size:16px">login</span> Entrar
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="table-light">
+                <tr class="fw-semibold">
+                    <td>Total del grupo</td>
+                    <td class="text-end ns-mono">@Model.DteMes</td>
+                    <td class="text-end ns-mono">$ @Model.VentasMes.ToString("N2")</td>
+                    <td class="text-end ns-mono">$ @Model.IvaDebitoMes.ToString("N2")</td>
+                    <td class="text-end ns-mono">$ @Model.PorCobrar.ToString("N2")</td>
+                    <td class="text-end ns-mono @(Model.Vencido > 0 ? "text-danger" : "")">$ @Model.Vencido.ToString("N2")</td>
+                    <td class="text-center">@Model.Rechazados</td>
+                    <td class="text-center">@Model.AlertasActivas</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<p class="text-muted small mt-3">
+    <span class="material-symbols-outlined align-middle" style="font-size:16px">info</span>
+    Ventas e IVA corresponden al período seleccionado; la cartera por cobrar es al día de hoy.
+    Solo se muestran las empresas donde tienes acceso.
+</p>

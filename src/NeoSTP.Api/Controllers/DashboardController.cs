@@ -16,11 +16,13 @@ namespace NeoSTP.Api.Controllers;
 public class DashboardController : ApiControllerBase
 {
     private readonly IDashboardService _dashboard;
+    private readonly IGrupoDashboardService _grupo;
     private readonly ICurrentUser _currentUser;
 
-    public DashboardController(IDashboardService dashboard, ICurrentUser currentUser)
+    public DashboardController(IDashboardService dashboard, IGrupoDashboardService grupo, ICurrentUser currentUser)
     {
         _dashboard = dashboard;
+        _grupo = grupo;
         _currentUser = currentUser;
     }
 
@@ -36,6 +38,19 @@ public class DashboardController : ApiControllerBase
 
         var dto = await _dashboard.GetDashboardEmpresaAsync(eid.Value, ct);
         return Ok(ApiResponse<Application.Dashboard.Dtos.DashboardEmpresaDto>.Ok(dto, HttpContext.TraceIdentifier));
+    }
+
+    /// <summary>
+    /// Consolidado de todas las empresas donde el usuario puede operar (E5):
+    /// principal + membresías activas. Sin período, el mes en curso.
+    /// </summary>
+    [HttpGet("grupo")]
+    public async Task<IActionResult> GetGrupo([FromQuery] int? anio, [FromQuery] int? mes, CancellationToken ct)
+    {
+        if (_currentUser.UserId is not int userId)
+            return Unauthorized(ApiResponse.Fail("Sesión inválida.", null, HttpContext.TraceIdentifier));
+
+        return Respond(await _grupo.GetAsync(userId, anio, mes, ct));
     }
 
     /// <summary>Métricas globales (solo SuperAdmin).</summary>

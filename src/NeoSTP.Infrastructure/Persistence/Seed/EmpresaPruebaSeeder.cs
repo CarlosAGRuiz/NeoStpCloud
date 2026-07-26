@@ -95,7 +95,7 @@ public static class EmpresaPruebaSeeder
             Direccion          = options.Direccion,
             Telefono           = options.Telefono,
             Correo             = options.Correo,
-            EstadoCodigo       = EstadoCodes.Activo,
+            EstadoCodigo       = EmpresaEstados.Activa,
             CreatedAt          = ahora,
             CreatedBy          = actor,
         };

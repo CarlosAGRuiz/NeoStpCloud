@@ -18,7 +18,7 @@ public class Empresa : AuditableEntity
     public string? Telefono { get; set; }
     public string? Correo { get; set; }
     public string? LogoUrl { get; set; }
-    public string EstadoCodigo { get; set; } = EstadoCodes.Activo;
+    public string EstadoCodigo { get; set; } = EmpresaEstados.Activa;
 
     // ── Branding (logo y firma para la representación gráfica del DTE y el correo) ──
     /// <summary>Imagen del logo (PNG/JPG) embebida; se muestra en el PDF y el correo.</summary>

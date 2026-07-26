@@ -216,6 +216,8 @@ public static class DependencyInjection
 
         // Sprint 8: Dashboard
         services.AddScoped<IDashboardService, DashboardService>();
+        // E5: consolidado de grupo (multi-empresa sobre las membresías de E1).
+        services.AddScoped<IGrupoDashboardService, GrupoDashboardService>();
 
         // Onboarding self-service: estado de activación derivado de datos reales
         services.AddScoped<IOnboardingService, OnboardingService>();

@@ -59,7 +59,7 @@ public class AlertaGeneracionWorker : BackgroundService
         var generacion = scope.ServiceProvider.GetRequiredService<IAlertaGeneracionService>();
 
         var empresas = await db.Empresas.AsNoTracking()
-            .Where(e => e.EstadoCodigo == "ACTIVA")
+            .Where(e => e.EstadoCodigo == NeoSTP.Domain.Common.EmpresaEstados.Activa)
             .Select(e => e.Id)
             .ToListAsync(ct);
 

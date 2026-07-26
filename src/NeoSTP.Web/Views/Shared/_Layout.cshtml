@@ -507,6 +507,15 @@ else
                                 var actualNombre = empresaActualId == empresaPrincipal?.EmpresaId
                                     ? empresaPrincipal?.Nombre
                                     : misEmpresas.FirstOrDefault(e => e.EmpresaId == empresaActualId)?.Nombre;
+                                @* Consolidado de grupo (E5): útil solo con más de una empresa. *@
+                                var totalEmpresas = misEmpresas.Count + (empresaPrincipal is null ? 0 : 1);
+                                if (totalEmpresas > 1)
+                                {
+                                    <a class="ns-chip @(ViewContext.RouteData.Values["controller"]?.ToString() == "Grupo" ? "ns-chip--active" : "")"
+                                       asp-controller="Grupo" asp-action="Index" title="Consolidado de todas tus empresas">
+                                        <span class="material-symbols-outlined" style="font-size:16px">dashboard</span> Grupo
+                                    </a>
+                                }
                                 <div class="dropdown">
                                     <button class="ns-chip" data-bs-toggle="dropdown" aria-expanded="false" title="Cambiar de empresa">
                                         <span class="material-symbols-outlined" style="font-size:16px">domain</span>

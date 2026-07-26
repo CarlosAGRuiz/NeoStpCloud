@@ -85,3 +85,18 @@ public static class EstadoCodes
     public const string Vencido = "VENCIDO";
     public const string Eliminado = "ELIMINADO";
 }
+
+/// <summary>
+/// Estados del catálogo ESTADO_EMPRESA. OJO: son femeninos ("ACTIVA"), distintos de
+/// <see cref="EstadoCodes"/> ("ACTIVO"). El enforcement comercial (Entrega 7) y las
+/// membresías (E1) comparan contra <see cref="Activa"/>: una empresa guardada con
+/// "ACTIVO" queda tratada como suspendida y sus usuarios no pueden operar.
+/// </summary>
+public static class EmpresaEstados
+{
+    public const string Activa = "ACTIVA";
+    public const string Inactiva = "INACTIVA";
+    public const string Suspendida = "SUSPENDIDA";
+    public const string Vencida = "VENCIDA";
+    public const string Eliminada = "ELIMINADA";
+}

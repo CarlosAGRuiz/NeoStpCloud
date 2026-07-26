@@ -68,7 +68,7 @@ public class RecordatorioCobroWorker : BackgroundService
 
         // Solo empresas activas CON configuración de recordatorios activa (V2-D3).
         var empresas = await db.ConfigRecordatoriosCobro.AsNoTracking()
-            .Where(c => c.Activo && c.Empresa.EstadoCodigo == "ACTIVA")
+            .Where(c => c.Activo && c.Empresa.EstadoCodigo == NeoSTP.Domain.Common.EmpresaEstados.Activa)
             .Select(c => c.EmpresaId)
             .ToListAsync(ct);
 

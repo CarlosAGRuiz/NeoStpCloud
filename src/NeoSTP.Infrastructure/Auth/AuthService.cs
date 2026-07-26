@@ -165,7 +165,7 @@ public class AuthService : IAuthService
             .Include(m => m.Empresa)
             .Include(m => m.Rol)
             .Where(m => m.UsuarioId == userId && m.EstadoCodigo == "ACTIVO"
-                     && m.Empresa.EstadoCodigo == "ACTIVA")
+                     && m.Empresa.EstadoCodigo == EmpresaEstados.Activa)
             .OrderBy(m => m.Empresa.RazonSocial)
             .ToListAsync(ct);
         lista.AddRange(membresias.Select(m => new EmpresaDisponibleDto
@@ -204,7 +204,7 @@ public class AuthService : IAuthService
                                        && m.EstadoCodigo == "ACTIVO", ct);
             if (membresia is null)
                 return Result<LoginResponse>.Fail("No tienes acceso a esa empresa.", "EMPRESA_NO_MEMBRESIA");
-            if (membresia.Empresa.EstadoCodigo != "ACTIVA")
+            if (membresia.Empresa.EstadoCodigo != EmpresaEstados.Activa)
                 return Result<LoginResponse>.Fail("La empresa está suspendida o inactiva.", "EMPRESA_SUSPENDIDA");
 
             userInfo = ToUserInfo(usuario);
@@ -331,7 +331,7 @@ public class AuthService : IAuthService
         if (!string.IsNullOrWhiteSpace(config.TenantIdExterno)
             && !string.Equals(config.TenantIdExterno, info.TenantIdExterno, StringComparison.OrdinalIgnoreCase))
             return Result<Usuario>.Fail("Tu directorio corporativo no está autorizado para esta empresa.", "SSO_TENANT_NO_COINCIDE");
-        if (config.Empresa is null || config.Empresa.EstadoCodigo != "ACTIVA")
+        if (config.Empresa is null || config.Empresa.EstadoCodigo != EmpresaEstados.Activa)
             return Result<Usuario>.Fail("La empresa está suspendida o inactiva.", "EMPRESA_SUSPENDIDA");
         if (!config.AutoProvisionar || config.RolPorDefectoId is null)
             return Result<Usuario>.Fail("No hay una cuenta asociada a este correo. Contacta al administrador.", "SSO_SIN_CUENTA");

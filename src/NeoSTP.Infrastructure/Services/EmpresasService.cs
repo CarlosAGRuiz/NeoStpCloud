@@ -146,7 +146,7 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             ActividadEconomica = request.ActividadEconomica?.Trim(),
             Departamento = request.Departamento, Municipio = request.Municipio,
             Direccion = request.Direccion, Telefono = request.Telefono, Correo = request.Correo,
-            EstadoCodigo = "ACTIVA",
+            EstadoCodigo = NeoSTP.Domain.Common.EmpresaEstados.Activa,
             CreatedAt = DateTime.UtcNow, CreatedBy = actor,
         };
         _db.Empresas.Add(empresa);
@@ -336,7 +336,7 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
         var vigente = planActivo is not null
                       && planActivo.EstadoCodigo == "ACTIVO"
                       && (planActivo.FechaFin is null || planActivo.FechaFin > ahora)
-                      && empresa.EstadoCodigo == "ACTIVA";
+                      && empresa.EstadoCodigo == NeoSTP.Domain.Common.EmpresaEstados.Activa;
 
         var usuarios = await _db.Usuarios.CountAsync(u => u.EmpresaId == empresaId, ct);
         var sucursales = await _db.Sucursales.CountAsync(s => s.EmpresaId == empresaId, ct);
