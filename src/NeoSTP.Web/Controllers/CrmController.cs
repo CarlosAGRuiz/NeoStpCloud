@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Clientes;
 using NeoSTP.Application.Common;
@@ -10,8 +11,9 @@ using NeoSTP.Application.Productos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOCRM — pipeline, contactos, actividades y cotizaciones. Permisos Crm.*.</summary>
+/// <summary>NEOCRM â€” pipeline, contactos, actividades y cotizaciones. Permisos Crm.*.</summary>
 [Authorize]
+[RequireModulo("NEOCRM")]
 public class CrmController : Controller
 {
     private readonly ICrmService _crm;
@@ -29,7 +31,7 @@ public class CrmController : Controller
         _empresaContext = empresaContext;
     }
 
-    // ── Pipeline (dashboard) ──────────────────────────────────────────────────
+    // â”€â”€ Pipeline (dashboard) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -46,7 +48,7 @@ public class CrmController : Controller
         return View(abiertas.Value?.Items ?? new List<OportunidadCrmDto>());
     }
 
-    // ── Oportunidades ─────────────────────────────────────────────────────────
+    // â”€â”€ Oportunidades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> NuevaOportunidad(int? clienteId, CancellationToken ct)
@@ -108,7 +110,7 @@ public class CrmController : Controller
             : RedirectToAction(nameof(Index));
     }
 
-    // ── Contactos ─────────────────────────────────────────────────────────────
+    // â”€â”€ Contactos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Contactos(string? search, int page = 1, int? editId = null, CancellationToken ct = default)
@@ -155,7 +157,7 @@ public class CrmController : Controller
         return RedirectToAction(nameof(Contactos));
     }
 
-    // ── Actividades ───────────────────────────────────────────────────────────
+    // â”€â”€ Actividades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Actividades(bool soloPendientes = true, int page = 1, CancellationToken ct = default)
@@ -208,7 +210,7 @@ public class CrmController : Controller
             ? RedirectToAction(nameof(Oportunidad), new { id = oid })
             : RedirectToAction(nameof(Actividades));
 
-    // ── Cotizaciones ──────────────────────────────────────────────────────────
+    // â”€â”€ Cotizaciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Cotizaciones(string? estado, string? search, int page = 1, CancellationToken ct = default)
@@ -249,7 +251,7 @@ public class CrmController : Controller
             .Where(l => l.ProductoId.HasValue || (l.PrecioUnitario ?? 0) > 0)
             .ToList();
         if (model.Lineas.Count == 0)
-            ModelState.AddModelError(string.Empty, "Agrega al menos una línea con producto o precio.");
+            ModelState.AddModelError(string.Empty, "Agrega al menos una lÃ­nea con producto o precio.");
 
         if (!ModelState.IsValid)
         {
@@ -266,7 +268,7 @@ public class CrmController : Controller
             await CargarProductosAsync(eid, ct);
             return View(model);
         }
-        TempData["Success"] = $"Cotización {r.Value!.Numero} creada.";
+        TempData["Success"] = $"CotizaciÃ³n {r.Value!.Numero} creada.";
         return RedirectToAction(nameof(Cotizacion), new { id = r.Value.Id });
     }
 
@@ -289,7 +291,7 @@ public class CrmController : Controller
         if (!Has("Crm.Cotizaciones.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var r = await _crm.CambiarEstadoCotizacionAsync(eid, id, new CambiarEstadoCotizacionRequest { EstadoCodigo = estadoCodigo }, _currentUser.Username, ct);
-        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? $"Cotización marcada {estadoCodigo}." : r.Error;
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? $"CotizaciÃ³n marcada {estadoCodigo}." : r.Error;
         return RedirectToAction(nameof(Cotizacion), new { id });
     }
 
@@ -301,12 +303,12 @@ public class CrmController : Controller
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var r = await _crm.ConvertirCotizacionADteAsync(eid, id, new ConvertirCotizacionRequest { TipoDteCodigo = tipoDteCodigo }, _currentUser.Username, ct);
         TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess
-            ? $"Cotización convertida: DTE #{r.Value!.DteDocumentoId}."
+            ? $"CotizaciÃ³n convertida: DTE #{r.Value!.DteDocumentoId}."
             : r.Error;
         return RedirectToAction(nameof(Cotizacion), new { id });
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task CargarRefsAsync(int eid, CancellationToken ct)
     {

@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Connect;
 using NeoSTP.Application.Empresas;
@@ -8,10 +9,11 @@ using NeoSTP.Domain.Core.Connect;
 namespace NeoSTP.Web.Controllers;
 
 /// <summary>
-/// NeoConnect — gestión de API Keys, webhooks y consumo de la API para integradores.
+/// NeoConnect â€” gestiÃ³n de API Keys, webhooks y consumo de la API para integradores.
 /// Opera dentro de una empresa (igual que Clientes/Productos): SuperAdmin debe entrar en modo soporte.
 /// </summary>
 [Authorize]
+[RequireModulo("NEOCONNECT")]
 public class IntegracionesController : Controller
 {
     private readonly IConnectApiKeyService _apiKeys;
@@ -63,10 +65,10 @@ public class IntegracionesController : Controller
 
         if (r.IsSuccess)
         {
-            // La raw key se muestra UNA sola vez tras la creación.
+            // La raw key se muestra UNA sola vez tras la creaciÃ³n.
             TempData["RawKey"] = r.Value!.RawKey;
             TempData["RawKeyNombre"] = r.Value.Key.Nombre;
-            TempData["Success"] = "API Key creada. Cópiala ahora — no se volverá a mostrar.";
+            TempData["Success"] = "API Key creada. CÃ³piala ahora â€” no se volverÃ¡ a mostrar.";
         }
         else
         {

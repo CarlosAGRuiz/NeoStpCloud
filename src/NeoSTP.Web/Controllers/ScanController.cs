@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Profit.Dtos;
@@ -9,12 +10,13 @@ using NeoSTP.Application.Scan.Dtos;
 namespace NeoSTP.Web.Controllers;
 
 /// <summary>
-/// NeoScanAI (B-3): bandeja web de documentos capturados, revisión/corrección de campos
-/// y conversión a gasto, compra o DTE recibido. UI sobre los servicios expuestos a NeoCloud Mobile.
+/// NeoScanAI (B-3): bandeja web de documentos capturados, revisiÃ³n/correcciÃ³n de campos
+/// y conversiÃ³n a gasto, compra o DTE recibido. UI sobre los servicios expuestos a NeoCloud Mobile.
 /// Opera dentro de una empresa; SuperAdmin debe seleccionar empresa en modo soporte.
-/// Lectura/corrección: ScanAI.Ver; confirmaciones/rechazo: ScanAI.Confirmar.
+/// Lectura/correcciÃ³n: ScanAI.Ver; confirmaciones/rechazo: ScanAI.Confirmar.
 /// </summary>
 [Authorize]
+[RequireModulo("NEOSCANAI")]
 [Route("[controller]")]
 public class ScanController : Controller
 {
@@ -22,7 +24,7 @@ public class ScanController : Controller
     public static readonly string[] Estados =
         ["PROCESANDO", "PROCESADO", "REQUIERE_REVISION", "CONFIRMADO", "RECHAZADO", "ERROR"];
 
-    /// <summary>Categorías de gasto (mismas que NeoProfit).</summary>
+    /// <summary>CategorÃ­as de gasto (mismas que NeoProfit).</summary>
     public static readonly string[] CategoriasGasto = ProfitGastosController.Categorias;
 
     private readonly IScanService _scan;

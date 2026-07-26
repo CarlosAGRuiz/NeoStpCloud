@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Pos;
@@ -8,8 +9,9 @@ using NeoSTP.Domain.Core.Pos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOPOS — configuración de impresoras de tickets. Permiso Pos.Configurar (ver: Pos.Ver).</summary>
+/// <summary>NEOPOS â€” configuraciÃ³n de impresoras de tickets. Permiso Pos.Configurar (ver: Pos.Ver).</summary>
 [Authorize]
+[RequireModulo("NEOPOS")]
 public class ImpresorasController : Controller
 {
     public static readonly string[] Conexiones = ConexionImpresora.All;
@@ -118,7 +120,7 @@ public class ImpresorasController : Controller
     {
         if (_currentUser.TipoUsuarioCodigo == "SUPERADMIN")
         {
-            TempData["Error"] = "La configuración de impresoras opera dentro de una empresa. Selecciona una en modo soporte primero.";
+            TempData["Error"] = "La configuraciÃ³n de impresoras opera dentro de una empresa. Selecciona una en modo soporte primero.";
             return RedirectToAction("Index", "Soporte");
         }
         return RedirectToAction("Index", "Home");

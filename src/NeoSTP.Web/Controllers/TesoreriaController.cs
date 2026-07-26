@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -9,8 +10,9 @@ using NeoSTP.Domain.Core.Tesoreria;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOTESORERIA — cuentas de banco/caja y movimientos. Permisos Tesoreria.*.</summary>
+/// <summary>NEOTESORERIA â€” cuentas de banco/caja y movimientos. Permisos Tesoreria.*.</summary>
 [Authorize]
+[RequireModulo("NEOTESORERIA")]
 public class TesoreriaController : Controller
 {
     public static readonly string[] TiposCuenta = TiposCuentaTesoreria.All;
@@ -29,7 +31,7 @@ public class TesoreriaController : Controller
         _empresaContext = empresaContext;
     }
 
-    // ── Cuentas ──────────────────────────────────────────────────────────────
+    // â”€â”€ Cuentas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken ct = default)
@@ -143,7 +145,7 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // ── Movimientos ──────────────────────────────────────────────────────────
+    // â”€â”€ Movimientos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Movimientos(int? cuentaId, string? search, int page = 1, CancellationToken ct = default)
@@ -199,7 +201,7 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(Detalle), new { id = cuentaId });
     }
 
-    // ── Conciliación bancaria (V2-D4) ────────────────────────────────────────
+    // â”€â”€ ConciliaciÃ³n bancaria (V2-D4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet]
     public async Task<IActionResult> Conciliacion(int? cuentaId, string? estado, int page = 1, CancellationToken ct = default)
@@ -250,7 +252,7 @@ public class TesoreriaController : Controller
         else
         {
             var r = result.Value!;
-            TempData["Success"] = $"Importadas {r.Inserted} línea(s); {r.Skipped} duplicada(s) omitida(s)" +
+            TempData["Success"] = $"Importadas {r.Inserted} lÃ­nea(s); {r.Skipped} duplicada(s) omitida(s)" +
                 (r.ErrorCount > 0 ? $"; {r.ErrorCount} fila(s) con error (revisa formato fecha/monto)." : ".");
         }
         return RedirectToAction(nameof(Conciliacion), new { cuentaId });
@@ -263,7 +265,7 @@ public class TesoreriaController : Controller
         if (!Has("Tesoreria.Movimientos.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var result = await _conciliacion.ConciliarAsync(eid, id, movimientoTesoreriaId, _currentUser.Username, ct);
-        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Línea conciliada." : result.Error;
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "LÃ­nea conciliada." : result.Error;
         return RedirectToAction(nameof(Conciliacion), new { cuentaId });
     }
 
@@ -275,7 +277,7 @@ public class TesoreriaController : Controller
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var result = await _conciliacion.ConciliarSugeridosAsync(eid, cuentaId, actor: _currentUser.Username, ct: ct);
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
-            ? $"Conciliadas {result.Value} línea(s) con confianza alta." : result.Error;
+            ? $"Conciliadas {result.Value} lÃ­nea(s) con confianza alta." : result.Error;
         return RedirectToAction(nameof(Conciliacion), new { cuentaId });
     }
 
@@ -286,7 +288,7 @@ public class TesoreriaController : Controller
         if (!Has("Tesoreria.Movimientos.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var result = await _conciliacion.DesconciliarAsync(eid, id, _currentUser.Username, ct);
-        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Línea desconciliada." : result.Error;
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "LÃ­nea desconciliada." : result.Error;
         return RedirectToAction(nameof(Conciliacion), new { cuentaId });
     }
 
@@ -297,7 +299,7 @@ public class TesoreriaController : Controller
         if (!Has("Tesoreria.Movimientos.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var result = await _conciliacion.ConciliarCombinacionAsync(eid, id, movimientoTesoreriaIds, _currentUser.Username, ct);
-        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Movimientos aplicados a la línea." : result.Error;
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess ? "Movimientos aplicados a la lÃ­nea." : result.Error;
         return RedirectToAction(nameof(Conciliacion), new { cuentaId });
     }
 
@@ -327,7 +329,7 @@ public class TesoreriaController : Controller
     {
         if (_currentUser.TipoUsuarioCodigo == "SUPERADMIN")
         {
-            TempData["Error"] = "La tesorería opera dentro de una empresa. Selecciona una en modo soporte primero.";
+            TempData["Error"] = "La tesorerÃ­a opera dentro de una empresa. Selecciona una en modo soporte primero.";
             return RedirectToAction("Index", "Soporte");
         }
         return RedirectToAction("Index", "Home");
@@ -339,6 +341,6 @@ public class ConciliacionViewModel
     public PagedResult<MovimientoBancarioDto>? Movimientos { get; set; }
     public ConciliacionResumenDto? Resumen { get; set; }
 
-    /// <summary>Sugerencia de match por MovimientoBancoId (solo líneas NO_CONCILIADO).</summary>
+    /// <summary>Sugerencia de match por MovimientoBancoId (solo lÃ­neas NO_CONCILIADO).</summary>
     public Dictionary<int, SugerenciaConciliacionDto> Sugerencias { get; set; } = [];
 }

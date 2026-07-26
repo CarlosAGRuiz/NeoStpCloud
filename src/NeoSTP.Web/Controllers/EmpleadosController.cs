@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -8,8 +9,9 @@ using NeoSTP.Application.Rrhh.Dtos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEORRHH — gestión de empleados + vista previa de nómina. Permisos Rrhh.Empleados.*.</summary>
+/// <summary>NEORRHH â€” gestiÃ³n de empleados + vista previa de nÃ³mina. Permisos Rrhh.Empleados.*.</summary>
 [Authorize]
+[RequireModulo("NEORRHH")]
 public class EmpleadosController : Controller
 {
     public static readonly string[] TiposDocumento = ["DUI", "NIT", "PASAPORTE", "CARNET_RESIDENTE"];

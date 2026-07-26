@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -9,8 +10,9 @@ using NeoSTP.Shared;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEORRHH — corridas de planilla. Permisos Rrhh.Nomina.Ver / Rrhh.Nomina.Gestionar.</summary>
+/// <summary>NEORRHH â€” corridas de planilla. Permisos Rrhh.Nomina.Ver / Rrhh.Nomina.Gestionar.</summary>
 [Authorize]
+[RequireModulo("NEORRHH")]
 public class PlanillaController : Controller
 {
     private readonly IPlanillaService _planilla;

@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
@@ -9,8 +10,9 @@ using NeoSTP.Application.Inventario.Dtos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>INVENTARIO — existencias y kardex. Permisos Inventario.Ver / Inventario.Gestionar.</summary>
+/// <summary>INVENTARIO â€” existencias y kardex. Permisos Inventario.Ver / Inventario.Gestionar.</summary>
 [Authorize]
+[RequireModulo("INVENTARIO")]
 public class InventarioController : Controller
 {
     private readonly IInventarioService _inv;
@@ -132,7 +134,7 @@ public class InventarioController : Controller
         if (!Has("Inventario.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
         var r = await _inv.SetStockMinimoAsync(eid, model, _currentUser.Username, ct);
-        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Stock mínimo actualizado." : r.Error;
+        TempData[r.IsSuccess ? "Success" : "Error"] = r.IsSuccess ? "Stock mÃ­nimo actualizado." : r.Error;
         return RedirectToAction(nameof(Kardex), new { productoId = model.ProductoId });
     }
 

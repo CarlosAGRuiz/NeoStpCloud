@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -8,8 +9,9 @@ using NeoSTP.Application.Profit.Dtos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NeoProfit — gestión de compras / insumos (grid + CRUD con soft-delete).</summary>
+/// <summary>NeoProfit â€” gestiÃ³n de compras / insumos (grid + CRUD con soft-delete).</summary>
 [Authorize]
+[RequireModulo("NEOPROFIT")]
 public class ProfitComprasController : Controller
 {
     private readonly IProfitService _profit;

@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Profit;
@@ -8,10 +9,11 @@ using NeoSTP.Application.Profit.Dtos;
 namespace NeoSTP.Web.Controllers;
 
 /// <summary>
-/// NeoProfit — dashboard financiero (ventas, IVA, rentabilidad, rankings).
+/// NeoProfit â€” dashboard financiero (ventas, IVA, rentabilidad, rankings).
 /// Opera dentro de una empresa; SuperAdmin debe entrar en modo soporte.
 /// </summary>
 [Authorize]
+[RequireModulo("NEOPROFIT")]
 public class ProfitController : Controller
 {
     private readonly IProfitService _profit;

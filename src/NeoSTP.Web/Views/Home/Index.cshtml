@@ -44,6 +44,17 @@
     </div>
 </div>
 
+@* Mensajes de flujos que redirigen aquí (cambio de empresa, consolidado de grupo).
+   Sin esto el usuario aterriza en el dashboard sin saber por qué falló la acción. *@
+@if (TempData["Success"] is string okMsg)
+{
+    <div class="alert alert-success alert-dismissible fade show">@okMsg <button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (TempData["Error"] is string errMsg)
+{
+    <div class="alert alert-warning alert-dismissible fade show">@errMsg <button class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
 @* ── Checklist de activación (onboarding) ───────────────────── *@
 @if (Model.Onboarding is not null)
 {

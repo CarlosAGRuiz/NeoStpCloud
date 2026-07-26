@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Conta;
@@ -7,8 +8,9 @@ using NeoSTP.Application.Empresas;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOCONTA — balanza y asientos. Permisos Conta.Ver / Conta.Gestionar.</summary>
+/// <summary>NEOCONTA â€” balanza y asientos. Permisos Conta.Ver / Conta.Gestionar.</summary>
 [Authorize]
+[RequireModulo("NEOCONTA")]
 public class ContaController : Controller
 {
     private readonly IContabilidadService _conta;

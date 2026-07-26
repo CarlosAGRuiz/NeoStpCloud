@@ -1,0 +1,48 @@
+@{
+    var nombre = ViewData["ModuloNombre"] as string ?? "Módulo";
+    var descripcion = ViewData["ModuloDescripcion"] as string ?? "";
+    var icono = ViewData["ModuloIcono"] as string ?? "lock";
+    var planes = ViewData["PlanesQueLoIncluyen"] as string ?? "planes superiores";
+    var planActual = ViewData["PlanActual"] as string;
+    ViewData["Title"] = $"{nombre} — no incluido en tu plan";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>@nombre</span></nav>
+        <h1 class="ns-page-title">@nombre</h1>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body text-center py-5">
+        <span class="material-symbols-outlined d-block mb-3"
+              style="font-size:56px;color:var(--ns-secondary)">@icono</span>
+
+        <h2 class="h4 mb-2">Tu plan no incluye @nombre</h2>
+
+        @if (planActual is not null)
+        {
+            <p class="text-muted mb-3">
+                Estás en el plan <strong>@planActual</strong>.
+            </p>
+        }
+
+        <p class="text-muted mx-auto mb-4" style="max-width:620px">@descripcion</p>
+
+        <div class="alert alert-info d-inline-block text-start mb-4" style="max-width:620px">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">workspace_premium</span>
+            Disponible en: <strong>@planes</strong>.
+        </div>
+
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+            <a asp-controller="Billing" asp-action="Index" class="btn btn-primary">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">upgrade</span>
+                Ver planes y mejorar
+            </a>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary">
+                Volver al inicio
+            </a>
+        </div>
+    </div>
+</div>

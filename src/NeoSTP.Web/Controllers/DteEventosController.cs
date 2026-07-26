@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Certificacion;
@@ -14,6 +15,7 @@ using NeoSTP.Domain.Core.Dte.Eventos;
 namespace NeoSTP.Web.Controllers;
 
 [Authorize]
+[RequireModulo("EVENTOSDTE")]
 public class DteEventosController : Controller
 {
     private readonly IDteEventoService _service;
@@ -83,7 +85,7 @@ public class DteEventosController : Controller
         return File(result.Value!.Content, result.Value.ContentType, result.Value.FileName);
     }
 
-    // ----- Forms de creación -----
+    // ----- Forms de creaciÃ³n -----
 
     [HttpGet]
     public async Task<IActionResult> CreateInvalidacion([FromQuery] int? certificacionEscenarioId, CancellationToken ct)
@@ -125,7 +127,7 @@ public class DteEventosController : Controller
             return View(model);
         }
 
-        TempData["Success"] = $"Evento de invalidación transmitido. Sello: {result.Value!.SelloOEstado}";
+        TempData["Success"] = $"Evento de invalidaciÃ³n transmitido. Sello: {result.Value!.SelloOEstado}";
         var certificacionRedirect = await AsociarCertificacionEventoAsync(result.Value!.EventoId, model, eid, ct);
         if (certificacionRedirect is not null) return certificacionRedirect;
 
@@ -253,7 +255,7 @@ public class DteEventosController : Controller
         if (!ModelState.IsValid || string.IsNullOrWhiteSpace(model.Descripcion) || model.Monto <= 0)
         {
             if (string.IsNullOrWhiteSpace(model.Descripcion))
-                ModelState.AddModelError(nameof(model.Descripcion), "Descripción es requerida.");
+                ModelState.AddModelError(nameof(model.Descripcion), "DescripciÃ³n es requerida.");
             if (model.Monto <= 0)
                 ModelState.AddModelError(nameof(model.Monto), "Monto debe ser mayor a 0.");
             return View(model);

@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -8,8 +9,9 @@ using NeoSTP.Application.Pos.Dtos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOPOS — sesiones / corte de caja. Permisos Pos.Ver / Pos.Vender.</summary>
+/// <summary>NEOPOS â€” sesiones / corte de caja. Permisos Pos.Ver / Pos.Vender.</summary>
 [Authorize]
+[RequireModulo("NEOPOS")]
 public class CajaController : Controller
 {
     private readonly IPosCajaService _caja;

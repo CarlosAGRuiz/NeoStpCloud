@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -10,6 +11,7 @@ using NeoSTP.Web.Models;
 namespace NeoSTP.Web.Controllers;
 
 [Authorize]
+[RequireModulo("NEORRHH")]
 public sealed class PrestacionesController : Controller
 {
     private readonly IPrestacionesRrhhService _prestaciones;
@@ -134,12 +136,12 @@ public sealed class PrestacionesController : Controller
         if (!Has("Rrhh.Nomina.Gestionar")) return Forbid();
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
         var result = await _prestaciones.UpdatePoliticaAsync(empresaId, request, _currentUser.Username, ct);
-        Flash(result.IsSuccess, result.IsSuccess ? "Política de prestaciones actualizada." : result.Error);
+        Flash(result.IsSuccess, result.IsSuccess ? "PolÃ­tica de prestaciones actualizada." : result.Error);
         return RedirectToAction(nameof(Index));
     }
 
     private void Flash(bool success, string? message)
-        => TempData[success ? "Success" : "Error"] = message ?? "No fue posible completar la operación.";
+        => TempData[success ? "Success" : "Error"] = message ?? "No fue posible completar la operaciÃ³n.";
 
     private bool Has(string code) => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(code);
     private int? RequireEmpresa() => _empresaContext.CurrentEmpresaId;

@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Agenda;
 using NeoSTP.Application.Auth.Abstractions;
@@ -9,8 +10,9 @@ using NeoSTP.Application.Productos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOAGENDA — calendario semanal de citas y comisiones por servicio.</summary>
+/// <summary>NEOAGENDA â€” calendario semanal de citas y comisiones por servicio.</summary>
 [Authorize]
+[RequireModulo("NEOAGENDA")]
 public class AgendaController : Controller
 {
     private readonly IAgendaService _agenda;

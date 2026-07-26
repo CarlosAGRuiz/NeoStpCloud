@@ -1,6 +1,7 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
@@ -11,8 +12,9 @@ using NeoSTP.Application.Productos.Dtos;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOPOS — punto de venta web. Permisos Pos.Ver / Pos.Vender / Pos.Anular.</summary>
+/// <summary>NEOPOS â€” punto de venta web. Permisos Pos.Ver / Pos.Vender / Pos.Anular.</summary>
 [Authorize]
+[RequireModulo("NEOPOS")]
 public class PosController : Controller
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
@@ -58,7 +60,7 @@ public class PosController : Controller
         return View();
     }
 
-    /// <summary>Búsqueda de productos para el POS (JSON).</summary>
+    /// <summary>BÃºsqueda de productos para el POS (JSON).</summary>
     [HttpGet]
     public async Task<IActionResult> BuscarProductos(string? term, CancellationToken ct)
     {
@@ -132,7 +134,7 @@ public class PosController : Controller
         return View(result.Value);
     }
 
-    /// <summary>Vista imprimible del ticket (HTML térmico, auto-print opcional con ?print=1).</summary>
+    /// <summary>Vista imprimible del ticket (HTML tÃ©rmico, auto-print opcional con ?print=1).</summary>
     [HttpGet]
     public async Task<IActionResult> Ticket(int id, bool print = false, CancellationToken ct = default)
     {

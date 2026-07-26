@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Web.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Compras;
@@ -8,8 +9,9 @@ using NeoSTP.Application.Empresas;
 
 namespace NeoSTP.Web.Controllers;
 
-/// <summary>NEOCOMPRAS — maestro de proveedores. Permisos Compras.Proveedores.*.</summary>
+/// <summary>NEOCOMPRAS â€” maestro de proveedores. Permisos Compras.Proveedores.*.</summary>
 [Authorize]
+[RequireModulo("COMPRAS")]
 public class ProveedoresController : Controller
 {
     private readonly ICompraService _compras;
