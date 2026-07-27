@@ -6,6 +6,7 @@ using NeoSTP.Application.Compras;
 using NeoSTP.Application.Compras.Dtos;
 using NeoSTP.Application.Inventario;
 using NeoSTP.Application.Inventario.Dtos;
+using NeoSTP.Domain.Core.Common;
 using NeoSTP.Domain.Core.Compras;
 using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Productos;
@@ -22,18 +23,30 @@ public sealed class OrdenCompraService : IOrdenCompraService
     private readonly ICompraService _compras;
     private readonly IInventarioService _inventario;
     private readonly IAuditoriaService _auditoria;
+    private readonly ICorrelativoService? _correlativos;
 
     public OrdenCompraService(
         NeoStpDbContext db,
         ICompraService compras,
         IInventarioService inventario,
-        IAuditoriaService auditoria)
+        IAuditoriaService auditoria,
+        ICorrelativoService? correlativos = null)
     {
         _db = db;
         _compras = compras;
         _inventario = inventario;
         _auditoria = auditoria;
+        _correlativos = correlativos;
     }
+
+    /// <summary>
+    /// Número del documento. Con el servicio de correlativos entrega OC-2026-000042;
+    /// sin él (llamadores antiguos en pruebas) cae al esquema anterior.
+    /// </summary>
+    private async Task<string> NumerarAsync(int empresaId, string serie, CancellationToken ct)
+        => _correlativos is not null
+            ? await _correlativos.SiguienteAsync(empresaId, serie, ct)
+            : $"{serie}-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..28].ToUpperInvariant();
 
     public async Task<Result<PagedResult<OrdenCompraDto>>> ListAsync(
         int empresaId, string? estado, int? proveedorId, PagedQuery query, CancellationToken ct = default)
@@ -111,7 +124,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
             EmpresaId = empresaId,
             ProveedorId = proveedor.Id,
             Proveedor = proveedor,
-            Numero = $"OC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..28].ToUpperInvariant(),
+            Numero = await NumerarAsync(empresaId, CorrelativoSeries.OrdenCompra, ct),
             Fecha = fecha,
             FechaEntregaEsperada = request.FechaEntregaEsperada,
             EstadoCodigo = OrdenCompraEstados.Borrador,
@@ -314,7 +327,7 @@ public sealed class OrdenCompraService : IOrdenCompraService
             EmpresaId = empresaId,
             OrdenCompraId = orden.Id,
             OrdenCompra = orden,
-            Numero = $"RC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid():N}"[..28].ToUpperInvariant(),
+            Numero = await NumerarAsync(empresaId, CorrelativoSeries.RecepcionCompra, ct),
             IdempotencyKey = key,
             Fecha = fecha,
             Referencia = request.Referencia?.Trim(),

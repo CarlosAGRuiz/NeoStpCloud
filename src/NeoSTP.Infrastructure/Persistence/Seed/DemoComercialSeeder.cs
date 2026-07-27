@@ -9,6 +9,7 @@ using NeoSTP.Application.Onboarding;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Cobranza;
+using NeoSTP.Domain.Core.Common;
 using NeoSTP.Domain.Core.Compras;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
@@ -439,7 +440,7 @@ public static class DemoComercialSeeder
         {
             EmpresaId = empresa.Id,
             ProveedorId = proveedor.Id,
-            Numero = $"OC-{DateTime.UtcNow:yyyyMMdd}-DEMO01",
+            Numero = $"{CorrelativoSeries.OrdenCompra}-{DateTime.UtcNow:yyyy}-000001",
             Fecha = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-2)),
             FechaEntregaEsperada = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(5)),
             EstadoCodigo = OrdenCompraEstados.PorAprobar,
@@ -460,6 +461,16 @@ public static class DemoComercialSeeder
             ],
         };
         db.OrdenesCompra.Add(orden);
+
+        // La orden se inserta directo, sin pasar por el servicio: hay que dejar el contador
+        // avanzado o la siguiente orden creada desde la UI repetiría el número.
+        db.Correlativos.Add(new Correlativo
+        {
+            EmpresaId = empresa.Id,
+            Serie = $"{CorrelativoSeries.OrdenCompra}-{DateTime.UtcNow:yyyy}",
+            UltimoNumero = 1,
+            ActualizadoAt = DateTime.UtcNow,
+        });
         await db.SaveChangesAsync(ct);
     }
 

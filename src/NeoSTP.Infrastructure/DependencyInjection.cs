@@ -52,6 +52,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAuditoriaService, AuditoriaService>();
+        // Numeración correlativa de documentos internos (órdenes de compra, recepciones).
+        services.AddScoped<NeoSTP.Application.Common.ICorrelativoService, CorrelativoService>();
         services.AddScoped<IAuditoriaQueryService, AuditoriaQueryService>();
         // Seguridad (M6.2): política de contraseña + bloqueo configurables.
         services.Configure<NeoSTP.Application.Auth.SecurityOptions>(configuration.GetSection(NeoSTP.Application.Auth.SecurityOptions.SectionName));

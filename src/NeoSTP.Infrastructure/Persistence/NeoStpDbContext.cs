@@ -49,6 +49,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<UsuarioRol> UsuarioRoles => Set<UsuarioRol>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<EmpresaSso> EmpresaSso => Set<EmpresaSso>();
+    public DbSet<NeoSTP.Domain.Core.Common.Correlativo> Correlativos => Set<NeoSTP.Domain.Core.Common.Correlativo>();
 
     // Licenciamiento
     public DbSet<Modulo> Modulos => Set<Modulo>();

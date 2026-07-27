@@ -62,7 +62,8 @@ public class OrdenCompraServiceTests
             .Returns(Result<FacturaCompraDetalleDto>.Ok(new FacturaCompraDetalleDto { Id = 900 }));
         var auditoria = Substitute.For<IAuditoriaService>();
         var inventario = new InventarioService(db, auditoria);
-        return (new OrdenCompraService(db, compras, inventario, auditoria), compras);
+        var correlativos = new NeoSTP.Infrastructure.Services.CorrelativoService(db);
+        return (new OrdenCompraService(db, compras, inventario, auditoria, correlativos), compras);
     }
 
     private static GuardarOrdenCompraRequest Request(params GuardarOrdenCompraLineaRequest[] lineas) => new()
@@ -99,7 +100,8 @@ public class OrdenCompraServiceTests
         result.Value.Subtotal.Should().Be(200m);
         result.Value.Iva.Should().Be(26m);
         result.Value.Total.Should().Be(226m);
-        result.Value.Numero.Should().StartWith("OC-");
+        // Correlativo legible para el proveedor, no un fragmento de GUID.
+        result.Value.Numero.Should().Be($"OC-{DateTime.UtcNow.Year}-000001");
         db.OrdenesCompra.Should().ContainSingle(x => x.EmpresaId == Empresa);
         (await service.GetAsync(OtraEmpresa, result.Value.Id)).ErrorCode.Should().Be("ORDEN_COMPRA_NOT_FOUND");
     }

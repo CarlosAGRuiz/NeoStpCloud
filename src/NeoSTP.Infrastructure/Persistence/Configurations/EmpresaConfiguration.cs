@@ -12,6 +12,8 @@ public class EmpresaConfiguration : IEntityTypeConfiguration<Empresa>
         builder.HasKey(e => e.Id);
 
         builder.Property(e => e.Nit).HasMaxLength(20).IsRequired();
+        // Monto: sin precisión declarada EF avisa que podría truncar en silencio (E4).
+        builder.Property(e => e.UmbralAprobacionCompras).HasPrecision(18, 2);
         builder.Property(e => e.Nrc).HasMaxLength(20);
         builder.Property(e => e.RazonSocial).HasMaxLength(250).IsRequired();
         builder.Property(e => e.NombreComercial).HasMaxLength(250);
