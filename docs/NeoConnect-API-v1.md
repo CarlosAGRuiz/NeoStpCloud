@@ -142,8 +142,65 @@ El consumo por key es visible en **Integraciones → Consumo**.
 
 ---
 
-## Webhooks (cambios de estado de DTE)
+## Webhooks
 
-Independiente de esta API REST: configura un webhook en **Integraciones** para recibir notificaciones
-cuando un DTE pase a `PROCESADO`, `RECHAZADO`, `CONTINGENCIA` o `INVALIDADO`.
-Las entregas se firman con HMAC-SHA256 en el header `X-NeoConnect-Signature` y se reintentan con backoff exponencial.
+Independiente de esta API REST: configura un webhook en **Integraciones** y suscríbelo a los eventos
+que te interesen. Las entregas se firman con HMAC-SHA256 en el header `X-NeoConnect-Signature` y se
+reintentan con backoff exponencial.
+
+### Eventos de facturación
+
+| Evento | Cuándo se dispara |
+|---|---|
+| `DTE.Procesado` | Hacienda aceptó el documento |
+| `DTE.Rechazado` | Hacienda rechazó el documento |
+| `DTE.Contingencia` | El documento quedó en contingencia |
+| `DTE.Invalidado` | El documento fue invalidado |
+
+Payload: `evento`, `empresaId`, `dteId`, `codigoGeneracion`, `tipoDte`, `estado`, `ocurrioAt`.
+
+### Eventos de negocio
+
+| Evento | Cuándo se dispara | Uso típico |
+|---|---|---|
+| `Cobros.PagoConfirmado` | Se confirma el pago de una factura | Cerrar el pedido en tu sistema |
+| `Compras.OrdenPorAprobar` | Una orden supera el umbral y espera aprobación | Disparar tu flujo de autorización |
+| `Inventario.StockBajo` | Un producto **cruza** su stock mínimo | Reabastecimiento automático |
+| `Agenda.CitaCreada` | Se agenda una cita | Recordatorios, sincronizar calendario |
+
+Payload: `evento`, `empresaId`, `entidadTipo`, `entidadId`, `descripcion`, `datos`, `ocurrioAt`.
+El objeto `datos` varía por evento — por ejemplo, en `Cobros.PagoConfirmado` trae `monto`,
+`formaPago`, `saldoRestante` y `saldado`.
+
+> `Inventario.StockBajo` se emite solo al **cruzar** el mínimo, no en cada movimiento posterior:
+> así una venta de un producto ya bajo no genera un webhook por venta.
+
+```json
+{
+  "evento": "Cobros.PagoConfirmado",
+  "empresaId": 12,
+  "entidadTipo": "PagoCliente",
+  "entidadId": 340,
+  "descripcion": "Pago de $ 113.00 confirmado sobre DTE-01-M001P001-000000000000042.",
+  "datos": {
+    "dteDocumentoId": 87,
+    "numeroControl": "DTE-01-M001P001-000000000000042",
+    "monto": 113.00,
+    "formaPago": "TRANSFERENCIA",
+    "saldoRestante": 0.00,
+    "saldado": true
+  },
+  "ocurrioAt": "2026-07-27T16:20:11Z"
+}
+```
+
+---
+
+## Portabilidad de datos
+
+`GET /api/datos/exportar` (permiso `Datos.Exportar`) devuelve un **ZIP con todos los datos de la
+empresa en CSV**: perfil, clientes, productos, DTE con su detalle, inventario, cobros, proveedores y
+compras. Incluye un `LEEME.txt` con las filas de cada archivo y cómo se cruzan por columnas de Id.
+Los CSV van en UTF-8 con BOM para que Excel los abra con los acentos correctos.
+
+También disponible desde la web en **Tus datos**.

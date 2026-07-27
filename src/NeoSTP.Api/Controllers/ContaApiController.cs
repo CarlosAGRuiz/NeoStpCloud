@@ -87,6 +87,18 @@ public class ContaApiController : ApiControllerBase
         return File(r.Value!, "text/csv", $"balanza_{anio:0000}_{mes:00}.csv");
     }
 
+    /// <summary>Asientos del período en formato plano, para importar en un contable externo (E7).</summary>
+    [HttpGet("asientos/csv")]
+    [RequirePermiso("Conta.Ver")]
+    [Produces("text/csv")]
+    public async Task<IActionResult> AsientosCsv([FromQuery] int anio, [FromQuery] int mes, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        var r = await _conta.AsientosCsvAsync(eid, anio, mes, ct);
+        if (r.IsFailure) return Respond(r);
+        return File(r.Value!, "text/csv", $"asientos_{anio:0000}_{mes:00}.csv");
+    }
+
     private int? Resolve(int? fromRequest) => _currentUser.EmpresaId ?? fromRequest;
 
     private object NoTenant() => ApiResponse.Fail(

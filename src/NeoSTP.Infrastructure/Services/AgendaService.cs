@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Agenda;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Connect;
 using NeoSTP.Domain.Core.Agenda;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -14,10 +16,16 @@ public class AgendaService : IAgendaService
     private readonly NeoStpDbContext _db;
     private readonly IAuditoriaService _auditoria;
 
-    public AgendaService(NeoStpDbContext db, IAuditoriaService auditoria)
+    private readonly IConnectWebhookDispatcher? _webhooks;
+
+    public AgendaService(
+        NeoStpDbContext db,
+        IAuditoriaService auditoria,
+        IConnectWebhookDispatcher? webhooks = null)
     {
         _db = db;
         _auditoria = auditoria;
+        _webhooks = webhooks;
     }
 
     public async Task<Result<IReadOnlyList<CitaDto>>> ListAsync(int empresaId, DateTime desde, DateTime hasta, int? empleadoId = null, CancellationToken ct = default)
@@ -103,6 +111,29 @@ public class AgendaService : IAgendaService
         _db.Citas.Add(cita);
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "CREAR", $"{clienteNombre} — {servicioNombre} {cita.FechaInicio:dd/MM HH:mm}", cita.Id);
+
+        // E6: permite enganchar recordatorios por WhatsApp o sincronizar un calendario externo.
+        if (_webhooks is not null)
+        {
+            await _webhooks.DispatchNegocioAsync(new ConnectEventoNegocioPayload
+            {
+                Evento = ConnectEventos.AgendaCitaCreada,
+                EmpresaId = empresaId,
+                EntidadTipo = "Cita",
+                EntidadId = cita.Id,
+                Descripcion = $"{clienteNombre} — {servicioNombre} el {cita.FechaInicio:dd/MM/yyyy HH:mm}.",
+                Datos = new Dictionary<string, object?>
+                {
+                    ["cliente"] = clienteNombre,
+                    ["servicio"] = servicioNombre,
+                    ["fechaInicio"] = cita.FechaInicio,
+                    ["duracionMinutos"] = cita.DuracionMinutos,
+                    ["empleadoId"] = cita.EmpleadoId,
+                    ["precio"] = cita.Precio,
+                },
+            }, ct);
+        }
+
         return Result<CitaDto>.Ok(ToDto(cita));
     }
 

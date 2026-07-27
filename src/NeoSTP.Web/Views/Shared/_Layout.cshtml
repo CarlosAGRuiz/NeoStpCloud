@@ -95,6 +95,7 @@
         || TienePermiso("Core.Usuarios.Ver")
         || TienePermiso("DTE.Configurar")
         || TienePermiso("Seguridad.Sso.Gestionar")
+        || TienePermiso("Datos.Exportar")
         || puedeConfigurarCorreo;
 
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
@@ -392,6 +393,13 @@ else
                         {
                             <a class="ns-nav-link @active("Sso")" asp-controller="Sso" asp-action="Index">
                                 <span class="material-symbols-outlined">key</span> SSO corporativo
+                            </a>
+                        }
+
+                        @if (isSuperAdmin || TienePermiso("Datos.Exportar"))
+                        {
+                            <a class="ns-nav-link @active("Datos")" asp-controller="Datos" asp-action="Index">
+                                <span class="material-symbols-outlined">folder_zip</span> Tus datos
                             </a>
                         }
 

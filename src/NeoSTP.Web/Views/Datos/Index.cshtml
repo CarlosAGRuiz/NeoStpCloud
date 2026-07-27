@@ -1,0 +1,68 @@
+@{
+    ViewData["Title"] = "Tus datos";
+}
+
+<div class="ns-page-head">
+    <div>
+        <nav class="ns-breadcrumb"><a asp-controller="Home" asp-action="Index">Inicio</a><span class="material-symbols-outlined">chevron_right</span><span>Tus datos</span></nav>
+        <h1 class="ns-page-title">Tus datos</h1>
+    </div>
+</div>
+
+@if (TempData["Error"] is string err) { <div class="alert alert-danger alert-dismissible fade show">@err <button class="btn-close" data-bs-dismiss="alert"></button></div> }
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 fw-semibold mb-2">
+                    <span class="material-symbols-outlined align-middle" style="font-size:20px">download</span>
+                    Descargar todo
+                </h2>
+                <p class="text-muted mb-3">
+                    Genera un archivo ZIP con toda la información de tu empresa en formato CSV,
+                    listo para abrir en Excel o cargar en otro sistema. Tus datos son tuyos y
+                    puedes llevártelos cuando quieras.
+                </p>
+
+                <ul class="small text-muted mb-4">
+                    <li>Perfil de la empresa</li>
+                    <li>Clientes y productos</li>
+                    <li>Documentos electrónicos emitidos, con su detalle línea por línea</li>
+                    <li>Existencias y movimientos de inventario</li>
+                    <li>Pagos recibidos, proveedores y facturas de compra</li>
+                </ul>
+
+                <form asp-action="Exportar" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary">
+                        <span class="material-symbols-outlined align-middle" style="font-size:18px">folder_zip</span>
+                        Generar y descargar
+                    </button>
+                </form>
+                <p class="text-muted small mt-3 mb-0">
+                    Según cuántos documentos tengas, la descarga puede tardar unos segundos.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 fw-semibold mb-2">Sobre el archivo</h2>
+                <p class="small text-muted mb-2">
+                    Los CSV usan coma como separador y codificación UTF-8 con BOM, así que Excel
+                    los abre con los acentos correctos sin configurar nada.
+                </p>
+                <p class="small text-muted mb-2">
+                    Dentro encontrarás un <strong>LEEME.txt</strong> con la lista de archivos, cuántas
+                    filas trae cada uno y cómo se cruzan entre sí por las columnas de Id.
+                </p>
+                <p class="small text-muted mb-0">
+                    La descarga queda registrada en la auditoría de la empresa.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

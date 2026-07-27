@@ -4,6 +4,8 @@ using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Compras;
 using NeoSTP.Application.Compras.Dtos;
+using NeoSTP.Application.Connect;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Application.Inventario;
 using NeoSTP.Application.Inventario.Dtos;
 using NeoSTP.Domain.Core.Common;
@@ -24,19 +26,22 @@ public sealed class OrdenCompraService : IOrdenCompraService
     private readonly IInventarioService _inventario;
     private readonly IAuditoriaService _auditoria;
     private readonly ICorrelativoService? _correlativos;
+    private readonly IConnectWebhookDispatcher? _webhooks;
 
     public OrdenCompraService(
         NeoStpDbContext db,
         ICompraService compras,
         IInventarioService inventario,
         IAuditoriaService auditoria,
-        ICorrelativoService? correlativos = null)
+        ICorrelativoService? correlativos = null,
+        IConnectWebhookDispatcher? webhooks = null)
     {
         _db = db;
         _compras = compras;
         _inventario = inventario;
         _auditoria = auditoria;
         _correlativos = correlativos;
+        _webhooks = webhooks;
     }
 
     /// <summary>
@@ -205,6 +210,27 @@ public sealed class OrdenCompraService : IOrdenCompraService
             requiereAprobacion ? "ENVIAR_APROBACION_ORDEN_COMPRA" : "EMITIR_ORDEN_COMPRA",
             requiereAprobacion ? $"{orden.Numero} (total {orden.Total:N2} ≥ umbral {umbral:N2})" : orden.Numero,
             orden.Id);
+
+        // E6: avisar al integrador para que dispare su flujo de autorización.
+        if (requiereAprobacion && _webhooks is not null)
+        {
+            await _webhooks.DispatchNegocioAsync(new ConnectEventoNegocioPayload
+            {
+                Evento = ConnectEventos.CompraOrdenPorAprobar,
+                EmpresaId = empresaId,
+                EntidadTipo = "OrdenCompra",
+                EntidadId = orden.Id,
+                Descripcion = $"La orden {orden.Numero} por $ {orden.Total:N2} espera aprobación.",
+                Datos = new Dictionary<string, object?>
+                {
+                    ["numero"] = orden.Numero,
+                    ["proveedor"] = orden.Proveedor?.Nombre,
+                    ["total"] = orden.Total,
+                    ["umbral"] = umbral,
+                },
+            }, ct);
+        }
+
         return Result<OrdenCompraDetalleDto>.Ok(ToDetalle(orden));
     }
 

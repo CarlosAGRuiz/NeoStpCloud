@@ -556,6 +556,9 @@ internal static partial class SeedData
             // E3 — SSO corporativo (OIDC)
             Perm(425, "Seguridad.Sso.Gestionar", "CORE", "Configurar el inicio de sesión con SSO corporativo (OIDC)"),
 
+            // E8 — portabilidad de datos
+            Perm(426, "Datos.Exportar", "CORE", "Exportar todos los datos de la empresa (portabilidad)"),
+
             // Diagnóstico de errores Hacienda (Sprint 17): la UI y el controller ya exigían
             // este código, pero el permiso nunca se sembró — solo SUPERADMIN podía entrar.
             Perm(420, "DTE.Diagnostico", "NEODTE", "Ver y resolver el diagnóstico de errores de Hacienda"),
@@ -595,7 +598,7 @@ internal static partial class SeedData
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
             416, 417, 418, 419, 420,
-            422, 423, 424, 425,
+            422, 423, 424, 425, 426,
             360, 361, 362, 363, 364,
         };
 
@@ -615,7 +618,7 @@ internal static partial class SeedData
             406, 407,
             408, 409, 410, 411, 412, 413, 414, 415,
             416, 417, 418, 419, 420,
-            422, 423, 424, 425,
+            422, 423, 424, 425, 426,
         };
 
         // OPERADOR (502) → operación de venta + lectura de catálogos + ver certificación + ver eventos

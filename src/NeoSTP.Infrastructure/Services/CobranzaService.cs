@@ -3,7 +3,9 @@ using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Cobranza;
 using NeoSTP.Application.Cobranza.Dtos;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Connect;
 using NeoSTP.Domain.Core.Cobranza;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -19,11 +21,16 @@ public class CobranzaService : ICobranzaService
 
     private readonly NeoStpDbContext _db;
     private readonly IAuditoriaService _auditoria;
+    private readonly IConnectWebhookDispatcher? _webhooks;
 
-    public CobranzaService(NeoStpDbContext db, IAuditoriaService auditoria)
+    public CobranzaService(
+        NeoStpDbContext db,
+        IAuditoriaService auditoria,
+        IConnectWebhookDispatcher? webhooks = null)
     {
         _db = db;
         _auditoria = auditoria;
+        _webhooks = webhooks;
     }
 
     private sealed record Row(int DteId, string Tipo, string NumeroControl, DateTime FechaEmision,
@@ -170,6 +177,11 @@ public class CobranzaService : ICobranzaService
         _db.Set<PagoCliente>().Add(entity);
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "REGISTRAR", $"Pago {entity.Monto:N2} sobre DTE {dte.NumeroControl} ({entity.EstadoCodigo})", entity.Id);
+
+        // E6: solo cuando el dinero cuenta de verdad; un pago en revisión aún no es cobro.
+        if (entity.EstadoCodigo == PagoEstados.Confirmado)
+            await NotificarPagoConfirmadoAsync(empresaId, entity, dte.NumeroControl, dte.TotalPagar, pagado + entity.Monto, ct);
+
         return Result<PagoClienteDto>.Ok(ToDto(entity));
     }
 
@@ -200,7 +212,39 @@ public class CobranzaService : ICobranzaService
         p.UpdatedAt = DateTime.UtcNow; p.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "CONFIRMAR", $"Pago #{p.Id} confirmado", p.Id);
+        await NotificarPagoConfirmadoAsync(empresaId, p, dte.NumeroControl, dte.TotalPagar, pagado + p.Monto, ct);
         return Result.Ok();
+    }
+
+    /// <summary>
+    /// Webhook de negocio (E6): el integrador quiere enterarse de que le pagaron para
+    /// cerrar el pedido en su sistema. Best-effort: no afecta el registro del pago.
+    /// </summary>
+    private async Task NotificarPagoConfirmadoAsync(
+        int empresaId, PagoCliente pago, string numeroControl,
+        decimal totalDte, decimal pagadoAcumulado, CancellationToken ct)
+    {
+        if (_webhooks is null) return;
+
+        var saldo = CobranzaCalculator.Saldo(totalDte, pagadoAcumulado);
+        await _webhooks.DispatchNegocioAsync(new ConnectEventoNegocioPayload
+        {
+            Evento = ConnectEventos.CobroPagoConfirmado,
+            EmpresaId = empresaId,
+            EntidadTipo = "PagoCliente",
+            EntidadId = pago.Id,
+            Descripcion = $"Pago de $ {pago.Monto:N2} confirmado sobre {numeroControl}.",
+            Datos = new Dictionary<string, object?>
+            {
+                ["dteDocumentoId"] = pago.DteDocumentoId,
+                ["numeroControl"] = numeroControl,
+                ["monto"] = pago.Monto,
+                ["formaPago"] = pago.FormaPagoCodigo,
+                ["referencia"] = pago.Referencia,
+                ["saldoRestante"] = saldo,
+                ["saldado"] = saldo <= 0,
+            },
+        }, ct);
     }
 
     private async Task<decimal> PagadoConfirmadoAsync(int dteId, CancellationToken ct)

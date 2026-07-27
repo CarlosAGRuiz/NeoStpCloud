@@ -346,6 +346,46 @@ public class OrdenCompraServiceTests
     }
 
     [Fact]
+    public async Task Emitir_SobreUmbral_EmiteWebhookDeNegocio()
+    {
+        var db = NewDb();
+        var compras = Substitute.For<ICompraService>();
+        var auditoria = Substitute.For<IAuditoriaService>();
+        var webhooks = Substitute.For<NeoSTP.Application.Connect.IConnectWebhookDispatcher>();
+        var service = new OrdenCompraService(db, compras, new InventarioService(db, auditoria), auditoria,
+            new NeoSTP.Infrastructure.Services.CorrelativoService(db), webhooks);
+
+        await service.SetUmbralAprobacionAsync(Empresa, 100m, "admin");
+        var orden = await service.CrearAsync(Empresa, Request(), "admin"); // total 226
+
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        await webhooks.Received(1).DispatchNegocioAsync(
+            Arg.Is<NeoSTP.Application.Connect.ConnectEventoNegocioPayload>(p =>
+                p.Evento == NeoSTP.Domain.Core.Connect.ConnectEventos.CompraOrdenPorAprobar
+                && p.EmpresaId == Empresa
+                && p.EntidadTipo == "OrdenCompra"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Emitir_BajoUmbral_NoMolestaAlIntegrador()
+    {
+        var db = NewDb();
+        var compras = Substitute.For<ICompraService>();
+        var auditoria = Substitute.For<IAuditoriaService>();
+        var webhooks = Substitute.For<NeoSTP.Application.Connect.IConnectWebhookDispatcher>();
+        var service = new OrdenCompraService(db, compras, new InventarioService(db, auditoria), auditoria,
+            new NeoSTP.Infrastructure.Services.CorrelativoService(db), webhooks);
+
+        var orden = await service.CrearAsync(Empresa, Request(), "admin"); // sin umbral
+        await service.EmitirAsync(Empresa, orden.Value!.Id, "admin");
+
+        await webhooks.DidNotReceive().DispatchNegocioAsync(
+            Arg.Any<NeoSTP.Application.Connect.ConnectEventoNegocioPayload>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task SetUmbral_Negativo_Falla()
     {
         var db = NewDb(); var (service, _) = NewService(db);

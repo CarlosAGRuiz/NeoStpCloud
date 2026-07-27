@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Connect;
 using NeoSTP.Application.Inventario;
 using NeoSTP.Application.Inventario.Dtos;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -20,10 +22,16 @@ public class InventarioService : IInventarioService
     private readonly NeoStpDbContext _db;
     private readonly IAuditoriaService _auditoria;
 
-    public InventarioService(NeoStpDbContext db, IAuditoriaService auditoria)
+    private readonly IConnectWebhookDispatcher? _webhooks;
+
+    public InventarioService(
+        NeoStpDbContext db,
+        IAuditoriaService auditoria,
+        IConnectWebhookDispatcher? webhooks = null)
     {
         _db = db;
         _auditoria = auditoria;
+        _webhooks = webhooks;
     }
 
     public async Task<Result<PagedResult<ExistenciaDto>>> ListExistenciasAsync(int empresaId, bool soloStockBajo, PagedQuery query, int? sucursalId = null, CancellationToken ct = default)
@@ -446,6 +454,11 @@ public class InventarioService : IInventarioService
         string origen, int? origenId, DateOnly? fecha, string? referencia, string? nota, string? actor,
         CancellationToken ct, bool actualizarCostoProducto = true, string? numeroLote = null, int? sucursalId = null)
     {
+        // Se guarda el nivel previo para avisar solo cuando se CRUZA el mínimo. Si se
+        // notificara en cada movimiento, una venta de un producto ya bajo generaría un
+        // webhook por venta y el integrador lo terminaría ignorando.
+        var cantidadPrevia = exist.Cantidad;
+
         exist.Cantidad = saldo.Cantidad;
         exist.CostoPromedio = saldo.CostoPromedio;
         exist.UpdatedAt = DateTime.UtcNow; exist.UpdatedBy = actor;
@@ -467,6 +480,29 @@ public class InventarioService : IInventarioService
         });
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, tipo, $"{prod.CodigoInterno} {cantidad:N2} → saldo {saldo.Cantidad:N2}", prod.Id);
+
+        // E6: aviso al integrador para que dispare su reabastecimiento.
+        var minimo = exist.StockMinimo;
+        var cruzoElMinimo = minimo > 0 && cantidadPrevia > minimo && saldo.Cantidad <= minimo;
+        if (cruzoElMinimo && _webhooks is not null)
+        {
+            await _webhooks.DispatchNegocioAsync(new ConnectEventoNegocioPayload
+            {
+                Evento = ConnectEventos.InventarioStockBajo,
+                EmpresaId = empresaId,
+                EntidadTipo = "Producto",
+                EntidadId = prod.Id,
+                Descripcion = $"{prod.CodigoInterno} · {prod.Nombre} quedó en {saldo.Cantidad:N2} (mínimo {minimo:N2}).",
+                Datos = new Dictionary<string, object?>
+                {
+                    ["codigo"] = prod.CodigoInterno,
+                    ["nombre"] = prod.Nombre,
+                    ["existencia"] = saldo.Cantidad,
+                    ["stockMinimo"] = minimo,
+                    ["sucursalId"] = sucursalId ?? exist.SucursalId,
+                },
+            }, ct);
+        }
     }
 
     private static string NormalizarOrigen(string origen)

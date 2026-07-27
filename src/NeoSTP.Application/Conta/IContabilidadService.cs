@@ -26,6 +26,13 @@ public interface IContabilidadService
 
     Task<Result<BalanzaDto>> BalanzaAsync(int empresaId, int anio, int mes, CancellationToken ct = default);
     Task<Result<byte[]>> BalanzaCsvAsync(int empresaId, int anio, int mes, CancellationToken ct = default);
+
+    /// <summary>
+    /// Exporta los asientos del período en formato plano (una fila por movimiento) para
+    /// importarlos en un sistema contable externo (E7). Incluye las anuladas marcadas como
+    /// tales para que el contador vea la reversa, no un descuadre.
+    /// </summary>
+    Task<Result<byte[]>> AsientosCsvAsync(int empresaId, int anio, int mes, CancellationToken ct = default);
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────

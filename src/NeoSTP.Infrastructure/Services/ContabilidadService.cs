@@ -291,6 +291,43 @@ public class ContabilidadService : IContabilidadService
         return Result<byte[]>.Ok(csv.ToBytes());
     }
 
+    public async Task<Result<byte[]>> AsientosCsvAsync(int empresaId, int anio, int mes, CancellationToken ct = default)
+    {
+        if (anio is < 2000 or > 2999 || mes is < 1 or > 12)
+            return Result<byte[]>.Fail("Período inválido.", "VALIDATION");
+
+        var desde = new DateOnly(anio, mes, 1);
+        var hasta = desde.AddMonths(1);
+
+        var asientos = await _db.AsientosContables.AsNoTracking()
+            .Include(x => x.Lineas).ThenInclude(l => l.Cuenta)
+            .Where(x => x.EmpresaId == empresaId && x.Fecha >= desde && x.Fecha < hasta)
+            .OrderBy(x => x.Fecha).ThenBy(x => x.Id)
+            .ToListAsync(ct);
+
+        // Una fila por movimiento: es el formato que aceptan los sistemas contables
+        // externos, y deja el archivo listo para tabla dinámica en Excel.
+        var csv = new CsvExporter(
+            "Fecha", "Asiento", "Concepto", "Origen", "Estado",
+            "Cuenta", "Nombre cuenta", "Detalle", "Debe", "Haber");
+
+        decimal totalDebe = 0, totalHaber = 0;
+        foreach (var a in asientos)
+        {
+            foreach (var l in a.Lineas.OrderByDescending(l => l.Debe).ThenBy(l => l.Cuenta!.Codigo))
+            {
+                csv.AddRow(
+                    a.Fecha.ToString("yyyy-MM-dd"), a.Numero, a.Concepto, a.Origen, a.EstadoCodigo,
+                    l.Cuenta?.Codigo, l.Cuenta?.Nombre, l.Detalle, F(l.Debe), F(l.Haber));
+                totalDebe += l.Debe;
+                totalHaber += l.Haber;
+            }
+        }
+
+        csv.AddRow("", "TOTAL", "", "", "", "", "", "", F(totalDebe), F(totalHaber));
+        return Result<byte[]>.Ok(csv.ToBytes());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private async Task EnsureCatalogoAsync(int empresaId, CancellationToken ct)

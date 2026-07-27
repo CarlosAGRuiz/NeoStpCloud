@@ -24,34 +24,45 @@ public class ConnectWebhookDispatcher : IConnectWebhookDispatcher
         _logger = logger;
     }
 
-    public async Task DispatchAsync(ConnectDteEventoPayload payload, CancellationToken ct = default)
+    private static readonly JsonSerializerOptions PayloadJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    public Task DispatchAsync(ConnectDteEventoPayload payload, CancellationToken ct = default)
+        => EncolarAsync(payload.EmpresaId, payload.Evento, payload, ct);
+
+    public Task DispatchNegocioAsync(ConnectEventoNegocioPayload payload, CancellationToken ct = default)
+        => EncolarAsync(payload.EmpresaId, payload.Evento, payload, ct);
+
+    /// <summary>
+    /// Deja una entrega PENDIENTE por cada webhook suscrito. El envío real lo hace el worker,
+    /// así que la operación que emite el evento no espera ni falla por la integración.
+    /// </summary>
+    private async Task EncolarAsync(int empresaId, string evento, object payload, CancellationToken ct)
     {
         try
         {
-            // Webhooks activos de la empresa suscritos a este evento
             var webhooks = await _db.ConnectWebhooks.AsNoTracking()
-                .Where(w => w.EmpresaId == payload.EmpresaId && w.Activo)
+                .Where(w => w.EmpresaId == empresaId && w.Activo)
                 .ToListAsync(ct);
 
             var suscritos = webhooks.Where(w =>
                 w.Eventos.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                         .Contains(payload.Evento, StringComparer.OrdinalIgnoreCase))
+                         .Contains(evento, StringComparer.OrdinalIgnoreCase))
                 .ToList();
 
             if (suscritos.Count == 0)
                 return;
 
-            var payloadJson = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            });
+            var payloadJson = JsonSerializer.Serialize(payload, payload.GetType(), PayloadJson);
 
             var ahora = DateTime.UtcNow;
             var deliveries = suscritos.Select(w => new ConnectWebhookDelivery
             {
                 WebhookId = w.Id,
-                EmpresaId = payload.EmpresaId,
-                Evento = payload.Evento,
+                EmpresaId = empresaId,
+                Evento = evento,
                 Payload = payloadJson,
                 Estado = ConnectDeliveryEstados.Pendiente,
                 Intentos = 0,
@@ -63,13 +74,13 @@ public class ConnectWebhookDispatcher : IConnectWebhookDispatcher
             await _db.SaveChangesAsync(ct);
 
             _logger.LogDebug("ConnectWebhookDispatcher: {Count} entregas creadas para evento {Evento} empresa {EmpresaId}",
-                deliveries.Count, payload.Evento, payload.EmpresaId);
+                deliveries.Count, evento, empresaId);
         }
         catch (Exception ex)
         {
-            // Best-effort: nunca romper el flujo DTE
+            // Best-effort: la integración nunca debe tumbar la operación del negocio.
             _logger.LogWarning(ex, "ConnectWebhookDispatcher: error al despachar evento {Evento} empresa {EmpresaId}",
-                payload.Evento, payload.EmpresaId);
+                evento, empresaId);
         }
     }
 

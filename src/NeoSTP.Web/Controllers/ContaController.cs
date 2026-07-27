@@ -81,6 +81,21 @@ public class ContaController : Controller
         return File(r.Value!, "text/csv", $"balanza_{anio:0000}_{mes:00}.csv");
     }
 
+    /// <summary>Asientos del período en formato plano, para cargarlos en un contable externo (E7).</summary>
+    [HttpGet]
+    public async Task<IActionResult> AsientosCsv(int anio, int mes, CancellationToken ct)
+    {
+        if (!Has("Conta.Ver")) return Forbid();
+        if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        var r = await _conta.AsientosCsvAsync(eid, anio, mes, ct);
+        if (r.IsFailure)
+        {
+            TempData["Error"] = r.Error;
+            return RedirectToAction(nameof(Index), new { anio, mes });
+        }
+        return File(r.Value!, "text/csv", $"asientos_{anio:0000}_{mes:00}.csv");
+    }
+
     private bool Has(string codigo) => _currentUser.TipoUsuarioCodigo == "SUPERADMIN" || _currentUser.HasPermiso(codigo);
     private int? RequireEmpresa() => _empresaContext.CurrentEmpresaId;
 

@@ -51,7 +51,13 @@
                 else { <span class="ns-badge ns-badge--rejected ms-2">DESCUADRE</span> }
             }
         </h2>
-        <a asp-action="BalanzaCsv" asp-route-anio="@anio" asp-route-mes="@mes" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:16px">download</span> CSV</a>
+        <div class="d-flex gap-2">
+            <a asp-action="BalanzaCsv" asp-route-anio="@anio" asp-route-mes="@mes" class="btn btn-outline-secondary btn-sm"><span class="material-symbols-outlined align-middle" style="font-size:16px">download</span> Balanza CSV</a>
+            <a asp-action="AsientosCsv" asp-route-anio="@anio" asp-route-mes="@mes" class="btn btn-outline-secondary btn-sm"
+               title="Asientos en formato plano para importar en un sistema contable externo">
+                <span class="material-symbols-outlined align-middle" style="font-size:16px">table_view</span> Asientos CSV
+            </a>
+        </div>
     </div>
     @if (Model is null || Model.Cuentas.Count == 0)
     {

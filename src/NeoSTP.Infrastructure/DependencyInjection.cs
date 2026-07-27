@@ -54,6 +54,8 @@ public static class DependencyInjection
         services.AddScoped<IAuditoriaService, AuditoriaService>();
         // Numeración correlativa de documentos internos (órdenes de compra, recepciones).
         services.AddScoped<NeoSTP.Application.Common.ICorrelativoService, CorrelativoService>();
+        // E8: portabilidad — exporta los datos de la empresa como ZIP de CSVs.
+        services.AddScoped<NeoSTP.Application.Datos.IPortabilidadService, PortabilidadService>();
         services.AddScoped<IAuditoriaQueryService, AuditoriaQueryService>();
         // Seguridad (M6.2): política de contraseña + bloqueo configurables.
         services.Configure<NeoSTP.Application.Auth.SecurityOptions>(configuration.GetSection(NeoSTP.Application.Auth.SecurityOptions.SectionName));
