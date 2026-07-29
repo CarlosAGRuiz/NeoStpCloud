@@ -589,7 +589,7 @@ internal static partial class SeedData
             300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
-            340, 345, 346, 350,
+            340, 345, 346, 350, 351, 352, 353, 354, 355,
             370, 371, 380, 381,
             390, 391, 392, 393,
             394, 395, 396, 397,
@@ -603,13 +603,15 @@ internal static partial class SeedData
         };
 
         // ADMIN (501) → todo lo de empresa, sin permisos SuperAdmin.
-        // 351/352: el ADMIN gestiona las API keys NeoConnect de su propia empresa.
+        // 351-355: el ADMIN gestiona las integraciones NeoConnect de su propia empresa
+        // (API keys, webhooks y sus logs). Sin 353-355 no podia suscribir un webhook,
+        // que es justamente lo que compra un plan Integrador API o Enterprise.
         var admin = new[]
         {
             300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316,
             320, 321, 322, 323, 324, 325,
             330, 331, 332, 335, 336, 337,
-            340, 345, 346, 350, 351, 352,
+            340, 345, 346, 350, 351, 352, 353, 354, 355,
             370, 371, 380, 381,
             390, 391, 392, 393,
             394, 395, 396, 397,

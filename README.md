@@ -449,6 +449,7 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/NeoCloud-Mobile-API.md`](docs/NeoCloud-Mobile-API.md) | Contrato API para la app Flutter |
 | [`docs/Runbook-Salida-Produccion.md`](docs/Runbook-Salida-Produccion.md) | **Checklist para salir a producción**: providers, secretos, infra, verificación |
 | [`docs/Guia-Demo-Ventas.md`](docs/Guia-Demo-Ventas.md) | **Guion de venta**: recorrido por los 5 planes, límites y objeciones |
+| [`docs/Planes-Usuarios-Permisos.md`](docs/Planes-Usuarios-Permisos.md) | **Referencia**: planes y módulos, usuarios existentes, roles y catálogo de permisos |
 | [`docs/Analisis-Enterprise-2026-07.md`](docs/Analisis-Enterprise-2026-07.md) | Brechas enterprise E1–E8 y su justificación |
 | [`docs/SSO-Enterprise.md`](docs/SSO-Enterprise.md) | Configuración de SSO con Entra ID / Google Workspace |
 
