@@ -10,23 +10,35 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado actualizado 2026-06-20: Fases V2/V2.5, API mobile AM-0..AM-6, HB-0..HB-8 y V3-S1..V3-S3 cerrados
-operativos.** El producto opera el ciclo completo de un
-negocio salvadoreño: emite DTE certificados contra Hacienda, vende por POS, cobra, compra, maneja
-inventario, paga planilla, concilia el banco, lleva libros fiscales y contabilidad mínima, y da
-autoservicio al cliente final por un portal público.
+**Estado 2026-07-27: fases V2/V2.5, backend móvil, V3 y el roadmap enterprise (E1–E8) cerrados.**
+El producto opera el ciclo completo de un negocio salvadoreño: emite DTE certificados contra
+Hacienda, vende por POS, cobra, compra, maneja inventario, paga planilla, concilia el banco, lleva
+libros fiscales y contabilidad mínima, y da autoservicio al cliente final por un portal público.
+Sobre eso, la capa empresarial: multi-empresa para contadores, inventario por sucursal, aprobaciones
+de compra, SSO corporativo, consolidado de grupo, webhooks de negocio y portabilidad de datos.
+
+**937 pruebas unitarias + 9 de integración en verde.**
+
+> **Antes de vender:** el código está completo, pero un ambiente productivo necesita credenciales
+> reales (correo, pasarela de cobro, firmador DTE) y **cada empresa cliente debe tener aprobada su
+> certificación con Hacienda** antes de facturar en ambiente de producción. Ver
+> [`docs/Runbook-Salida-Produccion.md`](docs/Runbook-Salida-Produccion.md) y la sección
+> [Estado para salir a producción](#estado-para-salir-a-producción).
 
 ---
 
 ## Tabla de contenido
 
 - [Qué hace la suite](#qué-hace-la-suite)
+- [Estado para salir a producción](#estado-para-salir-a-producción)
 - [Stack](#stack)
 - [Arquitectura](#arquitectura)
 - [Módulos](#módulos)
+- [Planes comerciales](#planes-comerciales)
 - [Fases del proyecto](#fases-del-proyecto)
 - [Pruebas](#pruebas)
 - [Puesta en marcha](#puesta-en-marcha)
+- [Ambiente de demostración](#ambiente-de-demostración)
 - [Configuración y secretos](#configuración-y-secretos)
 - [Base de datos y migraciones](#base-de-datos-y-migraciones)
 - [API](#api)
@@ -68,6 +80,33 @@ El recorrido completo de un cliente, de punta a punta:
 10. **Se administra**: billing multi-pasarela (Wompi/PayPal/Transferencia/Stripe/MercadoPago),
     branding por empresa (logo/firma en PDF y correo), SMTP propio por empresa, carga masiva
     Excel/CSV, auditoría, MFA TOTP, rate limiting y panel operativo SuperAdmin.
+11. **Escala a empresa**: un contador opera varias empresas con un solo login y ve el consolidado
+    del grupo; inventario y traslados por sucursal; órdenes de compra con aprobación por monto;
+    SSO con Entra ID/Google; webhooks de negocio; y el cliente puede exportar todos sus datos.
+
+## Estado para salir a producción
+
+El **código** está completo y probado. Lo que falta para facturar de verdad es configuración,
+credenciales y trámite — no desarrollo.
+
+| Área | Estado | Qué falta |
+|---|---|---|
+| Funcionalidad del producto | ✅ Completa | — |
+| Enforcement comercial (límites de plan, módulos por plan, suspensión) | ✅ Activo | — |
+| Ambiente de demostración | ✅ Listo | — |
+| Artefactos de despliegue (Docker, CI) | ✅ Existen | Fijar tags de release |
+| Ambiente productivo | ⛔ No desplegado | Dominio, TLS, BD, backups programados |
+| Providers reales (correo, cobro, push, OCR) | ⛔ En Mock | Credenciales por ambiente |
+| Firmador DTE | ⛔ En Mock | Certificado `.p12`/credenciales MH **por empresa** |
+| **Certificación con Hacienda** | ⛔ Por cliente | Trámite con MH, **con tiempo de espera fuera de tu control** |
+
+**Implicación comercial:** se puede hacer marketing y llenar el embudo desde ya — la demo está lista
+y el discurso de la escalera de planes es real y está enforced en el sistema. Lo que **no** se puede
+prometer es activación inmediata: cada cliente necesita su certificación con Hacienda aprobada antes
+de emitir en producción. Véndase con esa expectativa desde la primera conversación.
+
+El guard `ProductionGuards` **bloquea el arranque** en `Production` si algún provider sigue en Mock,
+así que el paso de credenciales no se puede saltar por accidente.
 
 ## Stack
 
@@ -129,7 +168,9 @@ tests/
 
 ## Módulos
 
-Los módulos se habilitan por plan (Starter → Enterprise). Los 17 están **completos**:
+Los módulos se habilitan por plan (Starter → Enterprise). Los 18 están **completos**. El acceso está
+bloqueado en servidor: si el plan no incluye el módulo, la pantalla no se abre aunque se escriba la
+URL — muestra qué hace el módulo y en qué plan viene (`RequireModuloAttribute`).
 
 | Cód | Módulo | Descripción |
 |---|---|---|
@@ -149,11 +190,31 @@ Los módulos se habilitan por plan (Starter → Enterprise). Los 17 están **com
 | 113 | NEORRHH | Recursos humanos + nómina quincenal ES |
 | 114 | NEOCRM | Contactos, pipeline kanban, actividades, cotizaciones → DTE |
 | 115 | NEOTESORERIA | Cuentas banco/caja + movimientos + **conciliación bancaria N:1** |
-| 116 | NEOCONTA | Contabilidad mínima: catálogo base, asientos automáticos, balanza |
+| 116 | NEOCONTA | Contabilidad mínima: catálogo base, asientos automáticos, balanza, **export de asientos** |
+| 117 | NEOAGENDA | Citas por empleado sin traslapes, precio congelado y comisiones por servicio |
 
 Además, transversales: Billing SaaS multi-pasarela, Legal/compliance, Hardening (backups, cuotas,
-IP allowlist, MFA), Branding, Correo por empresa, Onboarding, Alertas + push, carga masiva,
-buscador global Ctrl+K y dashboard con KPIs de DTE + negocio (cartera vencida, tesorería, alertas).
+IP allowlist, MFA), Branding, Correo por empresa, Onboarding con plantillas de vertical, Alertas +
+push, carga masiva, buscador global Ctrl+K, dashboard con KPIs de DTE + negocio, **multi-empresa con
+consolidado de grupo**, **SSO corporativo (OIDC)** y **portabilidad de datos**.
+
+## Planes comerciales
+
+Siete planes activos. Los límites son reales: el sistema bloquea al pasarse del cupo de usuarios o
+de DTE del mes, y suspende el acceso si la suscripción vence.
+
+| Plan | $/mes | DTE/mes | Usuarios | Sucursales | Enfoque |
+|---|---|---|---|---|---|
+| Starter | 15 | 100 | 1 | 1 | Solo facturación electrónica |
+| Pyme | 35 | 500 | 3 | 1 | + Punto de venta |
+| Pro | 75 | 2.000 | 8 | 3 | + Inventario, CRM, escaneo, contingencia |
+| Contador | 120 | 5.000 | 25 | 10 | Multi-empresa + libros fiscales |
+| Business Full | 150 | 10.000 | 25 | 10 | Compras, RRHH, tesorería, contabilidad, agenda |
+| Integrador API | 250 | 30.000 | 10 | 5 | NeoConnect para software houses |
+| Enterprise | 400 | 50.000 | 100 | 50 | Todo + portal + SSO |
+
+Guion de venta y recorrido de demostración:
+[`docs/Guia-Demo-Ventas.md`](docs/Guia-Demo-Ventas.md).
 
 ## Fases del proyecto
 
@@ -170,9 +231,13 @@ buscador global Ctrl+K y dashboard con KPIs de DTE + negocio (cartera vencida, t
 | **V3-S2** | Recepciones parciales idempotentes, historial, inventario, CxP consolidada y UI Web de ordenes | ✅ 2026-06-20 |
 | **V3-S3** | Vacaciones, prima vacacional y aguinaldo configurables, API/Web e integracion con planilla | ✅ 2026-06-20 |
 | Recorrido UX | Pruebas como cliente real → 7 bugs corregidos (permisos rotos, selects vacíos, layout) + 5 mejoras (dashboard, Ctrl+K, CTAs, historial recordatorios) | ✅ |
+| **Pre-verticales** | Saneamiento, lotes/vencimientos (farmacia), plantillas de vertical, precios por volumen (ferretería), NEOAGENDA (salón), enforcement comercial | ✅ 2026-07-18 |
+| **Enterprise E1–E8** | Multi-empresa, inventario por sucursal, SSO OIDC, aprobación de compras, consolidado de grupo, webhooks de negocio, export de asientos, portabilidad | ✅ 2026-07-27 |
+| **Auditoría pre-demo** | Recorrido real llenando formularios: gating de módulos en servidor, corrupción de importes por cultura, mojibake, numeración correlativa | ✅ 2026-07-27 |
 
-Planes detallados con estados y evidencia: [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md)
-y [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md).
+Planes detallados con estados y evidencia: [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md),
+[`docs/Plan-V2.5.md`](docs/Plan-V2.5.md), [`docs/Analisis-Integral-2026-07.md`](docs/Analisis-Integral-2026-07.md)
+y [`docs/Analisis-Enterprise-2026-07.md`](docs/Analisis-Enterprise-2026-07.md).
 
 ## Pruebas
 
@@ -181,11 +246,17 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **750 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
+- **937 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
-- **Validacion local 2026-06-20:** `dotnet build NeoSTP.slnx` termino con 0 warnings/0 errores y
-  `dotnet test NeoSTP.slnx` paso con 750 unitarias + 9 integracion. HB-0..HB-8 y V3-S1..V3-S3 quedaron
-  cerrados operativos.
+- **Validación local 2026-07-27:** `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` en verde
+  con el roadmap enterprise E1–E8 cerrado.
+- **Regresiones que valen doble** (bugs reales, con test que impide que vuelvan):
+  - `CulturaFormulariosTests` — la cultura `es` genérica hacía que el binder leyera `3.25` como `325`,
+    multiplicando por 100 los precios capturados en formularios. La cultura correcta es `es-SV`.
+  - `RequireModuloAttributeTests` — el menú ocultaba los módulos no contratados, pero escribir la URL
+    daba acceso completo. Ahora se valida en servidor.
+  - `GrupoDashboardServiceTests` — el estado de empresa es `ACTIVA`, no `ACTIVO`; con el valor
+    equivocado el enforcement trataba la empresa como suspendida.
 - **HB-3/HB-4 demo readiness**: `DemoReadinessContractTests` congela rutas API criticas, permisos,
   modulos licenciables, API publica NeoConnect v1, rutas Web y existencia de vistas Razor para demos.
 - **HB-5 datos demo comerciales**: `EmpresaPruebaSeederTests` valida que el seed opcional sea
@@ -210,6 +281,10 @@ dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
   conciliación N:1 en vivo, i18n es↔en) — ver
   [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) y
   [`docs/Analisis-UX-Cliente.md`](docs/Analisis-UX-Cliente.md).
+- **Enterprise E1–E8**: `UsuarioEmpresa`/`AuthService` (multi-empresa), inventario por sucursal y
+  traslados, `SsoLoginTests`/`SsoConfigServiceTests` (SSO), aprobación de compras por umbral,
+  `GrupoDashboardServiceTests` (consolidado), `WebhooksNegocioTests`, `AsientosCsvTests` y
+  `PortabilidadServiceTests` (incluye aislamiento entre empresas en el ZIP exportado).
 - Cobertura específica de calculadoras puras: POS, corte de caja, nómina, cobranza, CxP, costo
   promedio, ESC/POS, libro IVA, conciliación (1:1 y combinaciones), profit.
 
@@ -245,6 +320,26 @@ La API y la Web aplican migraciones y siembran datos al arrancar (`DatabaseSeede
 ```bash
 docker compose up --build
 ```
+
+## Ambiente de demostración
+
+Cinco empresas, una por punto de la escalera de precios, cada una con su usuario, su plan y
+movimiento realista (facturas del mes, ventas de mostrador, cartera con mora, órdenes esperando
+aprobación). Sirve para que alguien de ventas recorra la oferta completa entrando a cada cuenta.
+
+Se activa con `DemoComercial:Enabled=true` en `appsettings.Local.json` y se siembra al arrancar.
+Es **idempotente** (se identifica por NIT) y **nunca borra empresas con documentos emitidos**.
+
+| Usuario | Empresa | Plan | Qué demuestra |
+|---|---|---|---|
+| `demo.starter` | Tienda La Esquina | Starter | Solo facturación — el piso de entrada |
+| `demo.pos` | El Buen Sabor | Pyme | Facturación + punto de venta |
+| `demo.contador` | Contadores Asociados | Contador | Multi-empresa: ve el consolidado de las otras 4 |
+| `demo.negocios` | Grupo Vertical | Business Full | Farmacia, ferretería y salón en un solo sistema |
+| `demo.enterprise` | Corporación Industrial | Enterprise | SSO, API, portal, sucursales, aprobaciones |
+
+Contraseña de todas: `Demo2026$`. Recorrido sugerido y respuestas a objeciones en
+[`docs/Guia-Demo-Ventas.md`](docs/Guia-Demo-Ventas.md).
 
 ## Configuración y secretos
 
@@ -350,24 +445,34 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/Runbook-V2.md`](docs/Runbook-V2.md) | Operación: despliegue, backup, rotación, retención |
 | [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) | Pruebas E2E en vivo del cierre V2 |
 | [`docs/Analisis-UX-Cliente.md`](docs/Analisis-UX-Cliente.md) | Recorrido UX completo: bugs encontrados y mejoras |
-| [`docs/NeoConnect-API-v1.md`](docs/NeoConnect-API-v1.md) | API pública para integradores |
+| [`docs/NeoConnect-API-v1.md`](docs/NeoConnect-API-v1.md) | API pública para integradores: endpoints, webhooks y portabilidad |
 | [`docs/NeoCloud-Mobile-API.md`](docs/NeoCloud-Mobile-API.md) | Contrato API para la app Flutter |
+| [`docs/Runbook-Salida-Produccion.md`](docs/Runbook-Salida-Produccion.md) | **Checklist para salir a producción**: providers, secretos, infra, verificación |
+| [`docs/Guia-Demo-Ventas.md`](docs/Guia-Demo-Ventas.md) | **Guion de venta**: recorrido por los 5 planes, límites y objeciones |
+| [`docs/Analisis-Enterprise-2026-07.md`](docs/Analisis-Enterprise-2026-07.md) | Brechas enterprise E1–E8 y su justificación |
+| [`docs/SSO-Enterprise.md`](docs/SSO-Enterprise.md) | Configuración de SSO con Entra ID / Google Workspace |
 
 ## Roadmap
 
-La consolidacion API/mobile, HB-0..HB-8 y V3-S1..V3-S3 estan cerrados.
-El siguiente sprint recomendado es **V3-S4: catalogo contable personalizable y cierre anual base**, definido en
-[`docs/Plan-V3.md`](docs/Plan-V3.md).
+API/mobile, HB-0..HB-8, V3-S1..V3-S3, el plan pre-verticales y el **roadmap enterprise E1–E8** están
+cerrados. **Lo construible está construido**: lo que queda antes del primer cliente no es código.
 
-Lo construible está construido; lo pendiente depende de insumos externos o es V3:
+**Camino crítico para facturar (en orden):**
 
-- **Credenciales reales** (solo configuración, el código ya está): WhatsApp Business (Meta) +
-  plantilla aprobada, Redis productivo, collector OTLP, pasarelas de pago, certificado DTE de
-  producción (ambiente 01) por cliente.
-- **App Flutter** (`neocloud_mobile_android`): la app ya fue trabajada en repo aparte; aqui se mantiene
-  el contrato API, pruebas y datos demo. API mobile AM-0..AM-6 esta cerrada operativa al 100%.
-- **V3 (backlog)**: catalogo contable/cierre anual, SSO/SAML, white label, marketplace, SDKs
-  NeoConnect, multi-moneda, BI predictivo, catálogo contable personalizable y vacaciones/aguinaldo.
+1. Desplegar un ambiente productivo: dominio, TLS, SQL Server, backups programados.
+2. Cargar credenciales reales y quitar los Mocks (el guard de arranque lo exige).
+3. Configurar la pasarela de cobro — sin esto no se puede cobrar la suscripción.
+4. Por cada cliente: cargar su certificado, emitir en ambiente PRUEBAS de MH y **esperar la
+   aprobación de su certificación** antes de pasar a producción.
+
+**Backlog posterior** (nada de esto bloquea vender):
+
+- Sprint V3-S4: catálogo contable personalizable y cierre anual — [`docs/Plan-V3.md`](docs/Plan-V3.md).
+- **App Flutter** (`neocloud_mobile_android`): repo aparte; aquí se mantiene contrato, pruebas y
+  datos demo. Publicar en stores cuando FCM tenga credenciales reales.
+- Verificación de NIT en línea: Hacienda no publica API; hay validación local con hook listo.
+- Separar `DteDocumentosService` por responsabilidades (hoy partial classes).
+- V3 lejano: SAML, white label, marketplace, SDKs de NeoConnect, multi-moneda, BI predictivo.
 
 ## Convenciones
 

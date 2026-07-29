@@ -20,6 +20,12 @@ contrato backend/API que esa app consume: endpoints, DTOs, permisos, datos demo 
 
 La API carga `appsettings.Local.json` si existe, aplica migraciones/seed al arrancar y registra request logging con Serilog.
 
+**Capacidades enterprise expuestas por API:** un usuario puede pertenecer a varias empresas y cambiar
+la activa sin volver a autenticarse (`/api/auth/empresas`, `/api/auth/cambiar-empresa`); hay
+consolidado de grupo (`/api/dashboard/grupo`), inventario y traslados por sucursal, aprobacion de
+ordenes de compra por umbral, webhooks de negocio ademas de los de DTE, y portabilidad completa de
+datos (`/api/datos/exportar`).
+
 ## Arquitectura
 
 `NeoSTP.Api` es la entrada HTTP. Los controllers delegan en servicios de `NeoSTP.Application` y `NeoSTP.Infrastructure`; no deben concentrar reglas de negocio pesadas.
@@ -233,6 +239,11 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | POST | `/api/auth/mfa/confirm` | Confirmar MFA. |
 | POST | `/api/auth/mfa/disable` | Desactivar MFA. |
 | GET | `/api/auth/me` | Usuario autenticado. |
+| GET | `/api/auth/empresas` | Empresas donde el usuario puede operar: la principal + sus membresias. |
+| POST | `/api/auth/cambiar-empresa` | Cambia la empresa activa y reemite el token con los permisos del rol en esa empresa. |
+
+El login federado (SSO OIDC) es interactivo y vive en la Web; por API solo se administra su
+configuracion. Ver `/api/sso/config`.
 
 ### Core
 
@@ -255,6 +266,9 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | GET/POST/PUT | `/api/puntos-venta` | Puntos de venta. |
 | GET | `/api/dashboard/empresa` | Dashboard empresa. |
 | GET | `/api/dashboard/superadmin` | Dashboard SuperAdmin. |
+| GET | `/api/dashboard/grupo` | Consolidado de todas las empresas del usuario (`?anio=&mes=`). |
+| GET/PUT | `/api/sso/config` | Configuracion de SSO corporativo de la empresa. Permiso `Seguridad.Sso.Gestionar`. |
+| GET | `/api/datos/exportar` | ZIP con todos los datos de la empresa en CSV. Permiso `Datos.Exportar`. |
 
 ### Catalogos, clientes, productos y lookups
 
@@ -349,7 +363,9 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | POST | `/api/compras/proveedores/{id}/reactivar` | Reactivar proveedor. |
 | GET/POST | `/api/compras/ordenes` | Listar o crear ordenes de compra. |
 | GET/PUT | `/api/compras/ordenes/{id}` | Consultar o editar orden en borrador. |
-| POST | `/api/compras/ordenes/{id}/emitir` | Emitir orden de compra. |
+| POST | `/api/compras/ordenes/{id}/emitir` | Emitir orden. Si supera el umbral de la empresa queda en `POR_APROBAR` en vez de `EMITIDA`. |
+| POST | `/api/compras/ordenes/{id}/aprobar` | Aprobar una orden `POR_APROBAR` y emitirla. Permiso `Compras.Aprobar`. |
+| POST | `/api/compras/ordenes/{id}/rechazar` | Devolver a borrador anotando el motivo. Permiso `Compras.Aprobar`. |
 | POST | `/api/compras/ordenes/{id}/cancelar` | Cancelar orden borrador/emitida. |
 | POST | `/api/compras/ordenes/{id}/recepciones` | Registrar entrega parcial/completa idempotente e ingresar bienes a inventario. |
 | POST | `/api/compras/ordenes/{id}/convertir-factura` | Crear una CxP consolidada al completar recepciones; no duplica inventario. |
@@ -382,6 +398,10 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 | POST | `/api/inventario/salidas` | Salida manual. |
 | POST | `/api/inventario/ajustes` | Ajuste manual. |
 | POST | `/api/inventario/stock-minimo` | Stock minimo. |
+| POST | `/api/inventario/traslados` | Traslado atomico entre sucursales (salida + entrada con referencia compartida). |
+
+Las lecturas de inventario aceptan `?sucursalId=`. Sin el parametro devuelven el consolidado de
+todas las sucursales con costo ponderado; `sucursalId` nulo en los datos significa bodega central.
 | GET | `/api/inventario/resumen` | Resumen inventario. |
 
 ### POS y caja
@@ -488,6 +508,7 @@ con token de 256 bits expirable/revocable (solo el hash queda en BD).
 | GET | `/api/conta/asientos/{id}` | Detalle con partidas. |
 | POST | `/api/conta/asientos/{id}/reversar` | Reversa espejo (no hay borrado). |
 | GET | `/api/conta/balanza` (+`/csv`) | Balanza de comprobacion del periodo. |
+| GET | `/api/conta/asientos/csv` | Asientos del periodo en formato plano (una fila por movimiento) para importar en un contable externo. |
 | GET | `/api/reportes/fiscal/libro-ventas-consumidor` (+`/csv`) | Libro IVA consumidor final por dia. |
 | GET | `/api/reportes/fiscal/libro-ventas-contribuyentes` (+`/csv`) | Libro IVA contribuyentes (NC en negativo). |
 | GET | `/api/reportes/fiscal/libro-compras` (+`/csv`) | Libro IVA compras. |
@@ -578,12 +599,23 @@ curl http://localhost:5058/api/v1/ping \
 
 ## Webhooks NeoConnect
 
-Eventos soportados:
+**Eventos de facturacion** (payload: `evento`, `empresaId`, `dteId`, `codigoGeneracion`, `tipoDte`,
+`estado`, `ocurrioAt`):
 
-- `DTE.PROCESADO`
-- `DTE.RECHAZADO`
-- `DTE.CONTINGENCIA`
-- `DTE.INVALIDADO`
+- `DTE.Procesado`
+- `DTE.Rechazado`
+- `DTE.Contingencia`
+- `DTE.Invalidado`
+
+**Eventos de negocio** (payload: `evento`, `empresaId`, `entidadTipo`, `entidadId`, `descripcion`,
+`datos`, `ocurrioAt`; el objeto `datos` varia por evento):
+
+| Evento | Cuando |
+|---|---|
+| `Cobros.PagoConfirmado` | Se confirma el pago de una factura. Trae `monto`, `formaPago`, `saldoRestante`, `saldado`. |
+| `Compras.OrdenPorAprobar` | Una orden supera el umbral y espera aprobacion. |
+| `Inventario.StockBajo` | Un producto **cruza** su stock minimo (no se repite en cada movimiento posterior). |
+| `Agenda.CitaCreada` | Se agenda una cita. |
 
 Cada entrega incluye firma HMAC-SHA256:
 
@@ -591,7 +623,11 @@ Cada entrega incluye firma HMAC-SHA256:
 X-NeoConnect-Signature: sha256=<hex>
 ```
 
-El worker reintenta con backoff exponencial y marca fallido tras el maximo configurado.
+El worker reintenta con backoff exponencial y marca fallido tras el maximo configurado. El despacho
+es best-effort: si la integracion falla, **nunca** rompe la operacion de negocio que lo emitio.
+
+Constantes en `ConnectEventos` (`All`, `Negocio`, `Describir()`); catalogo ampliado y ejemplo de
+payload en [`docs/NeoConnect-API-v1.md`](../../docs/NeoConnect-API-v1.md).
 
 ## Worker de recordatorios CxC
 
