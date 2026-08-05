@@ -13,9 +13,14 @@ public class DteCalculator : IDteCalculator
 
     public void Recalcular(DteDocumento d)
     {
+        // Documentos con IVA separado: el precio va SIN IVA y el impuesto se suma aparte.
+        // La nota de remisión (04) entra aquí: Hacienda valida el tributo 20 contra la gravada
+        // y devuelve "[resumen.tributos.codigo.20] CALCULO INCORRECTO" si se le manda el IVA
+        // incluido al estilo de la factura (verificado en apitest).
         var esCcfONota = d.TipoDteCodigo == TipoDteCodigos.ComprobanteCreditoFiscal
                          || d.TipoDteCodigo == TipoDteCodigos.NotaCredito
-                         || d.TipoDteCodigo == TipoDteCodigos.NotaDebito;
+                         || d.TipoDteCodigo == TipoDteCodigos.NotaDebito
+                         || d.TipoDteCodigo == TipoDteCodigos.NotaRemision;
         var esSujetoExcluido = d.TipoDteCodigo == TipoDteCodigos.FacturaSujetoExcluido;
         var esRetencion = d.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion;
         var esExportacion = d.TipoDteCodigo == TipoDteCodigos.FacturaExportacion;
