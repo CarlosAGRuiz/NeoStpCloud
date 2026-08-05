@@ -122,7 +122,9 @@ public class DteRetencionTests
 
         var linea = root.GetProperty("cuerpoDocumento")[0];
         linea.GetProperty("tipoDte").GetString().Should().Be("03");
-        linea.GetProperty("tipoGeneracion").GetInt32().Should().Be(2);             // electrónico (UUID)
+        // El 07 nombra "tipoDoc" a la forma de generación del documento retenido (no "tipoGeneracion"):
+        // Hacienda rechaza el campo con el nombre viejo y exige tipoDte + tipoDoc juntos.
+        linea.GetProperty("tipoDoc").GetInt32().Should().Be(2);                   // electrónico (UUID)
         linea.GetProperty("numDocumento").GetString().Should().Be(CodGen);         // normalizado a MAYÚSCULAS
         linea.GetProperty("fechaEmision").GetString().Should().Be("2026-05-20");
         linea.GetProperty("montoSujetoGrav").GetDouble().Should().Be(1000d);
@@ -148,7 +150,7 @@ public class DteRetencionTests
         var json = JsonDocument.Parse(_gen.Generar(d).Value!);
         var linea = json.RootElement.GetProperty("cuerpoDocumento")[0];
 
-        linea.GetProperty("tipoGeneracion").GetInt32().Should().Be(1); // físico
+        linea.GetProperty("tipoDoc").GetInt32().Should().Be(1); // físico
         linea.GetProperty("numDocumento").GetString().Should().Be("1101");
     }
 }

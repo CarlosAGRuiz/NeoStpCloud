@@ -647,22 +647,27 @@ public class DteGeneratorService : IDteGeneratorService
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
-            emisor = BuildEmisorCcf(d, emisor, config),
+            emisor = BuildEmisorRetencion(emisor, config),
             receptor = BuildReceptorRetencion(d),
-            // Cuerpo: documentos sujetos a retención. numDocumento DEBE ser el código de
-            // generación (UUID en MAYÚSCULAS) si el doc es electrónico (tipoGeneracion=2),
-            // o un número alfanumérico ≤20 si es físico (tipoGeneracion=1).
-            cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => new
+            // Cuerpo: documentos sujetos a retención. El número sale del documento relacionado
+            // (código de generación en MAYÚSCULAS si es electrónico), no del código del ítem.
+            // El campo se llama tipoDoc en este esquema y no admite tipoGeneracion.
+            cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) =>
             {
+                var numRelacionado = l.Codigo;   // en 07 la línea guarda aquí el número del doc retenido
+                return new
+                {
                 numItem = idx + 1,
                 tipoDte = string.IsNullOrWhiteSpace(l.DocRelacionadoTipoDte) ? "03" : l.DocRelacionadoTipoDte,
-                tipoGeneracion = DteRetencion.EsCodigoGeneracion(l.Codigo) ? 2 : 1,
-                numDocumento = DteRetencion.EsCodigoGeneracion(l.Codigo) ? l.Codigo.ToUpperInvariant() : l.Codigo,
+                // tipoDoc = forma de generación del documento retenido: 2 electrónico, 1 físico.
+                tipoDoc = DteRetencion.EsCodigoGeneracion(numRelacionado) ? 2 : 1,
+                numDocumento = DteRetencion.EsCodigoGeneracion(numRelacionado) ? numRelacionado.ToUpperInvariant() : numRelacionado,
                 fechaEmision = (l.DocRelacionadoFecha ?? d.FechaEmision).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 montoSujetoGrav = (double)l.VentaGravada,
                 codigoRetencionMH = string.IsNullOrWhiteSpace(l.RetencionCodigoMH) ? DteRetencion.CodigoIva1 : l.RetencionCodigoMH,
                 ivaRetenido = (double)l.IvaItem,
                 descripcion = l.Descripcion,
+                };
             }).ToArray(),
             resumen = new
             {
@@ -672,6 +677,40 @@ public class DteGeneratorService : IDteGeneratorService
             },
             extension = (object?)null,
             apendice = (object?)null,
+        };
+    }
+
+    /// <summary>
+    /// Emisor del comprobante de retención (07): mismos datos que el CCF pero con otros nombres.
+    /// MH exige <c>codigo</c>, <c>codigoMH</c>, <c>puntoVenta</c> y <c>puntoVentaMH</c>, y rechaza
+    /// los <c>codEstable*</c>/<c>codPuntoVenta*</c> del resto de tipos (verificado en apitest).
+    /// </summary>
+    private static object BuildEmisorRetencion(Empresa e, DteConfiguracion? config)
+    {
+        var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
+
+        return new
+        {
+            nit = e.Nit,
+            nrc = e.Nrc,
+            nombre = e.RazonSocial,
+            codActividad = e.CodigoActividad,
+            descActividad = e.ActividadEconomica,
+            nombreComercial = e.NombreComercial,
+            tipoEstablecimiento = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo,
+            direccion = new
+            {
+                departamento = e.Departamento,
+                municipio = e.Municipio,
+                complemento = e.Direccion,
+            },
+            telefono = e.Telefono,
+            correo = e.Correo,
+            codigoMH = codEst,
+            codigo = codEst,
+            puntoVentaMH = codPv,
+            puntoVenta = codPv,
         };
     }
 
