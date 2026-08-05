@@ -11,7 +11,10 @@ using NeoSTP.Application.Dte.Eventos.Dtos;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Eventos;
+using NeoSTP.Domain.Common;
+using NeoSTP.Application.Lookups;
 using NeoSTP.Infrastructure.Persistence;
+using System.Text.Json;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -46,6 +49,7 @@ public partial class DteDocumentosService : IDteDocumentosService
     private readonly IConnectWebhookDispatcher _webhookDispatcher;
     private readonly NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? _metrics;
     private readonly NeoSTP.Application.Licenciamiento.ILicenciaGuardService? _licenciaGuard;
+    private readonly NeoSTP.Application.Lookups.ILookupService? _lookup;
 
     public DteDocumentosService(
         NeoStpDbContext db,
@@ -62,10 +66,12 @@ public partial class DteDocumentosService : IDteDocumentosService
         IAuditoriaService auditoria,
         IConnectWebhookDispatcher webhookDispatcher,
         NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null,
-        NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null)
+        NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null,
+        NeoSTP.Application.Lookups.ILookupService? lookup = null)
     {
         _metrics = metrics;
         _licenciaGuard = licenciaGuard;
+        _lookup = lookup;
         _db = db;
         _calculator = calculator;
         _generator = generator;
@@ -79,6 +85,58 @@ public partial class DteDocumentosService : IDteDocumentosService
         _email = email;
         _auditoria = auditoria;
         _webhookDispatcher = webhookDispatcher;
+    }
+
+    /// <summary>
+    /// Traduce los códigos territoriales internos del receptor (p. ej. "SAN_SALVADOR",
+    /// "SAN_SALVADOR_CENTRO") al código MH numérico que exige el esquema de Hacienda ("06",
+    /// "23"). El emisor ya guarda códigos MH; el cliente guarda los códigos internos del
+    /// catálogo, y el generador los transmite tal cual. Sin esta traducción Hacienda rechaza
+    /// el DTE ("departamento no cumple el formato requerido"). Es tolerante: si el código no
+    /// está en catálogo (o ya es un código MH) lo deja como está, así no rompe datos válidos.
+    /// </summary>
+    private async Task ResolverReceptorTerritorialMhAsync(DteDocumento doc, int empresaId, CancellationToken ct)
+    {
+        if (_lookup is null) return; // sin lookup (p. ej. tests antiguos) se conserva el comportamiento previo
+
+        doc.ReceptorDepartamentoCodigo = await MapCodigoMhAsync(CatalogCodes.DepartamentoEs, doc.ReceptorDepartamentoCodigo, empresaId, ct);
+        doc.ReceptorMunicipioCodigo    = await MapCodigoMhAsync(CatalogCodes.MunicipioEs,    doc.ReceptorMunicipioCodigo,    empresaId, ct);
+        doc.ReceptorDistritoCodigo     = await MapCodigoMhAsync(CatalogCodes.DistritoEs,     doc.ReceptorDistritoCodigo,     empresaId, ct);
+    }
+
+    private async Task<string?> MapCodigoMhAsync(string catalogo, string? codigoInterno, int empresaId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(codigoInterno) || _lookup is null) return codigoInterno;
+        var items = await _lookup.GetCatalogoAsync(catalogo, empresaId, null, ct);
+        return ResolverCodigoMhEnItems(items, codigoInterno);
+    }
+
+    /// <summary>
+    /// Busca el ítem del catálogo cuyo código interno coincide y devuelve su <c>codigoMH</c>.
+    /// Si no está en catálogo o no trae metadata, devuelve el código original (tolerante).
+    /// </summary>
+    internal static string? ResolverCodigoMhEnItems(IReadOnlyList<LookupItem> items, string? codigoInterno)
+    {
+        if (string.IsNullOrWhiteSpace(codigoInterno)) return codigoInterno;
+        var item = items.FirstOrDefault(i => string.Equals(i.Value, codigoInterno, StringComparison.OrdinalIgnoreCase));
+        return ExtraerCodigoMh(item?.Meta) ?? codigoInterno;
+    }
+
+    /// <summary>Extrae <c>codigoMH</c> del metadata JSON del ítem de catálogo, o null si no lo trae.</summary>
+    internal static string? ExtraerCodigoMh(string? metadataJson)
+    {
+        if (string.IsNullOrWhiteSpace(metadataJson)) return null;
+        try
+        {
+            using var json = JsonDocument.Parse(metadataJson);
+            if (json.RootElement.TryGetProperty("codigoMH", out var mh) && mh.ValueKind == JsonValueKind.String)
+            {
+                var valor = mh.GetString();
+                return string.IsNullOrWhiteSpace(valor) ? null : valor;
+            }
+        }
+        catch (JsonException) { }
+        return null;
     }
 
     public async Task<Result<PagedResult<DteDocumentoListItemDto>>> GetListAsync(int empresaId, DteListQuery query, CancellationToken ct = default)
@@ -248,6 +306,10 @@ public partial class DteDocumentosService : IDteDocumentosService
             doc.ReceptorCorreo = r.Correo;
             doc.ReceptorTelefono = r.Telefono;
         }
+
+        // El receptor guarda códigos territoriales internos (p. ej. "SAN_SALVADOR"); Hacienda
+        // exige el código MH numérico ("06"). Traducirlos antes de persistir el DTE.
+        await ResolverReceptorTerritorialMhAsync(doc, empresaId, ct);
 
         // Datos específicos de Factura de Exportación.
         if (request.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)

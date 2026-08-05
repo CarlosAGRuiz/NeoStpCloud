@@ -171,13 +171,121 @@ public class DteGeneratorService : IDteGeneratorService
         {
             identificacion = BuildIdentificacion(d, 3),
             documentoRelacionado = BuildDocumentoRelacionado(d),
-            emisor = BuildEmisorCcf(d, emisor, config),
+            emisor = BuildEmisorNotaCreditoDebito(emisor, config),
             receptor = BuildReceptorCcf(d),
             ventaTercero = BuildVentaTercero(d),
-            cuerpoDocumento = BuildCuerpo(d, conIvaPorLinea: true),
-            resumen = BuildResumenCcf(d),
+            cuerpoDocumento = BuildCuerpoNotaCreditoDebito(d),
+            resumen = BuildResumenNotaCreditoDebito(d, isNotaCredito),
             extension = (object?)null,
             apendice = (object?)null,
+        };
+    }
+
+    /// <summary>
+    /// Emisor para NC/ND: el esquema de Hacienda para estos tipos NO admite los códigos de
+    /// establecimiento ni de punto de venta que sí lleva el CCF. Enviarlos hace que MH rechace
+    /// con "Campo codEstable no esta permitido en #/emisor" (verificado en apitest).
+    /// </summary>
+    private static object BuildEmisorNotaCreditoDebito(Empresa e, DteConfiguracion? config) => new
+    {
+        nit = e.Nit,
+        nrc = e.Nrc,
+        nombre = e.RazonSocial,
+        codActividad = e.CodigoActividad,
+        descActividad = e.ActividadEconomica,
+        nombreComercial = e.NombreComercial,
+        tipoEstablecimiento = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo,
+        direccion = new
+        {
+            departamento = e.Departamento,
+            municipio = e.Municipio,
+            complemento = e.Direccion,
+        },
+        telefono = e.Telefono,
+        correo = e.Correo,
+    };
+
+    /// <summary>
+    /// Cuerpo para NC/ND: a diferencia del CCF no admite <c>psv</c> ni <c>noGravado</c>, y cada
+    /// línea debe referenciar en <c>numeroDocumento</c> el documento que ajusta (código de
+    /// generación del relacionado).
+    /// </summary>
+    private static object[] BuildCuerpoNotaCreditoDebito(DteDocumento d)
+    {
+        var relacionado = d.NumeroDocumentoRelacionado;
+        return d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+        {
+            numItem = idx + 1,
+            tipoItem = l.TipoItem,
+            numeroDocumento = relacionado,
+            cantidad = (double)l.Cantidad,
+            codigo = l.Codigo,
+            codTributo = (string?)null,
+            uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
+            descripcion = l.Descripcion,
+            precioUni = (double)l.PrecioUnitario,
+            montoDescu = (double)l.MontoDescuento,
+            ventaNoSuj = (double)l.VentaNoSujeta,
+            ventaExenta = (double)l.VentaExenta,
+            ventaGravada = (double)l.VentaGravada,
+            tributos = l.VentaGravada > 0 ? new[] { "20" } : null,
+        }).ToArray();
+    }
+
+    /// <summary>
+    /// Resumen para NC/ND: no admite <c>pagos</c>, <c>porcentajeDescuento</c>,
+    /// <c>totalNoGravado</c>, <c>saldoFavor</c> ni <c>totalPagar</c> (una nota ajusta un
+    /// documento previo; no se "paga" por sí sola). Los dos tipos difieren en un campo:
+    /// la <b>ND exige</b> <c>numPagoElectronico</c> y la <b>NC no lo permite</b> — ambas
+    /// reglas verificadas contra apitest de Hacienda.
+    /// </summary>
+    private static object BuildResumenNotaCreditoDebito(DteDocumento d, bool isNotaCredito)
+    {
+        var tributos = new[]
+        {
+            new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = (double)d.IvaTotal },
+        };
+
+        if (isNotaCredito)
+            return new
+            {
+                totalNoSuj = (double)d.TotalNoSujeto,
+                totalExenta = (double)d.TotalExenta,
+                totalGravada = (double)d.TotalGravada,
+                subTotalVentas = (double)d.SubTotalVentas,
+                descuNoSuj = 0d,
+                descuExenta = 0d,
+                descuGravada = (double)d.DescuentoGravada,
+                totalDescu = (double)d.TotalDescuento,
+                tributos,
+                subTotal = (double)d.SubTotal,
+                ivaPerci1 = 0d,
+                ivaRete1 = (double)d.IvaRetenido,
+                reteRenta = (double)d.ReteRenta,
+                montoTotalOperacion = (double)d.MontoTotalOperacion,
+                totalLetras = d.TotalLetras,
+                condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+            };
+
+        return new
+        {
+            totalNoSuj = (double)d.TotalNoSujeto,
+            totalExenta = (double)d.TotalExenta,
+            totalGravada = (double)d.TotalGravada,
+            subTotalVentas = (double)d.SubTotalVentas,
+            descuNoSuj = 0d,
+            descuExenta = 0d,
+            descuGravada = (double)d.DescuentoGravada,
+            totalDescu = (double)d.TotalDescuento,
+            tributos,
+            subTotal = (double)d.SubTotal,
+            ivaPerci1 = 0d,
+            ivaRete1 = (double)d.IvaRetenido,
+            reteRenta = (double)d.ReteRenta,
+            montoTotalOperacion = (double)d.MontoTotalOperacion,
+            totalLetras = d.TotalLetras,
+            condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+            numPagoElectronico = (string?)null,
         };
     }
 
