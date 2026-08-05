@@ -430,7 +430,11 @@ public class DteGeneratorService : IDteGeneratorService
         descuGravada = (double)d.DescuentoGravada,
         porcentajeDescuento = (double)d.PorcentajeDescuento,
         totalDescu = (double)d.TotalDescuento,
-        tributos = (object?)null,
+        // MH exige el desglose de tributos cuando hay venta gravada; enviarlo en null
+        // devuelve "[resumen.tributos] FALTAN DATOS PARA VALIDAR INFORMACION" (apitest).
+        tributos = d.TotalGravada > 0
+            ? new[] { new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = (double)d.IvaTotal } }
+            : null,
         subTotal = (double)d.SubTotal,
         montoTotalOperacion = (double)d.MontoTotalOperacion,
         totalLetras = d.TotalLetras,
