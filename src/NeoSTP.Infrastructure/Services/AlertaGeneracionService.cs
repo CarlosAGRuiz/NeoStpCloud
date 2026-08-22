@@ -63,6 +63,44 @@ public class AlertaGeneracionService : IAlertaGeneracionService
                 EntidadTipo = "DteDocumento", EntidadId = d.Id,
             });
 
+        // 1b) Consumo mensual de DTE del plan. La clave incluye mes y umbral para que el
+        // cliente reciba una alerta nueva al pasar 80 %, 90 % y 100 %, sin duplicados.
+        var ahoraUtc = DateTime.UtcNow;
+        var inicioMes = new DateTime(ahoraUtc.Year, ahoraUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var planDte = await _db.EmpresaPlanes.AsNoTracking()
+            .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
+                      && ep.FechaInicio <= ahoraUtc
+                      && (ep.FechaFin == null || ep.FechaFin > ahoraUtc))
+            .Select(ep => new { ep.Plan.LimiteDteMensual, ep.Plan.Nombre })
+            .FirstOrDefaultAsync(ct);
+        if (planDte?.LimiteDteMensual is int maxDte && maxDte > 0)
+        {
+            var usadosDte = await _db.DteDocumentos.AsNoTracking()
+                .CountAsync(d => d.EmpresaId == empresaId && d.CreatedAt >= inicioMes, ct);
+            var porcentaje = usadosDte * 100m / maxDte;
+            var umbral = porcentaje >= 100m ? 100 : porcentaje >= 90m ? 90 : porcentaje >= 80m ? 80 : 0;
+
+            if (umbral > 0)
+            {
+                var severidad = umbral == 100 ? AlertaSeveridades.Critica
+                    : umbral == 90 ? AlertaSeveridades.Advertencia
+                    : AlertaSeveridades.Info;
+                var titulo = umbral == 100 ? "Límite mensual de DTE alcanzado" : $"Consumo de DTE al {umbral}%";
+                var mensaje = umbral == 100
+                    ? $"Ya utilizaste {usadosDte} de {maxDte} DTE del plan {planDte.Nombre}. No podrás emitir más este mes."
+                    : $"Has utilizado {usadosDte} de {maxDte} DTE del plan {planDte.Nombre}.";
+
+                await Crear($"{AlertaTipos.DteLimitePlan}:{ahoraUtc:yyyyMM}:{umbral}", new CrearAlertaRequest
+                {
+                    TipoCodigo = AlertaTipos.DteLimitePlan,
+                    Severidad = severidad,
+                    Titulo = titulo,
+                    Mensaje = mensaje,
+                    EntidadTipo = "EmpresaPlan",
+                });
+            }
+        }
+
         // 2) Certificado de firma próximo a vencer
         var cert = await _db.DteConfiguracion.AsNoTracking()
             .Where(c => c.EmpresaId == empresaId && c.CertificadoVence != null)

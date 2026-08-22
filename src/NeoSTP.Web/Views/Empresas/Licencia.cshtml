@@ -48,7 +48,7 @@
                     <tr><td>Usuarios</td><td class="text-end"><strong>@Model.UsuariosUsados</strong> / @(Model.LimiteUsuarios?.ToString() ?? "—")</td></tr>
                     <tr><td>Sucursales</td><td class="text-end"><strong>@Model.SucursalesUsadas</strong> / @(Model.LimiteSucursales?.ToString() ?? "—")</td></tr>
                     <tr><td>Puntos de venta</td><td class="text-end"><strong>@Model.PuntosVentaUsados</strong> / @(Model.LimitePuntosVenta?.ToString() ?? "—")</td></tr>
-                    <tr><td>DTE mensual</td><td class="text-end">— / @(Model.LimiteDteMensual?.ToString() ?? "—")</td></tr>
+                    <tr><td>DTE mensual</td><td class="text-end"><strong>@Model.DteMensualUsados</strong> / @(Model.LimiteDteMensual?.ToString() ?? "—")</td></tr>
                 </table>
             </div>
         </div>

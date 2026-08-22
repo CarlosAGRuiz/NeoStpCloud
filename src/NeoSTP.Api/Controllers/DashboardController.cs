@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Api.Authorization;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dashboard;
 using NeoSTP.Shared;
@@ -12,6 +13,7 @@ namespace NeoSTP.Api.Controllers;
 ///   GET /api/dashboard/superadmin → métricas globales (solo SUPERADMIN)
 /// </summary>
 [Authorize]
+[RequireModule("CORE")]
 [Route("api/dashboard")]
 public class DashboardController : ApiControllerBase
 {

@@ -13,13 +13,14 @@ public class MobileApiContractCoverageTests
     [Fact]
     public void MobileControllers_RequierenAuth_ModulosYPermisosEsperados()
     {
-        AssertClassAuth<DashboardController>("api/dashboard");
-        AssertClassAuth<ClientesController>("api/clientes");
-        AssertClassAuth<ProductosController>("api/productos");
-        AssertClassAuth<DteConfiguracionController>("api/dte/configuracion");
-        AssertClassAuth<DteController>("api/dte");
-        AssertClassAuth<CobranzaController>("api/cobros");
-        AssertClassAuth<AlertasController>("api/alertas");
+        AssertClassAuth<DashboardController>("api/dashboard", module: "CORE");
+        AssertClassAuth<ClientesController>("api/clientes", module: "CORE");
+        AssertClassAuth<ProductosController>("api/productos", module: "CORE");
+        AssertClassAuth<CorreoApiController>("api/correo", module: "CORE");
+        AssertClassAuth<DteConfiguracionController>("api/dte/configuracion", module: "NEODTE");
+        AssertClassAuth<DteController>("api/dte", module: "NEODTE");
+        AssertClassAuth<CobranzaController>("api/cobros", module: "CORE");
+        AssertClassAuth<AlertasController>("api/alertas", module: "CORE");
         AssertClassAuth<ScanAiController>("api/scanai/documentos", module: "NEOSCANAI");
         AssertClassAuth<PosApiController>("api/pos", module: "NEOPOS");
     }
@@ -84,6 +85,7 @@ public class MobileApiContractCoverageTests
         AssertMethod<AlertasController>(nameof(AlertasController.RegistrarDispositivo), "POST", "dispositivos");
         AssertMethod<AlertasController>(nameof(AlertasController.Leer), "POST", "{id:int}/leer");
         AssertMethod<AlertasController>(nameof(AlertasController.Resolver), "POST", "{id:int}/resolver");
+        AssertMethod<AlertasController>(nameof(AlertasController.Generar), "POST", "generar", "Core.Empresa.Editar");
     }
 
     [Fact]

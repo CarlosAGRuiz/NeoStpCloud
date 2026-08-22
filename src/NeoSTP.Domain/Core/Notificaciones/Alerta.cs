@@ -41,6 +41,7 @@ public class Alerta : AuditableEntity
 public static class AlertaTipos
 {
     public const string DteRechazado = "DTE_RECHAZADO";
+    public const string DteLimitePlan = "DTE_LIMITE_PLAN";
     public const string CertPorVencer = "CERT_POR_VENCER";
     public const string FacturaVencida = "FACTURA_VENCIDA";
     public const string F07Proxima = "F07_PROXIMA";

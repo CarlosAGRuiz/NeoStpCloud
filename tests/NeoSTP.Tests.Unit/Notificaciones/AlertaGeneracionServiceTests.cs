@@ -5,8 +5,10 @@ using NeoSTP.Application.Cobranza.Dtos;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Notificaciones;
 using NeoSTP.Application.Notificaciones.Dtos;
+using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Inventario;
+using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Infrastructure.Persistence;
@@ -100,6 +102,40 @@ public class AlertaGeneracionServiceTests
         creadas.Should().Be(1);
         await alertas.Received(1).CrearAsync(
             Arg.Is<CrearAlertaRequest>(r => r.TipoCodigo == AlertaTipos.ActividadCrmVencida && r.EntidadId == 1),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(8, AlertaSeveridades.Info, 80)]
+    [InlineData(9, AlertaSeveridades.Advertencia, 90)]
+    [InlineData(10, AlertaSeveridades.Critica, 100)]
+    public async Task Genera_AlertaSegunUmbralDeConsumoDelPlanDte(int usados, string severidad, int umbral)
+    {
+        var db = NewDb(); var (svc, alertas) = NewSvc(db);
+        db.Planes.Add(new Plan
+        {
+            Id = 9, Codigo = "STARTER", Nombre = "Starter Facturación", PrecioMensual = 15m,
+            LimiteDteMensual = 10, Activo = true,
+        });
+        db.EmpresaPlanes.Add(new EmpresaPlan
+        {
+            EmpresaId = Empresa, PlanId = 9, EstadoCodigo = "ACTIVO", FechaInicio = DateTime.UtcNow.AddDays(-1),
+        });
+        db.DteDocumentos.AddRange(Enumerable.Range(1, usados).Select(i => new DteDocumento
+        {
+            EmpresaId = Empresa, TipoDteCodigo = "01", NumeroControl = $"DTE-{i}",
+            CodigoGeneracion = Guid.NewGuid().ToString(), EstadoCodigo = "BORRADOR",
+            AmbienteCodigo = "PRUEBAS", CreatedAt = DateTime.UtcNow,
+        }));
+        await db.SaveChangesAsync();
+
+        var creadas = await svc.GenerarAsync(Empresa);
+
+        creadas.Should().Be(1);
+        await alertas.Received(1).CrearAsync(
+            Arg.Is<CrearAlertaRequest>(r => r.TipoCodigo == AlertaTipos.DteLimitePlan
+                && r.Severidad == severidad
+                && r.Clave!.EndsWith($":{umbral}")),
             Arg.Any<CancellationToken>());
     }
 }

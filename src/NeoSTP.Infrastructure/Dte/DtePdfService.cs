@@ -276,7 +276,13 @@ public class DtePdfService : IDtePdfService
                     Linea(c, "Total exenta", d.TotalExenta);
                     Linea(c, "Total no sujeta", d.TotalNoSujeto);
                     Linea(c, "Subtotal", d.SubTotal);
-                    Linea(c, "IVA 13%", d.IvaTotal);
+                    Linea(c, d.TipoDteCodigo switch
+                    {
+                        TipoDteCodigos.FacturaConsumidorFinal => "IVA incluido (13%)",
+                        TipoDteCodigos.FacturaExportacion => "IVA exportación (0%)",
+                        TipoDteCodigos.FacturaSujetoExcluido => "Sin IVA",
+                        _ => "IVA 13%",
+                    }, d.IvaTotal);
                     if (d.IvaRetenido > 0) Linea(c, "IVA retenido", d.IvaRetenido);
                     if (d.ReteRenta > 0) Linea(c, "Renta retenida", d.ReteRenta);
                 });
@@ -374,6 +380,8 @@ public class DtePdfService : IDtePdfService
         TipoDteCodigos.NotaDebito => "NOTA DE DÉBITO · DTE-06",
         TipoDteCodigos.FacturaSujetoExcluido => "SUJETO EXCLUIDO · DTE-14",
         TipoDteCodigos.ComprobanteRetencion => "COMPROBANTE DE RETENCIÓN · DTE-07",
+        TipoDteCodigos.ComprobanteLiquidacion => "COMPROBANTE DE LIQUIDACIÓN · DTE-08",
+        TipoDteCodigos.DocumentoContableLiquidacion => "DOCUMENTO CONTABLE DE LIQUIDACIÓN · DTE-09",
         _ => $"DTE-{codigo}",
     };
 

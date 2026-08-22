@@ -13,6 +13,7 @@ namespace NeoSTP.Api.Controllers;
 /// registro de pagos y seguimiento. Lectura: Cobros.Ver; escritura: Cobros.Gestionar.
 /// </summary>
 [Authorize]
+[RequireModule("CORE")]
 [Route("api/cobros")]
 public class CobranzaController : ApiControllerBase
 {

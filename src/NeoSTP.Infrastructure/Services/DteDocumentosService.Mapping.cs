@@ -41,6 +41,25 @@ public partial class DteDocumentosService
                     errors.Add($"Línea {i + 1}: código de retención inválido (usa 22 = IVA 1%, C4 = IVA 13% o C9 = otros).");
             }
         }
+        else if (r.TipoDteCodigo == TipoDteCodigos.ComprobanteLiquidacion)
+        {
+            // CL (08): cada línea es un documento vendido por cuenta del mandante.
+            for (var i = 0; i < r.Lineas.Count; i++)
+            {
+                var l = r.Lineas[i];
+                var numero = (l.DocRelacionadoNumero ?? l.Codigo)?.Trim();
+                if (string.IsNullOrWhiteSpace(numero))
+                    errors.Add($"Línea {i + 1}: número del documento liquidado requerido (código de generación para DTE, o número físico).");
+                else if (!DteRetencion.EsCodigoGeneracion(numero) && !DteRetencion.EsNumeroFisicoValido(numero))
+                    errors.Add($"Línea {i + 1}: número inválido. Para DTE electrónicos usa el CÓDIGO DE GENERACIÓN (UUID); para documentos físicos, alfanumérico de hasta 20 caracteres sin guiones.");
+                if (l.DocRelacionadoFecha is null)
+                    errors.Add($"Línea {i + 1}: fecha de emisión del documento liquidado requerida.");
+                if (l.PrecioUnitario <= 0)
+                    errors.Add($"Línea {i + 1}: el monto del documento liquidado debe ser > 0.");
+                if (l.MontoDescuento < 0)
+                    errors.Add($"Línea {i + 1}: el descuento no puede ser negativo.");
+            }
+        }
         else
         {
             for (var i = 0; i < r.Lineas.Count; i++)
@@ -91,6 +110,19 @@ public partial class DteDocumentosService
                 errors.Add("Factura de exportación requiere tipo de persona receptor.");
         }
 
+        // DCL (09): el corte del período
+        if (r.TipoDteCodigo == TipoDteCodigos.DocumentoContableLiquidacion && r.Liquidacion is { } liq)
+        {
+            if (liq.PeriodoInicio is { } inicio && liq.PeriodoFin is { } fin && fin < inicio)
+                errors.Add("El período de liquidación termina antes de empezar.");
+            if (liq.PorcentajeComision is { } pct && (pct < 0 || pct > 100))
+                errors.Add("El porcentaje de comisión debe estar entre 0 y 100.");
+            if (liq.MontoSinPercepcion is { } sinPercepcion && sinPercepcion < 0)
+                errors.Add("El monto sin percepción no puede ser negativo.");
+            if (liq.CantidadDocumentos is { } cantidad && cantidad <= 0)
+                errors.Add("La cantidad de documentos del corte debe ser > 0.");
+        }
+
         return errors;
     }
 
@@ -118,6 +150,25 @@ public partial class DteDocumentosService
 
             if (!d.ReceptorTipoPersona.HasValue)
                 errors.Add("Factura de exportación sin tipo de persona receptor.");
+        }
+
+        if (d.TipoDteCodigo is TipoDteCodigos.ComprobanteLiquidacion or TipoDteCodigos.DocumentoContableLiquidacion)
+        {
+            // Ambos esquemas declaran codActividad/descActividad del receptor como requeridos
+            // y no nulos (el mandante es contribuyente, no consumidor final).
+            if (string.IsNullOrWhiteSpace(d.ReceptorCodigoActividad) || string.IsNullOrWhiteSpace(d.ReceptorActividadEconomica))
+                errors.Add("Los documentos de liquidación requieren código y descripción de actividad económica del receptor.");
+        }
+
+        if (d.TipoDteCodigo == TipoDteCodigos.DocumentoContableLiquidacion)
+        {
+            // fe-dcl-v2 declara "exclusiveMinimum": 0 en estos importes — un cero se rechaza.
+            if (d.MontoTotalOperacion <= 0) errors.Add("El DCL requiere valor de operaciones > 0.");
+            if (d.SubTotal <= 0) errors.Add("El DCL requiere sub-total > 0 (revise el monto sin percepción).");
+            if (d.TotalGravada <= 0) errors.Add("El DCL requiere monto sujeto a percepción > 0.");
+            if (d.IvaTotal <= 0) errors.Add("El DCL requiere IVA de las operaciones > 0.");
+            if ((d.LiquidacionIvaPercibido ?? 0) <= 0) errors.Add("El DCL requiere IVA percibido > 0.");
+            if (d.TotalPagar <= 0) errors.Add("El DCL requiere líquido a pagar > 0 (la comisión supera el monto liquidado).");
         }
 
         return errors;
@@ -164,6 +215,8 @@ public partial class DteDocumentosService
         NumeroDocumentoRelacionado = d.NumeroDocumentoRelacionado,
         TipoDteRelacionado = d.TipoDteRelacionado,
         Observaciones = d.Observaciones,
+        VentaTerceroNit = d.VentaTerceroNit,
+        VentaTerceroNombre = d.VentaTerceroNombre,
         TotalNoSujeto = d.TotalNoSujeto,
         TotalExenta = d.TotalExenta,
         TotalGravada = d.TotalGravada,

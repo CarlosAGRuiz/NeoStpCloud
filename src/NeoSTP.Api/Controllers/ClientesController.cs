@@ -9,6 +9,7 @@ using NeoSTP.Application.Common;
 namespace NeoSTP.Api.Controllers;
 
 [Authorize]
+[RequireModule("CORE")]
 [Route("api/clientes")]
 public class ClientesController : ApiControllerBase
 {

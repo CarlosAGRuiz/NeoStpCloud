@@ -97,6 +97,16 @@ public class TransferenciaBillingTests
 
         (await db.EmpresaPlanes.AsNoTracking().AnyAsync(ep => ep.EmpresaId == EmpresaA && ep.EstadoCodigo == "ACTIVO"))
             .Should().BeTrue();
+
+        var modulosPlan = await db.PlanModulos.AsNoTracking()
+            .Where(pm => pm.PlanId == planId && pm.Activo)
+            .Select(pm => pm.ModuloId)
+            .ToListAsync();
+        var modulosEmpresa = await db.EmpresaModulos.AsNoTracking()
+            .Where(em => em.EmpresaId == EmpresaA && em.Activo)
+            .Select(em => em.ModuloId)
+            .ToListAsync();
+        modulosEmpresa.Should().BeEquivalentTo(modulosPlan);
     }
 
     [Fact]

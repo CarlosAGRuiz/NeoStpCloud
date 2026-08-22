@@ -385,6 +385,7 @@ public sealed class BillingService : IBillingService
 
     private async Task ActivarLicenciaAsync(int empresaId, int planId, DateTime? fin, CancellationToken ct)
     {
+        var ahora = DateTime.UtcNow;
         var empresaPlan = await _db.EmpresaPlanes
             .Where(ep => ep.EmpresaId == empresaId)
             .OrderByDescending(ep => ep.FechaInicio)
@@ -402,9 +403,43 @@ public sealed class BillingService : IBillingService
             {
                 EmpresaId = empresaId,
                 PlanId = planId,
-                FechaInicio = DateTime.UtcNow,
+                FechaInicio = ahora,
                 FechaFin = fin,
                 EstadoCodigo = "ACTIVO",
+            });
+        }
+
+        // La licencia comercial y los módulos operativos deben activarse juntos.
+        // Sin esta sincronización, una suscripción válida queda sin acceso a CORE/NeoDTE.
+        var modulosPlan = await _db.PlanModulos
+            .Where(pm => pm.PlanId == planId && pm.Activo)
+            .Select(pm => pm.ModuloId)
+            .ToListAsync(ct);
+
+        var modulosEmpresa = await _db.EmpresaModulos
+            .Where(em => em.EmpresaId == empresaId)
+            .ToDictionaryAsync(em => em.ModuloId, ct);
+
+        foreach (var moduloId in modulosPlan)
+        {
+            if (modulosEmpresa.TryGetValue(moduloId, out var moduloEmpresa))
+            {
+                if (!moduloEmpresa.Activo)
+                {
+                    moduloEmpresa.Activo = true;
+                    moduloEmpresa.FechaActivacion = ahora;
+                    moduloEmpresa.FechaInactivacion = null;
+                }
+
+                continue;
+            }
+
+            _db.EmpresaModulos.Add(new EmpresaModulo
+            {
+                EmpresaId = empresaId,
+                ModuloId = moduloId,
+                Activo = true,
+                FechaActivacion = ahora,
             });
         }
     }

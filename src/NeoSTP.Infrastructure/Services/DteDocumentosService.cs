@@ -1,4 +1,6 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Comunicaciones;
@@ -32,6 +34,8 @@ public partial class DteDocumentosService : IDteDocumentosService
         TipoDteCodigos.FacturaExportacion,
         TipoDteCodigos.ComprobanteDonacion,
         TipoDteCodigos.ComprobanteRetencion,
+        TipoDteCodigos.ComprobanteLiquidacion,
+        TipoDteCodigos.DocumentoContableLiquidacion,
     };
 
     private readonly NeoStpDbContext _db;
@@ -207,6 +211,11 @@ public partial class DteDocumentosService : IDteDocumentosService
         if (validation.Count > 0)
             return Result<DteDocumentoDto>.Fail("Datos del documento inválidos.", "VALIDATION", validation);
 
+        // Reserva el cupo del plan y crea el DTE dentro de una misma transacción. En SQL Server
+        // se toma un application lock por empresa, de modo que dos nodos/API concurrentes no
+        // puedan aprobar simultáneamente el último cupo mensual.
+        await using var limiteTransaction = await BeginDteLimitTransactionAsync(empresaId, ct);
+
         // Enforcement comercial: límite mensual de documentos del plan.
         if (_licenciaGuard is not null)
         {
@@ -242,6 +251,8 @@ public partial class DteDocumentosService : IDteDocumentosService
                 TipoDteCodigos.NotaRemision => 3,
                 TipoDteCodigos.FacturaExportacion => 3,
                 TipoDteCodigos.ComprobanteDonacion => 2,
+                TipoDteCodigos.ComprobanteLiquidacion => 2,
+                TipoDteCodigos.DocumentoContableLiquidacion => 2,
                 _ => 1,
             },
             AmbienteCodigo = ambiente,
@@ -257,6 +268,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             TipoDteRelacionado = request.TipoDteRelacionado,
             TipoGeneracionRelacionado = request.TipoGeneracionRelacionado,
             Observaciones = request.Observaciones,
+            VentaTerceroNit = request.VentaTerceroNit,
+            VentaTerceroNombre = request.VentaTerceroNombre,
             // Contingencia (MOMENTO 1): modelo diferido (2) + transmisión contingencia (2) + tipo/motivo CAT-005.
             ModeloFacturacion = request.TipoTransmision == 2 ? 2 : (request.ModeloFacturacion == 0 ? 1 : request.ModeloFacturacion),
             TipoTransmision = request.TipoTransmision == 0 ? 1 : request.TipoTransmision,
@@ -310,6 +323,22 @@ public partial class DteDocumentosService : IDteDocumentosService
         // El receptor guarda códigos territoriales internos (p. ej. "SAN_SALVADOR"); Hacienda
         // exige el código MH numérico ("06"). Traducirlos antes de persistir el DTE.
         await ResolverReceptorTerritorialMhAsync(doc, empresaId, ct);
+
+        // Datos del corte de liquidación (09). Los importes no se copian del request:
+        // los deriva el calculador desde las líneas (ver DteLiquidacion).
+        if (request.TipoDteCodigo == TipoDteCodigos.DocumentoContableLiquidacion && request.Liquidacion is { } liq)
+        {
+            doc.LiquidacionPeriodoInicio = liq.PeriodoInicio;
+            doc.LiquidacionPeriodoFin = liq.PeriodoFin;
+            doc.LiquidacionCodigo = liq.Codigo;
+            doc.LiquidacionCantidadDocumentos = liq.CantidadDocumentos;
+            doc.LiquidacionMontoSinPercepcion = liq.MontoSinPercepcion;
+            doc.LiquidacionDescripcionSinPercepcion = liq.DescripcionSinPercepcion;
+            doc.LiquidacionPorcentajeComision = liq.PorcentajeComision;
+            doc.LiquidacionNombreEntrega = liq.NombreEntrega;
+            doc.LiquidacionDocumentoEntrega = liq.DocumentoEntrega;
+            doc.LiquidacionCodigoEmpleado = liq.CodigoEmpleado;
+        }
 
         // Datos específicos de Factura de Exportación.
         if (request.TipoDteCodigo == TipoDteCodigos.FacturaExportacion)
@@ -365,8 +394,50 @@ public partial class DteDocumentosService : IDteDocumentosService
             _calculator.Recalcular(doc);
             _db.DteDocumentos.Add(doc);
             await _db.SaveChangesAsync(ct);
+            if (limiteTransaction is not null) await limiteTransaction.CommitAsync(ct);
             await Audit(empresaId, actor, "CREATE_BORRADOR", "OK",
                 $"DTE {doc.TipoDteCodigo} #{doc.NumeroControl} en borrador (IVA retenido={doc.TotalPagar:0.00})", doc.Id);
+            return await GetByIdAsync(empresaId, doc.Id, ct);
+        }
+
+        if (request.TipoDteCodigo == TipoDteCodigos.ComprobanteLiquidacion)
+        {
+            // CL (08): cada línea es un documento vendido por cuenta del mandante. Igual que
+            // en el 07 el número del documento va en Codigo, pero aquí la línea sí lleva
+            // importes (las ventas de ese documento, sin IVA: el 08 lo desglosa aparte).
+            foreach (var linea in request.Lineas)
+            {
+                var numero = (linea.DocRelacionadoNumero ?? linea.Codigo ?? "").Trim();
+                if (DteRetencion.EsCodigoGeneracion(numero)) numero = numero.ToUpperInvariant();
+                var tipoRel = string.IsNullOrWhiteSpace(linea.DocRelacionadoTipoDte) ? "01" : linea.DocRelacionadoTipoDte.Trim();
+
+                doc.Detalles.Add(new DteDocumentoDetalle
+                {
+                    NumeroLinea = numLinea++,
+                    Codigo = numero,
+                    Descripcion = string.IsNullOrWhiteSpace(linea.Descripcion)
+                        ? $"Liquidación de DTE {tipoRel} {numero}"
+                        : linea.Descripcion,
+                    UnidadMedidaCodigo = "99",
+                    TipoItem = linea.TipoItem == 0 ? 1 : linea.TipoItem,
+                    Cantidad = linea.Cantidad <= 0 ? 1 : linea.Cantidad,
+                    PrecioUnitario = linea.PrecioUnitario,
+                    MontoDescuento = linea.MontoDescuento,
+                    NoGravado = linea.NoGravado || string.Equals(linea.Clasificacion, "NO_SUJETA", StringComparison.OrdinalIgnoreCase),
+                    Observaciones = linea.Observaciones,
+                    DocRelacionadoTipoDte = tipoRel,
+                    DocRelacionadoFecha = linea.DocRelacionadoFecha,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = actor,
+                });
+            }
+
+            _calculator.Recalcular(doc);
+            _db.DteDocumentos.Add(doc);
+            await _db.SaveChangesAsync(ct);
+            if (limiteTransaction is not null) await limiteTransaction.CommitAsync(ct);
+            await Audit(empresaId, actor, "CREATE_BORRADOR", "OK",
+                $"DTE {doc.TipoDteCodigo} #{doc.NumeroControl} en borrador ({doc.Detalles.Count} documentos liquidados, total={doc.TotalPagar:0.00})", doc.Id);
             return await GetByIdAsync(empresaId, doc.Id, ct);
         }
 
@@ -412,10 +483,45 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         _db.DteDocumentos.Add(doc);
         await _db.SaveChangesAsync(ct);
+        if (limiteTransaction is not null) await limiteTransaction.CommitAsync(ct);
         await Audit(empresaId, actor, "CREATE_BORRADOR", "OK",
             $"DTE {doc.TipoDteCodigo} #{doc.NumeroControl} en borrador (total={doc.TotalPagar:0.00})", doc.Id);
 
         return await GetByIdAsync(empresaId, doc.Id, ct);
+    }
+
+    private async Task<IDbContextTransaction?> BeginDteLimitTransactionAsync(int empresaId, CancellationToken ct)
+    {
+        if (_licenciaGuard is null || !_db.Database.IsRelational()) return null;
+
+        IDbContextTransaction? ownTransaction = null;
+        if (_db.Database.CurrentTransaction is null)
+            ownTransaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+
+        try
+        {
+            if (_db.Database.ProviderName?.Contains("SqlServer", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                var resource = $"NeoSTP:DTE-LIMIT:{empresaId}";
+                await _db.Database.ExecuteSqlInterpolatedAsync($"""
+                    DECLARE @lockResult int;
+                    EXEC @lockResult = sys.sp_getapplock
+                        @Resource = {resource},
+                        @LockMode = 'Exclusive',
+                        @LockOwner = 'Transaction',
+                        @LockTimeout = 15000;
+                    IF @lockResult < 0
+                        THROW 50001, 'No fue posible reservar el cupo mensual de DTE.', 1;
+                    """, ct);
+            }
+
+            return ownTransaction;
+        }
+        catch
+        {
+            if (ownTransaction is not null) await ownTransaction.DisposeAsync();
+            throw;
+        }
     }
 
     public async Task<Result<DteDocumentoDto>> GenerarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
@@ -913,6 +1019,8 @@ public partial class DteDocumentosService : IDteDocumentosService
         TipoDteCodigos.NotaDebito => "Nota de Débito (DTE-06)",
         TipoDteCodigos.FacturaSujetoExcluido => "Factura Sujeto Excluido (DTE-14)",
         TipoDteCodigos.ComprobanteRetencion => "Comprobante de Retención (DTE-07)",
+        TipoDteCodigos.ComprobanteLiquidacion => "Comprobante de Liquidación (DTE-08)",
+        TipoDteCodigos.DocumentoContableLiquidacion => "Documento Contable de Liquidación (DTE-09)",
         _ => $"DTE-{codigo}",
     };
 

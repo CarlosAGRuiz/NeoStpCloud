@@ -2,8 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace NeoSTP.Web.Models;
 
-public class CreateUsuarioViewModel
+public class CreateUsuarioViewModel : IValidatableObject
 {
+    public const string AceptacionLegalRequerida =
+        "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.";
+
     [Required, StringLength(100)]
     [Display(Name = "Usuario")]
     public string Username { get; set; } = string.Empty;
@@ -32,9 +35,21 @@ public class CreateUsuarioViewModel
     [Display(Name = "Roles")]
     public int[] RoleIds { get; set; } = Array.Empty<int>();
 
-    [Range(typeof(bool), "true", "true", ErrorMessage = "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.")]
+    // Required habilita la validación cliente correcta para un checkbox. La validación
+    // de que el valor sea true se refuerza en Validate para no depender del navegador.
+    [Required(ErrorMessage = AceptacionLegalRequerida)]
     [Display(Name = "Acepto los Términos y Condiciones y la Política de Privacidad")]
     public bool AceptaTerminos { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (!AceptaTerminos)
+        {
+            yield return new ValidationResult(
+                AceptacionLegalRequerida,
+                [nameof(AceptaTerminos)]);
+        }
+    }
 }
 
 public class EditUsuarioViewModel

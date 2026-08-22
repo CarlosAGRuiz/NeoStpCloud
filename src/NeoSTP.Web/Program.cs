@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using NeoSTP.Application;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Legal;
@@ -7,6 +8,7 @@ using NeoSTP.Infrastructure;
 using NeoSTP.Infrastructure.Diagnostics;
 using NeoSTP.Web.Auth;
 using Serilog;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +40,19 @@ builder.Services.AddControllersWithViews(options =>
     })
     .AddViewLocalization();
 builder.Services.AddHttpContextAccessor();
+
+// Cloudflare Tunnel termina TLS y reenvía la petición a Kestrel por localhost.
+// Solo se confían los encabezados del proxy local para conservar el esquema HTTPS
+// sin permitir que clientes externos falsifiquen X-Forwarded-*.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+    options.KnownProxies.Add(IPAddress.Loopback);
+    options.KnownProxies.Add(IPAddress.IPv6Loopback);
+});
 
 // V2.5-S6: i18n base es/en. Español por defecto; el idioma se persiste en la cookie
 // estándar de cultura (acción Home/CambiarIdioma).
@@ -94,6 +109,8 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Fail-fast: en Producción no se arranca con providers Mock (correo, billing, scan, push).
 NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(app.Configuration, app.Environment);

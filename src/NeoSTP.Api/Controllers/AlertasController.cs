@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NeoSTP.Api.Authorization;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Notificaciones;
 using NeoSTP.Application.Notificaciones.Dtos;
@@ -12,6 +13,7 @@ namespace NeoSTP.Api.Controllers;
 /// dispositivos (FCM) y preferencias. Cualquier usuario de empresa autenticado gestiona las suyas.
 /// </summary>
 [Authorize]
+[RequireModule("CORE")]
 [Route("api/alertas")]
 public class AlertasController : ApiControllerBase
 {
@@ -63,6 +65,7 @@ public class AlertasController : ApiControllerBase
 
     /// <summary>Recalcula las alertas de la empresa desde datos reales (DTE rechazado, cert por vencer, facturas vencidas).</summary>
     [HttpPost("generar")]
+    [RequirePermiso("Core.Empresa.Editar")]
     public async Task<IActionResult> Generar([FromQuery] int? empresaId, CancellationToken ct)
     {
         if (!Ctx(empresaId, out var eid, out _, out var err)) return err!;

@@ -8,6 +8,7 @@ using NeoSTP.Application.Dte.Dtos;
 namespace NeoSTP.Api.Controllers;
 
 [Authorize]
+[RequireModule("NEODTE")]
 [Route("api/dte/configuracion")]
 public class DteConfiguracionController : ApiControllerBase
 {

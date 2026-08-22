@@ -97,4 +97,5 @@ public class LicenciaDto
     public int UsuariosUsados { get; set; }
     public int SucursalesUsadas { get; set; }
     public int PuntosVentaUsados { get; set; }
+    public int DteMensualUsados { get; set; }
 }

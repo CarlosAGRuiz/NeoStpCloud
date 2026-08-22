@@ -335,12 +335,16 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
         var ahora = DateTime.UtcNow;
         var vigente = planActivo is not null
                       && planActivo.EstadoCodigo == "ACTIVO"
+                      && planActivo.FechaInicio <= ahora
                       && (planActivo.FechaFin is null || planActivo.FechaFin > ahora)
                       && empresa.EstadoCodigo == NeoSTP.Domain.Common.EmpresaEstados.Activa;
 
         var usuarios = await _db.Usuarios.CountAsync(u => u.EmpresaId == empresaId, ct);
         var sucursales = await _db.Sucursales.CountAsync(s => s.EmpresaId == empresaId, ct);
         var pv = await _db.PuntosVenta.CountAsync(p => p.Sucursal.EmpresaId == empresaId, ct);
+        var inicioMes = new DateTime(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var dteMensual = await _db.DteDocumentos.CountAsync(
+            d => d.EmpresaId == empresaId && d.CreatedAt >= inicioMes, ct);
 
         return new LicenciaDto
         {
@@ -362,6 +366,7 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             UsuariosUsados = usuarios,
             SucursalesUsadas = sucursales,
             PuntosVentaUsados = pv,
+            DteMensualUsados = dteMensual,
         };
     }
 

@@ -17,6 +17,14 @@
 
     var esError = Model.EstadoCodigo is "RECHAZADO" or "ERROR";
     var esProcesado = Model.EstadoCodigo == "PROCESADO";
+    var ivaIncluidoEnPrecio = Model.TipoDteCodigo == "01";
+    var etiquetaIva = Model.TipoDteCodigo switch
+    {
+        "01" => "IVA incluido (13%)",
+        "11" => "IVA exportación (0%)",
+        "14" => "Sin IVA",
+        _ => "IVA 13%",
+    };
 
     // Parse ligero (read-only) de la respuesta cruda de Hacienda para mostrar un resumen amigable.
     string? mhDescripcion = null, mhCodigoMsg = null, mhEstado = null;
@@ -263,7 +271,7 @@ else if (esProcesado && !string.IsNullOrEmpty(Model.SelloRecibido))
                         <tr><td>Subtotal ventas</td><td class="text-end ns-mono">$ @Model.SubTotalVentas.ToString("N2")</td></tr>
                         <tr><td>Total descuento</td><td class="text-end ns-mono">$ @Model.TotalDescuento.ToString("N2")</td></tr>
                         <tr>
-                            <td>@(Model.TipoDteCodigo == "11" ? "IVA exportación 0%" : "IVA 13%")</td>
+                            <td>@etiquetaIva</td>
                             <td class="text-end ns-mono">$ @Model.IvaTotal.ToString("N2")</td>
                         </tr>
                         <tr><td>IVA retenido</td><td class="text-end ns-mono">$ @Model.IvaRetenido.ToString("N2")</td></tr>
@@ -271,6 +279,10 @@ else if (esProcesado && !string.IsNullOrEmpty(Model.SelloRecibido))
                         <tr class="table-active"><th>Total a pagar</th><th class="text-end ns-mono">$ @Model.TotalPagar.ToString("N2")</th></tr>
                     </tbody>
                 </table>
+                @if (ivaIncluidoEnPrecio && Model.IvaTotal > 0)
+                {
+                    <p class="text-muted small m-0 mt-2">El IVA mostrado ya está incluido en la venta gravada; no se suma nuevamente al total.</p>
+                }
                 <p class="text-muted small m-0 mt-2"><em>@Model.TotalLetras</em></p>
             </div>
         </div>

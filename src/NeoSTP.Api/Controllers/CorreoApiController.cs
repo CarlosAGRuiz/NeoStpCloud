@@ -12,6 +12,7 @@ namespace NeoSTP.Api.Controllers;
 /// La contraseña se cifra y nunca se devuelve. Permiso: Core.Correo.Configurar.
 /// </summary>
 [Authorize]
+[RequireModule("CORE")]
 [Route("api/correo")]
 public class CorreoApiController : ApiControllerBase
 {

@@ -9,6 +9,7 @@ using NeoSTP.Application.Productos.Dtos;
 namespace NeoSTP.Api.Controllers;
 
 [Authorize]
+[RequireModule("CORE")]
 [Route("api/productos")]
 public class ProductosController : ApiControllerBase
 {
