@@ -310,6 +310,8 @@ configuracion. Ver `/api/sso/config`.
 | POST | `/api/dte/sujeto-excluido` | Crear sujeto excluido. |
 | POST | `/api/dte/emitir` | Emision en un paso. |
 | POST | `/api/dte/emitir/{tipo}` | Emision en un paso por tipo. |
+| POST | `/api/dte/emitir/liquidacion` | Emitir Comprobante de Liquidación (tipo 08, fe-cl-v2). |
+| POST | `/api/dte/emitir/liquidacion-contable` | Emitir Documento Contable de Liquidación (tipo 09, fe-dcl-v2). |
 | POST | `/api/dte/documentos/{id}/generar` | Generar JSON. |
 | POST | `/api/dte/documentos/{id}/validar` | Validar DTE. |
 | POST | `/api/dte/documentos/{id}/firmar` | Firmar JWS. |
@@ -720,8 +722,8 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual validado 2026-06-20: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con 750 unitarias + 9 integracion. La suite incluye contrato mobile
+Estado actual validado 2026-08-21: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
+`dotnet test NeoSTP.slnx` con ~960 unitarias + 9 integracion. Los 11 tipos DTE certificados. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
 (`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)

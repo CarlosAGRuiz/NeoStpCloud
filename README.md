@@ -10,14 +10,14 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado 2026-07-27: fases V2/V2.5, backend móvil, V3 y el roadmap enterprise (E1–E8) cerrados.**
+**Estado 2026-08-21: fases V2/V2.5, backend móvil, V3 y el roadmap enterprise (E1–E8) cerrados. Los 11 tipos DTE certificados con sello real en apitest de Hacienda.**
 El producto opera el ciclo completo de un negocio salvadoreño: emite DTE certificados contra
 Hacienda, vende por POS, cobra, compra, maneja inventario, paga planilla, concilia el banco, lleva
 libros fiscales y contabilidad mínima, y da autoservicio al cliente final por un portal público.
 Sobre eso, la capa empresarial: multi-empresa para contadores, inventario por sucursal, aprobaciones
 de compra, SSO corporativo, consolidado de grupo, webhooks de negocio y portabilidad de datos.
 
-**937 pruebas unitarias + 9 de integración en verde.**
+**~960 pruebas unitarias + 9 de integración en verde.**
 
 > **Antes de vender:** el código está completo, pero un ambiente productivo necesita credenciales
 > reales (correo, pasarela de cobro, firmador DTE) y **cada empresa cliente debe tener aprobada su
@@ -55,9 +55,10 @@ El recorrido completo de un cliente, de punta a punta:
 
 1. **Onboarding self-service**: checklist de activación derivado de datos reales (perfil, config
    DTE, certificado, catálogo, primer DTE) + asistente `/onboarding`.
-2. **Factura**: 9 tipos de DTE (01, 03, 04, 05, 06, **07 Retención**, 11, 14, 15) firmados JWS y
-   transmitidos a Hacienda (certificación apitest real completada en Sprint 12), con contingencia
-   por lotes, eventos persistidos y diagnóstico de errores MH con causas/acciones sugeridas.
+2. **Factura**: **11 tipos de DTE** (01, 03, 04, 05, 06, **07 Retención**, **08 Liquidación**,
+   **09 Contable Liquidación**, 11, 14, 15) firmados JWS y transmitidos a Hacienda — todos
+   PROCESADOS con sello real en apitest, con contingencia por lotes, eventos persistidos y
+   diagnóstico de errores MH con causas/acciones sugeridas.
 3. **Vende por POS**: carrito, tickets térmicos 58/80mm (PDF/ESC-POS red/correo), sesión y corte
    de caja, promoción de ticket a Factura/CCF electrónica en un clic.
 4. **Cobra**: CxC con saldos derivados, pagos, QR/enlaces de cobro, **recordatorios automáticos**
@@ -205,7 +206,7 @@ de DTE del mes, y suspende el acceso si la suscripción vence.
 
 | Plan | $/mes | DTE/mes | Usuarios | Sucursales | Enfoque |
 |---|---|---|---|---|---|
-| Starter | 15 | 100 | 1 | 1 | Solo facturación electrónica |
+| Starter FE | 15 | 100 | 3 | 1 | Solo facturación electrónica (módulos CORE + NEODTE) |
 | Pyme | 35 | 500 | 3 | 1 | + Punto de venta |
 | Pro | 75 | 2.000 | 8 | 3 | + Inventario, CRM, escaneo, contingencia |
 | Contador | 120 | 5.000 | 25 | 10 | Multi-empresa + libros fiscales |
@@ -220,7 +221,7 @@ Guion de venta y recorrido de demostración:
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| Sprints 1–12 | Núcleo DTE: emisión, firma, transmisión, **certificación real contra apitest de Hacienda** | ✅ |
+| Sprints 1–12 | Núcleo DTE: emisión, firma, transmisión, **certificación real contra apitest de Hacienda** (todos los 11 tipos) | ✅ |
 | Sprints 13–21 | Catálogos MH, certificación (módulo), eventos, contingencia, diagnóstico, legal, billing, hardening, UI/UX (design system `ns-*`) | ✅ |
 | Sprints 22–30 | NeoProfit, NeoScanAI, NeoConnect, backend móvil (B-1..B-6: emisión 1 paso, cobros, scan, alertas, QR, NIT), pagos LATAM, lookups, carga masiva, onboarding, branding | ✅ |
 | **Fase A/B (V2)** | ERP interno: NeoRRHH, Tesorería, Compras/CxP, Inventario + glue automático | ✅ |
@@ -246,10 +247,10 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **937 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
+- **~960 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
-- **Validación local 2026-07-27:** `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` en verde
-  con el roadmap enterprise E1–E8 cerrado.
+- **Validación local 2026-08-21:** `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` en verde
+  con los 11 tipos DTE certificados, plan STARTERFE y clientes extranjeros.
 - **Regresiones que valen doble** (bugs reales, con test que impide que vuelvan):
   - `CulturaFormulariosTests` — la cultura `es` genérica hacía que el binder leyera `3.25` como `325`,
     multiplicando por 100 los precios capturados en formularios. La cultura correcta es `es-SV`.
