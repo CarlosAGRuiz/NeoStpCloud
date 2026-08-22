@@ -392,6 +392,11 @@ internal static partial class SeedData
             Plan(204, "ENTERPRISE",     "Enterprise",      "Operación grande con soporte dedicado",           400m,  100,  50, 100, 50000),
             Plan(205, "INTEGRADORAPI",  "Integrador API",  "Para empresas que integran vía API",              250m,   10,   5,  10, 30000),
             Plan(206, "CONTADOR",       "Contador",        "Plan para contadores con múltiples clientes",     120m,   25,  10,  20,  5000),
+            // Starter Facturación: mismo precio que Starter pero con los 3 usuarios que se
+            // venden en el paquete de entrada (Starter da 1). Solo emisión: CORE + NEODTE.
+            // El tope de DTE queda en 100 con holgura sobre las 50 que se ofrecen, para no
+            // cortarle la facturación al cliente si se pasa; el exceso se cobra comercialmente.
+            Plan(207, "STARTERFE",      "Starter Facturación", "Facturación electrónica con 3 usuarios",     15m,    3,   1,   2,   100),
         };
 
         modelBuilder.Entity<Plan>().HasData(planes);
@@ -427,6 +432,8 @@ internal static partial class SeedData
             Pm(205, 100), Pm(205, 101), Pm(205, 106),
             // Contador
             Pm(206, 100), Pm(206, 101), Pm(206, 105), Pm(206, 110),
+            // Starter Facturación (solo emisión: núcleo + DTE)
+            Pm(207, 100), Pm(207, 101),
         };
 
         modelBuilder.Entity<PlanModulo>().HasData(planModulos);
