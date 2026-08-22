@@ -149,6 +149,66 @@ public class ClienteExtranjeroTests
     }
 
     [Fact]
+    public async Task Create_Extranjero_DescartaDepartamentoYMunicipioDeElSalvador()
+    {
+        var db = NewDb();
+        var svc = NewClientesSvc(db);
+
+        var r = await svc.CreateAsync(Empresa, new CreateClienteRequest
+        {
+            TipoDocumentoCodigo = "OTRO",
+            NumeroDocumento = "ES-123",
+            Nombre = "Cliente Madrid",
+            TipoContribuyenteCodigo = "CONSUMIDOR_FINAL",
+            PaisCodigo = Espania,
+            DepartamentoCodigo = "SAN_SALVADOR",
+            MunicipioCodigo = "SAN_SALVADOR_CENTRO",
+        }, "tester");
+
+        r.IsSuccess.Should().BeTrue(r.Error);
+        var persistido = await db.Clientes.AsNoTracking().SingleAsync();
+        persistido.DepartamentoCodigo.Should().BeNull();
+        persistido.MunicipioCodigo.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Update_CambiaAExtranjero_LimpiaTerritorioSalvadorenoExistente()
+    {
+        var db = NewDb();
+        var cliente = new Cliente
+        {
+            EmpresaId = Empresa,
+            TipoDocumentoCodigo = "OTRO",
+            NumeroDocumento = "ES-456",
+            Nombre = "Cliente local",
+            TipoContribuyenteCodigo = "CONSUMIDOR_FINAL",
+            DepartamentoCodigo = "SAN_SALVADOR",
+            MunicipioCodigo = "SAN_SALVADOR_CENTRO",
+            EstadoCodigo = "ACTIVO",
+        };
+        db.Clientes.Add(cliente);
+        await db.SaveChangesAsync();
+
+        var r = await NewClientesSvc(db).UpdateAsync(Empresa, cliente.Id, new UpdateClienteRequest
+        {
+            TipoDocumentoCodigo = "OTRO",
+            NumeroDocumento = "ES-456",
+            Nombre = cliente.Nombre,
+            TipoContribuyenteCodigo = "CONSUMIDOR_FINAL",
+            PaisCodigo = Espania,
+            DepartamentoCodigo = cliente.DepartamentoCodigo,
+            MunicipioCodigo = cliente.MunicipioCodigo,
+            EstadoCodigo = "ACTIVO",
+        }, "tester");
+
+        r.IsSuccess.Should().BeTrue(r.Error);
+        var persistido = await db.Clientes.AsNoTracking().SingleAsync();
+        persistido.PaisCodigo.Should().Be(Espania);
+        persistido.DepartamentoCodigo.Should().BeNull();
+        persistido.MunicipioCodigo.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Create_PaisInexistente_Validation()
     {
         var svc = NewClientesSvc(NewDb());

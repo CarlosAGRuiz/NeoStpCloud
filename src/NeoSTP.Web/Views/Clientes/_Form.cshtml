@@ -5,6 +5,7 @@
     var departamentos = (ViewBag.Departamentos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var municipios = (ViewBag.Municipios as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var paises = (ViewBag.Paises as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var esExtranjero = NeoSTP.Application.Clientes.ClienteValidator.EsExtranjero(Model.PaisCodigo);
 }
 
 <div class="row g-3">
@@ -79,7 +80,7 @@
         <input asp-for="ActividadEconomica" class="form-control" />
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-4 territorio-sv @(esExtranjero ? "d-none" : null)">
         <label asp-for="DepartamentoCodigo" class="form-label"></label>
         <select asp-for="DepartamentoCodigo" id="departamentoSelect" class="form-select">
             <option value="">—</option>
@@ -89,7 +90,7 @@
             }
         </select>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-4 territorio-sv @(esExtranjero ? "d-none" : null)">
         <label asp-for="MunicipioCodigo" class="form-label">Municipio / Zona</label>
         <select asp-for="MunicipioCodigo" id="municipioSelect" class="form-select" data-current="@Model.MunicipioCodigo">
             <option value="">— (selecciona departamento)</option>
@@ -120,17 +121,23 @@
 
 <script>
 (function() {
+    var pais = document.getElementById('paisSelect');
+    var hint = document.getElementById('paisHint');
+    var numero = document.getElementById('numeroDocumentoInput');
     var depto = document.getElementById('departamentoSelect');
     var muni  = document.getElementById('municipioSelect');
-    if (!depto || !muni) return;
+    var camposTerritorio = document.querySelectorAll('.territorio-sv');
+    if (!pais || !hint || !numero || !depto || !muni) return;
 
-    function filter() {
+    var EL_SALVADOR = '9300';
+
+    function filterMunicipios() {
         var selected = depto.value;
         var currentMuni = muni.value;
         var foundCurrent = false;
         Array.prototype.forEach.call(muni.options, function(opt) {
             if (!opt.value) { opt.style.display = ''; return; }
-            var matches = !selected || opt.getAttribute('data-depto') === selected;
+            var matches = !!selected && opt.getAttribute('data-depto') === selected;
             opt.style.display = matches ? '' : 'none';
             opt.disabled = !matches;
             if (opt.value === currentMuni && matches) foundCurrent = true;
@@ -138,26 +145,29 @@
         if (!foundCurrent) muni.value = '';
     }
 
-    depto.addEventListener('change', filter);
-    filter();
-})();
-
-(function() {
-    var pais = document.getElementById('paisSelect');
-    var hint = document.getElementById('paisHint');
-    var numero = document.getElementById('numeroDocumentoInput');
-    if (!pais || !hint || !numero) return;
-
-    var EL_SALVADOR = '9300';
-    function refresh() {
+    function refreshPais() {
         var extranjero = pais.value && pais.value !== EL_SALVADOR;
         hint.style.display = extranjero ? '' : 'none';
         numero.placeholder = extranjero
             ? 'Pasaporte u otro documento (opcional)'
             : 'DUI: 12345678-9 / NIT: 0614-010100-101-1';
+
+        Array.prototype.forEach.call(camposTerritorio, function(campo) {
+            campo.classList.toggle('d-none', !!extranjero);
+        });
+        depto.disabled = !!extranjero;
+        muni.disabled = !!extranjero;
+
+        if (extranjero) {
+            depto.value = '';
+            muni.value = '';
+        } else {
+            filterMunicipios();
+        }
     }
 
-    pais.addEventListener('change', refresh);
-    refresh();
+    depto.addEventListener('change', filterMunicipios);
+    pais.addEventListener('change', refreshPais);
+    refreshPais();
 })();
 </script>

@@ -94,8 +94,8 @@ public class ClientesService : IClientesService
             TipoContribuyenteCodigo = request.TipoContribuyenteCodigo.Trim().ToUpperInvariant(),
             CodigoActividad = request.CodigoActividad?.Trim(),
             ActividadEconomica = request.ActividadEconomica?.Trim(),
-            DepartamentoCodigo = request.DepartamentoCodigo,
-            MunicipioCodigo = request.MunicipioCodigo,
+            DepartamentoCodigo = NormalizarCodigoTerritorial(request.DepartamentoCodigo, paisCodigo),
+            MunicipioCodigo = NormalizarCodigoTerritorial(request.MunicipioCodigo, paisCodigo),
             Direccion = request.Direccion,
             Correo = request.Correo?.Trim(),
             Telefono = request.Telefono,
@@ -130,8 +130,8 @@ public class ClientesService : IClientesService
         cliente.Nrc = string.IsNullOrWhiteSpace(request.Nrc) ? null : request.Nrc.Trim();
         cliente.CodigoActividad = request.CodigoActividad?.Trim();
         cliente.ActividadEconomica = request.ActividadEconomica?.Trim();
-        cliente.DepartamentoCodigo = request.DepartamentoCodigo;
-        cliente.MunicipioCodigo = request.MunicipioCodigo;
+        cliente.DepartamentoCodigo = NormalizarCodigoTerritorial(request.DepartamentoCodigo, paisCodigoUpd);
+        cliente.MunicipioCodigo = NormalizarCodigoTerritorial(request.MunicipioCodigo, paisCodigoUpd);
         cliente.Direccion = request.Direccion;
         cliente.Correo = request.Correo?.Trim();
         cliente.Telefono = request.Telefono;
@@ -277,6 +277,16 @@ public class ClientesService : IClientesService
         => _db.CatalogoItems.AnyAsync(i =>
             i.Catalogo.Codigo == "PAIS" && i.Codigo == paisCodigo && i.Activo, ct);
 
+    /// <summary>
+    /// Departamento y municipio pertenecen a los catálogos territoriales de El Salvador.
+    /// Para un cliente extranjero se eliminan aunque un consumidor antiguo (UI, API o
+    /// importación) todavía los envíe, evitando direcciones contradictorias.
+    /// </summary>
+    private static string? NormalizarCodigoTerritorial(string? codigo, string? paisCodigo)
+        => ClienteValidator.EsExtranjero(paisCodigo) || string.IsNullOrWhiteSpace(codigo)
+            ? null
+            : codigo.Trim();
+
     private static Cliente BuildCliente(int empresaId, CreateClienteRequest req, string tipoDoc, string? numero, string? actor) => new()
     {
         EmpresaId = empresaId,
@@ -290,8 +300,8 @@ public class ClientesService : IClientesService
         TipoContribuyenteCodigo = req.TipoContribuyenteCodigo.Trim().ToUpperInvariant(),
         CodigoActividad = req.CodigoActividad?.Trim(),
         ActividadEconomica = req.ActividadEconomica?.Trim(),
-        DepartamentoCodigo = req.DepartamentoCodigo,
-        MunicipioCodigo = req.MunicipioCodigo,
+        DepartamentoCodigo = NormalizarCodigoTerritorial(req.DepartamentoCodigo, req.PaisCodigo),
+        MunicipioCodigo = NormalizarCodigoTerritorial(req.MunicipioCodigo, req.PaisCodigo),
         Direccion = req.Direccion,
         Correo = req.Correo?.Trim(),
         Telefono = req.Telefono,
@@ -309,8 +319,8 @@ public class ClientesService : IClientesService
         c.Nrc = string.IsNullOrWhiteSpace(req.Nrc) ? null : req.Nrc.Trim();
         c.CodigoActividad = req.CodigoActividad?.Trim();
         c.ActividadEconomica = req.ActividadEconomica?.Trim();
-        c.DepartamentoCodigo = req.DepartamentoCodigo;
-        c.MunicipioCodigo = req.MunicipioCodigo;
+        c.DepartamentoCodigo = NormalizarCodigoTerritorial(req.DepartamentoCodigo, req.PaisCodigo);
+        c.MunicipioCodigo = NormalizarCodigoTerritorial(req.MunicipioCodigo, req.PaisCodigo);
         c.Direccion = req.Direccion;
         c.Correo = req.Correo?.Trim();
         c.Telefono = req.Telefono;
