@@ -155,9 +155,12 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 24px; gap: 16px;
 }
-.ns-topbar-title { font-family: var(--ns-font-head); font-size: 20px; font-weight: 700; color: var(--ns-primary); margin: 0; }
-.ns-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.ns-topbar-right { display: flex; align-items: center; gap: 10px; }
+.ns-topbar-title {
+  font-family: var(--ns-font-head); font-size: 20px; font-weight: 700; color: var(--ns-primary); margin: 0;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ns-topbar-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1 1 auto; }
+.ns-topbar-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 
 .ns-hamburger { display: none; background: none; border: 0; color: var(--ns-on-surface); cursor: pointer; padding: 4px; }
 
@@ -166,7 +169,7 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 4px 12px; border-radius: var(--ns-radius-pill);
   font-size: 11px; font-weight: 700; letter-spacing: .03em;
-  border: 1px solid;
+  border: 1px solid; white-space: nowrap; flex-shrink: 0;
 }
 .ns-env-dot { width: 8px; height: 8px; border-radius: 50%; }
 .ns-env--prod { background: rgba(16,185,129,.1); color: var(--ns-processed); border-color: rgba(16,185,129,.25); }
@@ -215,6 +218,20 @@ body.ns-app h1, body.ns-app h2, body.ns-app h3, body.ns-app h4, body.ns-app h5 {
   .ns-hamburger { display: inline-flex; }
   body.ns-drawer-open .ns-sidebar { transform: translateX(0); }
   body.ns-drawer-open .ns-backdrop { display: block; }
+  /* El atajo de teclado no aplica en touch; libera espacio antes de que haga falta. */
+  .ns-topbar-right kbd { display: none; }
+}
+
+/* Celular: el header ya no tiene ancho para título largo + badge de ambiente +
+   botón de búsqueda con texto — todo peleando en una sola fila sin wrap. Se
+   reduce a lo esencial: título truncado, badge intacto, buscador solo ícono. */
+@media (max-width: 575.98px) {
+  .ns-topbar { padding: 0 12px; gap: 8px; }
+  .ns-topbar-left { gap: 10px; }
+  .ns-topbar-title { font-size: 16px; }
+  .ns-env { padding: 4px 9px; font-size: 10px; }
+  .ns-topbar-right .ns-chip .ns-chip-label { display: none; }
+  .ns-topbar-right .ns-chip { padding: 8px; }
 }
 
 /* ==========================================================================

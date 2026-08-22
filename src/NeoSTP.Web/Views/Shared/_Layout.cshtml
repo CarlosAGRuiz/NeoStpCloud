@@ -482,17 +482,19 @@ else
                 </div>
                 <div class="ns-topbar-right">
                     <button type="button" class="ns-chip" id="busquedaGlobalBtn" title="Buscar (Ctrl+K)">
-                        <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">search</span> Buscar
+                        <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">search</span>
+                        <span class="ns-chip-label">Buscar</span>
                         <kbd class="small text-muted ms-1" style="font-size:10px">Ctrl+K</kbd>
                     </button>
                     @if (isSuperAdmin)
                     {
                         <a class="ns-chip" asp-controller="Soporte" asp-action="Operacion" title="Operación del servicio">
-                            <span class="material-symbols-outlined" style="font-size:16px">monitoring</span> Operación
+                            <span class="material-symbols-outlined" style="font-size:16px">monitoring</span>
+                            <span class="ns-chip-label">Operación</span>
                         </a>
                         <a class="ns-chip @(enModoSoporte ? "ns-chip--active" : "")" asp-controller="Soporte" asp-action="Index">
                             <span class="material-symbols-outlined" style="font-size:16px">@(enModoSoporte ? "location_on" : "build")</span>
-                            @(enModoSoporte ? soporteEmpresaNombre : "Modo soporte")
+                            <span class="ns-chip-label">@(enModoSoporte ? soporteEmpresaNombre : "Modo soporte")</span>
                         </a>
                     }
                     @* Selector de empresa activa (membresías E1): visible solo con más de una empresa. *@
