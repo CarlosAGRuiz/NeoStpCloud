@@ -74,6 +74,22 @@ public class DteDocumentoConfiguration : IEntityTypeConfiguration<DteDocumento>
         foreach (var p in monetaryProps)
             builder.Property(p).HasPrecision(18, 4);
 
+        // Documento Contable de Liquidación (09): límites tomados del esquema fe-dcl-v2.
+        builder.Property(d => d.LiquidacionCodigo).HasMaxLength(30);
+        builder.Property(d => d.LiquidacionDescripcionSinPercepcion).HasMaxLength(100);
+        builder.Property(d => d.LiquidacionNombreEntrega).HasMaxLength(100);
+        builder.Property(d => d.LiquidacionDocumentoEntrega).HasMaxLength(25);
+        builder.Property(d => d.LiquidacionCodigoEmpleado).HasMaxLength(15);
+        foreach (var p in new[]
+        {
+            nameof(DteDocumento.LiquidacionMontoSinPercepcion),
+            nameof(DteDocumento.LiquidacionIvaPercibido),
+            nameof(DteDocumento.LiquidacionPorcentajeComision),
+            nameof(DteDocumento.LiquidacionComision),
+            nameof(DteDocumento.LiquidacionIvaComision),
+        })
+            builder.Property(p).HasPrecision(18, 4);
+
         builder.Property(d => d.TotalLetras).HasMaxLength(500);
 
         builder.Property(d => d.EstadoCodigo).HasMaxLength(30).IsRequired();

@@ -61,6 +61,9 @@ public class DteDocumentoDto
 
     public string? Observaciones { get; set; }
 
+    public string? VentaTerceroNit { get; set; }
+    public string? VentaTerceroNombre { get; set; }
+
     public decimal TotalNoSujeto { get; set; }
     public decimal TotalExenta { get; set; }
     public decimal TotalGravada { get; set; }
@@ -148,13 +151,45 @@ public class CreateDteDocumentoRequest
 
     public string? Observaciones { get; set; }
 
+    // Venta por cuenta de tercero: el emisor vende a nombre de otro contribuyente. Es el
+    // insumo del Comprobante de Liquidación (08), que después liquida esas ventas.
+    public string? VentaTerceroNit { get; set; }
+    public string? VentaTerceroNombre { get; set; }
+
     // Contingencia (MOMENTO 1): tipoTransmision=2 + modelo diferido. CAT-005 tipoContingencia (1..5).
     public int ModeloFacturacion { get; set; }
     public int TipoTransmision { get; set; }
     public string? TipoContingenciaCodigo { get; set; }
     public string? MotivoContingencia { get; set; }
 
+    /// <summary>Documento Contable de Liquidación (09): datos del corte del período.</summary>
+    public LiquidacionDto? Liquidacion { get; set; }
+
     public List<CreateDteDocumentoLineaRequest> Lineas { get; set; } = new();
+}
+
+/// <summary>
+/// Bloque del Documento Contable de Liquidación (09). Solo lleva los datos que no se
+/// derivan de las líneas: el resto (valor de operaciones, IVA, percepción, comisión y
+/// líquido a pagar) lo calcula <c>DteLiquidacion</c>.
+/// </summary>
+public class LiquidacionDto
+{
+    public DateTime? PeriodoInicio { get; set; }
+    public DateTime? PeriodoFin { get; set; }
+    /// <summary>Código de liquidación del agente (codLiquidacion, máx. 30).</summary>
+    public string? Codigo { get; set; }
+    /// <summary>Cantidad de documentos del corte. Si se omite se usa el número de líneas.</summary>
+    public int? CantidadDocumentos { get; set; }
+    public decimal? MontoSinPercepcion { get; set; }
+    public string? DescripcionSinPercepcion { get; set; }
+    /// <summary>Porcentaje de comisión del mandatario. Por defecto 5 %.</summary>
+    public decimal? PorcentajeComision { get; set; }
+    /// <summary>Responsable que genera el DTE (extension.nombEntrega).</summary>
+    public string? NombreEntrega { get; set; }
+    /// <summary>Documento de identificación de quien genera el DTE (extension.docuEntrega).</summary>
+    public string? DocumentoEntrega { get; set; }
+    public string? CodigoEmpleado { get; set; }
 }
 
 public class CreateDteDocumentoLineaRequest
@@ -172,12 +207,13 @@ public class CreateDteDocumentoLineaRequest
     public bool NoGravado { get; set; }
     public string? Observaciones { get; set; }
 
-    // ── Comprobante de Retención (07): la línea representa un documento sujeto a retención ──
-    /// <summary>07: tipo del DTE relacionado (CAT-002; normalmente 03 CCF).</summary>
+    // ── 07 Retención y 08 Liquidación: la línea representa un documento ya emitido ──
+    // (en el 07 uno sujeto a retención; en el 08 uno vendido por cuenta del mandante).
+    /// <summary>07/08: tipo del DTE relacionado (CAT-002; 03 CCF en el 07, 01 Factura en el 08).</summary>
     public string? DocRelacionadoTipoDte { get; set; }
-    /// <summary>07: número del doc relacionado — código de generación (UUID) si es electrónico, o número físico (máx. 20 alfanumérico, sin guiones).</summary>
+    /// <summary>07/08: número del doc relacionado — código de generación (UUID) si es electrónico, o número físico (máx. 20 alfanumérico, sin guiones).</summary>
     public string? DocRelacionadoNumero { get; set; }
-    /// <summary>07: fecha de emisión del documento relacionado.</summary>
+    /// <summary>07/08: fecha de emisión del documento relacionado.</summary>
     public DateTime? DocRelacionadoFecha { get; set; }
     /// <summary>07: código de retención MH — 22 = IVA 1% (default), C4 = IVA 13%, C9 = otros.</summary>
     public string? RetencionCodigoMH { get; set; }

@@ -91,3 +91,4 @@ node_modules/
 *.ldf
 *.ndf
 .codex/
+outputs/

@@ -112,6 +112,31 @@ public class DteDocumento : AuditableEntity
     public decimal TotalPagar { get; set; }
     public string? TotalLetras { get; set; }
 
+    // ── Documento Contable de Liquidación (09) ────────────────────────
+    // El DCL no tiene líneas en el JSON: su cuerpoDocumento es un único bloque con el
+    // corte del período. Los importes que ya existen arriba se reutilizan
+    // (MontoTotalOperacion = valorOperaciones, SubTotal = subTotal, IvaTotal = iva,
+    // TotalGravada = montoSujetoPercepcion, TotalPagar = liquidoApagar); aquí van
+    // solo los que no tienen equivalente. Ver DteLiquidacion.
+
+    public DateTime? LiquidacionPeriodoInicio { get; set; }
+    public DateTime? LiquidacionPeriodoFin { get; set; }
+    /// <summary>Código de liquidación asignado por el agente (codLiquidacion).</summary>
+    public string? LiquidacionCodigo { get; set; }
+    /// <summary>Cantidad de documentos incluidos en el corte.</summary>
+    public int? LiquidacionCantidadDocumentos { get; set; }
+    public decimal? LiquidacionMontoSinPercepcion { get; set; }
+    public string? LiquidacionDescripcionSinPercepcion { get; set; }
+    /// <summary>Percepción de IVA del 2 % sobre el monto sujeto.</summary>
+    public decimal? LiquidacionIvaPercibido { get; set; }
+    public decimal? LiquidacionPorcentajeComision { get; set; }
+    public decimal? LiquidacionComision { get; set; }
+    public decimal? LiquidacionIvaComision { get; set; }
+    /// <summary>Extensión del 09: responsable que genera el documento.</summary>
+    public string? LiquidacionNombreEntrega { get; set; }
+    public string? LiquidacionDocumentoEntrega { get; set; }
+    public string? LiquidacionCodigoEmpleado { get; set; }
+
     /// <summary>Estado del ciclo de vida (BORRADOR / GENERADO / VALIDADO / etc.).</summary>
     public string EstadoCodigo { get; set; } = DteEstadoCodigos.Borrador;
 

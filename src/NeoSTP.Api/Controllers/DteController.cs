@@ -10,6 +10,7 @@ using NeoSTP.Domain.Core.Dte;
 namespace NeoSTP.Api.Controllers;
 
 [Authorize]
+[RequireModule("NEODTE")]
 [Route("api/dte")]
 public class DteController : ApiControllerBase
 {
@@ -120,6 +121,18 @@ public class DteController : ApiControllerBase
     [RequirePermiso("DTE.Emitir")]
     public Task<IActionResult> EmitirRetencion([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
         => EmitirConTipo(req, TipoDteCodigos.ComprobanteRetencion, empresaId, ct);
+
+    /// <summary>Comprobante de Liquidación (08): las líneas son los documentos vendidos por cuenta del mandante (DocRelacionado* + importes).</summary>
+    [HttpPost("emitir/liquidacion")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirLiquidacion([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.ComprobanteLiquidacion, empresaId, ct);
+
+    /// <summary>Documento Contable de Liquidación (09): corte del período (bloque Liquidacion + líneas como valor bruto de operaciones).</summary>
+    [HttpPost("emitir/liquidacion-contable")]
+    [RequirePermiso("DTE.Emitir")]
+    public Task<IActionResult> EmitirLiquidacionContable([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
+        => EmitirConTipo(req, TipoDteCodigos.DocumentoContableLiquidacion, empresaId, ct);
 
     // ---- transiciones de estado ----
 

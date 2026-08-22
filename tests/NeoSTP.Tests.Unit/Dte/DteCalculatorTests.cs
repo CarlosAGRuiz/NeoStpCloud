@@ -47,6 +47,18 @@ public class DteCalculatorTests
     }
 
     [Fact]
+    public void Factura_01_PrecioCien_NoSumaDosVecesElIvaIncluido()
+    {
+        var d = NewDoc(TipoDteCodigos.FacturaConsumidorFinal, (1, 100m, 0));
+
+        _calc.Recalcular(d);
+
+        d.TotalGravada.Should().Be(100m);
+        d.IvaTotal.Should().Be(11.50m); // 100 × 13 / 113: IVA contenido e informativo
+        d.TotalPagar.Should().Be(100m);
+    }
+
+    [Fact]
     public void CCF_03_IvaSeparado()
     {
         // CCF: precio sin IVA. 2 x 10.00 = 20.00 gravada + 2.60 IVA = 22.60 total
@@ -60,6 +72,18 @@ public class DteCalculatorTests
         d.IvaTotal.Should().Be(2.60m);
         d.MontoTotalOperacion.Should().Be(22.60m);
         d.TotalPagar.Should().Be(22.60m);
+    }
+
+    [Fact]
+    public void CCF_03_PrecioCien_SumaElIvaSeparadoAlTotal()
+    {
+        var d = NewDoc(TipoDteCodigos.ComprobanteCreditoFiscal, (1, 100m, 0));
+
+        _calc.Recalcular(d);
+
+        d.TotalGravada.Should().Be(100m);
+        d.IvaTotal.Should().Be(13m);
+        d.TotalPagar.Should().Be(113m);
     }
 
     [Fact]

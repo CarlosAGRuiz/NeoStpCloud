@@ -11,7 +11,9 @@ namespace NeoSTP.Infrastructure.Dte;
 
 /// <summary>
 /// Construye el JSON DTE según el esquema oficial de Hacienda El Salvador.
-/// Soporta: 01 Factura, 03 CCF, 05 NC, 06 ND, 14 Sujeto Excluido.
+/// Soporta: 01 Factura, 03 CCF, 04 Nota de Remisión, 05 NC, 06 ND, 07 Retención,
+/// 08 Comprobante de Liquidación, 09 Documento Contable de Liquidación,
+/// 11 Exportación, 14 Sujeto Excluido y 15 Donación.
 /// </summary>
 public class DteGeneratorService : IDteGeneratorService
 {
@@ -54,6 +56,8 @@ public class DteGeneratorService : IDteGeneratorService
             TipoDteCodigos.FacturaExportacion => BuildFacturaExportacion(d, emisor, config, _territorial),
             TipoDteCodigos.ComprobanteDonacion => BuildComprobanteDonacion(d, emisor, config, _territorial),
             TipoDteCodigos.ComprobanteRetencion => BuildComprobanteRetencion(d, emisor, config),
+            TipoDteCodigos.ComprobanteLiquidacion => BuildComprobanteLiquidacion(d, emisor, config, _territorial),
+            TipoDteCodigos.DocumentoContableLiquidacion => BuildDocumentoContableLiquidacion(d, emisor, config, _territorial),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
@@ -732,6 +736,238 @@ public class DteGeneratorService : IDteGeneratorService
         telefono = d.ReceptorTelefono,
         correo = d.ReceptorCorreo,
     };
+
+    // ----------- 08 Comprobante de Liquidación (fe-cl-v2) ------------
+
+    /// <summary>
+    /// Comprobante de Liquidación (08). Lo emite el mandatario al mandante y su cuerpo es la
+    /// lista de documentos vendidos por cuenta de éste — no productos. El esquema fe-cl-v2
+    /// cierra con <c>additionalProperties: false</c> en todos los bloques, así que solo van
+    /// los campos que declara: el emisor no lleva <c>tipoEstablecimiento</c> ni los
+    /// <c>codEstableMH</c>/<c>codPuntoVentaMH</c> del resto de tipos, la identificación no
+    /// admite contingencia (tipoModelo y tipoOperacion son <c>const 1</c>) pero sí exige
+    /// <c>fusion</c>, y no existe bloque <c>extension</c>.
+    /// <para>
+    /// <b>Regla de negocio que no está en el esquema</b> (verificada en apitest): cuando la
+    /// línea referencia un DTE electrónico (<c>tipoGeneracion 2</c>), Hacienda cruza ese
+    /// documento y exige que se haya emitido <b>por cuenta del mandante</b>, es decir con el
+    /// bloque <c>ventaTercero</c> apuntando al receptor de esta liquidación. Liquidar un DTE
+    /// propio del emisor se rechaza con <c>099 ERROR NO CATALOGADO</c> y <c>observaciones</c>
+    /// vacías — sin pista del campo culpable. Con documentos físicos
+    /// (<c>tipoGeneracion 1</c>) no hay cruce y pasa igual.
+    /// </para>
+    /// </summary>
+    private static object BuildComprobanteLiquidacion(DteDocumento d, Empresa e, DteConfiguracion? config, TerritorialOptions terr)
+    {
+        var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
+
+        return new
+        {
+            identificacion = new
+            {
+                version = 2,
+                ambiente = d.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
+                tipoDte = d.TipoDteCodigo,
+                numeroControl = d.NumeroControl,
+                codigoGeneracion = d.CodigoGeneracion,
+                tipoModelo = 1,      // const en el esquema: el CL no admite modelo diferido
+                tipoOperacion = 1,   // const en el esquema: el CL no admite contingencia
+                fecEmi = d.FechaEmision.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                horEmi = d.HoraEmision.ToString(@"hh\:mm\:ss"),
+                tipoMoneda = d.TipoMonedaCodigo ?? "USD",
+                fusion = (string?)null,
+            },
+            emisor = new
+            {
+                nit = e.Nit,
+                nrc = e.Nrc,
+                nombre = e.RazonSocial,
+                codActividad = e.CodigoActividad,
+                descActividad = e.ActividadEconomica,
+                nombreComercial = NullSiVacio(e.NombreComercial),
+                // CL v2 usa división territorial 2024 (municipio nuevo + distrito), igual que FEX y CD.
+                direccion = new
+                {
+                    departamento = e.Departamento ?? "06",
+                    municipio = terr.MunicipioDivision2024Default,
+                    distrito = e.Distrito ?? terr.DistritoDefault,
+                    complemento = e.Direccion,
+                },
+                telefono = NullSiVacio(e.Telefono),
+                correo = e.Correo,
+                codEstable = codEst,
+                codPuntoVenta = codPv,
+            },
+            receptor = new
+            {
+                tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "36",
+                numDocumento = d.ReceptorNumeroDocumento,
+                codDomiciliado = 1,
+                nrc = NullSiVacio(d.ReceptorNrc),
+                nombre = d.ReceptorNombre,
+                codActividad = d.ReceptorCodigoActividad,
+                descActividad = d.ReceptorActividadEconomica,
+                nombreComercial = NullSiVacio(d.ReceptorNombre),
+                direccion = new
+                {
+                    departamento = d.ReceptorDepartamentoCodigo ?? "06",
+                    municipio = terr.MunicipioDivision2024Default,
+                    distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+                    complemento = d.ReceptorDireccion,
+                },
+                telefono = NullSiVacio(d.ReceptorTelefono),
+                correo = NullSiVacio(d.ReceptorCorreo),
+            },
+            cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) =>
+            {
+                // Igual que en el 07, la línea guarda en Codigo el número del documento
+                // liquidado: código de generación en MAYÚSCULAS si es electrónico.
+                var numRelacionado = l.Codigo;
+                var esElectronico = DteRetencion.EsCodigoGeneracion(numRelacionado);
+                return (object)new
+                {
+                    numItem = idx + 1,
+                    tipoDte = string.IsNullOrWhiteSpace(l.DocRelacionadoTipoDte) ? "01" : l.DocRelacionadoTipoDte,
+                    tipoGeneracion = esElectronico ? 2 : 1,
+                    numeroDocumento = esElectronico ? numRelacionado.ToUpperInvariant() : numRelacionado,
+                    fechaEmision = (l.DocRelacionadoFecha ?? d.FechaEmision).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ventaNoSuj = (double)l.VentaNoSujeta,
+                    ventaExenta = (double)l.VentaExenta,
+                    ventaGravada = (double)l.VentaGravada,
+                    exportaciones = 0d,
+                    tributos = l.VentaGravada > 0 ? new[] { "20" } : null,
+                    ivaItem = (double)l.IvaItem,
+                    observaciones = NullSiVacio(l.Observaciones),
+                };
+            }).ToArray(),
+            resumen = new
+            {
+                totalNoSuj = (double)d.TotalNoSujeto,
+                totalExenta = (double)d.TotalExenta,
+                totalGravada = (double)d.TotalGravada,
+                exportacion = 0d,
+                subTotalVentas = (double)d.SubTotalVentas,
+                tributos = d.TotalGravada > 0
+                    ? new[] { new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = (double)d.IvaTotal } }
+                    : null,
+                montoTotalOperacion = (double)d.MontoTotalOperacion,
+                ivaPerci = 0d,
+                total = (double)d.TotalPagar,
+                totalLetras = d.TotalLetras,
+                condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+                observaciones = NullSiVacio(d.Observaciones),
+            },
+            apendice = (object?)null,
+        };
+    }
+
+    // ----------- 09 Documento Contable de Liquidación (fe-dcl-v2) ----
+
+    /// <summary>
+    /// Documento Contable de Liquidación (09). Es el corte del período, no una venta: su
+    /// <c>cuerpoDocumento</c> es un <b>objeto único</b> (no un arreglo) con el valor liquidado,
+    /// la percepción de IVA del 2 %, la comisión del mandatario y el líquido a pagar; y no
+    /// existe bloque <c>resumen</c>. Los importes los deriva <see cref="DteLiquidacion"/> desde
+    /// las líneas del documento, que aquí solo sirven de insumo y no viajan al JSON.
+    /// </summary>
+    private static object BuildDocumentoContableLiquidacion(DteDocumento d, Empresa e, DteConfiguracion? config, TerritorialOptions terr)
+    {
+        var codEst = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh;
+        var codPv  = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)      ? null : config!.CodigoPuntoVentaMh;
+        var inicio = d.LiquidacionPeriodoInicio ?? d.FechaEmision;
+        var fin    = d.LiquidacionPeriodoFin ?? d.FechaEmision;
+
+        return new
+        {
+            identificacion = new
+            {
+                version = 2,
+                ambiente = d.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
+                tipoDte = d.TipoDteCodigo,
+                numeroControl = d.NumeroControl,
+                codigoGeneracion = d.CodigoGeneracion,
+                tipoModelo = 1,      // const en el esquema
+                tipoOperacion = 1,   // const en el esquema: el DCL no admite contingencia
+                fecEmi = d.FechaEmision.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                horEmi = d.HoraEmision.ToString(@"hh\:mm\:ss"),
+                tipoMoneda = d.TipoMonedaCodigo ?? "USD",
+            },
+            emisor = new
+            {
+                nit = e.Nit,
+                nrc = e.Nrc,
+                nombre = e.RazonSocial,
+                codActividad = e.CodigoActividad,
+                descActividad = e.ActividadEconomica,
+                nombreComercial = NullSiVacio(e.NombreComercial),
+                telefono = e.Telefono,
+                correo = e.Correo,
+                direccion = new
+                {
+                    departamento = e.Departamento ?? "06",
+                    municipio = terr.MunicipioDivision2024Default,
+                    distrito = e.Distrito ?? terr.DistritoDefault,
+                    complemento = e.Direccion,
+                },
+                codEstable = codEst,
+                codPuntoVenta = codPv,
+            },
+            receptor = new
+            {
+                nit = d.ReceptorNumeroDocumento,
+                nrc = NullSiVacio(d.ReceptorNrc),
+                nombre = d.ReceptorNombre,
+                codActividad = d.ReceptorCodigoActividad,
+                descActividad = d.ReceptorActividadEconomica,
+                nombreComercial = NullSiVacio(d.ReceptorNombre),
+                tipoEstablecimiento = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo,
+                direccion = new
+                {
+                    departamento = d.ReceptorDepartamentoCodigo ?? "06",
+                    municipio = terr.MunicipioDivision2024Default,
+                    distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+                    complemento = d.ReceptorDireccion,
+                },
+                telefono = NullSiVacio(d.ReceptorTelefono),
+                correo = d.ReceptorCorreo,
+            },
+            cuerpoDocumento = new
+            {
+                periodoLiquidacionFechaInicio = inicio.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                periodoLiquidacionFechaFin = fin.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                codLiquidacion = NullSiVacio(d.LiquidacionCodigo),
+                cantidadDoc = d.LiquidacionCantidadDocumentos ?? d.Detalles.Count,
+                valorOperaciones = (double)d.MontoTotalOperacion,
+                montoSinPercepcion = (double)(d.LiquidacionMontoSinPercepcion ?? 0m),
+                descripSinPercepcion = NullSiVacio(d.LiquidacionDescripcionSinPercepcion),
+                subTotal = (double)d.SubTotal,
+                iva = (double)d.IvaTotal,
+                montoSujetoPercepcion = (double)d.TotalGravada,
+                ivaPercibido = (double)(d.LiquidacionIvaPercibido ?? 0m),
+                comision = (double)(d.LiquidacionComision ?? 0m),
+                porcentComision = (double)(d.LiquidacionPorcentajeComision ?? DteLiquidacion.PorcentajeComisionDefault),
+                ivaComision = (double)(d.LiquidacionIvaComision ?? 0m),
+                liquidoApagar = (double)d.TotalPagar,
+                totalLetras = d.TotalLetras,
+                observaciones = NullSiVacio(d.Observaciones),
+            },
+            extension = new
+            {
+                nombEntrega = NullSiVacio(d.LiquidacionNombreEntrega) ?? e.RazonSocial,
+                docuEntrega = NullSiVacio(d.LiquidacionDocumentoEntrega) ?? e.Nit,
+                codEmpleado = NullSiVacio(d.LiquidacionCodigoEmpleado),
+            },
+            apendice = (object?)null,
+        };
+    }
+
+    /// <summary>
+    /// Devuelve null en lugar de cadena vacía. Los esquemas v2 declaran
+    /// <c>minLength: 1</c> en los campos opcionales, así que una cadena vacía se rechaza
+    /// mientras que null pasa.
+    /// </summary>
+    private static string? NullSiVacio(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
     private static object BuildIdentificacion(DteDocumento d, int version) => new
     {

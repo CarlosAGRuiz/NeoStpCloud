@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(NeoStpDbContext))]
-    partial class NeoStpDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806020853_Dte_LiquidacionesTipos08y09")]
+    partial class Dte_LiquidacionesTipos08y09
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21075,22 +21078,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                             MonedaCodigo = "USD",
                             Nombre = "Contador",
                             PrecioMensual = 120m
-                        },
-                        new
-                        {
-                            Id = 207,
-                            Activo = true,
-                            Codigo = "STARTERFE",
-                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = "SYSTEM",
-                            Descripcion = "Facturación electrónica con 3 usuarios",
-                            LimiteDteMensual = 100,
-                            LimitePuntosVenta = 2,
-                            LimiteSucursales = 1,
-                            LimiteUsuarios = 3,
-                            MonedaCodigo = "USD",
-                            Nombre = "Starter Facturación",
-                            PrecioMensual = 15m
                         });
                 });
 
@@ -21483,20 +21470,6 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         {
                             PlanId = 206,
                             ModuloId = 110,
-                            Activo = true,
-                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            PlanId = 207,
-                            ModuloId = 100,
-                            Activo = true,
-                            CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            PlanId = 207,
-                            ModuloId = 101,
                             Activo = true,
                             CreatedAt = new DateTime(2026, 5, 26, 0, 0, 0, 0, DateTimeKind.Utc)
                         });

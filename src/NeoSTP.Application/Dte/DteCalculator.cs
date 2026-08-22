@@ -4,8 +4,10 @@ namespace NeoSTP.Application.Dte;
 
 /// <summary>
 /// Implementación por defecto: recalcula totales del documento siguiendo
-/// las reglas de Hacienda El Salvador para Factura (01), CCF (03),
-/// Nota de Crédito (05), Nota de Débito (06) y Sujeto Excluido (14).
+/// las reglas de Hacienda El Salvador para Factura (01), CCF (03), Nota de
+/// Remisión (04), Nota de Crédito (05), Nota de Débito (06), Comprobante de
+/// Retención (07), Comprobante de Liquidación (08), Documento Contable de
+/// Liquidación (09), Exportación (11) y Sujeto Excluido (14).
 /// </summary>
 public class DteCalculator : IDteCalculator
 {
@@ -16,14 +18,18 @@ public class DteCalculator : IDteCalculator
         // Documentos con IVA separado: el precio va SIN IVA y el impuesto se suma aparte.
         // La nota de remisión (04) entra aquí: Hacienda valida el tributo 20 contra la gravada
         // y devuelve "[resumen.tributos.codigo.20] CALCULO INCORRECTO" si se le manda el IVA
-        // incluido al estilo de la factura (verificado en apitest).
-        var esCcfONota = d.TipoDteCodigo == TipoDteCodigos.ComprobanteCreditoFiscal
+        // incluido al estilo de la factura (verificado en apitest). El comprobante de
+        // liquidación (08) también: su cuerpo lleva ventaGravada + ivaItem por documento
+        // liquidado y el resumen desglosa el tributo 20.
+        var esIvaSeparado = d.TipoDteCodigo == TipoDteCodigos.ComprobanteCreditoFiscal
                          || d.TipoDteCodigo == TipoDteCodigos.NotaCredito
                          || d.TipoDteCodigo == TipoDteCodigos.NotaDebito
-                         || d.TipoDteCodigo == TipoDteCodigos.NotaRemision;
+                         || d.TipoDteCodigo == TipoDteCodigos.NotaRemision
+                         || d.TipoDteCodigo == TipoDteCodigos.ComprobanteLiquidacion;
         var esSujetoExcluido = d.TipoDteCodigo == TipoDteCodigos.FacturaSujetoExcluido;
         var esRetencion = d.TipoDteCodigo == TipoDteCodigos.ComprobanteRetencion;
         var esExportacion = d.TipoDteCodigo == TipoDteCodigos.FacturaExportacion;
+        var esDcl = d.TipoDteCodigo == TipoDteCodigos.DocumentoContableLiquidacion;
 
         decimal totalGravada = 0, totalExenta = 0, totalNoSujeta = 0, ivaTotal = 0, ivaRetenidoTotal = 0;
 
@@ -74,7 +80,7 @@ public class DteCalculator : IDteCalculator
                 // No se registra como exenta ni no sujeta.
                 l.IvaItem = 0;
             }
-            else if (esCcfONota)
+            else if (esIvaSeparado)
             {
                 // CCF: precio SIN IVA. IVA por línea = gravada * 0.13
                 l.IvaItem = Round2(neto * IvaTasa);
@@ -135,7 +141,29 @@ public class DteCalculator : IDteCalculator
             d.TotalNoGravado = 0;
             d.TotalPagar = d.MontoTotalOperacion;
         }
-        else if (esCcfONota)
+        else if (esDcl)
+        {
+            // DCL (09): el JSON no lleva líneas. Las líneas son solo el insumo para el
+            // valor bruto de las operaciones del período (precio CON IVA, como se le
+            // facturó al consumidor); de ahí se deriva el corte completo.
+            var totales = DteLiquidacion.Calcular(
+                valorOperaciones: d.SubTotal,
+                montoSinPercepcion: d.LiquidacionMontoSinPercepcion ?? 0,
+                porcentajeComision: d.LiquidacionPorcentajeComision ?? DteLiquidacion.PorcentajeComisionDefault,
+                ivaTasa: IvaTasa);
+
+            d.MontoTotalOperacion = d.SubTotal;                 // valorOperaciones
+            d.SubTotal = totales.SubTotal;                      // valorOperaciones - montoSinPercepcion
+            d.TotalGravada = totales.MontoSujetoPercepcion;     // base sin IVA
+            d.IvaTotal = totales.Iva;
+            d.LiquidacionIvaPercibido = totales.IvaPercibido;
+            d.LiquidacionComision = totales.Comision;
+            d.LiquidacionIvaComision = totales.IvaComision;
+            d.LiquidacionPorcentajeComision ??= DteLiquidacion.PorcentajeComisionDefault;
+            d.TotalNoGravado = 0;
+            d.TotalPagar = totales.LiquidoAPagar;
+        }
+        else if (esIvaSeparado)
         {
             d.IvaTotal = Round2(ivaTotal);
             d.MontoTotalOperacion = Round2(d.SubTotal + d.IvaTotal);
