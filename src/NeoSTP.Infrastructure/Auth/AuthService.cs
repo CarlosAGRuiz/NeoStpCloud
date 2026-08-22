@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -121,7 +123,7 @@ public class AuthService : IAuthService
         _db.RefreshTokens.Add(new RefreshToken
         {
             UsuarioId = usuario.Id,
-            Token = refreshTokenValue,
+            Token = HashRefreshToken(refreshTokenValue),
             ExpiresAt = refreshExpires,
             CreatedAt = DateTime.UtcNow,
             CreatedByIp = context.IpAddress,
@@ -219,7 +221,7 @@ public class AuthService : IAuthService
         _db.RefreshTokens.Add(new RefreshToken
         {
             UsuarioId = usuario.Id,
-            Token = refreshTokenValue,
+            Token = HashRefreshToken(refreshTokenValue),
             ExpiresAt = refreshExpires,
             CreatedAt = DateTime.UtcNow,
             CreatedByIp = context.IpAddress,
@@ -295,7 +297,7 @@ public class AuthService : IAuthService
         _db.RefreshTokens.Add(new RefreshToken
         {
             UsuarioId = usuario.Id,
-            Token = refreshTokenValue,
+            Token = HashRefreshToken(refreshTokenValue),
             ExpiresAt = refreshExpires,
             CreatedAt = DateTime.UtcNow,
             CreatedByIp = context.IpAddress,
@@ -367,10 +369,13 @@ public class AuthService : IAuthService
             return Result<LoginResponse>.Fail("Refresh token requerido.", "AUTH_BAD_INPUT");
         }
 
+        var refreshTokenHash = HashRefreshToken(refreshToken);
         var existing = await _db.RefreshTokens
             .Include(t => t.Usuario)
                 .ThenInclude(u => u.Roles).ThenInclude(ur => ur.Rol).ThenInclude(r => r.Permisos).ThenInclude(rp => rp.Permiso)
-            .FirstOrDefaultAsync(t => t.Token == refreshToken, ct);
+            // Compatibilidad temporal con sesiones emitidas antes del hashing. Al rotarse,
+            // el token nuevo ya queda almacenado exclusivamente como hash.
+            .FirstOrDefaultAsync(t => t.Token == refreshTokenHash || t.Token == refreshToken, ct);
 
         if (existing is null || !existing.IsActive)
         {
@@ -393,12 +398,12 @@ public class AuthService : IAuthService
         existing.RevokedAt = DateTime.UtcNow;
         existing.RevokedByIp = context.IpAddress;
         existing.RevokedReason = "Replaced";
-        existing.ReplacedByToken = newRefresh;
+        existing.ReplacedByToken = HashRefreshToken(newRefresh);
 
         _db.RefreshTokens.Add(new RefreshToken
         {
             UsuarioId = usuario.Id,
-            Token = newRefresh,
+            Token = HashRefreshToken(newRefresh),
             ExpiresAt = refreshExpires,
             CreatedAt = DateTime.UtcNow,
             CreatedByIp = context.IpAddress,
@@ -421,9 +426,10 @@ public class AuthService : IAuthService
     {
         if (!string.IsNullOrWhiteSpace(refreshToken))
         {
+            var refreshTokenHash = HashRefreshToken(refreshToken);
             var existing = await _db.RefreshTokens
                 .Include(t => t.Usuario)
-                .FirstOrDefaultAsync(t => t.Token == refreshToken, ct);
+                .FirstOrDefaultAsync(t => t.Token == refreshTokenHash || t.Token == refreshToken, ct);
 
             if (existing is not null && existing.RevokedAt is null)
             {
@@ -437,6 +443,9 @@ public class AuthService : IAuthService
 
         return Result.Ok();
     }
+
+    private static string HashRefreshToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     public async Task<Result<UserInfo>> GetCurrentUserInfoAsync(int userId, CancellationToken ct = default)
     {

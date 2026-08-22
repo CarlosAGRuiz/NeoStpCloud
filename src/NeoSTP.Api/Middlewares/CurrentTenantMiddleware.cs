@@ -1,5 +1,6 @@
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Connect;
+using NeoSTP.Application.Empresas;
 using NeoSTP.Application.Licenciamiento;
 using NeoSTP.Shared;
 
@@ -27,7 +28,11 @@ public class CurrentTenantMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, ICurrentUser currentUser, ILicenciaGuardService licencia)
+    public async Task InvokeAsync(
+        HttpContext context,
+        ICurrentUser currentUser,
+        ILicenciaGuardService licencia,
+        ILicenciaResolver licencias)
     {
         var path = context.Request.Path.Value ?? string.Empty;
         if (BypassPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
@@ -46,6 +51,26 @@ public class CurrentTenantMiddleware
                 await EscribirSuspendidaAsync(context);
                 return;
             }
+
+            var moduloRequerido = ModuloApiKey(path);
+            if (moduloRequerido is not null)
+            {
+                var licenciaActual = await licencias.ResolveAsync(keyCtx.EmpresaId, context.RequestAborted);
+                if (licenciaActual is null || !licenciaActual.Vigente)
+                {
+                    await EscribirLicenciaInvalidaAsync(context);
+                    return;
+                }
+
+                var moduloActivo = licenciaActual.Modulos.Any(m =>
+                    m.Activo && string.Equals(m.Codigo, moduloRequerido, StringComparison.OrdinalIgnoreCase));
+                if (!moduloActivo)
+                {
+                    await EscribirModuloNoLicenciadoAsync(context, moduloRequerido);
+                    return;
+                }
+            }
+
             await _next(context);
             return;
         }
@@ -87,6 +112,32 @@ public class CurrentTenantMiddleware
         await context.Response.WriteAsJsonAsync(ApiResponse.Fail(
             "La empresa está suspendida o inactiva. Contacta a soporte o regulariza tu suscripción.",
             new[] { "EMPRESA_SUSPENDIDA" },
+            context.TraceIdentifier));
+    }
+
+    private static string? ModuloApiKey(string path)
+    {
+        if (path.StartsWith("/api/v1/dte", StringComparison.OrdinalIgnoreCase)) return "NEODTE";
+        if (path.StartsWith("/api/v1/clientes", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/v1/productos", StringComparison.OrdinalIgnoreCase)) return "CORE";
+        return null;
+    }
+
+    private static async Task EscribirLicenciaInvalidaAsync(HttpContext context)
+    {
+        context.Response.StatusCode = StatusCodes.Status402PaymentRequired;
+        await context.Response.WriteAsJsonAsync(ApiResponse.Fail(
+            "La empresa no tiene un plan vigente para usar esta API.",
+            new[] { "LICENSE_INVALID" },
+            context.TraceIdentifier));
+    }
+
+    private static async Task EscribirModuloNoLicenciadoAsync(HttpContext context, string modulo)
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(ApiResponse.Fail(
+            $"El módulo {modulo} no está habilitado para la empresa.",
+            new[] { "MODULE_NOT_LICENSED" },
             context.TraceIdentifier));
     }
 }

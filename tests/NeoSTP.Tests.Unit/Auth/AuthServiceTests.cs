@@ -81,6 +81,8 @@ public class AuthServiceTests
         result.Value.User.Username.Should().Be("tester");
 
         (await db.RefreshTokens.CountAsync()).Should().Be(1);
+        var almacenado = await db.RefreshTokens.SingleAsync();
+        almacenado.Token.Should().NotBe(result.Value.RefreshToken).And.HaveLength(64);
         await audit.Received().RegistrarAsync(
             Arg.Is<AuditoriaEvent>(e => e.Accion == "LOGIN" && e.Resultado == "OK"),
             Arg.Any<CancellationToken>());
@@ -175,9 +177,10 @@ public class AuthServiceTests
         refreshResult.IsSuccess.Should().BeTrue();
         refreshResult.Value!.RefreshToken.Should().NotBe(oldRefresh);
 
-        var rotated = await db.RefreshTokens.FirstAsync(t => t.Token == oldRefresh);
+        var rotated = await db.RefreshTokens.OrderBy(t => t.Id).FirstAsync();
+        rotated.Token.Should().NotBe(oldRefresh).And.HaveLength(64);
         rotated.RevokedAt.Should().NotBeNull();
-        rotated.ReplacedByToken.Should().Be(refreshResult.Value.RefreshToken);
+        rotated.ReplacedByToken.Should().NotBe(refreshResult.Value.RefreshToken).And.HaveLength(64);
         rotated.RevokedReason.Should().Be("Replaced");
 
         (await db.RefreshTokens.CountAsync()).Should().Be(2);

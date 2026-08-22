@@ -26,10 +26,18 @@ public class LicenciaGuardService : ILicenciaGuardService
         var plan = await _db.EmpresaPlanes.AsNoTracking()
             .Include(ep => ep.Plan)
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
+                      && ep.FechaInicio <= ahora
                       && (ep.FechaFin == null || ep.FechaFin > ahora))
             .Select(ep => ep.Plan)
             .FirstOrDefaultAsync(ct);
-        if (plan is null) return Result.Ok(); // sin plan asignado no se bloquea (alta inicial / superadmin)
+        if (plan is null)
+        {
+            // El alta inicial puede crear recursos administrativos antes de asignar el plan,
+            // pero nunca debe poder emitir facturas sin una suscripción vigente.
+            return recurso == RecursoLimitado.DteMensual
+                ? Result.Fail("La empresa no tiene un plan vigente para emitir DTE.", "LICENSE_INVALID")
+                : Result.Ok();
+        }
 
         var (limite, nombre) = recurso switch
         {

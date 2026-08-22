@@ -72,6 +72,16 @@ public class LicenciaGuardServiceTests
     }
 
     [Fact]
+    public async Task Dte_SinPlanVigente_BloqueaEmision()
+    {
+        var guard = NewGuard(NewDb());
+
+        var result = await guard.ValidarLimiteAsync(999, RecursoLimitado.DteMensual);
+
+        result.ErrorCode.Should().Be("LICENSE_INVALID");
+    }
+
+    [Fact]
     public async Task LimiteDteMensual_CuentaSoloElMesActual()
     {
         var db = NewDb(limiteDteMensual: 2);
