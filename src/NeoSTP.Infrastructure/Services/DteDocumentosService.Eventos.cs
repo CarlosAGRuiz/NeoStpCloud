@@ -35,15 +35,20 @@ public partial class DteDocumentosService
         var ahora = DateTime.Now;
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var fechaMin = docs.Min(d => d.FechaEmision);
-        var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
-        var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
+        // v4: codEstableMH/codPuntoVentaMH son los códigos de establecimiento y punto de venta
+        // REGISTRADOS ante MH (4 chars) o null para casa matriz. Son distintos de los códigos
+        // internos del numeroControl (config.Codigo*Mh, que MH rechaza aquí como "valor inválido").
+        // NEO no tiene establecimientos registrados → null. Verificado en apitest: con null el
+        // evento pasa la validación de esquema v4.
+        string? codEst = null;
+        string? codPv = null;
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
 
         var evento = new
         {
             identificacion = new
             {
-                version = 3,
+                version = 4,   // contingencia-schema-v4 (MH 2026-08-11): version const 4
                 ambiente,
                 codigoGeneracion = codGen,
                 fTransmision = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
@@ -57,8 +62,8 @@ public partial class DteDocumentosService
                 tipoDocResponsable,
                 numeroDocResponsable,
                 tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
-                codEstableMH = codEst,    // evento contingencia: establecimiento con MH, punto de venta sin MH (asimétrico)
-                codPuntoVenta = codPv,
+                codEstableMH = codEst,
+                codPuntoVentaMH = codPv,   // v4 exige codPuntoVentaMH (antes se enviaba codPuntoVenta → rechazo)
                 telefono = empresa.Telefono,
                 correo = empresa.Correo,
             },
@@ -88,7 +93,7 @@ public partial class DteDocumentosService
         var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
         if (!firma.Success)
         {
-            var idErr = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 3, config.AmbienteCodigo,
+            var idErr = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 4, config.AmbienteCodigo,
                 json, null, firmaOk: false, resp: null, motivoLibre, numeroControlRef: null, relacionados, actor, ct);
             return Result<CrearEventoResultadoDto>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
         }
@@ -96,7 +101,7 @@ public partial class DteDocumentosService
         var tokenResult = await ObtenerTokenAsync(config, ct);
         if (!tokenResult.Success)
         {
-            await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 3, config.AmbienteCodigo,
+            await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 4, config.AmbienteCodigo,
                 json, firma.JsonFirmado, firmaOk: true, resp: null, motivoLibre, numeroControlRef: null, relacionados, actor, ct);
             return Result<CrearEventoResultadoDto>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token.", "HACIENDA_AUTH_FAILED");
         }
@@ -115,7 +120,7 @@ public partial class DteDocumentosService
 
         var captura = new EventoRespuestaCaptura(resp.Success, resp.Estado, resp.CodigoMsg, resp.DescripcionMsg,
             resp.SelloRecibido, resp.Raw ?? System.Text.Json.JsonSerializer.Serialize(new { resp.Estado, resp.CodigoMsg, resp.DescripcionMsg, resp.Observaciones }));
-        var eventoId = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 3, config.AmbienteCodigo,
+        var eventoId = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 4, config.AmbienteCodigo,
             json, firma.JsonFirmado, firmaOk: true, captura, motivoLibre, numeroControlRef: null, relacionados, actor, ct);
 
         return resp.Success
