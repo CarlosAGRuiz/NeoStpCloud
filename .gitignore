@@ -92,3 +92,7 @@ node_modules/
 *.ndf
 .codex/
 outputs/
+
+# Arnés local de certificación DTE (no es parte del producto)
+tools/CertHarness/bin/
+tools/CertHarness/obj/

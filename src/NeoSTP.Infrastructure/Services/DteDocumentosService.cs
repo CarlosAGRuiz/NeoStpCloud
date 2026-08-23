@@ -214,7 +214,20 @@ public partial class DteDocumentosService : IDteDocumentosService
         // Reserva el cupo del plan y crea el DTE dentro de una misma transacción. En SQL Server
         // se toma un application lock por empresa, de modo que dos nodos/API concurrentes no
         // puedan aprobar simultáneamente el último cupo mensual.
-        await using var limiteTransaction = await BeginDteLimitTransactionAsync(empresaId, ct);
+        //
+        // La transacción de usuario DEBE ejecutarse a través del execution strategy: el DbContext
+        // tiene EnableRetryOnFailure y, sin este envoltorio, EF lanza "the configured execution
+        // strategy 'SqlServerRetryingExecutionStrategy' does not support user-initiated
+        // transactions" y NO se puede emitir ningún DTE en SQL Server (los tests usan EF InMemory,
+        // no relacional, por eso no lo detectan). Ver EF Core: "Connection Resiliency".
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            // Cada intento parte de un ChangeTracker limpio: un reintento transitorio revierte la
+            // transacción pero deja las entidades Added rastreadas; sin esto se insertarían dobles.
+            _db.ChangeTracker.Clear();
+
+            await using var limiteTransaction = await BeginDteLimitTransactionAsync(empresaId, ct);
 
         // Enforcement comercial: límite mensual de documentos del plan.
         if (_licenciaGuard is not null)
@@ -487,7 +500,8 @@ public partial class DteDocumentosService : IDteDocumentosService
         await Audit(empresaId, actor, "CREATE_BORRADOR", "OK",
             $"DTE {doc.TipoDteCodigo} #{doc.NumeroControl} en borrador (total={doc.TotalPagar:0.00})", doc.Id);
 
-        return await GetByIdAsync(empresaId, doc.Id, ct);
+            return await GetByIdAsync(empresaId, doc.Id, ct);
+        });
     }
 
     private async Task<IDbContextTransaction?> BeginDteLimitTransactionAsync(int empresaId, CancellationToken ct)
