@@ -321,8 +321,43 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 05 NC / 06 ND ---------------------------------------
 
-    private static object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool isNotaCredito)
+    private object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool isNotaCredito)
     {
+        // fe-nc-v4 / fe-nd-v4 (corte 2026-08-25): identificacion con fusion; emisor división 2024
+        // (con distrito, sin codEstable); receptor con tipoDocumento/numDocumento (no nit) y distrito;
+        // cuerpo con noGravado/ivaPerci/totalIva/ivaRete por línea; resumen reescrito (ivaPerci,
+        // totalIva, ivaRete, totalNoGravado, totalPagar, codigoRetencionMH, observaciones; sin
+        // descu*/subTotal/ivaPerci1/ivaRete1/reteRenta) y sin extension.
+        if (_esquemaNuevo)
+        {
+            return new
+            {
+                identificacion = new
+                {
+                    version = 4,
+                    ambiente = d.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
+                    tipoDte = d.TipoDteCodigo,
+                    numeroControl = d.NumeroControl,
+                    codigoGeneracion = d.CodigoGeneracion,
+                    tipoModelo = d.ModeloFacturacion,
+                    tipoOperacion = d.TipoTransmision,
+                    tipoContingencia = d.TipoContingenciaCodigo,
+                    motivoContin = d.MotivoContingencia,
+                    fecEmi = d.FechaEmision.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    horEmi = d.HoraEmision.ToString(@"hh\:mm\:ss"),
+                    tipoMoneda = d.TipoMonedaCodigo ?? "USD",
+                    fusion = (string?)null,
+                },
+                documentoRelacionado = BuildDocumentoRelacionado(d),
+                emisor = BuildEmisorNcNdV4(emisor, _territorial),
+                receptor = BuildReceptorNcNdV4(d, _territorial),
+                ventaTercero = BuildVentaTerceroV4(d),
+                cuerpoDocumento = BuildCuerpoNotaCreditoDebitoV4(d),
+                resumen = BuildResumenNotaCreditoDebitoV4(d, isNotaCredito),
+                apendice = (object?)null,
+            };
+        }
+
         return new
         {
             identificacion = BuildIdentificacion(d, 3),
@@ -334,6 +369,121 @@ public class DteGeneratorService : IDteGeneratorService
             resumen = BuildResumenNotaCreditoDebito(d, isNotaCredito),
             extension = (object?)null,
             apendice = (object?)null,
+        };
+    }
+
+    private static object BuildEmisorNcNdV4(Empresa e, TerritorialOptions terr) => new
+    {
+        nit = e.Nit,
+        nrc = e.Nrc,
+        nombre = e.RazonSocial,
+        codActividad = e.CodigoActividad,
+        descActividad = e.ActividadEconomica,
+        nombreComercial = NullSiVacio(e.NombreComercial),
+        direccion = new
+        {
+            departamento = e.Departamento ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = e.Distrito ?? terr.DistritoDefault,
+            complemento = e.Direccion,
+        },
+        telefono = NullSiVacio(e.Telefono),
+        correo = e.Correo,
+    };
+
+    private static object BuildReceptorNcNdV4(DteDocumento d, TerritorialOptions terr) => new
+    {
+        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "36",
+        numDocumento = d.ReceptorNumeroDocumento,
+        nrc = NullSiVacio(d.ReceptorNrc),
+        nombre = d.ReceptorNombre,
+        codActividad = d.ReceptorCodigoActividad,
+        descActividad = d.ReceptorActividadEconomica,
+        nombreComercial = NullSiVacio(d.ReceptorNombre),
+        direccion = new
+        {
+            departamento = d.ReceptorDepartamentoCodigo ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+            complemento = d.ReceptorDireccion,
+        },
+        telefono = NullSiVacio(d.ReceptorTelefono),
+        correo = NullSiVacio(d.ReceptorCorreo),
+    };
+
+    private static object[] BuildCuerpoNotaCreditoDebitoV4(DteDocumento d)
+    {
+        var relacionado = d.NumeroDocumentoRelacionado;
+        return d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+        {
+            numItem = idx + 1,
+            tipoItem = l.TipoItem,
+            numeroDocumento = relacionado,
+            cantidad = (double)l.Cantidad,
+            codigo = l.Codigo,
+            codTributo = (string?)null,
+            uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
+            descripcion = l.Descripcion,
+            precioUni = (double)l.PrecioUnitario,
+            montoDescu = (double)l.MontoDescuento,
+            ventaNoSuj = (double)l.VentaNoSujeta,
+            ventaExenta = (double)l.VentaExenta,
+            ventaGravada = (double)l.VentaGravada,
+            tributos = l.VentaGravada > 0 ? new[] { "20" } : null,
+            noGravado = (double)(l.NoGravado ? l.VentaNoSujeta : 0m),
+            ivaPerci = 0d,
+            totalIva = Math.Round((double)l.VentaGravada * 0.13, 2),
+            ivaRete = 0d,
+        }).ToArray();
+    }
+
+    private static object BuildResumenNotaCreditoDebitoV4(DteDocumento d, bool isNotaCredito)
+    {
+        var tributos = new[]
+        {
+            new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = (double)d.IvaTotal },
+        };
+        // fe-nd-v4 exige numPagoElectronico; fe-nc-v4 no lo permite (additionalProperties:false).
+        if (isNotaCredito)
+            return new
+            {
+                totalNoSuj = (double)d.TotalNoSujeto,
+                totalExenta = (double)d.TotalExenta,
+                totalGravada = (double)d.TotalGravada,
+                subTotalVentas = (double)d.SubTotalVentas,
+                totalDescu = (double)d.TotalDescuento,
+                tributos,
+                montoTotalOperacion = (double)d.MontoTotalOperacion,
+                ivaPerci = 0d,
+                totalIva = (double)d.IvaTotal,
+                ivaRete = (double)d.IvaRetenido,
+                totalNoGravado = (double)d.TotalNoGravado,
+                totalPagar = (double)d.TotalPagar,
+                totalLetras = d.TotalLetras,
+                condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+                observaciones = d.Observaciones,
+                codigoRetencionMH = (string?)null,
+            };
+
+        return new
+        {
+            totalNoSuj = (double)d.TotalNoSujeto,
+            totalExenta = (double)d.TotalExenta,
+            totalGravada = (double)d.TotalGravada,
+            subTotalVentas = (double)d.SubTotalVentas,
+            totalDescu = (double)d.TotalDescuento,
+            tributos,
+            montoTotalOperacion = (double)d.MontoTotalOperacion,
+            ivaPerci = 0d,
+            totalIva = (double)d.IvaTotal,
+            ivaRete = (double)d.IvaRetenido,
+            totalNoGravado = (double)d.TotalNoGravado,
+            totalPagar = (double)d.TotalPagar,
+            totalLetras = d.TotalLetras,
+            condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+            observaciones = d.Observaciones,
+            codigoRetencionMH = (string?)null,
+            numPagoElectronico = (string?)null,
         };
     }
 
@@ -925,8 +1075,48 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 07 Comprobante de Retención (fe-cr-v1) --------------
 
-    private static object BuildComprobanteRetencion(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildComprobanteRetencion(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
+        // fe-cr-v2 (corte 2026-08-25): emisor contribuyente división 2024 (codEstable/codPuntoVenta,
+        // distrito, sin codigo/codigoMH/puntoVenta*/tipoEstablecimiento); receptor con distrito;
+        // cuerpo usa tipoGeneracion (antes tipoDoc); resumen agrega totalIva, totalIvaRetenido
+        // (antes totalIVAretenido), totalLetras (antes totalIVAretenidoLetras) y observaciones;
+        // sin extension.
+        if (_esquemaNuevo)
+        {
+            return new
+            {
+                identificacion = BuildIdentificacion(d, 2),
+                emisor = BuildEmisorContribuyenteV2(emisor, config, _territorial),
+                receptor = BuildReceptorRetencionV2(d, _territorial),
+                cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) =>
+                {
+                    var numRel = l.Codigo;
+                    return (object)new
+                    {
+                        numItem = idx + 1,
+                        tipoDte = string.IsNullOrWhiteSpace(l.DocRelacionadoTipoDte) ? "03" : l.DocRelacionadoTipoDte,
+                        tipoGeneracion = DteRetencion.EsCodigoGeneracion(numRel) ? 2 : 1,
+                        numeroDocumento = DteRetencion.EsCodigoGeneracion(numRel) ? numRel.ToUpperInvariant() : numRel,
+                        fechaEmision = (l.DocRelacionadoFecha ?? d.FechaEmision).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                        montoSujetoGrav = (double)l.VentaGravada,
+                        codigoRetencionMH = string.IsNullOrWhiteSpace(l.RetencionCodigoMH) ? DteRetencion.CodigoIva1 : l.RetencionCodigoMH,
+                        ivaRetenido = (double)l.IvaItem,
+                        descripcion = l.Descripcion,
+                    };
+                }).ToArray(),
+                resumen = new
+                {
+                    totalSujetoRetencion = (double)d.TotalGravada,
+                    totalIva = (double)d.IvaTotal,
+                    totalIvaRetenido = (double)d.IvaRetenido,
+                    totalLetras = d.TotalLetras,
+                    observaciones = d.Observaciones,
+                },
+                apendice = (object?)null,
+            };
+        }
+
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
@@ -1014,6 +1204,26 @@ public class DteGeneratorService : IDteGeneratorService
         },
         telefono = d.ReceptorTelefono,
         correo = d.ReceptorCorreo,
+    };
+
+    private static object BuildReceptorRetencionV2(DteDocumento d, TerritorialOptions terr) => new
+    {
+        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "36",
+        numDocumento = d.ReceptorNumeroDocumento,
+        nrc = NullSiVacio(d.ReceptorNrc),
+        nombre = d.ReceptorNombre,
+        codActividad = d.ReceptorCodigoActividad,
+        descActividad = d.ReceptorActividadEconomica,
+        nombreComercial = (string?)null,
+        direccion = new
+        {
+            departamento = d.ReceptorDepartamentoCodigo ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+            complemento = d.ReceptorDireccion,
+        },
+        telefono = NullSiVacio(d.ReceptorTelefono),
+        correo = NullSiVacio(d.ReceptorCorreo),
     };
 
     // ----------- 08 Comprobante de Liquidación (fe-cl-v2) ------------
