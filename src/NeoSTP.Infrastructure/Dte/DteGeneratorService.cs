@@ -199,8 +199,27 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 03 CCF -----------------------------------------------
 
-    private static object BuildCcf(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildCcf(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
+        // fe-ccf-v4 (corte 2026-08-25): emisor/receptor división 2024 (con distrito), ventaTercero
+        // con codDomiciliado, resumen con ivaPerci/ivaRete/observaciones (sin ivaPerci1/ivaRete1/
+        // reteRenta) y sin bloque extension.
+        if (_esquemaNuevo)
+        {
+            return new
+            {
+                identificacion = BuildIdentificacion(d, 4),
+                documentoRelacionado = (object?)null,
+                emisor = BuildEmisorContribuyenteV2(emisor, config, _territorial),
+                receptor = BuildReceptorContribuyenteV2(d, _territorial),
+                otrosDocumentos = (object?)null,
+                ventaTercero = BuildVentaTerceroV4(d),
+                cuerpoDocumento = BuildCuerpo(d, conIvaPorLinea: true),
+                resumen = BuildResumenCcfV4(d),
+                apendice = (object?)null,
+            };
+        }
+
         return new
         {
             identificacion = BuildIdentificacion(d, 3),
@@ -215,6 +234,61 @@ public class DteGeneratorService : IDteGeneratorService
             apendice = (object?)null,
         };
     }
+
+    /// <summary>Receptor "contribuyente" v2/v4 (CCF/NR): con direccion.distrito de la división 2024.</summary>
+    private static object BuildReceptorContribuyenteV2(DteDocumento d, TerritorialOptions terr) => new
+    {
+        nit = d.ReceptorNumeroDocumento,
+        nrc = NullSiVacio(d.ReceptorNrc),
+        nombre = d.ReceptorNombre,
+        codActividad = d.ReceptorCodigoActividad,
+        descActividad = d.ReceptorActividadEconomica,
+        nombreComercial = (string?)null,
+        direccion = new
+        {
+            departamento = d.ReceptorDepartamentoCodigo ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+            complemento = d.ReceptorDireccion,
+        },
+        telefono = NullSiVacio(d.ReceptorTelefono),
+        correo = NullSiVacio(d.ReceptorCorreo),
+    };
+
+    private static object? BuildVentaTerceroV4(DteDocumento d)
+    {
+        if (string.IsNullOrEmpty(d.VentaTerceroNit)) return null;
+        return new { nit = d.VentaTerceroNit, nombre = d.VentaTerceroNombre, codDomiciliado = 1 };
+    }
+
+    private static object BuildResumenCcfV4(DteDocumento d) => new
+    {
+        totalNoSuj = (double)d.TotalNoSujeto,
+        totalExenta = (double)d.TotalExenta,
+        totalGravada = (double)d.TotalGravada,
+        subTotalVentas = (double)d.SubTotalVentas,
+        descuNoSuj = 0d,
+        descuExenta = 0d,
+        descuGravada = (double)d.DescuentoGravada,
+        porcentajeDescuento = (double)d.PorcentajeDescuento,
+        totalDescu = (double)d.TotalDescuento,
+        tributos = new[]
+        {
+            new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = (double)d.IvaTotal },
+        },
+        subTotal = (double)d.SubTotal,
+        ivaPerci = 0d,
+        ivaRete = (double)d.IvaRetenido,
+        montoTotalOperacion = (double)d.MontoTotalOperacion,
+        totalNoGravado = (double)d.TotalNoGravado,
+        totalPagar = (double)d.TotalPagar,
+        totalLetras = d.TotalLetras,
+        saldoFavor = 0d,
+        condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+        pagos = (object?)null,
+        numPagoElectronico = (string?)null,
+        observaciones = d.Observaciones,
+    };
 
     private static object BuildResumenCcf(DteDocumento d) => new
     {
@@ -388,8 +462,65 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 14 Sujeto Excluido ----------------------------------
 
-    private static object BuildSujetoExcluido(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildSujetoExcluido(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
+        var cuerpo = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
+        {
+            numItem = idx + 1,
+            tipoItem = l.TipoItem,
+            cantidad = (double)l.Cantidad,
+            codigo = l.Codigo,
+            uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
+            descripcion = l.Descripcion,
+            precioUni = (double)l.PrecioUnitario,
+            montoDescu = (double)l.MontoDescuento,
+            compra = (double)(l.VentaGravada + l.VentaExenta + l.VentaNoSujeta),
+        }).ToArray();
+
+        // fe-fse-v2 (corte 2026-08-25): el bloque se llama "receptor" (no "sujetoExcluido"), el
+        // emisor lleva direccion.distrito y ya no codEstableMH/codPuntoVentaMH, y el resumen no
+        // lleva ivaRete1.
+        if (_esquemaNuevo)
+        {
+            return new
+            {
+                identificacion = BuildIdentificacion(d, 2),
+                emisor = BuildEmisorFseV2(emisor, config, _territorial),
+                receptor = new
+                {
+                    tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento) ?? "13",
+                    numDocumento = d.ReceptorNumeroDocumento,
+                    nombre = d.ReceptorNombre,
+                    codActividad = d.ReceptorCodigoActividad,
+                    descActividad = d.ReceptorActividadEconomica,
+                    direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
+                    {
+                        departamento = d.ReceptorDepartamentoCodigo,
+                        municipio = _territorial.MunicipioDivision2024Default,
+                        distrito = d.ReceptorDistritoCodigo ?? _territorial.DistritoDefault,
+                        complemento = d.ReceptorDireccion,
+                    },
+                    telefono = d.ReceptorTelefono,
+                    correo = d.ReceptorCorreo,
+                },
+                cuerpoDocumento = cuerpo,
+                resumen = new
+                {
+                    totalCompra = (double)d.SubTotalVentas,
+                    descu = (double)d.TotalDescuento,
+                    totalDescu = (double)d.TotalDescuento,
+                    subTotal = (double)d.SubTotal,
+                    reteRenta = (double)d.ReteRenta,
+                    totalPagar = (double)d.TotalPagar,
+                    totalLetras = d.TotalLetras,
+                    condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+                    pagos = (object?)null,
+                    observaciones = d.Observaciones,
+                },
+                apendice = (object?)null,
+            };
+        }
+
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
@@ -410,18 +541,7 @@ public class DteGeneratorService : IDteGeneratorService
                 telefono = d.ReceptorTelefono,
                 correo = d.ReceptorCorreo,
             },
-            cuerpoDocumento = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => new
-            {
-                numItem = idx + 1,
-                tipoItem = l.TipoItem,
-                cantidad = (double)l.Cantidad,
-                codigo = l.Codigo,
-                uniMedida = ToInt(l.UnidadMedidaCodigo, defaultValue: 59),
-                descripcion = l.Descripcion,
-                precioUni = (double)l.PrecioUnitario,
-                montoDescu = (double)l.MontoDescuento,
-                compra = (double)(l.VentaGravada + l.VentaExenta + l.VentaNoSujeta),
-            }).ToArray(),
+            cuerpoDocumento = cuerpo,
             resumen = new
             {
                 totalCompra = (double)d.SubTotalVentas,
@@ -440,26 +560,107 @@ public class DteGeneratorService : IDteGeneratorService
         };
     }
 
+    private static object BuildEmisorFseV2(Empresa e, DteConfiguracion? config, TerritorialOptions terr) => new
+    {
+        nit = e.Nit,
+        nrc = e.Nrc,
+        nombre = e.RazonSocial,
+        codActividad = e.CodigoActividad,
+        descActividad = e.ActividadEconomica,
+        direccion = new
+        {
+            departamento = e.Departamento ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = e.Distrito ?? terr.DistritoDefault,
+            complemento = e.Direccion,
+        },
+        telefono = e.Telefono,
+        codEstable = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh,
+        codPuntoVenta = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh) ? null : config!.CodigoPuntoVentaMh,
+        correo = e.Correo,
+    };
+
     // ----------- 04 Nota de Remisión ---------------------------------
 
-    private static object BuildNotaRemision(DteDocumento d, Empresa emisor, DteConfiguracion? config) => new
+    private object BuildNotaRemision(DteDocumento d, Empresa emisor, DteConfiguracion? config)
     {
-        identificacion = BuildIdentificacion(d, 3),
-        documentoRelacionado = BuildDocumentoRelacionado(d),
-        emisor = BuildEmisor(d, emisor, config),
-        receptor = BuildReceptorRemision(d),
-        ventaTercero = BuildVentaTercero(d),
-        cuerpoDocumento = BuildCuerpoRemision(d),
-        resumen = BuildResumenRemision(d),
-        extension = new   // NR: extension sin placaVehiculo
+        // fe-nr-v4 (corte 2026-08-25): emisor/receptor división 2024 (con distrito), resumen con
+        // observaciones y sin bloque extension.
+        if (_esquemaNuevo)
         {
-            nombEntrega = (string?)null,
-            docuEntrega = (string?)null,
-            nombRecibe = d.ReceptorNombre,
-            docuRecibe = d.ReceptorNumeroDocumento,
-            observaciones = d.Observaciones,
+            return new
+            {
+                identificacion = BuildIdentificacion(d, 4),
+                documentoRelacionado = BuildDocumentoRelacionado(d),
+                emisor = BuildEmisorContribuyenteV2(emisor, config, _territorial),
+                receptor = BuildReceptorRemisionV4(d, _territorial),
+                ventaTercero = BuildVentaTerceroV4(d),
+                cuerpoDocumento = BuildCuerpoRemision(d),
+                resumen = BuildResumenRemisionV4(d),
+                apendice = (object?)null,
+            };
+        }
+
+        return new
+        {
+            identificacion = BuildIdentificacion(d, 3),
+            documentoRelacionado = BuildDocumentoRelacionado(d),
+            emisor = BuildEmisor(d, emisor, config),
+            receptor = BuildReceptorRemision(d),
+            ventaTercero = BuildVentaTercero(d),
+            cuerpoDocumento = BuildCuerpoRemision(d),
+            resumen = BuildResumenRemision(d),
+            extension = new   // NR: extension sin placaVehiculo
+            {
+                nombEntrega = (string?)null,
+                docuEntrega = (string?)null,
+                nombRecibe = d.ReceptorNombre,
+                docuRecibe = d.ReceptorNumeroDocumento,
+                observaciones = d.Observaciones,
+            },
+            apendice = (object?)null,
+        };
+    }
+
+    private static object BuildReceptorRemisionV4(DteDocumento d, TerritorialOptions terr) => new
+    {
+        tipoDocumento = MapTipoDocReceptorMh(d.ReceptorTipoDocumento),
+        numDocumento = d.ReceptorNumeroDocumento,
+        nrc = NullSiVacio(d.ReceptorNrc),
+        nombre = d.ReceptorNombre,
+        codActividad = d.ReceptorCodigoActividad,
+        descActividad = d.ReceptorActividadEconomica,
+        nombreComercial = (string?)null,
+        direccion = new
+        {
+            departamento = d.ReceptorDepartamentoCodigo ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+            complemento = d.ReceptorDireccion,
         },
-        apendice = (object?)null,
+        telefono = NullSiVacio(d.ReceptorTelefono),
+        correo = NullSiVacio(d.ReceptorCorreo),
+        bienTitulo = "05",
+    };
+
+    private static object BuildResumenRemisionV4(DteDocumento d) => new
+    {
+        totalNoSuj = (double)d.TotalNoSujeto,
+        totalExenta = (double)d.TotalExenta,
+        totalGravada = (double)d.TotalGravada,
+        subTotalVentas = (double)d.SubTotalVentas,
+        descuNoSuj = 0d,
+        descuExenta = 0d,
+        descuGravada = (double)d.DescuentoGravada,
+        porcentajeDescuento = (double)d.PorcentajeDescuento,
+        totalDescu = (double)d.TotalDescuento,
+        tributos = d.TotalGravada > 0
+            ? new[] { new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = (double)d.IvaTotal } }
+            : null,
+        subTotal = (double)d.SubTotal,
+        montoTotalOperacion = (double)d.MontoTotalOperacion,
+        totalLetras = d.TotalLetras,
+        observaciones = d.Observaciones,
     };
 
     private static object BuildReceptorRemision(DteDocumento d) => new
