@@ -55,6 +55,11 @@ public partial class DteDocumentosService : IDteDocumentosService
     private readonly NeoSTP.Application.Licenciamiento.ILicenciaGuardService? _licenciaGuard;
     private readonly NeoSTP.Application.Lookups.ILookupService? _lookup;
 
+    // Corte de esquemas MH 2026-08-25: cuando Dte:EsquemaNuevo=true los eventos usan las
+    // versiones nuevas (invalidación v3). Contingencia ya migró a v4 sin toggle porque apitest
+    // la exige desde ya. Default false = versiones que apitest aún acepta hoy.
+    private readonly bool _esquemaNuevo;
+
     public DteDocumentosService(
         NeoStpDbContext db,
         IDteCalculator calculator,
@@ -71,11 +76,14 @@ public partial class DteDocumentosService : IDteDocumentosService
         IConnectWebhookDispatcher webhookDispatcher,
         NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null,
         NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null,
-        NeoSTP.Application.Lookups.ILookupService? lookup = null)
+        NeoSTP.Application.Lookups.ILookupService? lookup = null,
+        Microsoft.Extensions.Configuration.IConfiguration? configuration = null)
     {
         _metrics = metrics;
         _licenciaGuard = licenciaGuard;
         _lookup = lookup;
+        _esquemaNuevo = configuration is not null
+            && Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue<bool>(configuration, "Dte:EsquemaNuevo");
         _db = db;
         _calculator = calculator;
         _generator = generator;

@@ -287,49 +287,63 @@ public partial class DteDocumentosService
         var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+        var version = _esquemaNuevo ? 3 : 2;   // invalidacion-schema-v3 en el corte 2026-08-25
+        var fecha = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        var hora = ahora.ToString(@"HH\:mm\:ss");
+        var tipoDocReceptor = doc.ReceptorTipoDocumento?.Trim().ToUpperInvariant() switch
+        {
+            "NIT" => "36", "DUI" => "13", "PASAPORTE" => "03",
+            "CARNET_RESIDENTE" => "02", "OTRO" => "37", var x => x,
+        };
+        var codGenR = tipoAnulacion is 1 or 3 ? codigoGeneracionReemplazo : null;
+
+        // v3: identificacion usa fecEmi/horEmi (antes fecAnula/horAnula) + fusion; emisor sin
+        // tipoEstablecimiento/nomEstablecimiento; documento sin montoIva.
+        object identificacion = _esquemaNuevo
+            ? new { version, ambiente, codigoGeneracion = codGen, fecEmi = fecha, horEmi = hora, fusion = (string?)null }
+            : new { version, ambiente, codigoGeneracion = codGen, fecAnula = fecha, horAnula = hora };
+
+        object emisor = _esquemaNuevo
+            ? new
+            {
+                nit = empresa.Nit, nombre = empresa.RazonSocial,
+                codEstableMH = codEst, codEstable = codEst,
+                codPuntoVentaMH = codPv, codPuntoVenta = codPv,
+                telefono = empresa.Telefono, correo = empresa.Correo,
+            }
+            : new
+            {
+                nit = empresa.Nit, nombre = empresa.RazonSocial,
+                tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
+                nomEstablecimiento = string.IsNullOrWhiteSpace(empresa.NombreComercial) ? "Casa Matriz" : empresa.NombreComercial,
+                codEstableMH = codEst, codEstable = codEst,
+                codPuntoVentaMH = codPv, codPuntoVenta = codPv,
+                telefono = empresa.Telefono, correo = empresa.Correo,
+            };
+
+        object documento = _esquemaNuevo
+            ? new
+            {
+                tipoDte = doc.TipoDteCodigo, codigoGeneracion = doc.CodigoGeneracion,
+                selloRecibido = doc.SelloRecibido, numeroControl = doc.NumeroControl,
+                fecEmi = fecha, codigoGeneracionR = codGenR,
+                tipoDocumento = tipoDocReceptor, numDocumento = doc.ReceptorNumeroDocumento,
+                nombre = doc.ReceptorNombre, telefono = doc.ReceptorTelefono, correo = doc.ReceptorCorreo,
+            }
+            : new
+            {
+                tipoDte = doc.TipoDteCodigo, codigoGeneracion = doc.CodigoGeneracion,
+                selloRecibido = doc.SelloRecibido, numeroControl = doc.NumeroControl,
+                fecEmi = fecha, montoIva = (double)doc.IvaTotal, codigoGeneracionR = codGenR,
+                tipoDocumento = tipoDocReceptor, numDocumento = doc.ReceptorNumeroDocumento,
+                nombre = doc.ReceptorNombre, telefono = doc.ReceptorTelefono, correo = doc.ReceptorCorreo,
+            };
 
         var evento = new
         {
-            identificacion = new
-            {
-                version = 2,
-                ambiente,
-                codigoGeneracion = codGen,
-                fecAnula = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
-                horAnula = ahora.ToString(@"HH\:mm\:ss"),
-            },
-            emisor = new
-            {
-                nit = empresa.Nit,
-                nombre = empresa.RazonSocial,
-                tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
-                nomEstablecimiento = string.IsNullOrWhiteSpace(empresa.NombreComercial) ? "Casa Matriz" : empresa.NombreComercial,
-                codEstableMH = codEst,
-                codEstable = codEst,
-                codPuntoVentaMH = codPv,
-                codPuntoVenta = codPv,
-                telefono = empresa.Telefono,
-                correo = empresa.Correo,
-            },
-            documento = new
-            {
-                tipoDte = doc.TipoDteCodigo,
-                codigoGeneracion = doc.CodigoGeneracion,
-                selloRecibido = doc.SelloRecibido,
-                numeroControl = doc.NumeroControl,
-                fecEmi = doc.FechaEmision.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
-                montoIva = (double)doc.IvaTotal,
-                codigoGeneracionR = tipoAnulacion is 1 or 3 ? codigoGeneracionReemplazo : null,
-                tipoDocumento = doc.ReceptorTipoDocumento?.Trim().ToUpperInvariant() switch
-                {
-                    "NIT" => "36", "DUI" => "13", "PASAPORTE" => "03",
-                    "CARNET_RESIDENTE" => "02", "OTRO" => "37", var x => x,
-                },
-                numDocumento = doc.ReceptorNumeroDocumento,
-                nombre = doc.ReceptorNombre,
-                telefono = doc.ReceptorTelefono,
-                correo = doc.ReceptorCorreo,
-            },
+            identificacion,
+            emisor,
+            documento,
             motivo = new
             {
                 tipoAnulacion,
@@ -347,9 +361,9 @@ public partial class DteDocumentosService
             new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
 
         return await FirmarYTransmitirEventoAsync(json, "/fesv/anulardte",
-            jws => new { ambiente, idEnvio = doc.Id, version = 2, documento = jws },
+            jws => new { ambiente, idEnvio = doc.Id, version, documento = jws },
             config, empresaId, "EVENTO_INVALIDACION", actor,
-            TipoEventoCodigos.Invalidacion, codGen, 2,
+            TipoEventoCodigos.Invalidacion, codGen, version,
             new[] { (doc.Id, DteEventoRolCodigos.Anulado, (string?)doc.NumeroControl) },
             motivoLibre: motivoAnulacion, numeroControlRef: doc.NumeroControl, ct);
     }
