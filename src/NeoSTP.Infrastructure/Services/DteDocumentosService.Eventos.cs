@@ -32,7 +32,7 @@ public partial class DteDocumentosService
             .ToListAsync(ct);
         if (docs.Count == 0) return Result<CrearEventoResultadoDto>.Fail("No hay documentos para el evento.", "VALIDATION");
 
-        var ahora = DateTime.Now;
+        var ahora = NowSv();
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var fechaMin = docs.Min(d => d.FechaEmision);
         // v4: codEstableMH/codPuntoVentaMH son los códigos de establecimiento y punto de venta
@@ -282,7 +282,7 @@ public partial class DteDocumentosService
         if (tipoAnulacion is 1 or 3 && string.IsNullOrEmpty(codigoGeneracionReemplazo))
             return Result<CrearEventoResultadoDto>.Fail("Tipo de invalidación 1/3 requiere código de generación del documento de reemplazo.", "VALIDATION");
 
-        var ahora = DateTime.Now;
+        var ahora = NowSv();
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
@@ -377,7 +377,7 @@ public partial class DteDocumentosService
         var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
         if (config?.CertificadoBlob is null) return Result<CrearEventoResultadoDto>.Fail("Certificado no cargado.", "VALIDATION");
 
-        var ahora = DateTime.Now;
+        var ahora = NowSv();
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var m = (double)monto;
@@ -459,7 +459,7 @@ public partial class DteDocumentosService
         if (orig.EstadoCodigo != DteEstadoCodigos.Procesado)
             return Result<CrearEventoResultadoDto>.Fail("El documento origen del retorno debe estar PROCESADO.", "INVALID_STATE");
 
-        var ahora = DateTime.Now;
+        var ahora = NowSv();
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;

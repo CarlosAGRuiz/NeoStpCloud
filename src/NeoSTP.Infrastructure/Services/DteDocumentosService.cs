@@ -99,6 +99,26 @@ public partial class DteDocumentosService : IDteDocumentosService
         _webhookDispatcher = webhookDispatcher;
     }
 
+    private static readonly TimeZoneInfo SvTimeZone = ResolveSvTimeZone();
+
+    private static TimeZoneInfo ResolveSvTimeZone()
+    {
+        foreach (var id in new[] { "America/El_Salvador", "Central America Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+            catch (TimeZoneNotFoundException) { }
+            catch (InvalidTimeZoneException) { }
+        }
+        return TimeZoneInfo.CreateCustomTimeZone("SV-UTC-6", TimeSpan.FromHours(-6), "El Salvador", "El Salvador");
+    }
+
+    /// <summary>
+    /// Fecha/hora actual de El Salvador (UTC-6, sin horario de verano). MH valida contra su reloj
+    /// local: usar <c>DateTime.UtcNow</c> hace que los DTE emitidos de noche (UTC-6) lleven la fecha
+    /// del día siguiente, y rompe la coherencia fInicio&lt;=fFin del evento de contingencia.
+    /// </summary>
+    private static DateTime NowSv() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, SvTimeZone);
+
     /// <summary>
     /// Traduce los códigos territoriales internos del receptor (p. ej. "SAN_SALVADOR",
     /// "SAN_SALVADOR_CENTRO") al código MH numérico que exige el esquema de Hacienda ("06",
@@ -278,8 +298,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             },
             AmbienteCodigo = ambiente,
             CodigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
-            FechaEmision = DateTime.UtcNow.Date,
-            HoraEmision = DateTime.UtcNow.TimeOfDay,
+            FechaEmision = NowSv().Date,
+            HoraEmision = NowSv().TimeOfDay,
             TipoMonedaCodigo = string.IsNullOrEmpty(request.TipoMonedaCodigo) ? "USD" : request.TipoMonedaCodigo,
             CondicionOperacionCodigo = request.CondicionOperacionCodigo,
             FormaPagoCodigo = request.FormaPagoCodigo,
