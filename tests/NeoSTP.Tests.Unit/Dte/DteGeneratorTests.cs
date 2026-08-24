@@ -11,7 +11,7 @@ namespace NeoSTP.Tests.Unit.Dte;
 
 public class DteGeneratorTests
 {
-    private readonly DteGeneratorService _gen = new(Options.Create(new TerritorialOptions()));
+    private readonly DteGeneratorService _gen = new(Options.Create(new TerritorialOptions()), new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
     private readonly DteCalculator _calc = new();
 
     private static DteDocumento NewDoc(string tipo)
@@ -63,7 +63,7 @@ public class DteGeneratorTests
         {
             MunicipioDivision2024Default = "07",
             DistritoDefault = "09",
-        }));
+        }), new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
         var d = NewDoc(TipoDteCodigos.ComprobanteDonacion);
         d.Empresa!.Distrito = null; // sin distrito registrado → usa el default de config
         _calc.Recalcular(d);
@@ -78,7 +78,7 @@ public class DteGeneratorTests
     [Fact]
     public void Generar_Donacion_RespetaDistritoDelEmisor()
     {
-        var gen = new DteGeneratorService(Options.Create(new TerritorialOptions()));
+        var gen = new DteGeneratorService(Options.Create(new TerritorialOptions()), new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
         var d = NewDoc(TipoDteCodigos.ComprobanteDonacion);
         d.Empresa!.Distrito = "05";
         _calc.Recalcular(d);

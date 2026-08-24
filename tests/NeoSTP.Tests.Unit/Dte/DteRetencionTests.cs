@@ -17,7 +17,7 @@ public class DteRetencionTests
 {
     private const string CodGen = "76F19422-085D-45B7-A998-4374A3A8EAD7";
 
-    private readonly DteGeneratorService _gen = new(Options.Create(new TerritorialOptions()));
+    private readonly DteGeneratorService _gen = new(Options.Create(new TerritorialOptions()), new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
     private readonly DteCalculator _calc = new();
 
     // ── Reglas de formato del documento relacionado ──────────────────────────

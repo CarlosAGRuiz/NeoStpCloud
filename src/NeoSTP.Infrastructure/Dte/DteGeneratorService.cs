@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
@@ -27,9 +28,15 @@ public class DteGeneratorService : IDteGeneratorService
     // Defaults territoriales (división 2024) configurables — reemplazan los literales "23"/"03".
     private readonly TerritorialOptions _territorial;
 
-    public DteGeneratorService(IOptions<TerritorialOptions> territorial)
+    // Corte de esquemas MH 2026-08-25: cuando Dte:EsquemaNuevo=true se emiten las versiones
+    // nuevas (Factura v2, CCF/NR/NC/ND v4, Retención/Sujeto Excluido v2). Por defecto false =
+    // versiones vigentes (v1/v3) que apitest aún acepta hasta el corte. Toggle para no redeployar.
+    private readonly bool _esquemaNuevo;
+
+    public DteGeneratorService(IOptions<TerritorialOptions> territorial, IConfiguration configuration)
     {
         _territorial = territorial.Value;
+        _esquemaNuevo = configuration.GetValue<bool>("Dte:EsquemaNuevo");
     }
 
     public Result<string> Generar(DteDocumento d, DteConfiguracion? config = null)
@@ -47,7 +54,7 @@ public class DteGeneratorService : IDteGeneratorService
 
         object dte = d.TipoDteCodigo switch
         {
-            TipoDteCodigos.FacturaConsumidorFinal => BuildFactura(d, emisor, config),
+            TipoDteCodigos.FacturaConsumidorFinal => BuildFactura(d, emisor, config, _esquemaNuevo, _territorial),
             TipoDteCodigos.ComprobanteCreditoFiscal => BuildCcf(d, emisor, config),
             TipoDteCodigos.NotaCredito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: true),
             TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: false),
@@ -66,8 +73,27 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 01 Factura Consumidor Final --------------------------
 
-    private static object BuildFactura(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private static object BuildFactura(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool nuevo, TerritorialOptions terr)
     {
+        // fe-f-v2 (corte 2026-08-25): emisor sin tipoEstablecimiento/codEstableMH/codPuntoVentaMH y
+        // con direccion.distrito; resumen usa ivaRete (no ivaRete1), sin reteRenta y con observaciones;
+        // y el documento NO lleva bloque extension.
+        if (nuevo)
+        {
+            return new
+            {
+                identificacion = BuildIdentificacion(d, 2),
+                documentoRelacionado = (object?)null,
+                emisor = BuildEmisorContribuyenteV2(emisor, config, terr),
+                receptor = BuildReceptorFactura(d),
+                otrosDocumentos = (object?)null,
+                ventaTercero = BuildVentaTercero(d),
+                cuerpoDocumento = BuildCuerpo(d, conIvaPorLinea: false),
+                resumen = BuildResumenFacturaV2(d),
+                apendice = (object?)null,
+            };
+        }
+
         return new
         {
             identificacion = BuildIdentificacion(d, 1),
@@ -82,6 +108,58 @@ public class DteGeneratorService : IDteGeneratorService
             apendice = (object?)null,
         };
     }
+
+    /// <summary>
+    /// Emisor "contribuyente" de la división 2024 (esquemas v2/v4): igual que el de 08/09/11/15.
+    /// Sin <c>tipoEstablecimiento</c> ni <c>codEstableMH</c>/<c>codPuntoVentaMH</c>; con
+    /// <c>direccion.distrito</c> y <c>codEstable</c>/<c>codPuntoVenta</c> del contribuyente.
+    /// </summary>
+    private static object BuildEmisorContribuyenteV2(Empresa e, DteConfiguracion? config, TerritorialOptions terr) => new
+    {
+        nit = e.Nit,
+        nrc = e.Nrc,
+        nombre = e.RazonSocial,
+        codActividad = e.CodigoActividad,
+        descActividad = e.ActividadEconomica,
+        nombreComercial = NullSiVacio(e.NombreComercial),
+        direccion = new
+        {
+            departamento = e.Departamento ?? "06",
+            municipio = terr.MunicipioDivision2024Default,
+            distrito = e.Distrito ?? terr.DistritoDefault,
+            complemento = e.Direccion,
+        },
+        telefono = NullSiVacio(e.Telefono),
+        correo = e.Correo,
+        codEstable = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh) ? null : config!.CodigoEstablecimientoMh,
+        codPuntoVenta = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh) ? null : config!.CodigoPuntoVentaMh,
+    };
+
+    private static object BuildResumenFacturaV2(DteDocumento d) => new
+    {
+        totalNoSuj = (double)d.TotalNoSujeto,
+        totalExenta = (double)d.TotalExenta,
+        totalGravada = (double)d.TotalGravada,
+        subTotalVentas = (double)d.SubTotalVentas,
+        descuNoSuj = 0d,
+        descuExenta = 0d,
+        descuGravada = (double)d.DescuentoGravada,
+        porcentajeDescuento = (double)d.PorcentajeDescuento,
+        totalDescu = (double)d.TotalDescuento,
+        tributos = (object?)null,
+        subTotal = (double)d.SubTotal,
+        ivaRete = (double)d.IvaRetenido,
+        montoTotalOperacion = (double)d.MontoTotalOperacion,
+        totalNoGravado = (double)d.TotalNoGravado,
+        totalPagar = (double)d.TotalPagar,
+        totalLetras = d.TotalLetras,
+        totalIva = (double)d.IvaTotal,
+        saldoFavor = 0d,
+        condicionOperacion = ToInt(d.CondicionOperacionCodigo),
+        pagos = (object?)null,
+        numPagoElectronico = (string?)null,
+        observaciones = d.Observaciones,
+    };
 
     private static object BuildResumenFactura(DteDocumento d) => new
     {
