@@ -308,6 +308,7 @@ public partial class DteDocumentosService : IDteDocumentosService
             NumeroDocumentoRelacionado = request.NumeroDocumentoRelacionado,
             TipoDteRelacionado = request.TipoDteRelacionado,
             TipoGeneracionRelacionado = request.TipoGeneracionRelacionado,
+            DocumentoRelacionadoFecha = request.FechaDocumentoRelacionado,
             Observaciones = request.Observaciones,
             VentaTerceroNit = request.VentaTerceroNit,
             VentaTerceroNombre = request.VentaTerceroNombre,
@@ -364,6 +365,17 @@ public partial class DteDocumentosService : IDteDocumentosService
         // El receptor guarda códigos territoriales internos (p. ej. "SAN_SALVADOR"); Hacienda
         // exige el código MH numérico ("06"). Traducirlos antes de persistir el DTE.
         await ResolverReceptorTerritorialMhAsync(doc, empresaId, ct);
+
+        // NC/ND: MH exige la fecha REAL del documento relacionado. Si se referencia un DTE
+        // electrónico por Id, tomamos su fecha de emisión (evita "017 FECHA NO ES CORRECTA"
+        // cuando la nota ajusta un documento de un día anterior).
+        if (doc.DocumentoRelacionadoFecha is null && request.DocumentoRelacionadoId is int relId)
+        {
+            doc.DocumentoRelacionadoFecha = await _db.DteDocumentos.AsNoTracking()
+                .Where(x => x.Id == relId && x.EmpresaId == empresaId)
+                .Select(x => (DateTime?)x.FechaEmision)
+                .FirstOrDefaultAsync(ct);
+        }
 
         // Datos del corte de liquidación (09). Los importes no se copian del request:
         // los deriva el calculador desde las líneas (ver DteLiquidacion).

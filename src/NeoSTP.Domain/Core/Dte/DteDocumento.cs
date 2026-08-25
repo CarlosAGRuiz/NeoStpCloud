@@ -84,6 +84,9 @@ public class DteDocumento : AuditableEntity
     public string? NumeroDocumentoRelacionado { get; set; }
     public string? TipoDteRelacionado { get; set; }
     public string? TipoGeneracionRelacionado { get; set; } // 1 físico, 2 electrónico
+    /// <summary>Fecha de emisión REAL del documento relacionado. MH exige la fecha del documento
+    /// ajustado (no la de la nota). Null → se usa la fecha de la nota (relacionado del mismo día).</summary>
+    public DateTime? DocumentoRelacionadoFecha { get; set; }
 
     // --- Venta a tercero ---
     public string? VentaTerceroNit { get; set; }

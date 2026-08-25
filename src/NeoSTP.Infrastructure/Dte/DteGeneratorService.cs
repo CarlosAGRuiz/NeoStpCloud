@@ -605,7 +605,8 @@ public class DteGeneratorService : IDteGeneratorService
                 tipoDocumento = d.TipoDteRelacionado ?? "03",
                 tipoGeneracion = ToInt(d.TipoGeneracionRelacionado ?? "2"),
                 numeroDocumento = d.NumeroDocumentoRelacionado,
-                fechaEmision = d.FechaEmision.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                // MH exige la fecha REAL del documento ajustado, no la de la nota.
+                fechaEmision = (d.DocumentoRelacionadoFecha ?? d.FechaEmision).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             }
         };
     }

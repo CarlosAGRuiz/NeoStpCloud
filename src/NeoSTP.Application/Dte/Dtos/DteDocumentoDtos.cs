@@ -148,6 +148,9 @@ public class CreateDteDocumentoRequest
     public string? NumeroDocumentoRelacionado { get; set; }
     public string? TipoDteRelacionado { get; set; }
     public string? TipoGeneracionRelacionado { get; set; }
+    /// <summary>Fecha de emisión del documento relacionado (NC/ND). Para relacionados físicos; si
+    /// se referencia por Id electrónico, el servidor toma la fecha real de ese DTE.</summary>
+    public DateTime? FechaDocumentoRelacionado { get; set; }
 
     public string? Observaciones { get; set; }
 

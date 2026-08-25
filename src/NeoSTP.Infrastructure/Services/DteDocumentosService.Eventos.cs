@@ -523,7 +523,9 @@ public partial class DteDocumentosService
                     ventaExenta = 0d,
                     ventaGravada = gravada,
                     compra = 0d,
-                    tributos = (object?)null,
+                    // Línea gravada: debe declarar el tributo IVA (20); enviar null viola la
+                    // normativa (MH responde 096 sin observaciones, igual que en el 08/CCF).
+                    tributos = gravada > 0 ? new[] { "20" } : null,
                     psv = 0d,
                     ivaItem = iva,
                     noGravado = 0d,
@@ -540,7 +542,9 @@ public partial class DteDocumentosService
                 totalGravada = gravada,
                 totalCompraExcluidos = 0d,
                 subTotalVentas = gravada,
-                tributos = (object?)null,
+                tributos = gravada > 0
+                    ? new object[] { new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = iva } }
+                    : null,
                 totalSeguro = 0d,
                 totalFlete = 0d,
                 montoTotalOperacion = gravada,
