@@ -688,8 +688,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             .Include(d => d.Empresa)
             .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
-        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado or DteEstadoCodigos.Enviado or DteEstadoCodigos.Firmado)
-            return Result<DteDocumentoDto>.Fail("El documento ya fue procesado.", "INVALID_STATE");
+        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado or DteEstadoCodigos.Enviado)
+            return Result<DteDocumentoDto>.Fail("El documento ya fue enviado o procesado.", "INVALID_STATE");
 
         // Re-snapshot del cálculo por si cambiaron líneas
         _calculator.Recalcular(doc);
@@ -734,6 +734,10 @@ public partial class DteDocumentosService : IDteDocumentosService
         else
         {
             doc.Json.JsonDte = json.Value!;
+            doc.Json.JsonFirmado = null;
+            doc.Json.FirmadoAt = null;
+            doc.Json.RespuestaHacienda = null;
+            doc.Json.RespuestaAt = null;
             doc.Json.GeneradoAt = DateTime.UtcNow;
             doc.Json.UpdatedAt = DateTime.UtcNow;
             doc.Json.UpdatedBy = actor;
@@ -855,6 +859,17 @@ public partial class DteDocumentosService : IDteDocumentosService
         if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
         if (doc.EstadoCodigo is DteEstadoCodigos.Procesado)
             return Result<DteDocumentoDto>.Fail("El documento ya fue procesado por Hacienda.", "INVALID_STATE");
+
+        if (doc.EstadoCodigo is not DteEstadoCodigos.Enviado)
+        {
+            var gen = await GenerarAsync(empresaId, id, actor, ct);
+            if (gen.IsFailure) return gen;
+            doc = await _db.DteDocumentos
+                .Include(d => d.Json)
+                .Include(d => d.Empresa)
+                .FirstAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        }
+
         if (doc.Json is null || string.IsNullOrEmpty(doc.Json.JsonFirmado))
         {
             // Auto-firma si no está firmado todavía
