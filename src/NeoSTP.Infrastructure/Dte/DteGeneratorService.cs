@@ -1041,7 +1041,7 @@ public class DteGeneratorService : IDteGeneratorService
                 telefono = d.ReceptorTelefono,
                 correo = d.ReceptorCorreo,
                 codDomiciliado = 1,
-                codPais = "9300",
+                codPais = "SV",
             },
             otrosDocumentos = new[]
             {

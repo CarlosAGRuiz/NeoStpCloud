@@ -29,7 +29,7 @@ public class ClienteTerritorioTests
         var municipios = new Catalogo { Id = 703, Codigo = "MUNICIPIO_ES", Nombre = "Municipios", EsSistema = true };
         db.Catalogos.AddRange(paises, departamentos, municipios);
         db.CatalogoItems.AddRange(
-            new CatalogoItem { CatalogoId = paises.Id, Codigo = "9300", Valor = "El Salvador", Activo = true },
+            new CatalogoItem { CatalogoId = paises.Id, Codigo = "SV", Valor = "El Salvador", Activo = true },
             new CatalogoItem { CatalogoId = departamentos.Id, Codigo = "SAN_SALVADOR", Valor = "San Salvador", Activo = true },
             new CatalogoItem { CatalogoId = departamentos.Id, Codigo = "LA_LIBERTAD", Valor = "La Libertad", Activo = true },
             new CatalogoItem
@@ -55,7 +55,7 @@ public class ClienteTerritorioTests
         NumeroDocumento = "12345678-9",
         Nombre = "Cliente local",
         TipoContribuyenteCodigo = "CONSUMIDOR_FINAL",
-        PaisCodigo = "9300",
+        PaisCodigo = "SV",
         DepartamentoCodigo = departamento,
         MunicipioCodigo = municipio,
     };

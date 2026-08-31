@@ -37,8 +37,8 @@ public class Cliente : AuditableEntity
     public string? Telefono { get; set; }
 
     /// <summary>
-    /// País de residencia: código del catálogo PAIS (CAT-020, coincide con el código MH,
-    /// p. ej. 9300 El Salvador). Null equivale a El Salvador.
+    /// País de residencia: código del catálogo PAIS (CAT-020 v1.1, ISO 3166-1 alfa-2,
+    /// p. ej. SV El Salvador, US Estados Unidos). Null equivale a El Salvador.
     /// </summary>
     public string? PaisCodigo { get; set; }
 
@@ -59,6 +59,6 @@ public class Cliente : AuditableEntity
 
 public static class PaisCodigos
 {
-    /// <summary>Código MH de El Salvador en el CAT-020.</summary>
-    public const string ElSalvador = "9300";
+    /// <summary>Código de El Salvador en el CAT-020 v1.1 (ISO 3166-1 alfa-2).</summary>
+    public const string ElSalvador = "SV";
 }

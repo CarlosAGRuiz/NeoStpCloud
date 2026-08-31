@@ -187,7 +187,7 @@ public class DteGeneratorTests
     public void Generar_FacturaExportacion_TipoDte11_ConPaisYTributoExportacion()
     {
         var d = NewDoc(TipoDteCodigos.FacturaExportacion);
-        d.ReceptorPaisCodigo = "9539"; // CAT-020: Estados Unidos
+        d.ReceptorPaisCodigo = "US"; // CAT-020 v1.1 (ISO 3166-1 alfa-2): Estados Unidos
         d.ReceptorPaisNombre = "ESTADOS UNIDOS";
         d.ReceptorTipoPersona = 2;
         _calc.Recalcular(d);
@@ -196,7 +196,7 @@ public class DteGeneratorTests
         result.IsSuccess.Should().BeTrue();
         var json = JsonDocument.Parse(result.Value!);
         json.RootElement.GetProperty("identificacion").GetProperty("tipoDte").GetString().Should().Be("11");
-        json.RootElement.GetProperty("receptor").GetProperty("codPais").GetString().Should().Be("9539");
+        json.RootElement.GetProperty("receptor").GetProperty("codPais").GetString().Should().Be("US");
         json.RootElement.GetProperty("receptor").GetProperty("nombrePais").GetString().Should().Be("ESTADOS UNIDOS");
         var cuerpo = json.RootElement.GetProperty("cuerpoDocumento");
         cuerpo[0].GetProperty("tributos")[0].GetString().Should().Be("C3"); // IVA exportación 0%

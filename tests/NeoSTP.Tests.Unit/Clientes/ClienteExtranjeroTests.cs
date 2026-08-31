@@ -23,7 +23,7 @@ namespace NeoSTP.Tests.Unit.Clientes;
 public class ClienteExtranjeroTests
 {
     private const int Empresa = 90;
-    private const string Espania = "9314";
+    private const string Espania = "ES";
 
     // ---------- Validador ----------
 
@@ -97,8 +97,8 @@ public class ClienteExtranjeroTests
     [Theory]
     [InlineData(null, false)]
     [InlineData("", false)]
-    [InlineData("9300", false)]
-    [InlineData("9314", true)]
+    [InlineData("SV", false)]
+    [InlineData("ES", true)]
     public void EsExtranjero_SegunPais(string? pais, bool esperado)
         => ClienteValidator.EsExtranjero(pais).Should().Be(esperado);
 
@@ -115,7 +115,7 @@ public class ClienteExtranjeroTests
         db.CatalogoItems.Add(new CatalogoItem
         {
             Id = 5001, CatalogoId = 500, Codigo = Espania, Valor = "España", Activo = true,
-            MetadataJson = "{\"codigoMH\": \"9314\", \"nombreMH\": \"ESPAÑA\"}",
+            MetadataJson = "{\"codigoMH\": \"ES\", \"nombreMH\": \"ESPAÑA\"}",
         });
         db.SaveChanges();
         return db;
@@ -278,7 +278,7 @@ public class ClienteExtranjeroTests
         var r = await svc.AplicarDatosExportacionAsync(doc, request, cliente, CancellationToken.None);
 
         r.IsSuccess.Should().BeTrue(r.Error);
-        doc.ReceptorPaisCodigo.Should().Be("9314");
+        doc.ReceptorPaisCodigo.Should().Be(Espania);
         doc.ReceptorPaisNombre.Should().Be("ESPAÑA");
         doc.ReceptorTipoPersona.Should().Be(1); // consumidor final sin TipoPersona → natural
     }
@@ -298,7 +298,7 @@ public class ClienteExtranjeroTests
         var request = new CreateDteDocumentoRequest
         {
             TipoDteCodigo = TipoDteCodigos.FacturaExportacion,
-            ReceptorPaisCodigo = "9539",
+            ReceptorPaisCodigo = "US",
             ReceptorPaisNombre = "Estados Unidos",
             ReceptorTipoPersona = 1,
         };
@@ -306,7 +306,7 @@ public class ClienteExtranjeroTests
         var r = await svc.AplicarDatosExportacionAsync(doc, request, cliente, CancellationToken.None);
 
         r.IsSuccess.Should().BeTrue(r.Error);
-        doc.ReceptorPaisCodigo.Should().Be("9539");
+        doc.ReceptorPaisCodigo.Should().Be("US");
         doc.ReceptorPaisNombre.Should().Be("ESTADOS UNIDOS");
         doc.ReceptorTipoPersona.Should().Be(1);
     }
