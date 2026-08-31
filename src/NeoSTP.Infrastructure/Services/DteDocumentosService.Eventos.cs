@@ -458,12 +458,23 @@ public partial class DteDocumentosService
         if (orig is null) return Result<CrearEventoResultadoDto>.Fail("Documento origen no encontrado.", "DTE_NOT_FOUND");
         if (orig.EstadoCodigo != DteEstadoCodigos.Procesado)
             return Result<CrearEventoResultadoDto>.Fail("El documento origen del retorno debe estar PROCESADO.", "INVALID_STATE");
+        if (orig.TipoDteCodigo is not ("01" or "11" or "14"))
+            return Result<CrearEventoResultadoDto>.Fail(
+                "El evento de retorno sólo aplica a Factura (01), Factura de Exportación (11) o Sujeto Excluido (14).",
+                "INVALID_DTE_TYPE");
 
         var ahora = NowSv();
         var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
-        var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
-        var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
+        // ERET ya valida el formato alfanumérico vigente, aun cuando el DTE de origen haya sido
+        // aceptado durante la transición con códigos numéricos (0001/0001).
+        var bloqueEstablecimiento = BuildBloqueEstablecimiento(config);
+        var codEstMh = bloqueEstablecimiento[..4]; // M001 / S001 / B001 / P001
+        var codPvMh = bloqueEstablecimiento[4..];  // P001
+        var codEstInterno = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh)
+            ? null : config.CodigoEstablecimientoMh.Trim();
+        var codPvInterno = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)
+            ? null : config.CodigoPuntoVentaMh.Trim();
         var gravada = (double)orig.TotalGravada;
         var iva = Math.Round(gravada * 0.13 / 1.13, 2);
 
@@ -493,10 +504,10 @@ public partial class DteDocumentosService
             {
                 nit = empresa.Nit,
                 nombre = empresa.RazonSocial,
-                codEstableMH = codEst,   // requiere el código MH real registrado del establecimiento
-                codEstable = codEst,
-                codPuntoVentaMH = codPv,
-                codPuntoVenta = codPv,
+                codEstableMH = codEstMh,
+                codEstable = codEstInterno,
+                codPuntoVentaMH = codPvMh,
+                codPuntoVenta = codPvInterno,
                 recintoFiscal = (string?)null,
                 tipoRegimen = (string?)null,
                 regimen = (string?)null,
@@ -523,9 +534,10 @@ public partial class DteDocumentosService
                     ventaExenta = 0d,
                     ventaGravada = gravada,
                     compra = 0d,
-                    // Línea gravada: debe declarar el tributo IVA (20); enviar null viola la
-                    // normativa (MH responde 096 sin observaciones, igual que en el 08/CCF).
-                    tributos = gravada > 0 ? new[] { "20" } : null,
+                    // FE y ERET expresan el IVA incluido mediante ivaItem/totalIva. CAT-015 no
+                    // permite el código 20 para estos tipos; MH lo rechaza aunque el JSON Schema
+                    // público sólo restrinja la longitud del código.
+                    tributos = (object?)null,
                     psv = 0d,
                     ivaItem = iva,
                     noGravado = 0d,
@@ -542,9 +554,7 @@ public partial class DteDocumentosService
                 totalGravada = gravada,
                 totalCompraExcluidos = 0d,
                 subTotalVentas = gravada,
-                tributos = gravada > 0
-                    ? new object[] { new { codigo = "20", descripcion = "Impuesto al Valor Agregado 13%", valor = iva } }
-                    : null,
+                tributos = (object?)null,
                 totalSeguro = 0d,
                 totalFlete = 0d,
                 montoTotalOperacion = gravada,
@@ -552,7 +562,7 @@ public partial class DteDocumentosService
                 reteRenta = (double?)0d,
                 totalNoGravado = 0d,
                 totalPagar = gravada,
-                totalLetras = (string?)null,
+                totalLetras = DteCalculator.MontoEnLetras((decimal)gravada),
                 totalNoOnerosas = 0d,
                 totalIva = iva,
                 saldoFavor = 0d,
