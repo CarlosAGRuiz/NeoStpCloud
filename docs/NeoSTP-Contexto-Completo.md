@@ -242,8 +242,8 @@ Cuatro eventos; **solo Contingencia e Invalidación tienen endpoint propio**:
 |---|---|---|
 | Invalidación | `/fesv/anulardte` | ✅ PROCESADO |
 | Contingencia | `/fesv/contingencia` | ✅ PROCESADO |
-| Operaciones Especiales (`fe-eop`, tipoEvento 17) | `/fesv/recepciondte` | 🟡 estructura OK — bloqueo `095` (autorización de cuenta) |
-| Retorno (`fe-eret`, tipoEvento 18) | `/fesv/recepciondte` | 🟡 estructura OK — bloqueo `codEstableMH` real |
+| Operaciones Especiales (`fe-eop`, tipoEvento 17) | `/fesv/recepciondte` | ✅ PROCESADO (5/5) |
+| Retorno (`fe-eret`, tipoEvento 18) | `/fesv/recepciondte` | ✅ PROCESADO (5/5) |
 Persistencia en `Dte_Eventos*` (best-effort, no rompe el flujo certificado); UI `/DteEventos` + PDF;
 integración con certificación (`POST /api/certificacion/eventos/{id}/marcar-completado`).
 
@@ -253,10 +253,9 @@ integración con certificación (`POST /api/certificacion/eventos/{id}/marcar-co
 `Dte_ErrorOcurrencias`).
 
 ## 4.10 Certificación lograda (apitest real)
-**El ambiente apitest valida v1/v3 (NO v2/v4).** PROCESADOS: 01 Factura (v1), 11 Exportación (v3),
-04 Nota de Remisión (v3), 14 Sujeto Excluido (v1), 15 Donación (v2) + eventos Contingencia e
-Invalidación. Pendiente de **datos de cuenta** (no de código): 03/05/06 y 07/08/09 requieren receptor
-inscrito en IVA (NIT+NRC reales); Op-Especiales/Retorno requieren autorizaciones.
+Los 11 tipos DTE y los 4 tipos de eventos cuentan con evidencia `PROCESADO` en apitest.
+Matriz completada el 2026-08-25: **625/625 escenarios, 15/15 tipos**. Para ERET, el endpoint exige
+códigos MH alfanuméricos (`M001/P001`) y no admite el tributo IVA `20` en FE/Retorno.
 
 ## 4.11 Módulo de Certificación DTE
 Matriz oficial **15 tipos × 625 escenarios**; `CertificacionDteService` (resumen, matriz, escenarios,
@@ -426,8 +425,8 @@ README/CONTEXTO actualizados.
 |---|---|---|
 | Core / Administración | ✅ avanzado | Onboarding self-service, consumo por plan/upselling |
 | NeoDTE | ✅ avanzado | Sembrar CAT-008 Distrito (derivación territorial 100% por catálogo) |
-| Certificación DTE | ✅ | Completar matriz con datos de cuenta (NRC, codEstableMH real) |
-| Eventos DTE | ✅ | Op-Especiales/Retorno bloqueados por autorización de cuenta MH |
+| Certificación DTE | ✅ | Matriz apitest completa: 625/625, 15/15 tipos |
+| Eventos DTE | ✅ | Invalidación, Contingencia, Operaciones Especiales y Retorno procesados |
 | Contingencia/Worker | ✅ | — |
 | Clientes / Productos | ✅ | Carga masiva ✅; mapear unidad→CAT-014, tributos por tipo |
 | Catálogos MH | ✅ | CAT-008 Distrito |

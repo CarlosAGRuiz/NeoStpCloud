@@ -23,6 +23,7 @@
     };
     var current = Reached(estado);
     var isError = estado is "RECHAZADO" or "ERROR" or "CONTINGENCIA";
+    var isCompleted = estado == "PROCESADO";
     var pasos = new[]
     {
         ("Borrador", "edit_document"),
@@ -37,7 +38,7 @@
     {
         var cls = "ns-step";
         var icon = pasos[i].Item2;
-        if (i < current) { cls += " ns-step--done"; icon = "check"; }
+        if (i < current || (isCompleted && i == current)) { cls += " ns-step--done"; icon = "check"; }
         else if (i == current)
         {
             if (isError && i == 3) { cls += " ns-step--error"; icon = "error"; }

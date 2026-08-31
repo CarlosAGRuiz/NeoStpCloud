@@ -15,6 +15,15 @@
 ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
     var esExportacion = Model.TipoDteCodigo == "11";
+    string TipoDocumentoMh(string? codigo) => (codigo ?? string.Empty).Trim().ToUpperInvariant() switch
+    {
+        "NIT" => "36",
+        "DUI" => "13",
+        "PASAPORTE" => "03",
+        "CARNET_RESIDENTE" or "CARNET RESIDENTE" => "02",
+        "OTRO" or "OTRO_DOCUMENTO" => "37",
+        var valor => valor,
+    };
     var tiposDocStr = new (string Code, string Label)[]
     {
         ("01", "01 Factura"),
@@ -155,13 +164,18 @@
                             <option value="">— Receptor manual (consumidor final) —</option>
                             @foreach (var c in clientes)
                             {
-                                <option value="@c.Id">@c.Nombre (@c.TipoDocumentoCodigo @c.NumeroDocumento)</option>
+                                <option value="@c.Id"
+                                        data-nombre="@c.Nombre"
+                                        data-tipo-documento="@TipoDocumentoMh(c.TipoDocumentoCodigo)"
+                                        data-documento="@c.NumeroDocumento"
+                                        data-nrc="@c.Nrc"
+                                        data-correo="@c.Correo">@c.Nombre (@c.TipoDocumentoCodigo @c.NumeroDocumento)</option>
                             }
                         </select>
-                        <small class="text-muted">Si no eliges cliente, se completan los datos manualmente.</small>
+                        <small class="text-muted">Al seleccionar un cliente se muestran los datos guardados en su ficha.</small>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Nombre receptor (manual)</label>
+                        <label class="form-label">Nombre receptor</label>
                         <input asp-for="ReceptorNombre" class="form-control" />
                     </div>
                     <div class="col-md-3">
@@ -350,14 +364,46 @@
     const totalSide = document.getElementById('total-side');
     const countSide = document.getElementById('count-side');
     const tipoDteSelect = document.getElementById('TipoDteCodigo');
+    const clienteSelect = document.getElementById('ClienteId');
+    const receptorFields = {
+        nombre: document.getElementById('ReceptorNombre'),
+        tipoDocumento: document.getElementById('ReceptorTipoDocumento'),
+        documento: document.getElementById('ReceptorNumeroDocumento'),
+        nrc: document.getElementById('ReceptorNrc'),
+        correo: document.getElementById('ReceptorCorreo')
+    };
 
-        if (tipoDteSelect) {
-            tipoDteSelect.addEventListener('change', function () {
-                const url = new URL(window.location.href);
-                url.searchParams.set('tipo', this.value);
-                window.location.href = url.toString();
-            });
+    function mostrarClienteSeleccionado() {
+        if (!clienteSelect) return;
+        const option = clienteSelect.selectedOptions[0];
+        const tieneCliente = !!clienteSelect.value && !!option;
+        if (tieneCliente) {
+            receptorFields.nombre.value = option.dataset.nombre || '';
+            receptorFields.tipoDocumento.value = option.dataset.tipoDocumento || '';
+            receptorFields.documento.value = option.dataset.documento || '';
+            receptorFields.nrc.value = option.dataset.nrc || '';
+            receptorFields.correo.value = option.dataset.correo || '';
         }
+
+        Object.values(receptorFields).forEach(field => {
+            if (!field) return;
+            if (field.tagName === 'SELECT') field.disabled = tieneCliente;
+            else field.readOnly = tieneCliente;
+        });
+    }
+
+    if (clienteSelect) {
+        clienteSelect.addEventListener('change', mostrarClienteSeleccionado);
+        mostrarClienteSeleccionado();
+    }
+
+    if (tipoDteSelect) {
+        tipoDteSelect.addEventListener('change', function () {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tipo', this.value);
+            window.location.href = url.toString();
+        });
+    }
 
     function reindex() {
         Array.from(body.querySelectorAll('.linea-row')).forEach((row, idx) => {
