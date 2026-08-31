@@ -251,9 +251,13 @@ public class DteListQuery
     public int PageSize { get; set; } = 20;
     public string? Search { get; set; }
     public string? TipoDteCodigo { get; set; }
+    /// <summary>Filtro interno/API por varios tipos DTE. Si se informa junto a TipoDteCodigo, se aplican ambos.</summary>
+    public List<string>? TiposDteCodigo { get; set; }
     public string? EstadoCodigo { get; set; }
     public DateTime? Desde { get; set; }
     public DateTime? Hasta { get; set; }
+    public decimal? MontoMinimo { get; set; }
+    public decimal? MontoMaximo { get; set; }
 }
 
 public class DteArchivosDto

@@ -185,12 +185,26 @@ public partial class DteDocumentosService : IDteDocumentosService
         }
         if (!string.IsNullOrEmpty(query.TipoDteCodigo))
             q = q.Where(d => d.TipoDteCodigo == query.TipoDteCodigo);
+        if (query.TiposDteCodigo is { Count: > 0 })
+        {
+            var tipos = query.TiposDteCodigo
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (tipos.Count > 0)
+                q = q.Where(d => tipos.Contains(d.TipoDteCodigo));
+        }
         if (!string.IsNullOrEmpty(query.EstadoCodigo))
             q = q.Where(d => d.EstadoCodigo == query.EstadoCodigo);
         if (query.Desde.HasValue)
             q = q.Where(d => d.FechaEmision >= query.Desde.Value.Date);
         if (query.Hasta.HasValue)
             q = q.Where(d => d.FechaEmision <= query.Hasta.Value.Date);
+        if (query.MontoMinimo.HasValue)
+            q = q.Where(d => d.TotalPagar >= query.MontoMinimo.Value);
+        if (query.MontoMaximo.HasValue)
+            q = q.Where(d => d.TotalPagar <= query.MontoMaximo.Value);
 
         var total = await q.CountAsync(ct);
         var page = Math.Max(1, query.Page);

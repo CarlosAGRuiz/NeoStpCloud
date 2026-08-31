@@ -41,30 +41,60 @@
 }
 
 <div class="ns-toolbar">
-    <form method="get" class="ns-toolbar-search">
-        <input name="Search" value="@q.Search" class="form-control form-control-sm" style="min-width:220px" placeholder="Nº control, código, receptor…" />
-        <select name="TipoDteCodigo" class="form-select form-select-sm" style="width:auto">
-            <option value="">Todos los tipos</option>
-            <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
-            <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
-            <option value="04" selected="@(q.TipoDteCodigo == "04")">04 Nota Remisión</option>
-            <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
-            <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
-            <option value="11" selected="@(q.TipoDteCodigo == "11")">11 Exportación</option>
-            <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
-            <option value="15" selected="@(q.TipoDteCodigo == "15")">15 Donación</option>
-        </select>
-        <select name="EstadoCodigo" class="form-select form-select-sm" style="width:auto">
-            <option value="">Todos los estados</option>
-            @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "CONTINGENCIA", "INVALIDADO", "ERROR" })
-            {
-                <option value="@s" selected="@(q.EstadoCodigo == s)">@s</option>
-            }
-        </select>
-        <button type="submit" class="btn btn-outline-secondary btn-sm">
-            <span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span> Filtrar
-        </button>
-        <a asp-action="Index" class="btn btn-link btn-sm">Limpiar</a>
+    <form method="get" class="row g-2 align-items-end w-100">
+        <div class="col-12 col-lg-4">
+            <label class="form-label small mb-1">Buscar</label>
+            <input name="Search" value="@q.Search" class="form-control form-control-sm" placeholder="Nº DTE/control, código, cliente o documento" />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label small mb-1">Tipo DTE</label>
+            <select name="TipoDteCodigo" class="form-select form-select-sm">
+                <option value="">Todos los tipos</option>
+                <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
+                <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
+                <option value="04" selected="@(q.TipoDteCodigo == "04")">04 Nota Remisión</option>
+                <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
+                <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
+                <option value="07" selected="@(q.TipoDteCodigo == "07")">07 Retención</option>
+                <option value="08" selected="@(q.TipoDteCodigo == "08")">08 Liquidación</option>
+                <option value="09" selected="@(q.TipoDteCodigo == "09")">09 Doc. liquidación</option>
+                <option value="11" selected="@(q.TipoDteCodigo == "11")">11 Exportación</option>
+                <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
+                <option value="15" selected="@(q.TipoDteCodigo == "15")">15 Donación</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label small mb-1">Estado</label>
+            <select name="EstadoCodigo" class="form-select form-select-sm">
+                <option value="">Todos los estados</option>
+                @foreach (var s in new[] { "BORRADOR", "GENERADO", "VALIDADO", "FIRMADO", "ENVIADO", "PROCESADO", "RECHAZADO", "CONTINGENCIA", "INVALIDADO", "ERROR" })
+                {
+                    <option value="@s" selected="@(q.EstadoCodigo == s)">@s</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label small mb-1">Desde</label>
+            <input name="Desde" value="@(q.Desde?.ToString("yyyy-MM-dd"))" type="date" class="form-control form-control-sm" />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label small mb-1">Hasta</label>
+            <input name="Hasta" value="@(q.Hasta?.ToString("yyyy-MM-dd"))" type="date" class="form-control form-control-sm" />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label small mb-1">Monto mínimo</label>
+            <input name="MontoMinimo" value="@(q.MontoMinimo?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))" type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="0.00" />
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <label class="form-label small mb-1">Monto máximo</label>
+            <input name="MontoMaximo" value="@(q.MontoMaximo?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))" type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="0.00" />
+        </div>
+        <div class="col-12 col-md-auto d-flex gap-2">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">filter_list</span> Filtrar
+            </button>
+            <a asp-action="Index" class="btn btn-link btn-sm">Limpiar</a>
+        </div>
     </form>
 </div>
 
@@ -74,7 +104,7 @@
             <thead>
                 <tr>
                     <th>Tipo</th>
-                    <th>Nº Control</th>
+                    <th>Nº Control / Código</th>
                     <th>Fecha</th>
                     <th>Receptor</th>
                     <th class="text-end">Total</th>
@@ -92,7 +122,10 @@
                 {
                     <tr>
                         <td><span class="ns-badge ns-badge--draft">@d.TipoDteCodigo</span></td>
-                        <td><small class="ns-mono fw-bold">@d.NumeroControl</small></td>
+                        <td>
+                            <small class="ns-mono fw-bold">@d.NumeroControl</small><br />
+                            <small class="text-muted ns-mono d-inline-block text-truncate" style="max-width:260px" title="Código de generación: @d.CodigoGeneracion">@d.CodigoGeneracion</small>
+                        </td>
                         <td>@d.FechaEmision.ToString("yyyy-MM-dd")</td>
                         <td>@(d.ReceptorNombre ?? "—")<br /><small class="text-muted ns-mono">@d.ReceptorNumeroDocumento</small></td>
                         <td class="text-end"><strong class="ns-mono">$ @d.TotalPagar.ToString("N2")</strong></td>
@@ -114,7 +147,14 @@
         @for (int i = 1; i <= Model.TotalPages; i++)
         {
             <li class="page-item @(i == Model.Page ? "active" : "")">
-                <a class="page-link" asp-action="Index" asp-route-Page="@i" asp-route-Search="@q.Search" asp-route-TipoDteCodigo="@q.TipoDteCodigo" asp-route-EstadoCodigo="@q.EstadoCodigo">@i</a>
+                <a class="page-link" asp-action="Index" asp-route-Page="@i"
+                   asp-route-Search="@q.Search"
+                   asp-route-TipoDteCodigo="@q.TipoDteCodigo"
+                   asp-route-EstadoCodigo="@q.EstadoCodigo"
+                   asp-route-Desde="@(q.Desde?.ToString("yyyy-MM-dd"))"
+                   asp-route-Hasta="@(q.Hasta?.ToString("yyyy-MM-dd"))"
+                   asp-route-MontoMinimo="@(q.MontoMinimo?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))"
+                   asp-route-MontoMaximo="@(q.MontoMaximo?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))">@i</a>
             </li>
         }
     </ul></nav>
