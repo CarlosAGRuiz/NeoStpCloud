@@ -18,6 +18,13 @@ namespace NeoSTP.Web.Controllers;
 [RequireModulo("EVENTOSDTE")]
 public class DteEventosController : Controller
 {
+    private static readonly string[] TiposDteRetorno =
+    [
+        TipoDteCodigos.FacturaConsumidorFinal,
+        TipoDteCodigos.FacturaExportacion,
+        TipoDteCodigos.FacturaSujetoExcluido,
+    ];
+
     private readonly IDteEventoService _service;
     private readonly IDteEventoPdfService _pdf;
     private readonly IDteDocumentosService _documentos;
@@ -193,7 +200,7 @@ public class DteEventosController : Controller
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
-        await CargarDtesAsync(eid, soloEstado: DteEstadoCodigos.Procesado, ct);
+        await CargarDtesAsync(eid, DteEstadoCodigos.Procesado, ct, TiposDteRetorno);
         var model = new CrearEventoRetornoRequest();
         await AplicarCertificacionRetornoAsync(model, eid, certificacionEscenarioId, ct);
         return View(model);
@@ -210,7 +217,7 @@ public class DteEventosController : Controller
         {
             if (model.DocumentoOrigenId <= 0)
                 ModelState.AddModelError(nameof(model.DocumentoOrigenId), "Selecciona un DTE origen.");
-            await CargarDtesAsync(eid, soloEstado: DteEstadoCodigos.Procesado, ct);
+            await CargarDtesAsync(eid, DteEstadoCodigos.Procesado, ct, TiposDteRetorno);
             return View(model);
         }
 
@@ -218,7 +225,7 @@ public class DteEventosController : Controller
         if (result.IsFailure)
         {
             ModelState.AddModelError(string.Empty, result.Error ?? "Error al crear evento.");
-            await CargarDtesAsync(eid, soloEstado: DteEstadoCodigos.Procesado, ct);
+            await CargarDtesAsync(eid, DteEstadoCodigos.Procesado, ct, TiposDteRetorno);
             return View(model);
         }
 
@@ -279,10 +286,20 @@ public class DteEventosController : Controller
 
     // ----- Helpers -----
 
-    private async Task CargarDtesAsync(int empresaId, string soloEstado, CancellationToken ct)
+    private async Task CargarDtesAsync(
+        int empresaId,
+        string soloEstado,
+        CancellationToken ct,
+        IReadOnlyCollection<string>? tiposDte = null)
     {
         var result = await _documentos.GetListAsync(empresaId,
-            new DteListQuery { Page = 1, PageSize = 100, EstadoCodigo = soloEstado }, ct);
+            new DteListQuery
+            {
+                Page = 1,
+                PageSize = 200,
+                EstadoCodigo = soloEstado,
+                TiposDteCodigo = tiposDte?.ToList(),
+            }, ct);
         ViewBag.Dtes = result.Value?.Items ?? new List<DteDocumentoListItemDto>();
     }
 

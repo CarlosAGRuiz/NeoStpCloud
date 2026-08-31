@@ -35,13 +35,21 @@
     <div class="ns-formsection">
         <div class="ns-formsection-head"><span class="material-symbols-outlined">undo</span><h2>Datos del retorno</h2></div>
         <div class="ns-formsection-body">
+            <div class="mb-3">
+                <label for="retorno-busqueda" class="form-label">Buscar DTE procesado</label>
+                <div class="input-group">
+                    <span class="input-group-text"><span class="material-symbols-outlined" style="font-size:18px">search</span></span>
+                    <input id="retorno-busqueda" type="search" class="form-control" autocomplete="off" placeholder="Número DTE, código de generación, cliente o monto" />
+                </div>
+                <small id="retorno-resultados" class="text-muted">@dtes.Count documento(s) elegible(s): tipos 01, 11 y 14.</small>
+            </div>
             <div class="mb-1">
                 <label class="form-label">DTE origen del retorno</label>
                 <select asp-for="DocumentoOrigenId" class="form-select" required>
                     <option value="">— Seleccionar DTE PROCESADO —</option>
                     @foreach (var d in dtes)
                     {
-                        <option value="@d.Id" selected="@(Model.DocumentoOrigenId == d.Id)">[@d.TipoDteCodigo] @d.NumeroControl · @d.FechaEmision.ToString("dd/MM/yyyy") · @d.ReceptorNombre · $@d.TotalPagar.ToString("0.00")</option>
+                        <option value="@d.Id" data-search="@($"{d.TipoDteCodigo} {d.NumeroControl} {d.CodigoGeneracion} {d.ReceptorNombre} {d.ReceptorNumeroDocumento} {d.TotalPagar:0.00}")" selected="@(Model.DocumentoOrigenId == d.Id)">[@d.TipoDteCodigo] @d.NumeroControl · @d.FechaEmision.ToString("dd/MM/yyyy") · @d.ReceptorNombre · $@d.TotalPagar.ToString("0.00")</option>
                     }
                 </select>
                 @if (dtes.Count == 0)
@@ -52,3 +60,36 @@
         </div>
     </div>
 </form>
+
+@section Scripts {
+<script>
+(function () {
+    const search = document.getElementById('retorno-busqueda');
+    const select = document.getElementById('DocumentoOrigenId');
+    const resultCount = document.getElementById('retorno-resultados');
+    if (!search || !select) return;
+
+    const options = Array.from(select.options).slice(1);
+    const normalize = value => (value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    search.addEventListener('input', function () {
+        const term = normalize(this.value);
+        let visible = 0;
+        options.forEach(option => {
+            const matches = !term || normalize(option.dataset.search || option.textContent).includes(term);
+            option.hidden = !matches;
+            if (matches) visible++;
+        });
+
+        if (select.selectedIndex > 0 && select.selectedOptions[0].hidden)
+            select.value = '';
+
+        resultCount.textContent = visible + ' documento(s) encontrado(s) de tipos 01, 11 y 14.';
+    });
+})();
+</script>
+}
