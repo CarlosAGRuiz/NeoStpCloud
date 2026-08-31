@@ -1,4 +1,6 @@
 using System.Data;
+using System.Globalization;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using NeoSTP.Application.Auth.Abstractions;
@@ -152,8 +154,39 @@ public partial class DteDocumentosService : IDteDocumentosService
     internal static string? ResolverCodigoMhEnItems(IReadOnlyList<LookupItem> items, string? codigoInterno)
     {
         if (string.IsNullOrWhiteSpace(codigoInterno)) return codigoInterno;
-        var item = items.FirstOrDefault(i => string.Equals(i.Value, codigoInterno, StringComparison.OrdinalIgnoreCase));
-        return ExtraerCodigoMh(item?.Meta) ?? codigoInterno;
+        var buscado = NormalizarLookupTexto(codigoInterno);
+        var item = items.FirstOrDefault(i =>
+            string.Equals(i.Value, codigoInterno, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(i.Label, codigoInterno, StringComparison.OrdinalIgnoreCase)
+            || NormalizarLookupTexto(i.Value) == buscado
+            || NormalizarLookupTexto(i.Label) == buscado);
+
+        if (item is null) return codigoInterno;
+        return ExtraerCodigoMh(item.Meta) ?? (PareceCodigoMh(item.Value) ? item.Value : codigoInterno);
+    }
+
+    private static bool PareceCodigoMh(string? valor)
+        => !string.IsNullOrWhiteSpace(valor)
+           && valor.Length <= 4
+           && valor.All(char.IsDigit);
+
+    private static string NormalizarLookupTexto(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return string.Empty;
+
+        var descompuesto = valor.Trim()
+            .Replace('_', ' ')
+            .Replace('-', ' ')
+            .Normalize(NormalizationForm.FormD);
+
+        var sinAcentos = new string(descompuesto
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            .ToArray());
+
+        return string.Join(
+                ' ',
+                sinAcentos.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .ToUpperInvariant();
     }
 
     /// <summary>

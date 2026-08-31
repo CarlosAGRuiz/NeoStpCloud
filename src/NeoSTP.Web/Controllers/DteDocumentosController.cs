@@ -268,7 +268,10 @@ public class DteDocumentosController : Controller
             var gen = await _service.GenerarAsync(eid, result.Value!.Id, _currentUser.Username, ct);
             if (gen.IsFailure)
             {
-                TempData["Error"] = $"Documento creado pero no se pudo generar JSON: {gen.Error}";
+                var detalles = gen.ValidationErrors.Count > 0
+                    ? $" Detalle: {string.Join("; ", gen.ValidationErrors)}"
+                    : string.Empty;
+                TempData["Error"] = $"Documento creado pero no se pudo generar JSON: {gen.Error}{detalles}";
                 return RedirectToAction(nameof(Details), new { id = result.Value!.Id });
             }
 
