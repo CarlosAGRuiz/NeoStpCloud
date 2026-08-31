@@ -17,8 +17,8 @@ public static class ClienteValidator
     private static readonly Regex NitNoFormatPattern = new(@"^\d{14}$", RegexOptions.Compiled);
     private static readonly Regex NrcPattern = new(@"^\d{1,7}(-\d)?$", RegexOptions.Compiled);
 
-    /// <summary>Código MH de El Salvador en el catálogo PAIS (CAT-020).</summary>
-    public const string PaisElSalvador = "9300";
+    /// <summary>Código de El Salvador en el catálogo PAIS (CAT-020 v1.1, ISO 3166-1 alfa-2).</summary>
+    public const string PaisElSalvador = "SV";
 
     public static bool EsExtranjero(string? paisCodigo)
         => !string.IsNullOrWhiteSpace(paisCodigo) && paisCodigo.Trim() != PaisElSalvador;
@@ -124,5 +124,17 @@ public static class ClienteValidator
         return clean.Length == 14
             ? $"{clean[..4]}-{clean.Substring(4, 6)}-{clean.Substring(10, 3)}-{clean[13]}"
             : input.Trim();
+    }
+
+    /// <summary>
+    /// Devuelve un identificador con SOLO dígitos (sin guiones ni espacios). Para NIT/DUI/NRC
+    /// que van al JSON de MH, cuyo esquema exige el número puro (14 chars NIT / 9 DUI / etc.).
+    /// Distinto de <see cref="NormalizeNit"/>, que añade los guiones para presentación.
+    /// </summary>
+    public static string? StripToDigits(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return input;
+        var clean = new string(input.Where(char.IsDigit).ToArray());
+        return clean.Length == 0 ? input.Trim() : clean;
     }
 }

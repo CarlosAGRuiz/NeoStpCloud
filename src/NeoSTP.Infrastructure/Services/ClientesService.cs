@@ -132,6 +132,21 @@ public class ClientesService : IClientesService
         var cliente = await _db.Clientes.FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId, ct);
         if (cliente is null) return Result<ClienteDto>.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
 
+        // El tipo/número de documento sí son editables. Se normaliza igual que en Create (NIT sin
+        // guiones, tipo MH → interno) y se valida unicidad contra otros clientes de la empresa.
+        var tipoDocUpd = ClienteValidator.NormalizarTipoDocumento(request.TipoDocumentoCodigo);
+        var numeroUpd = NormalizarNumero(tipoDocUpd, request.NumeroDocumento);
+        if (numeroUpd is not null && (tipoDocUpd != cliente.TipoDocumentoCodigo || numeroUpd != cliente.NumeroDocumento))
+        {
+            var dup = await _db.Clientes.AnyAsync(c =>
+                c.EmpresaId == empresaId && c.Id != id &&
+                c.TipoDocumentoCodigo == tipoDocUpd && c.NumeroDocumento == numeroUpd, ct);
+            if (dup)
+                return Result<ClienteDto>.Fail($"Ya existe un cliente con {tipoDocUpd} {numeroUpd}.", "CLIENTE_DUPLICATE");
+        }
+        cliente.TipoDocumentoCodigo = tipoDocUpd;
+        cliente.NumeroDocumento = numeroUpd;
+
         cliente.PaisCodigo = paisCodigoUpd;
         cliente.TipoPersona = request.TipoPersona;
         cliente.Nombre = request.Nombre.Trim();

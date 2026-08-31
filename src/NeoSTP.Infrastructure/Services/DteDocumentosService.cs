@@ -10,9 +10,11 @@ using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Dte.Eventos.Dtos;
+using NeoSTP.Application.Clientes;
 using NeoSTP.Domain.Core.Clientes;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Eventos;
+using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Common;
 using NeoSTP.Application.Lookups;
 using NeoSTP.Infrastructure.Persistence;
@@ -152,6 +154,59 @@ public partial class DteDocumentosService : IDteDocumentosService
         if (string.IsNullOrWhiteSpace(codigoInterno)) return codigoInterno;
         var item = items.FirstOrDefault(i => string.Equals(i.Value, codigoInterno, StringComparison.OrdinalIgnoreCase));
         return ExtraerCodigoMh(item?.Meta) ?? codigoInterno;
+    }
+
+    /// <summary>
+    /// Saneador defensivo del emisor antes de generar el JSON DTE. Traduce a códigos MH todo lo
+    /// que la empresa pudo haber guardado en formato interno o "humano" (nombres de departamento,
+    /// código interno CASA_MATRIZ del tipoEstablecimiento) y quita guiones al NIT/NRC. Sin esto
+    /// MH rechaza con "no cumple el formato requerido" / "excede el tamaño permitido" en
+    /// #/emisor/nit, /direccion/departamento, /direccion/municipio y /tipoEstablecimiento.
+    /// <para>OJO: la Empresa que llega aquí YA debe estar Detach del contexto para evitar que
+    /// SaveChanges persista los cambios y sobrescriba la data del usuario en BD.</para>
+    /// </summary>
+    private async Task SanearEmisorParaMhAsync(Empresa e, DteConfiguracion? config, int empresaId, CancellationToken ct)
+    {
+        e.Nit = ClienteValidator.StripToDigits(e.Nit) ?? e.Nit;
+        e.Nrc = ClienteValidator.StripToDigits(e.Nrc);
+        e.Departamento = await MapCodigoMhAsync(CatalogCodes.DepartamentoEs, e.Departamento, empresaId, ct);
+        e.Municipio    = await MapCodigoMhAsync(CatalogCodes.MunicipioEs,    e.Municipio,    empresaId, ct);
+        e.Distrito     = await MapCodigoMhAsync(CatalogCodes.DistritoEs,     e.Distrito,     empresaId, ct);
+        if (config is not null && !string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo))
+        {
+            config.TipoEstablecimientoCodigo = await MapCodigoMhAsync(
+                CatalogCodes.TipoEstablecimiento, config.TipoEstablecimientoCodigo, empresaId, ct);
+        }
+    }
+
+    /// <summary>
+    /// Saneador defensivo del receptor: si el tipoDocumento interno es NIT y el número trae
+    /// guiones (el <see cref="ClienteValidator.NormalizeNit"/> los añade para presentación),
+    /// se limpia para MH. Aplica también al NRC del receptor.
+    /// </summary>
+    private static void SanearReceptorParaMh(DteDocumento doc)
+    {
+        if (string.Equals(doc.ReceptorTipoDocumento, "NIT", StringComparison.OrdinalIgnoreCase))
+            doc.ReceptorNumeroDocumento = ClienteValidator.StripToDigits(doc.ReceptorNumeroDocumento);
+        doc.ReceptorNrc = ClienteValidator.StripToDigits(doc.ReceptorNrc);
+    }
+
+    /// <summary>
+    /// Valida que la empresa emisora tenga los datos que MH exige NO-null (correo, teléfono,
+    /// NIT). No podemos inventarlos si están vacíos; devolvemos error claro para que el usuario
+    /// los complete en Empresa → Editar antes de emitir.
+    /// </summary>
+    private static List<string> ValidarEmisorParaMh(Empresa? e)
+    {
+        var errors = new List<string>();
+        if (e is null) { errors.Add("Empresa emisora no cargada."); return errors; }
+        if (string.IsNullOrWhiteSpace(e.Nit))
+            errors.Add("La empresa no tiene NIT registrado.");
+        if (string.IsNullOrWhiteSpace(e.Correo))
+            errors.Add("La empresa no tiene correo registrado. Configúralo en Empresa → Editar antes de emitir.");
+        if (string.IsNullOrWhiteSpace(e.Telefono))
+            errors.Add("La empresa no tiene teléfono registrado. Configúralo en Empresa → Editar antes de emitir.");
+        return errors;
     }
 
     /// <summary>Extrae <c>codigoMH</c> del metadata JSON del ítem de catálogo, o null si no lo trae.</summary>
@@ -609,6 +664,26 @@ public partial class DteDocumentosService : IDteDocumentosService
         // Cargar config DTE para inyectar codEstable/codPuntoVenta/tipoEstablecimiento en el bloque emisor.
         var configForJson = await _db.DteConfiguracion.AsNoTracking()
             .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+
+        // Validar datos MH-obligatorios del emisor que no podemos inventar (correo/teléfono/NIT).
+        var emisorErrors = ValidarEmisorParaMh(doc.Empresa);
+        if (emisorErrors.Count > 0)
+            return Result<DteDocumentoDto>.Fail(
+                "La empresa emisora tiene datos incompletos para emitir a Hacienda.",
+                "VALIDATION", emisorErrors);
+
+        // Sanear emisor DEFENSIVAMENTE: quitar guiones al NIT/NRC, resolver
+        // departamento/municipio/distrito/tipoEstablecimiento a códigos MH. La Empresa se detach
+        // para no persistir estos cambios y respetar el dato original del usuario en BD.
+        if (doc.Empresa is not null)
+        {
+            _db.Entry(doc.Empresa).State = EntityState.Detached;
+            await SanearEmisorParaMhAsync(doc.Empresa, configForJson, empresaId, ct);
+        }
+        // Sanear receptor DEFENSIVAMENTE: quitar guiones del NIT/NRC persistidos con
+        // NormalizeNit (formato con guiones para presentación).
+        SanearReceptorParaMh(doc);
+
         var json = _generator.Generar(doc, configForJson);
         if (json.IsFailure)
             return Result<DteDocumentoDto>.Fail(json.Error ?? "Error al generar JSON.", json.ErrorCode);
