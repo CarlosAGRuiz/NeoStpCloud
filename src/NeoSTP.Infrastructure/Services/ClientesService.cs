@@ -71,6 +71,11 @@ public class ClientesService : IClientesService
         if (!string.IsNullOrEmpty(paisCodigo) && !await PaisExisteAsync(paisCodigo, ct))
             return Result<ClienteDto>.Fail($"El país '{paisCodigo}' no existe en el catálogo PAIS.", "VALIDATION");
 
+        var errorTerritorio = await ValidarTerritorioAsync(
+            request.DepartamentoCodigo, request.MunicipioCodigo, paisCodigo, ct);
+        if (errorTerritorio is not null)
+            return Result<ClienteDto>.Fail("Datos territoriales del cliente inválidos.", "VALIDATION", [errorTerritorio]);
+
         if (numero is not null)
         {
             var dup = await _db.Clientes.AnyAsync(c =>
@@ -118,6 +123,11 @@ public class ClientesService : IClientesService
         var paisCodigoUpd = request.PaisCodigo?.Trim();
         if (!string.IsNullOrEmpty(paisCodigoUpd) && !await PaisExisteAsync(paisCodigoUpd, ct))
             return Result<ClienteDto>.Fail($"El país '{paisCodigoUpd}' no existe en el catálogo PAIS.", "VALIDATION");
+
+        var errorTerritorio = await ValidarTerritorioAsync(
+            request.DepartamentoCodigo, request.MunicipioCodigo, paisCodigoUpd, ct);
+        if (errorTerritorio is not null)
+            return Result<ClienteDto>.Fail("Datos territoriales del cliente inválidos.", "VALIDATION", [errorTerritorio]);
 
         var cliente = await _db.Clientes.FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId, ct);
         if (cliente is null) return Result<ClienteDto>.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
@@ -229,6 +239,9 @@ public class ClientesService : IClientesService
             };
 
             var errors = ClienteValidator.Validate(req);
+            var errorTerritorio = await ValidarTerritorioAsync(
+                req.DepartamentoCodigo, req.MunicipioCodigo, req.PaisCodigo, ct);
+            if (errorTerritorio is not null) errors.Add(errorTerritorio);
             // El upsert de la carga masiva usa tipo+número como llave, así que aquí
             // el documento sigue siendo obligatorio aunque el cliente sea extranjero.
             if (string.IsNullOrWhiteSpace(req.NumeroDocumento))
@@ -276,6 +289,36 @@ public class ClientesService : IClientesService
     private Task<bool> PaisExisteAsync(string paisCodigo, CancellationToken ct)
         => _db.CatalogoItems.AnyAsync(i =>
             i.Catalogo.Codigo == "PAIS" && i.Codigo == paisCodigo && i.Activo, ct);
+
+    private async Task<string?> ValidarTerritorioAsync(
+        string? departamentoCodigo, string? municipioCodigo, string? paisCodigo, CancellationToken ct)
+    {
+        if (ClienteValidator.EsExtranjero(paisCodigo)) return null;
+
+        var departamento = departamentoCodigo?.Trim();
+        var municipio = municipioCodigo?.Trim();
+        if (string.IsNullOrEmpty(departamento) && string.IsNullOrEmpty(municipio)) return null;
+        if (string.IsNullOrEmpty(departamento) || string.IsNullOrEmpty(municipio))
+            return "Departamento y municipio deben seleccionarse juntos para clientes de El Salvador.";
+
+        var departamentoExiste = await _db.CatalogoItems.AsNoTracking().AnyAsync(i =>
+            i.Catalogo.Codigo == CatalogCodes.DepartamentoEs
+            && i.Catalogo.Activo
+            && i.Activo
+            && i.Codigo == departamento, ct);
+        if (!departamentoExiste)
+            return $"El departamento '{departamento}' no existe en el catálogo de El Salvador.";
+
+        var municipioPertenece = await _db.CatalogoItems.AsNoTracking().AnyAsync(i =>
+            i.Catalogo.Codigo == CatalogCodes.MunicipioEs
+            && i.Catalogo.Activo
+            && i.Activo
+            && i.Codigo == municipio
+            && i.ParentCodigo == departamento, ct);
+        return municipioPertenece
+            ? null
+            : $"El municipio '{municipio}' no pertenece al departamento seleccionado.";
+    }
 
     /// <summary>
     /// Departamento y municipio pertenecen a los catálogos territoriales de El Salvador.

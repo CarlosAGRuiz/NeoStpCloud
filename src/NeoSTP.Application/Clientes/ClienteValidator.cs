@@ -28,6 +28,14 @@ public static class ClienteValidator
         var errors = new List<string>();
         var esExtranjero = EsExtranjero(request.PaisCodigo);
 
+        if (!esExtranjero)
+        {
+            var tieneDepartamento = !string.IsNullOrWhiteSpace(request.DepartamentoCodigo);
+            var tieneMunicipio = !string.IsNullOrWhiteSpace(request.MunicipioCodigo);
+            if (tieneDepartamento != tieneMunicipio)
+                errors.Add("Departamento y municipio deben seleccionarse juntos para clientes de El Salvador.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.Nombre))
             errors.Add("El nombre es obligatorio.");
 

@@ -93,11 +93,11 @@
     <div class="col-md-4 territorio-sv @(esExtranjero ? "d-none" : null)">
         <label asp-for="MunicipioCodigo" class="form-label">Municipio / Zona</label>
         <select asp-for="MunicipioCodigo" id="municipioSelect" class="form-select" data-current="@Model.MunicipioCodigo">
-            <option value="">— (selecciona departamento)</option>
+            <option value="">— Selecciona un departamento</option>
             @foreach (var m in municipios)
             {
                 <option value="@m.Codigo"
-                        data-depto="@(System.Text.Json.JsonDocument.Parse(m.MetadataJson ?? "{}").RootElement.TryGetProperty("departamento", out var dp) ? dp.GetString() : "")"
+                        data-depto="@NeoSTP.Web.Models.ClienteTerritorialUi.DepartamentoDe(m)"
                         selected="@(m.Codigo == Model.MunicipioCodigo)"
                         style="display:none">@m.Valor</option>
             }
@@ -136,8 +136,9 @@
         var currentMuni = muni.value;
         var foundCurrent = false;
         Array.prototype.forEach.call(muni.options, function(opt) {
-            if (!opt.value) { opt.style.display = ''; return; }
+            if (!opt.value) { opt.hidden = false; opt.style.display = ''; return; }
             var matches = !!selected && opt.getAttribute('data-depto') === selected;
+            opt.hidden = !matches;
             opt.style.display = matches ? '' : 'none';
             opt.disabled = !matches;
             if (opt.value === currentMuni && matches) foundCurrent = true;

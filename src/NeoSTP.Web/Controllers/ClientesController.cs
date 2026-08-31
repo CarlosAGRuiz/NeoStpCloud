@@ -249,14 +249,16 @@ public class ClientesController : Controller
 
     private async Task LoadCatalogosAsync(CancellationToken ct)
     {
-        var empresaId = _currentUser.EmpresaId;
+        var empresaId = _empresaContext.CurrentEmpresaId;
         async Task<IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>> Items(string code)
             => (await _catalogos.GetItemsAsync(code, empresaId, ct: ct)).Value
                ?? new List<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
         ViewBag.TiposDoc = await Items("TIPO_DOC_IDENTIDAD");
         ViewBag.TiposContrib = await Items("TIPO_CONTRIBUYENTE");
-        ViewBag.Departamentos = await Items("DEPARTAMENTO_ES");
+        ViewBag.Departamentos = (await Items("DEPARTAMENTO_ES"))
+            .Where(d => !d.Codigo.Equals("OTRO_EXTRANJERO", StringComparison.OrdinalIgnoreCase))
+            .ToList();
         ViewBag.Municipios = await Items("MUNICIPIO_ES");
         ViewBag.Estados = await Items("ESTADO_GENERICO");
         ViewBag.Paises = await Items("PAIS");
