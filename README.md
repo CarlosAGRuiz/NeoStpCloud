@@ -10,14 +10,14 @@ Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos
 > contrato, permisos, datos demo y pruebas.
 > Todo módulo nuevo se expone **API-first** (REST + UI web).
 
-**Estado 2026-08-21: fases V2/V2.5, backend móvil, V3 y el roadmap enterprise (E1–E8) cerrados. Los 11 tipos DTE certificados con sello real en apitest de Hacienda.**
+**Estado 2026-08-31: fases V2/V2.5, backend movil, V3 y roadmap enterprise (E1-E8) cerrados. Los DTE y eventos criticos estan certificados con sello real en apitest de Hacienda.**
 El producto opera el ciclo completo de un negocio salvadoreño: emite DTE certificados contra
 Hacienda, vende por POS, cobra, compra, maneja inventario, paga planilla, concilia el banco, lleva
 libros fiscales y contabilidad mínima, y da autoservicio al cliente final por un portal público.
 Sobre eso, la capa empresarial: multi-empresa para contadores, inventario por sucursal, aprobaciones
 de compra, SSO corporativo, consolidado de grupo, webhooks de negocio y portabilidad de datos.
 
-**~960 pruebas unitarias + 9 de integración en verde.**
+**1005 pruebas unitarias + 9 de integracion en verde.**
 
 > **Antes de vender:** el código está completo, pero un ambiente productivo necesita credenciales
 > reales (correo, pasarela de cobro, firmador DTE) y **cada empresa cliente debe tener aprobada su
@@ -126,7 +126,7 @@ así que el paso de credenciales no se puede saltar por accidente.
 | Observabilidad | Health checks (BD/correo/storage), Serilog estructurado, **OpenTelemetry OTLP opcional** + Meter `NeoSTP` |
 | Escala | Caché distribuida Memory/**Redis** para lookups, storage externo opcional para blobs de scan |
 | i18n / a11y | es (default) + en por cookie de cultura; skip-link, focus visible, aria-labels |
-| Tests | xUnit + FluentAssertions + NSubstitute — **750 unitarias + 9 integración**, CI en GitHub Actions |
+| Tests | xUnit + FluentAssertions + NSubstitute — **1005 unitarias + 9 integracion**, CI en GitHub Actions |
 
 Solución: **`NeoSTP.slnx`**.
 
@@ -144,7 +144,7 @@ src/
   NeoSTP.Worker           Tareas en segundo plano (8 jobs)
   NeoSTP.Shared           Utilidades compartidas (ApiResponse, CsvExporter, etc.)
 tests/
-  NeoSTP.Tests.Unit         750 pruebas unitarias
+  NeoSTP.Tests.Unit         1005 pruebas unitarias
   NeoSTP.Tests.Integration  9 pruebas de integración (API)
 ```
 
@@ -247,9 +247,9 @@ dotnet test tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj
 dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
 ```
 
-- **~960 pruebas unitarias + 9 de integración**, con CI en GitHub Actions para cada push/PR a main.
+- **1005 pruebas unitarias + 9 de integracion**, con CI en GitHub Actions para cada push/PR a main.
   Sin dependencias externas: EF InMemory, HTTP simulado y proveedores mock.
-- **Validación local 2026-08-21:** `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx` en verde
+- **Validacion local 2026-08-31:** `dotnet build NeoSTP.slnx` y `dotnet test NeoSTP.slnx --no-restore` en verde
   con los 11 tipos DTE certificados, plan STARTERFE y clientes extranjeros.
 - **Regresiones que valen doble** (bugs reales, con test que impide que vuelvan):
   - `CulturaFormulariosTests` — la cultura `es` genérica hacía que el binder leyera `3.25` como `325`,
@@ -397,6 +397,8 @@ migraciones (`HasData`), nunca a mano. ~96 tablas con prefijo por área (`Core_`
 - **App móvil**: emisión de DTE en un paso (`POST /api/dte/emitir`), cobros, scan, alertas, RRHH, POS, etc.
 - **README técnico de la API** (catálogo completo de endpoints):
   [`src/NeoSTP.Api/README.md`](src/NeoSTP.Api/README.md).
+- **README tecnico de la Web**:
+  [`src/NeoSTP.Web/README.md`](src/NeoSTP.Web/README.md).
 - **Politica de contratos y versionado**:
   [`docs/API-Contratos-Versionado.md`](docs/API-Contratos-Versionado.md).
 - **Runbook HB-7 de storage, secretos y retencion**:
@@ -433,6 +435,7 @@ y `api/v1/*` (NeoConnect público).
 |---|---|
 | [`CONTEXTO-PROYECTO.md`](CONTEXTO-PROYECTO.md) | Contexto maestro: estado, módulos, DTE/Hacienda a fondo, fases |
 | [`src/NeoSTP.Api/README.md`](src/NeoSTP.Api/README.md) | API: auth, formato, catálogo completo de endpoints |
+| [`src/NeoSTP.Web/README.md`](src/NeoSTP.Web/README.md) | Web MVC/Razor: rutas, operacion local, DTE, clientes, retorno y troubleshooting |
 | [`docs/Plan-Cierre-Fase-V2.md`](docs/Plan-Cierre-Fase-V2.md) | Fase V2 por sprint con entregado y validación |
 | [`docs/Plan-V2.5.md`](docs/Plan-V2.5.md) | Fase V2.5 (escala/proveedores reales) con evidencia de pruebas |
 | [`docs/Plan-V3.md`](docs/Plan-V3.md) | Roadmap V3 y cierres operativos V3-S1..V3-S3 |

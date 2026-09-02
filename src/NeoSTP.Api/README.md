@@ -1,4 +1,4 @@
-﻿# NeoSTP.Api
+# NeoSTP.Api
 
 API REST central de NeoSTP Cloud. Expone la operacion multiempresa de la suite, sirve a la app movil y publica NeoConnect para integradores externos.
 
@@ -56,6 +56,23 @@ Con Docker:
 ```bash
 docker compose up --build api
 ```
+
+## Inicio automatico local en Windows
+
+Para una PC de pruebas local se puede publicar API y Web en Release y registrarlas como tareas de
+inicio de sesion:
+
+```powershell
+./scripts/install-local-autostart.ps1
+```
+
+El script publica en `out/local-autostart`, copia `appsettings.Local.json` desde cada proyecto y
+crea dos tareas programadas: `NeoSTP API` en `http://127.0.0.1:5058` y `NeoSTP Web` en
+`http://127.0.0.1:5031`. Es intencionalmente una tarea por usuario, no un Windows Service, para
+conservar acceso a DataProtection, certificados y secretos locales del perfil que emite.
+
+Si hay procesos viejos ocupando los puertos, detenerlos antes de reinstalar. Ver tambien
+[`../NeoSTP.Web/README.md`](../NeoSTP.Web/README.md).
 
 Al iniciar, la API ejecuta `DatabaseSeeder.SeedAsync(app.Services)` y `EmpresaPruebaSeeder.SeedAsync(app.Services)` cuando `EmpresaPrueba:Enabled=true`. Si `EmpresaPrueba:MobileDemo:Enabled=true`, tambien asegura usuarios `mobile.*` y datos demo API/mobile/comerciales.
 
@@ -344,6 +361,46 @@ configuracion. Ver `/api/sso/config`.
 | POST | `/api/dte/contingencia/lotes/{loteId}/consultar` | Consultar lote. |
 | POST | `/api/dte/contingencia/documentos/{dteId}/reintentar` | Reintentar envio. |
 | GET/POST | `/api/dte/diagnostico/*` | Diagnostico de errores MH. |
+
+#### Filtros de `GET /api/dte/documentos`
+
+El listado acepta filtros combinables y siempre mantiene aislamiento por `EmpresaId`:
+
+| Query | Uso |
+|---|---|
+| `search` | Busca por numero de control, codigo de generacion, nombre del receptor o documento del receptor. |
+| `tipoDteCodigo` | Filtra un solo tipo DTE. |
+| `tiposDteCodigo` | Filtra varios tipos DTE repitiendo el parametro, por ejemplo `?tiposDteCodigo=01&tiposDteCodigo=11`. |
+| `estadoCodigo` | Filtra por estado (`BORRADOR`, `GENERADO`, `PROCESADO`, etc.). |
+| `desde` / `hasta` | Rango inclusivo por fecha de emision (`yyyy-MM-dd`). |
+| `montoMinimo` / `montoMaximo` | Rango inclusivo por `TotalPagar`. |
+| `page` / `pageSize` | Paginacion. `pageSize` se limita a 200. |
+
+La pantalla Web de DTE usa estos filtros para buscar por numero de DTE, codigo de generacion,
+cliente, documento, tipo, estado, fechas y monto sin revisar todo el listado manualmente.
+
+#### Datos del emisor para generar JSON
+
+Antes de serializar el JSON DTE, `DteDocumentosService.GenerarAsync` valida que la empresa emisora
+tenga al menos NIT, correo y telefono. Si falta alguno, responde `VALIDATION` con errores detallados
+para que la Web muestre exactamente que completar en Empresa -> Editar.
+
+El servicio sanea defensivamente datos historicos antes de llamar al generador:
+
+- NIT/NRC del emisor y NRC/NIT del receptor se envian a MH solo con digitos.
+- Departamento, municipio, distrito y tipo de establecimiento se resuelven contra lookups para
+  aceptar tanto codigo interno como etiqueta visible guardada en base, por ejemplo `La Libertad`.
+- El saneo no persiste esos cambios sobre la empresa; solo normaliza el objeto que viaja al JSON.
+
+Esto cubre empresas creadas antes de la normalizacion de catalogos, sin obligar a editar manualmente
+todos los registros historicos.
+
+#### Evento de retorno
+
+`POST /api/dte/eventos/retorno` solo debe operar sobre DTE procesados de tipo 01, 11 o 14. El evento
+usa `/fesv/recepciondte`, `tipoEvento=18` y el bloque de establecimiento MH alfanumerico (`M001/P001`)
+que exige apitest. Para FE/Retorno, `tributos` de item y resumen queda `null`; se mantiene
+`ivaItem`, `totalIva` y `totalLetras`.
 
 ### Cobros, compras, tesoreria e inventario
 
