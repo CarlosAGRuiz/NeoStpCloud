@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting.WindowsServices;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -11,15 +12,23 @@ using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Legal;
 using NeoSTP.Application.Ops;
 using NeoSTP.Infrastructure;
+using NeoSTP.Infrastructure.Auth;
 using NeoSTP.Infrastructure.Diagnostics;
 using NeoSTP.Infrastructure.Persistence.Seed;
 using NeoSTP.Shared;
 using Scalar.AspNetCore;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null
+});
+builder.Services.AddWindowsService(options => options.ServiceName = "NeoSTP.Api");
 
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+HostConfiguration.AddLocalDevelopmentSettings(builder.Configuration, builder.Environment);
+builder.Services.Configure<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>(
+    builder.Configuration.GetSection("HttpsRedirection"));
 
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -29,15 +38,17 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddApiAuthRateLimiting(builder.Configuration);
 
 builder.Services.AddApplication(builder.Configuration);
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 builder.Services.AddNeoStpHealthChecks();
 builder.Services.AddNeoStpObservability(builder.Configuration, "neostp-api");
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
 builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
 
 builder.Services.AddScoped<ICurrentUser, CurrentUserAccessor>();
+builder.Services.AddScoped<SessionJwtEvents>();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
     ?? throw new InvalidOperationException("Jwt section missing in configuration.");
@@ -48,6 +59,7 @@ builder.Services
     {
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
+        options.EventsType = typeof(SessionJwtEvents);
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -95,12 +107,8 @@ var app = builder.Build();
 // Fail-fast: en Producción no se arranca con providers Mock (correo, billing, scan, whatsapp, push).
 NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(app.Configuration, app.Environment);
 
-// Aplicar migraciones + seed inicial al arrancar
-await DatabaseSeeder.SeedAsync(app.Services);
-// Provisioning idempotente de la empresa de pruebas (Sprint 11) — solo si EmpresaPrueba:Enabled=true
-await EmpresaPruebaSeeder.SeedAsync(app.Services);
-// Ambiente de demostración comercial (DemoComercial:Enabled). Apagado por defecto.
-await DemoComercialSeeder.SeedAsync(app.Services);
+// Production validates the deployed schema; migrations and seed are a separate deployment operation.
+await DatabaseStartup.InitializeAsync(app.Services, app.Configuration, app.Environment);
 
 app.UseSerilogRequestLogging();
 
@@ -118,10 +126,15 @@ app.MapScalarApiReference(options =>
         .WithDefaultHttpClient(ScalarTarget.Shell, ScalarClient.Curl);
 });
 
+app.UseForwardedHeaders();
+if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.UseHttpsRedirection();
 app.UseSecurityHeaders();
+app.UseRouting();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<MfaChallengeMiddleware>();
 app.UseMiddleware<ApiKeyAuthMiddleware>();
 app.UseMiddleware<AdminIpAllowlistMiddleware>();
 app.UseMiddleware<CurrentTenantMiddleware>();
@@ -144,6 +157,7 @@ try
 }
 catch (Exception ex)
 {
+    Environment.ExitCode = 1;
     Log.Fatal(ex, "NeoSTP.Api terminated unexpectedly");
 }
 finally

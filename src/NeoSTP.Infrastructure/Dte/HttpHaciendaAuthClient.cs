@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using NeoSTP.Domain.Core.Dte;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
@@ -38,6 +39,9 @@ public class HttpHaciendaAuthClient : IHaciendaAuthClient
 
     public async Task<HaciendaAuthResult> AutenticarAsync(string usuario, string password, string ambienteCodigo, CancellationToken ct = default)
     {
+        if (!DteAmbientes.EsValido(ambienteCodigo))
+            return new HaciendaAuthResult { Success = false, Mensaje = "DTE_AMBIENTE_INVALIDO", Detalle = "Configure explícitamente PRUEBAS o PRODUCCION." };
+
         var baseUrl = ambienteCodigo == "PRODUCCION" ? _options.ProduccionBaseUrl : _options.PruebasBaseUrl;
         _logger.LogInformation("HttpHaciendaAuthClient: POST {Base}/seguridad/auth usuario={Usuario} ambiente={Amb}", baseUrl, usuario, ambienteCodigo);
 

@@ -2,6 +2,7 @@
     ViewData["Title"] = "Mi Suscripción";
     var sub      = ViewBag.Subscription as NeoSTP.Application.Billing.Dtos.BillingSubscriptionDto;
     var payments = ViewBag.Payments as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingPaymentDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingPaymentDto>();
+    var invoices = ViewBag.Invoices as IEnumerable<NeoSTP.Application.Billing.Dtos.BillingInvoiceDto> ?? Enumerable.Empty<NeoSTP.Application.Billing.Dtos.BillingInvoiceDto>();
 }
 
 <div class="container-fluid py-4">
@@ -58,9 +59,14 @@
                 <div class="card h-100 shadow-sm">
                     <div class="card-body">
                         <h6 class="card-subtitle mb-2 text-muted">
-                            @(sub.Status == "TRIALING" ? "Trial hasta" : "Próxima renovación")
+                            @(sub.CalendarBilling ? "Próximo cobro mensual" : sub.Status == "TRIALING" ? "Trial hasta" : "Próxima renovación")
                         </h6>
-                        <h4>@((sub.Status == "TRIALING" ? sub.TrialEnd : sub.CurrentPeriodEnd)?.ToString("dd/MM/yyyy") ?? "—")</h4>
+                        <h4>@(sub.CalendarBilling ? sub.NextDueLocalDate?.ToString("dd/MM/yyyy") ?? "—" : (sub.Status == "TRIALING" ? sub.TrialEnd : sub.CurrentPeriodEnd)?.ToString("dd/MM/yyyy") ?? "—")</h4>
+                        @if (sub.CalendarBilling)
+                        {
+                            <p class="small text-muted mb-0">Cobro al último día de cada mes, hora de El Salvador.</p>
+                            <p class="small text-muted mb-0">Servicio: @sub.ServicePeriodStartLocal?.ToString("dd/MM/yyyy") al @sub.ServicePeriodEndExclusiveLocal?.AddDays(-1).ToString("dd/MM/yyyy").</p>
+                        }
                         @if (sub.CancelAtPeriodEnd)
                         {
                             <span class="badge bg-warning text-dark">Se cancela al vencer</span>
@@ -72,16 +78,47 @@
                 <div class="card h-100 shadow-sm">
                     <div class="card-body d-flex flex-column gap-2">
                         <h6 class="card-subtitle text-muted">Acciones</h6>
+                        @if (sub.CalendarBilling)
+                        {
+                            <p class="small mb-0">Tu suscripción tiene un acuerdo de cobro mensual. Contacta a administración para registrar tu pago o cambiar el servicio.</p>
+                        }
+                        else
+                        {
                         <a asp-action="Portal" class="btn btn-outline-primary btn-sm"><i class="bi bi-gear me-1"></i>Portal de facturación</a>
                         <form asp-action="Cancel" method="post" onsubmit="return confirm('¿Confirmar cancelación?')">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="atPeriodEnd" value="true" />
                             <button type="submit" class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-x-circle me-1"></i>Cancelar suscripción</button>
                         </form>
+                        }
                     </div>
                 </div>
             </div>
         </div>
+
+        @if (sub.CalendarBilling)
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold">Mensualidades</div>
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>Vencimiento</th><th class="text-end">Monto</th><th>Moneda</th><th>Estado</th></tr></thead>
+                        <tbody>
+                        @foreach (var invoice in invoices.OrderByDescending(x => x.DueLocalDate))
+                        {
+                            <tr>
+                                <td>@(invoice.DueLocalDate?.ToString("dd/MM/yyyy") ?? invoice.DueDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td class="text-end">@invoice.Amount.ToString("N2")</td>
+                                <td>@invoice.Currency</td>
+                                <td>@(invoice.Status == "OPEN" ? "Pendiente de pago" : invoice.Status == "PAID" ? "Pagada" : invoice.Status)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-muted p-3 mb-0">La fecha de cobro y el estado de pago se muestran por separado del acceso al servicio.</p>
+            </div>
+        }
 
         <!-- Últimos pagos -->
         <div class="card shadow-sm mb-4">

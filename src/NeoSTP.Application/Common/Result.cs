@@ -27,6 +27,11 @@ public class Result<T> : Result
 
     public static Result<T> Ok(T value) => new() { IsSuccess = true, Value = value };
 
+    /// <summary>Error con referencia al recurso ya creado; no debe repetirse su creación.</summary>
+    public static Result<T> FailWithValue(T value, string error, string? errorCode = null, IEnumerable<string>? validationErrors = null)
+        => new() { IsSuccess = false, Value = value, Error = error, ErrorCode = errorCode,
+            ValidationErrors = validationErrors?.ToList() ?? (IReadOnlyList<string>)Array.Empty<string>() };
+
     public new static Result<T> Fail(string error, string? errorCode = null, IEnumerable<string>? validationErrors = null)
         => new()
         {

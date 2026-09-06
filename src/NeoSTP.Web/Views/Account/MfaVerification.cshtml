@@ -1,0 +1,13 @@
+@model NeoSTP.Web.Models.MfaViewModel
+@{ Layout = "_MfaLayout"; ViewData["Title"] = "Verifica tu segundo factor"; }
+<p>El acceso con tu proveedor fue correcto. Ingresa tu código de autenticación para completar el inicio de sesión.</p>
+<form action="@Url.Content("~/Account/MfaVerification")" method="post" autocomplete="off">
+    @Html.AntiForgeryToken()
+    <label asp-for="Code" class="form-label">Código MFA o código de recuperación</label>
+    <input asp-for="Code" type="password" class="form-control" autocomplete="one-time-code" maxlength="32" autofocus />
+    <span asp-validation-for="Code" class="text-danger small"></span>
+    <button type="submit" class="btn btn-primary w-100 mt-3">Verificar e ingresar</button>
+</form>
+<form asp-controller="Account" asp-action="Logout" method="post" class="mt-3">
+    <button type="submit" class="btn btn-link w-100">Cancelar y cerrar sesión</button>
+</form>

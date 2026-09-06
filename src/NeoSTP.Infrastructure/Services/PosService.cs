@@ -11,6 +11,7 @@ using NeoSTP.Application.Inventario.Dtos;
 using NeoSTP.Application.Pos;
 using NeoSTP.Application.Pos.Dtos;
 using NeoSTP.Domain.Core.Inventario;
+using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Pos;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -171,12 +172,17 @@ public class PosService : IPosService
         var v = await _db.VentasPos.FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId, ct);
         if (v is null) return Result.Fail("Venta no encontrada.", "VENTA_POS_NOT_FOUND");
         if (v.EstadoCodigo == VentaPosEstados.Anulada) return Result.Fail("La venta ya está anulada.", "INVALID_STATE");
-        if (v.EstadoFacturacion == VentaPosFacturacion.Facturada)
-            return Result.Fail("La venta ya fue facturada (DTE). Anula el DTE correspondiente.", "INVALID_STATE");
+        if (v.DteDocumentoId.HasValue || v.EstadoFacturacion == VentaPosFacturacion.Facturada)
+            return Result.Fail("La venta tiene un DTE asociado. Revise su estado antes de anular la operación.", "INVALID_STATE");
 
         v.EstadoCodigo = VentaPosEstados.Anulada;
         v.UpdatedAt = DateTime.UtcNow; v.UpdatedBy = actor;
-        await _db.SaveChangesAsync(ct);
+        try { await _db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException)
+        {
+            await _db.Entry(v).ReloadAsync(ct);
+            return Result.Fail("La venta cambió o recibió un DTE durante la operación. Consulte su estado antes de anular.", "INVALID_STATE");
+        }
         await Audit(empresaId, actor, "ANULAR_VENTA", v.Numero, v.Id);
 
         // Reingreso de inventario por las salidas que generó esta venta (best-effort), al mismo costo.
@@ -203,7 +209,9 @@ public class PosService : IPosService
 
         var emp = await _db.Empresas.AsNoTracking()
             .Where(e => e.Id == empresaId)
-            .Select(e => new { e.RazonSocial, e.NombreComercial, e.Nit, e.Nrc, e.Direccion, e.Telefono, e.LogoBlob })
+            .Select(e => new { e.RazonSocial, e.NombreComercial, e.Nit, e.Nrc, e.Direccion, e.Telefono,
+                LogoBlob = e.LogoBlob != null && e.LogoBlob.Length <= NeoSTP.Infrastructure.Branding.BrandingImageValidator.MaxBytes
+                    ? e.LogoBlob : null })
             .FirstOrDefaultAsync(ct);
 
         return Result<TicketModel>.Ok(new TicketModel
@@ -268,12 +276,27 @@ public class PosService : IPosService
         var v = await _db.VentasPos.Include(x => x.Lineas).FirstOrDefaultAsync(x => x.Id == ventaId && x.EmpresaId == empresaId, ct);
         if (v is null) return Result<VentaPosDetalleDto>.Fail("Venta no encontrada.", "VENTA_POS_NOT_FOUND");
         if (v.EstadoCodigo == VentaPosEstados.Anulada) return Result<VentaPosDetalleDto>.Fail("La venta está anulada.", "INVALID_STATE");
-        if (v.EstadoFacturacion == VentaPosFacturacion.Facturada)
-            return Result<VentaPosDetalleDto>.Fail("La venta ya fue facturada.", "INVALID_STATE");
         if (v.Lineas.Count == 0) return Result<VentaPosDetalleDto>.Fail("La venta no tiene líneas.", "VALIDATION");
 
         var tipo = request.TipoDteCodigo is "01" or "03" ? request.TipoDteCodigo : "01";
         var clienteId = request.ClienteId ?? v.ClienteId;
+        if (v.DteDocumentoId is int existingId)
+        {
+            var existing = await _db.DteDocumentos.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == existingId && d.EmpresaId == empresaId, ct);
+            if (existing is null)
+                return Result<VentaPosDetalleDto>.Fail("El DTE asociado no está disponible. No se generará otro; contacte soporte.", "DTE_NOT_FOUND");
+            if (existing.TipoDteCodigo != tipo || existing.ClienteId != clienteId)
+                return Result<VentaPosDetalleDto>.Fail("La venta ya tiene un DTE con otro tipo o cliente. Consulte el documento asociado.", "IDEMPOTENCY_CONFLICT");
+            if (existing.EstadoCodigo == DteEstadoCodigos.Procesado && v.EstadoFacturacion != VentaPosFacturacion.Facturada)
+            {
+                v.EstadoFacturacion = VentaPosFacturacion.Facturada;
+                await _db.SaveChangesAsync(ct);
+            }
+            return Result<VentaPosDetalleDto>.Ok(ToDetalle(v));
+        }
+        if (v.EstadoFacturacion == VentaPosFacturacion.Facturada)
+            return Result<VentaPosDetalleDto>.Fail("La venta figura facturada sin referencia DTE. Contacte soporte; no se creará otro.", "INVALID_STATE");
         if (tipo == "03" && clienteId is null)
             return Result<VentaPosDetalleDto>.Fail("El CCF (03) requiere un cliente con NRC.", "VALIDATION");
 
@@ -281,15 +304,17 @@ public class PosService : IPosService
         // pipeline DTE reconoce la clasificación GRAVADA y deriva el IVA contenido igual (gravada*0.13/1.13).
         var dteReq = new CreateDteDocumentoRequest
         {
+            VentaPosOrigenId = ventaId,
             TipoDteCodigo = tipo,
             SucursalId = v.SucursalId,
             PuntoVentaId = v.PuntoVentaId,
             ClienteId = clienteId,
+            ReceptorManual = clienteId is null ? new ReceptorDto { Nombre = v.ClienteNombre } : null,
             CondicionOperacionCodigo = "1", // contado
             FormaPagoCodigo = MapFormaPago(v.FormaPagoCodigo),
             TipoMonedaCodigo = "USD",
             Observaciones = $"Generado desde venta POS {v.Numero}",
-            Lineas = v.Lineas.Select(l => new CreateDteDocumentoLineaRequest
+            Lineas = v.Lineas.OrderBy(l => l.Id).Select(l => new CreateDteDocumentoLineaRequest
             {
                 ProductoId = l.ProductoId,
                 Codigo = l.Codigo,
@@ -302,13 +327,22 @@ public class PosService : IPosService
         };
 
         var emision = await _dte.EmitirAsync(empresaId, dteReq, actor, ct);
-        if (emision.IsFailure)
+        if (emision.Value is null)
             return Result<VentaPosDetalleDto>.Fail(emision.Error ?? "No se pudo emitir el DTE.", emision.ErrorCode);
 
-        v.DteDocumentoId = emision.Value!.Id;
-        v.EstadoFacturacion = VentaPosFacturacion.Facturada;
+        // CreateBorrador limpia el tracker y guarda el vínculo POS dentro de su transacción.
+        // Volver a cargar evita modificar la instancia desconectada y perder ese vínculo.
+        v = await _db.VentasPos.Include(x => x.Lineas).FirstAsync(x => x.Id == ventaId && x.EmpresaId == empresaId, ct);
+        await _db.Entry(v).ReloadAsync(ct);
+        if (v.DteDocumentoId.HasValue && v.DteDocumentoId != emision.Value.Id)
+            return Result<VentaPosDetalleDto>.Fail("La venta ya está asociada a otro DTE. No se reemplazó su referencia.", "IDEMPOTENCY_CONFLICT");
+        v.DteDocumentoId = emision.Value.Id;
+        if (emision.Value.EstadoCodigo == DteEstadoCodigos.Procesado)
+            v.EstadoFacturacion = VentaPosFacturacion.Facturada;
         v.UpdatedAt = DateTime.UtcNow; v.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
+        if (emision.IsFailure)
+            return Result<VentaPosDetalleDto>.FailWithValue(ToDetalle(v), emision.Error ?? "Emisión incompleta; consulte el DTE asociado.", emision.ErrorCode);
         await Audit(empresaId, actor, "PROMOVER_DTE", $"{v.Numero} → DTE #{emision.Value.Id} ({tipo})", v.Id);
         return Result<VentaPosDetalleDto>.Ok(ToDetalle(v));
     }

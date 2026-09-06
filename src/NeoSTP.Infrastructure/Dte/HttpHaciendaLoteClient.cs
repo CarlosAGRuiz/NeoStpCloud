@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using NeoSTP.Domain.Core.Dte;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
@@ -36,6 +37,9 @@ public class HttpHaciendaLoteClient : IHaciendaLoteClient
 
     public async Task<HaciendaLoteResult> EnviarLoteAsync(HaciendaLoteRequest req, CancellationToken ct = default)
     {
+        if (!DteAmbientes.EsValido(req.AmbienteCodigo) || req.Ambiente != DteAmbientes.CodigoMh(req.AmbienteCodigo) || req.Items.Count == 0 || req.Items.Any(i => !DteFiscalContext.CoincideJws(i.Documento, req.AmbienteCodigo)))
+            return new HaciendaLoteResult { Success = false, CodigoMsg = "DTE_PAYLOAD_INCOMPATIBLE", DescripcionMsg = "Todos los documentos del lote deben pertenecer al ambiente indicado." };
+
         var baseUrl = req.AmbienteCodigo == "PRODUCCION" ? _options.ProduccionBaseUrl : _options.PruebasBaseUrl;
         var url = $"{baseUrl}/fesv/recepcionlote";
         _logger.LogInformation("HttpHaciendaLoteClient: POST {Url} nit={Nit} items={Count}", url, req.Nit, req.Items.Count);
@@ -59,11 +63,13 @@ public class HttpHaciendaLoteClient : IHaciendaLoteClient
         using var message = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", req.Token);
 
+        string? raw = null;
+        int? code = null;
         try
         {
-            var resp = await http.SendAsync(message, ct);
-            var raw = await resp.Content.ReadAsStringAsync(ct);
-            var code = (int)resp.StatusCode;
+            using var resp = await http.SendAsync(message, ct);
+            raw = await resp.Content.ReadAsStringAsync(ct);
+            code = (int)resp.StatusCode;
 
             if (!resp.IsSuccessStatusCode)
             {
@@ -88,7 +94,8 @@ public class HttpHaciendaLoteClient : IHaciendaLoteClient
 
             return new HaciendaLoteResult
             {
-                Success = !string.IsNullOrEmpty(sello) || string.Equals(estado, "PROCESADO", StringComparison.OrdinalIgnoreCase),
+                Success = !string.IsNullOrWhiteSpace(codigoLote)
+                    && (!string.IsNullOrWhiteSpace(sello) || string.Equals(estado, "PROCESADO", StringComparison.OrdinalIgnoreCase)),
                 CodigoHttp = code,
                 CodigoLote = codigoLote,
                 SelloRecibido = sello,
@@ -102,7 +109,19 @@ public class HttpHaciendaLoteClient : IHaciendaLoteClient
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "HttpHaciendaLoteClient: error HTTP");
-            return new HaciendaLoteResult { Success = false, CodigoHttp = 0, Estado = "ERROR", DescripcionMsg = ex.Message };
+            return new HaciendaLoteResult { Success = false, CodigoHttp = 0, Estado = "ENVIADO", CodigoMsg = "NETWORK_ERROR", DescripcionMsg = "No se confirmó la respuesta del lote. Consulte Hacienda antes de reenviar." };
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new HaciendaLoteResult { Success = false, CodigoHttp = 0, Estado = "ENVIADO", CodigoMsg = "TIMEOUT", DescripcionMsg = "Se agotó la espera del lote; su recepción no está confirmada." };
+        }
+        catch (Polly.Timeout.TimeoutRejectedException)
+        {
+            return new HaciendaLoteResult { Success = false, CodigoHttp = 0, Estado = "ENVIADO", CodigoMsg = "TIMEOUT", DescripcionMsg = "Se agotó la espera del lote; su recepción no está confirmada." };
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            return new HaciendaLoteResult { Success = false, CodigoHttp = code, Estado = "ENVIADO", CodigoMsg = "RESPUESTA_INVALIDA", Raw = raw, DescripcionMsg = "Hacienda devolvió una respuesta no interpretable. Concilie el lote antes de reenviar." };
         }
     }
 

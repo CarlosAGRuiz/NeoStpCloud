@@ -111,7 +111,10 @@ public class LicenciaGuardServiceTests
         policy.Validate(Arg.Any<string?>()).Returns(Result.Ok());
         var hasher = Substitute.For<IPasswordHasher>();
         hasher.Hash(Arg.Any<string>()).Returns("h");
-        var svc = new UsuariosService(db, hasher, Substitute.For<IAuditoriaService>(), policy, NewGuard(db));
+        var current = Substitute.For<ICurrentUser>();
+        current.IsAuthenticated.Returns(true);
+        current.EmpresaId.Returns(Empresa);
+        var svc = new UsuariosService(db, hasher, Substitute.For<IAuditoriaService>(), policy, NewGuard(db), current);
 
         CreateUsuarioRequest Req(string u) => new()
         { Username = u, Email = $"{u}@x.com", Password = "P!", NombreCompleto = u };
@@ -120,7 +123,11 @@ public class LicenciaGuardServiceTests
         var segundo = await svc.CreateAsync(Empresa, Req("segundo"), "t");
         segundo.ErrorCode.Should().Be("LIMIT_EXCEEDED");
 
-        // Usuarios globales (SuperAdmin, empresaId null) no pasan por el límite.
+        // La exención comercial global requiere además un actor global autorizado.
+        current.EmpresaId.Returns((int?)null);
+        current.UserId.Returns(99);
+        current.TipoUsuarioCodigo.Returns("SUPERADMIN");
+        current.IsInRole("SUPERADMIN").Returns(true);
         (await svc.CreateAsync(null, Req("global"), "t")).IsSuccess.Should().BeTrue();
     }
 

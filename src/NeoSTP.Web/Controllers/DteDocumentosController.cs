@@ -54,6 +54,8 @@ public class DteDocumentosController : Controller
         query.PageSize = query.PageSize <= 0 ? 20 : query.PageSize;
         var result = await _service.GetListAsync(eid, query, ct);
         ViewBag.Query = query;
+        ViewBag.TiposDteDisponibles = await _service.GetTiposDisponiblesAsync(eid, ct);
+        ViewBag.TiposDteConsulta = await _service.GetTiposConsultaAsync(eid, ct);
         return View(result.Value);
     }
 
@@ -73,6 +75,7 @@ public class DteDocumentosController : Controller
     {
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        if (!(await _service.GetTiposDisponiblesAsync(eid, ct)).Any(t => t.Codigo == "07")) return Forbid();
         await LoadFormDataAsync(eid, ct);
         return View(new CreateDteDocumentoRequest
         {
@@ -119,6 +122,7 @@ public class DteDocumentosController : Controller
     {
         if (!Has("DTE.Emitir")) return Forbid();
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
+        if (!(await _service.GetTiposDisponiblesAsync(eid, ct)).Any(t => t.Codigo == tipo)) return Forbid();
         await LoadFormDataAsync(eid, ct);
         var vm = await BuildCreateModelAsync(eid, tipo, certificacionEscenarioId, ct);
         return View(vm);
@@ -344,6 +348,20 @@ public class DteDocumentosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ConciliarHacienda(int id, CancellationToken ct)
+    {
+        if (!Has("DTE.Emitir")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.ConciliarHaciendaAsync(eid, id, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? $"Hacienda confirmó el DTE como procesado. Sello: {result.Value!.SelloRecibido}"
+            : result.Error;
+        await SincronizarCertificacionAsync(eid, id, ct);
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Invalidar(int id, string? motivo, CancellationToken ct)
     {
         if (!Has("DTE.Invalidar")) return Forbid();
@@ -427,6 +445,7 @@ public class DteDocumentosController : Controller
 
     private async Task LoadFormDataAsync(int empresaId, CancellationToken ct)
     {
+        ViewBag.TiposDteDisponibles = await _service.GetTiposDisponiblesAsync(empresaId, ct);
         var clientes = await _clientes.GetListAsync(empresaId, new PagedQuery { PageSize = 200 }, ct);
         ViewBag.Clientes = clientes.Value?.Items ?? new List<NeoSTP.Application.Clientes.Dtos.ClienteDto>();
 

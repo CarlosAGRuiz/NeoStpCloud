@@ -12,6 +12,7 @@ public class WorkerOptions
     public LimpiezaTokensOptions LimpiezaTokens { get; set; } = new();
     public ContingenciaLoteOptions ContingenciaLote { get; set; } = new();
     public WebhookDeliveryOptions WebhookDelivery { get; set; } = new();
+    public BillingProviderOperationOptions BillingProviderOperations { get; set; } = new();
     public GeneracionAlertasOptions GeneracionAlertas { get; set; } = new();
     public RecordatoriosCobroOptions RecordatoriosCobro { get; set; } = new();
     public LimpiezaAuditoriaOptions LimpiezaAuditoria { get; set; } = new();
@@ -86,4 +87,13 @@ public class WebhookDeliveryOptions
 {
     /// <summary>Intervalo entre ejecuciones del job (segundos). Default: 30.</summary>
     public int IntervaloSegundos { get; set; } = 30;
+}
+
+public class BillingProviderOperationOptions
+{
+    /// <summary>Permanece deshabilitado hasta configurar y validar proveedores reales.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Intervalo entre búsquedas de operaciones pendientes. Default: 15 segundos.</summary>
+    public int IntervaloSegundos { get; set; } = 15;
 }

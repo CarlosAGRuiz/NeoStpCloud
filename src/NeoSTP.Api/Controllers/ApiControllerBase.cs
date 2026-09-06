@@ -15,6 +15,14 @@ public abstract class ApiControllerBase : ControllerBase
         }
 
         var resp = ApiResponse<T>.Fail(result.Error ?? "Error", result.ValidationErrors, HttpContext.TraceIdentifier);
+        resp.Data = result.Value;
+        resp.Code = result.ErrorCode;
+        if (result.Value is NeoSTP.Application.Dte.Dtos.DteDocumentoDto dte)
+            dte.Diagnostico = NeoSTP.Application.Dte.Diagnostico.DteDiagnosticoGuia.Crear(
+                dte.EstadoCodigo, dte.SelloRecibido, dte.EnviadoAt, dte.RespuestaHacienda,
+                result.ErrorCode, result.Error, result.ValidationErrors);
+        if (result.ErrorCode?.StartsWith("IDEMPOTENCY_", StringComparison.Ordinal) == true)
+            resp.Errors.Insert(0, result.ErrorCode);
         return MapError(result.ErrorCode, resp);
     }
 
@@ -26,11 +34,15 @@ public abstract class ApiControllerBase : ControllerBase
         }
 
         var resp = ApiResponse.Fail(result.Error ?? "Error", result.ValidationErrors, HttpContext.TraceIdentifier);
+        resp.Code = result.ErrorCode;
+        if (result.ErrorCode?.StartsWith("IDEMPOTENCY_", StringComparison.Ordinal) == true)
+            resp.Errors.Insert(0, result.ErrorCode);
         return MapError(result.ErrorCode, resp);
     }
 
     private IActionResult MapError(string? errorCode, object payload) => errorCode switch
     {
+        "FORBIDDEN" or "DTE_TIPO_NO_AUTORIZADO" => StatusCode(StatusCodes.Status403Forbidden, payload),
         "USER_NOT_FOUND" or "ROLE_NOT_FOUND" or "CAT_NOT_FOUND" or "CAT_ITEM_NOT_FOUND"
             or "EMPRESA_NOT_FOUND" or "PLAN_NOT_FOUND" or "MODULO_NOT_FOUND"
             or "SUCURSAL_NOT_FOUND" or "PV_NOT_FOUND"
@@ -51,7 +63,10 @@ public abstract class ApiControllerBase : ControllerBase
             or "PORTAL_ENLACE_NOT_FOUND" or "TOKEN_INVALIDO" or "TOKEN_EXPIRADO" or "TOKEN_REVOCADO"
             or "ASIENTO_NOT_FOUND" => NotFound(payload),
         "INVALID_STATE" or "STOCK_INSUFICIENTE" or "CAJA_ABIERTA" => Conflict(payload),
-        "IP_DUPLICATE" => Conflict(payload),
+        "IP_DUPLICATE" or "IDEMPOTENCY_CONFLICT" => Conflict(payload),
+        "DTE_RESULTADO_INCIERTO" or "DTE_CONCURRENCY_CONFLICT"
+            or "DTE_CONSULTA_NO_DISPONIBLE" or "DTE_CONSULTA_INCOMPATIBLE" => Conflict(payload),
+        "HACIENDA_RECHAZO" or "HACIENDA_DATOS_INVALIDOS" => UnprocessableEntity(payload),
         "IP_INVALID" => BadRequest(payload),
         "FIRMA_FAILED" or "HACIENDA_AUTH_FAILED" or "EMAIL_FAILED"
             or "LOTE_ENVIO_FAILED" or "LOTE_CONSULTA_FAILED" or "BACKUP_FAILED"

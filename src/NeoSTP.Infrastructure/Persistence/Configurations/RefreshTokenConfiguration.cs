@@ -12,6 +12,8 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.Token).HasMaxLength(500).IsRequired();
+        builder.Property(t => t.ContextInitialized).HasDefaultValue(false);
+        builder.Property(t => t.RevokedAt).IsConcurrencyToken();
         builder.Property(t => t.ReplacedByToken).HasMaxLength(500);
         builder.Property(t => t.CreatedByIp).HasMaxLength(45);
         builder.Property(t => t.RevokedByIp).HasMaxLength(45);
@@ -21,6 +23,8 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 
         builder.Ignore(t => t.IsActive);
 
+        builder.HasOne<AuthSession>().WithMany().HasForeignKey(t => t.SessionId)
+            .OnDelete(DeleteBehavior.NoAction);
         builder.HasIndex(t => t.Token).IsUnique();
         builder.HasIndex(t => new { t.UsuarioId, t.RevokedAt });
 

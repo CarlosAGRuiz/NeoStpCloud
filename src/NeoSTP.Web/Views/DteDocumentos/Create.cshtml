@@ -24,17 +24,10 @@
         "OTRO" or "OTRO_DOCUMENTO" => "37",
         var valor => valor,
     };
-    var tiposDocStr = new (string Code, string Label)[]
-    {
-        ("01", "01 Factura"),
-        ("04", "04 Nota de Remision"),
-        ("03", "03 Crédito Fiscal"),
-        ("05", "05 Nota de Crédito"),
-        ("06", "06 Nota de Débito"),
-        ("14", "14 Sujeto Excluido"),
-        ("11", "11 Factura Exportacion"),
-        ("15", "15 Donacion"),
-    };
+    var tiposDocStr = (ViewBag.TiposDteDisponibles as IReadOnlyList<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>
+        ?? Array.Empty<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>())
+        .Where(t => t.Codigo is not ("07" or "08" or "09"))
+        .Select(t => (Code: t.Codigo, Label: $"{t.Codigo} {t.Nombre}")).ToArray();
     var esNotaCreditoDebito = Model.TipoDteCodigo is "05" or "06";
 }
 

@@ -13,7 +13,9 @@ public interface IConnectDteService
 {
     /// <summary>
     /// Crea y procesa un DTE en un solo paso. Devuelve el documento en su estado final
-    /// (idealmente PROCESADO). Si algún paso falla, devuelve el error de ese paso.
+    /// (idealmente PROCESADO). Una clave repetida devuelve el DTE existente sin reemitirlo.
+    /// Si falla un paso después de crear el documento, el resultado puede contener Value con
+    /// su referencia aunque IsFailure sea true. No cambiar la clave para reintentar esa venta.
     /// </summary>
     Task<Result<DteDocumentoDto>> EmitirAsync(
         int empresaId, CreateDteDocumentoRequest request, string? actor, CancellationToken ct = default);

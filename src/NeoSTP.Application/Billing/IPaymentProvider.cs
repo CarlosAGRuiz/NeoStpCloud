@@ -16,4 +16,16 @@ public interface IPaymentProvider
     Task<Result<BillingPortalResult>> CreatePortalSessionAsync(string customerId, string returnUrl, CancellationToken ct = default);
     Task<Result<string>> ChangePlanAsync(string externalSubscriptionId, string newExternalPlanId, CancellationToken ct = default);
     Task<Result> CancelSubscriptionAsync(string externalSubscriptionId, bool atPeriodEnd, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cancela usando una clave durable cuando el proveedor admite idempotencia. La
+    /// implementación por defecto conserva compatibilidad con proveedores locales o
+    /// adaptadores que todavía no exponen esa capacidad.
+    /// </summary>
+    Task<Result> CancelSubscriptionAsync(
+        string externalSubscriptionId,
+        bool atPeriodEnd,
+        string idempotencyKey,
+        CancellationToken ct = default)
+        => CancelSubscriptionAsync(externalSubscriptionId, atPeriodEnd, ct);
 }

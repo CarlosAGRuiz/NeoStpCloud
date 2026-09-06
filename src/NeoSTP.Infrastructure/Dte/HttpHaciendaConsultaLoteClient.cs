@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using NeoSTP.Domain.Core.Dte;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
@@ -35,8 +36,11 @@ public class HttpHaciendaConsultaLoteClient : IHaciendaConsultaLoteClient
 
     public async Task<HaciendaConsultaLoteResult> ConsultarLoteAsync(HaciendaConsultaLoteRequest req, CancellationToken ct = default)
     {
+        if (!DteAmbientes.EsValido(req.AmbienteCodigo))
+            return new HaciendaConsultaLoteResult { Success = false, CodigoMsg = "DTE_AMBIENTE_INVALIDO", DescripcionMsg = "Configure explícitamente PRUEBAS o PRODUCCION." };
+
         var baseUrl = req.AmbienteCodigo == "PRODUCCION" ? _options.ProduccionBaseUrl : _options.PruebasBaseUrl;
-        var url = $"{baseUrl}/fesv/recepcion/consultadtelote/{req.CodigoLote}";
+        var url = $"{baseUrl}/fesv/recepcion/consultadtelote/{Uri.EscapeDataString(req.CodigoLote)}";
         _logger.LogInformation("HttpHaciendaConsultaLoteClient: GET {Url}", url);
 
         var http = _httpClientFactory.CreateClient(HttpClientName);
@@ -45,11 +49,13 @@ public class HttpHaciendaConsultaLoteClient : IHaciendaConsultaLoteClient
         using var message = new HttpRequestMessage(HttpMethod.Get, url);
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", req.Token);
 
+        string? raw = null;
+        int? code = null;
         try
         {
-            var resp = await http.SendAsync(message, ct);
-            var raw = await resp.Content.ReadAsStringAsync(ct);
-            var code = (int)resp.StatusCode;
+            using var resp = await http.SendAsync(message, ct);
+            raw = await resp.Content.ReadAsStringAsync(ct);
+            code = (int)resp.StatusCode;
 
             if (!resp.IsSuccessStatusCode)
             {
@@ -68,10 +74,13 @@ public class HttpHaciendaConsultaLoteClient : IHaciendaConsultaLoteClient
             using var doc = JsonDocument.Parse(raw);
             var root = doc.RootElement;
             var estado = root.TryGetProperty("estado", out var e) ? e.GetString() : null;
+            if (string.IsNullOrWhiteSpace(estado)
+                || !root.TryGetProperty("listadoDteEnviados", out var lista) || lista.ValueKind != JsonValueKind.Array)
+                throw new JsonException("Respuesta de consulta de lote sin estructura de resultados reconocible.");
 
             // Parsear los items individuales del lote
             var items = new List<HaciendaConsultaLoteItemResult>();
-            if (root.TryGetProperty("listadoDteEnviados", out var lista) && lista.ValueKind == JsonValueKind.Array)
+            if (lista.ValueKind == JsonValueKind.Array)
             {
                 foreach (var item in lista.EnumerateArray())
                 {
@@ -107,7 +116,19 @@ public class HttpHaciendaConsultaLoteClient : IHaciendaConsultaLoteClient
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "HttpHaciendaConsultaLoteClient: error HTTP");
-            return new HaciendaConsultaLoteResult { Success = false, CodigoHttp = 0, Estado = "ERROR", DescripcionMsg = ex.Message };
+            return new HaciendaConsultaLoteResult { Success = false, CodigoHttp = 0, Estado = "ERROR", DescripcionMsg = "No se pudo consultar Hacienda. Se conserva el estado anterior del lote." };
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new HaciendaConsultaLoteResult { Success = false, CodigoHttp = 0, CodigoMsg = "TIMEOUT", DescripcionMsg = "Se agotó la espera de la consulta; no implica rechazo de documentos." };
+        }
+        catch (Polly.Timeout.TimeoutRejectedException)
+        {
+            return new HaciendaConsultaLoteResult { Success = false, CodigoHttp = 0, CodigoMsg = "TIMEOUT", DescripcionMsg = "Se agotó la espera de la consulta; no implica rechazo de documentos." };
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            return new HaciendaConsultaLoteResult { Success = false, CodigoHttp = code, CodigoMsg = "RESPUESTA_INVALIDA", Raw = raw, DescripcionMsg = "La respuesta no se pudo interpretar; se conserva el resultado fiscal anterior." };
         }
     }
 

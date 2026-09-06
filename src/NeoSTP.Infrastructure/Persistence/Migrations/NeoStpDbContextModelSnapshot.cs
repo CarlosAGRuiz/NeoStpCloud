@@ -179,6 +179,335 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.ToTable("Core_Auditoria", (string)null);
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCalendarAgreement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("AgreementKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("AutomaticSuspension")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("BillingSubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaPlanId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("FirstPeriodStartLocal")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("MonthlyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgreementKey")
+                        .IsUnique();
+
+                    b.HasIndex("BillingSubscriptionId")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId")
+                        .IsUnique()
+                        .HasFilter("[Active] = 1");
+
+                    b.HasIndex("EmpresaPlanId");
+
+                    b.HasIndex("PlanId");
+
+                    b.ToTable("Billing_CalendarAgreements", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCalendarPeriod", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AgreementId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BillingInvoiceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BillingPaymentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly>("DueLocalDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly>("PeriodEndExclusiveLocal")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStartLocal")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingInvoiceId")
+                        .IsUnique();
+
+                    b.HasIndex("BillingPaymentId")
+                        .IsUnique()
+                        .HasFilter("[BillingPaymentId] IS NOT NULL");
+
+                    b.HasIndex("AgreementId", "PaymentReference")
+                        .IsUnique()
+                        .HasFilter("[PaymentReference] IS NOT NULL");
+
+                    b.HasIndex("AgreementId", "PeriodStartLocal")
+                        .IsUnique();
+
+                    b.ToTable("Billing_CalendarPeriods", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCheckoutIntent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BeneficiaryId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("BillingCustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BillingInterval")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int?>("BillingSubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CancelUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("CommercialSnapshotJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CorrelationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EmpresaPlanId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExternalCheckoutId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ExternalCustomerId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ExternalPlanId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IdempotencyKeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsProduction")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("LeaseExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LeaseId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("PlanCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PlanName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ProviderAccountId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ProviderAcknowledgedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RedirectUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("SuccessUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingCustomerId");
+
+                    b.HasIndex("BillingSubscriptionId");
+
+                    b.HasIndex("CorrelationId")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaPlanId");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("EmpresaId", "IdempotencyKeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "Status");
+
+                    b.HasIndex("Status", "LeaseExpiresAt");
+
+                    b.HasIndex("Provider", "ProviderAccountId", "ExternalCheckoutId")
+                        .IsUnique()
+                        .HasFilter("[ExternalCheckoutId] IS NOT NULL");
+
+                    b.ToTable("Billing_CheckoutIntents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Billing_CheckoutIntents_Ack", "[Status] <> 'AWAITING_PAYMENT' OR ([ProviderAcknowledgedAt] IS NOT NULL AND [ExternalCheckoutId] IS NOT NULL AND [RedirectUrl] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Billing_CheckoutIntents_Amount", "[Amount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCustomer", b =>
                 {
                     b.Property<int>("Id")
@@ -364,6 +693,209 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.ToTable("Billing_Payments", (string)null);
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingPaymentApplication", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AppliedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("BillingCheckoutIntentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BillingPaymentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BillingPaymentNotificationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BillingSubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CommercialSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EmpresaPlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModuleIdsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("PeriodEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingCheckoutIntentId")
+                        .IsUnique();
+
+                    b.HasIndex("BillingPaymentId")
+                        .IsUnique();
+
+                    b.HasIndex("BillingPaymentNotificationId")
+                        .IsUnique();
+
+                    b.HasIndex("BillingSubscriptionId");
+
+                    b.HasIndex("EmpresaPlanId");
+
+                    b.ToTable("Billing_PaymentApplications", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Billing_PaymentApplications_Period", "[PeriodEnd] > [PeriodStart]");
+                        });
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingPaymentNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BeneficiaryId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("BillingCheckoutIntentId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CheckoutCorrelationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("ExternalCheckoutId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsProduction")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("LeaseExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LeaseId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ProviderAccountId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("ProviderPaidAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ReceiptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SemanticHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset>("TransactionAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("TransactionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingCheckoutIntentId");
+
+                    b.HasIndex("ReceiptId")
+                        .IsUnique();
+
+                    b.HasIndex("CheckoutCorrelationId", "Status");
+
+                    b.HasIndex("Status", "LeaseExpiresAt");
+
+                    b.HasIndex("Provider", "ProviderAccountId", "IsProduction", "TransactionId")
+                        .IsUnique();
+
+                    b.ToTable("Billing_PaymentNotifications", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Billing_PaymentNotifications_Amount", "[Amount] > 0");
+
+                            t.HasCheckConstraint("CK_Billing_PaymentNotifications_Capture", "[Status] <> 'VERIFIED_CAPTURED_PRODUCTION' OR ([IsProduction] = 1 AND [VerifiedAt] IS NOT NULL AND [ProviderPaidAt] IS NOT NULL AND [BillingCheckoutIntentId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Billing_PaymentNotifications_Verified", "[Status] <> 'VERIFIED_SANDBOX' OR ([IsProduction] = 0 AND [VerifiedAt] IS NOT NULL AND [ProviderPaidAt] IS NOT NULL AND [BillingCheckoutIntentId] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingPlanProviderMapping", b =>
                 {
                     b.Property<int>("Id")
@@ -419,6 +951,124 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Billing_PlanProviderMappings", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingProviderOperation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AccessEndsAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BillingSubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EmpresaPlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExternalResourceId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LeaseExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LeaseId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("ProviderConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingSubscriptionId");
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("EmpresaPlanId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("EmpresaId", "PlanId");
+
+                    b.HasIndex("Status", "NextAttemptAt", "LeaseExpiresAt");
+
+                    b.ToTable("Billing_ProviderOperations", (string)null);
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingSubscription", b =>
@@ -18464,6 +19114,185 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.ToTable("Dte_CertificacionPruebas", (string)null);
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaign", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AmbienteCodigo")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExpectedNit")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(14)");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MatrixReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<int>("TotalBudget")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "Status");
+
+                    b.ToTable("Dte_CertificationCampaigns", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CertificationCampaign_Budget", "[TotalBudget] > 0");
+
+                            t.HasCheckConstraint("CK_CertificationCampaign_Nit", "LEN([ExpectedNit]) = 14 AND [ExpectedNit] NOT LIKE '%[^0-9]%'");
+
+                            t.HasCheckConstraint("CK_CertificationCampaign_Status", "[Status] IN ('PREPARED','ACTIVE','REVOKED','CLOSED')");
+
+                            t.HasCheckConstraint("CK_CertificationCampaign_TestOnly", "[AmbienteCodigo] = 'PRUEBAS'");
+
+                            t.HasCheckConstraint("CK_CertificationCampaign_UtcPeriod", "[ExpiresAtUtc] > [StartsAtUtc] AND DATEPART(TZOFFSET,[StartsAtUtc]) = 0 AND DATEPART(TZOFFSET,[ExpiresAtUtc]) = 0");
+                        });
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaignConsumption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DteDocumentoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IdempotencyKeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("ScenarioReference")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("TipoDteCodigo")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DteDocumentoId")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.HasIndex("CampaignId", "IdempotencyKeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("CampaignId", "TipoDteCodigo");
+
+                    b.ToTable("Dte_CertificationCampaignConsumptions", (string)null);
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaignTypeBudget", b =>
+                {
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TipoDteCodigo")
+                        .HasMaxLength(2)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(2)");
+
+                    b.Property<int>("Budget")
+                        .HasColumnType("int");
+
+                    b.HasKey("CampaignId", "TipoDteCodigo");
+
+                    b.ToTable("Dte_CertificationCampaignTypeBudgets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CertificationCampaignType_Budget", "[Budget] > 0");
+
+                            t.HasCheckConstraint("CK_CertificationCampaignType_Type", "[TipoDteCodigo] IN ('01','03','11','14')");
+                        });
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", b =>
                 {
                     b.Property<int>("Id")
@@ -18492,9 +19321,11 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("EnviadoAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<string>("EstadoCodigo")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -18516,6 +19347,7 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("UltimaConsultaAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -18947,6 +19779,10 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("TiposDteAutorizadosCsv")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("TokenMhCifrado")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
@@ -19059,9 +19895,11 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("EnviadoAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<string>("EstadoCodigo")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
@@ -19074,10 +19912,25 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime?>("GeneradoAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<TimeSpan>("HoraEmision")
                         .HasColumnType("time");
+
+                    b.Property<string>("IdempotencyKeyHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("IdempotencyRequestHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("IdempotencyScope")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<int>("IntentoRetransmision")
                         .HasColumnType("int");
@@ -19355,6 +20208,10 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EmpresaId", "NumeroControl")
                         .IsUnique();
+
+                    b.HasIndex("EmpresaId", "IdempotencyScope", "IdempotencyKeyHash")
+                        .IsUnique()
+                        .HasFilter("[IdempotencyKeyHash] IS NOT NULL");
 
                     b.HasIndex("EmpresaId", "TipoDteCodigo", "FechaEmision");
 
@@ -20225,6 +21082,20 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("ComplementoAutorizado")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ComplementoAutorizadoAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ComplementoAutorizadoBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ComplementoMotivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("FechaActivacion")
                         .HasColumnType("datetime2");
@@ -21843,6 +22714,7 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<int?>("DteDocumentoId")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<decimal?>("EfectivoRecibido")
@@ -21853,6 +22725,7 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("EstadoCodigo")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
@@ -23108,6 +23981,50 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.ToTable("Scan_Documentos", (string)null);
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Seguridad.AuthSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AuthorizationFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CredentialFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int?>("EmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId", "ExpiresAt");
+
+                    b.ToTable("Core_AuthSessions", (string)null);
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Seguridad.EmpresaSso", b =>
                 {
                     b.Property<int>("Id")
@@ -23975,6 +24892,14 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("ContextEmpresaId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ContextInitialized")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -23994,6 +24919,7 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime?>("RevokedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<string>("RevokedByIp")
@@ -24003,6 +24929,9 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Property<string>("RevokedReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -24020,6 +24949,8 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
 
                     b.HasIndex("Token")
                         .IsUnique();
@@ -25668,6 +26599,7 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<int>("IntentosFallidos")
+                        .IsConcurrencyToken()
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("MfaConfirmadoAt")
@@ -25683,6 +26615,10 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<Guid>("MfaVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("NombreCompleto")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -25692,6 +26628,14 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("SecurityStamp")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SsoIssuer")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("SsoProveedor")
                         .HasMaxLength(20)
@@ -25737,9 +26681,9 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[EmpresaId] IS NOT NULL");
 
-                    b.HasIndex("SsoProveedor", "SsoSubject")
+                    b.HasIndex("SsoProveedor", "SsoIssuer", "SsoSubject")
                         .IsUnique()
-                        .HasFilter("[SsoProveedor] IS NOT NULL AND [SsoSubject] IS NOT NULL");
+                        .HasFilter("[SsoProveedor] IS NOT NULL AND [SsoIssuer] IS NOT NULL AND [SsoSubject] IS NOT NULL");
 
                     b.ToTable("Core_Usuarios", (string)null);
                 });
@@ -26093,6 +27037,99 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCalendarAgreement", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingSubscription", "Subscription")
+                        .WithMany()
+                        .HasForeignKey("BillingSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.EmpresaPlan", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.Plan", null)
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Subscription");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCalendarPeriod", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingCalendarAgreement", "Agreement")
+                        .WithMany()
+                        .HasForeignKey("AgreementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingInvoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("BillingInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingPayment", null)
+                        .WithMany()
+                        .HasForeignKey("BillingPaymentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Agreement");
+
+                    b.Navigation("Invoice");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCheckoutIntent", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingCustomer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("BillingCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingSubscription", "Subscription")
+                        .WithMany()
+                        .HasForeignKey("BillingSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.EmpresaPlan", "EmpresaPlan")
+                        .WithMany()
+                        .HasForeignKey("EmpresaPlanId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.Plan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("EmpresaPlan");
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("Subscription");
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingCustomer", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
@@ -26126,6 +27163,59 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Subscription");
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingPaymentApplication", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingCheckoutIntent", "CheckoutIntent")
+                        .WithMany()
+                        .HasForeignKey("BillingCheckoutIntentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingPayment", "Payment")
+                        .WithMany()
+                        .HasForeignKey("BillingPaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingPaymentNotification", "Notification")
+                        .WithMany()
+                        .HasForeignKey("BillingPaymentNotificationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingSubscription", "Subscription")
+                        .WithMany()
+                        .HasForeignKey("BillingSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.EmpresaPlan", "EmpresaPlan")
+                        .WithMany()
+                        .HasForeignKey("EmpresaPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CheckoutIntent");
+
+                    b.Navigation("EmpresaPlan");
+
+                    b.Navigation("Notification");
+
+                    b.Navigation("Payment");
+
+                    b.Navigation("Subscription");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingPaymentNotification", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingCheckoutIntent", "CheckoutIntent")
+                        .WithMany()
+                        .HasForeignKey("BillingCheckoutIntentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CheckoutIntent");
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingPlanProviderMapping", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Licenciamiento.Plan", "Plan")
@@ -26133,6 +27223,39 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                         .HasForeignKey("PlanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Billing.BillingProviderOperation", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Billing.BillingSubscription", "BillingSubscription")
+                        .WithMany()
+                        .HasForeignKey("BillingSubscriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.EmpresaPlan", "EmpresaPlan")
+                        .WithMany()
+                        .HasForeignKey("EmpresaPlanId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("NeoSTP.Domain.Core.Licenciamiento.Plan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BillingSubscription");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("EmpresaPlan");
 
                     b.Navigation("Plan");
                 });
@@ -26685,6 +27808,55 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Evento");
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaign", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Empresa");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaignConsumption", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Dte.DteDocumento", "Document")
+                        .WithMany()
+                        .HasForeignKey("DteDocumentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaignTypeBudget", "TypeBudget")
+                        .WithMany()
+                        .HasForeignKey("CampaignId", "TipoDteCodigo")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Document");
+
+                    b.Navigation("Empresa");
+
+                    b.Navigation("TypeBudget");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaignTypeBudget", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaign", "Campaign")
+                        .WithMany("TypeBudgets")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
@@ -27207,6 +28379,17 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                     b.Navigation("Empresa");
                 });
 
+            modelBuilder.Entity("NeoSTP.Domain.Core.Seguridad.AuthSession", b =>
+                {
+                    b.HasOne("NeoSTP.Domain.Core.Seguridad.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("NeoSTP.Domain.Core.Seguridad.EmpresaSso", b =>
                 {
                     b.HasOne("NeoSTP.Domain.Core.Empresas.Empresa", "Empresa")
@@ -27227,6 +28410,11 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Seguridad.RefreshToken", b =>
                 {
+                    b.HasOne("NeoSTP.Domain.Core.Seguridad.AuthSession", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("NeoSTP.Domain.Core.Seguridad.Usuario", "Usuario")
                         .WithMany()
                         .HasForeignKey("UsuarioId")
@@ -27473,6 +28661,11 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificacionPrueba", b =>
                 {
                     b.Navigation("Errores");
+                });
+
+            modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Certificacion.CertificationCampaign", b =>
+                {
+                    b.Navigation("TypeBudgets");
                 });
 
             modelBuilder.Entity("NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLote", b =>

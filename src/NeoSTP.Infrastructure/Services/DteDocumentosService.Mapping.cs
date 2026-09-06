@@ -265,6 +265,8 @@ public partial class DteDocumentosService
         JsonDte = d.Json?.JsonDte,
         JsonFirmado = d.Json?.JsonFirmado,
         RespuestaHacienda = d.Json?.RespuestaHacienda,
+        Diagnostico = NeoSTP.Application.Dte.Diagnostico.DteDiagnosticoGuia.Crear(
+            d.EstadoCodigo, d.SelloRecibido, d.EnviadoAt, d.Json?.RespuestaHacienda),
         IntentoRetransmision = d.IntentoRetransmision,
         UltimoIntentoRetransmisionAt = d.UltimoIntentoRetransmisionAt,
         NotaInterna = d.NotaInterna,

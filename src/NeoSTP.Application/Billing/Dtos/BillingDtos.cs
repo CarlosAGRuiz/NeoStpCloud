@@ -16,7 +16,11 @@ public record BillingSubscriptionDto(
     string Status,
     DateTime TrialEnd,
     DateTime? CurrentPeriodEnd,
-    bool CancelAtPeriodEnd
+    bool CancelAtPeriodEnd,
+    bool CalendarBilling = false,
+    DateOnly? NextDueLocalDate = null,
+    DateOnly? ServicePeriodStartLocal = null,
+    DateOnly? ServicePeriodEndExclusiveLocal = null
 );
 
 public record BillingPaymentDto(
@@ -35,15 +39,16 @@ public record BillingInvoiceDto(
     string Status,
     DateTime InvoiceDate,
     DateTime? DueDate,
-    string? PdfUrl
+    string? PdfUrl,
+    DateOnly? DueLocalDate = null
 );
 
 public record StartTrialRequest(int EmpresaId, int PlanId, string Email);
-public record CreateCheckoutRequest(int EmpresaId, int PlanId, string ReturnUrl, string? Metodo = null);
+public record CreateCheckoutRequest(int EmpresaId, int PlanId, string ReturnUrl, string? Metodo = null, string? IdempotencyKey = null);
 public record ChangePlanRequest(int EmpresaId, int NewPlanId);
 public record CancelSubscriptionRequest(int EmpresaId, bool AtPeriodEnd = true);
 
-public record CheckoutSessionResult(string SessionId, string RedirectUrl);
+public record CheckoutSessionResult(string SessionId, string RedirectUrl, Guid? CorrelationId = null, string? Status = null);
 public record BillingPortalResult(string PortalUrl);
 
 // ── Transferencia bancaria (offline) ──────────────────────────────────────

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using NeoSTP.Domain.Core.Dte;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
@@ -32,6 +33,9 @@ public class HttpHaciendaEventoClient : IHaciendaEventoClient
 
     public async Task<EventoResult> PostAsync(string endpointPath, string bodyJson, string token, string ambienteCodigo, CancellationToken ct = default)
     {
+        if (!DteFiscalContext.CoincideBodyEvento(bodyJson, ambienteCodigo))
+            return new EventoResult { Success = false, CodigoMsg = "DTE_PAYLOAD_INCOMPATIBLE", DescripcionMsg = "El evento, su firma y el ambiente deben coincidir." };
+
         var baseUrl = ambienteCodigo == "PRODUCCION" ? _options.ProduccionBaseUrl : _options.PruebasBaseUrl;
         var url = $"{baseUrl}{endpointPath}";
         _logger.LogInformation("HttpHaciendaEventoClient: POST {Url}", url);

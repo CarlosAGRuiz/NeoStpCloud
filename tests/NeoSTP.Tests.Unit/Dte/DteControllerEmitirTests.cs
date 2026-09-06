@@ -20,6 +20,40 @@ namespace NeoSTP.Tests.Unit.Dte;
 /// </summary>
 public class DteControllerEmitirTests
 {
+    [Theory]
+    [InlineData("HACIENDA_DATOS_INVALIDOS", 422)]
+    [InlineData("HACIENDA_RECHAZO", 422)]
+    [InlineData("DTE_RESULTADO_INCIERTO", 409)]
+    [InlineData("HACIENDA_AUTH_FAILED", 502)]
+    public async Task EmisionFallida_ExponeCodigoEIdentidadParaRecuperacion(string code, int status)
+    {
+        var (ctrl, connect, _) = Build(5);
+        var dto = new DteDocumentoDto { Id = 88, EstadoCodigo = "ERROR", EnviadoAt = DateTime.UtcNow,
+            RespuestaHacienda = """{"estado":"ERROR","codigoMsg":"008","descripcionMsg":"[emisor.codActividad] NO CORRESPONDE A CONTRIBUYENTE"}""" };
+        connect.EmitirAsync(5, Arg.Any<CreateDteDocumentoRequest>(), "vendedor1", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.FailWithValue(dto, "Revise los datos", code));
+        var result = (ObjectResult)await ctrl.Emitir(new(), null, default);
+        result.StatusCode.Should().Be(status);
+        var payload = result.Value.Should().BeOfType<ApiResponse<DteDocumentoDto>>().Subject;
+        payload.Code.Should().Be(code);
+        payload.Success.Should().BeFalse();
+        payload.Data!.Id.Should().Be(88);
+        payload.Data.Diagnostico!.CodigoHacienda.Should().Be("008");
+        payload.Data.Diagnostico.Campos.Single().Campo.Should().Be("emisor.codActividad");
+        if (code == "DTE_RESULTADO_INCIERTO")
+            payload.Data.Diagnostico.RequiereConsultaHacienda.Should().BeTrue();
+        payload.TraceId.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void DiagnosticoApi_ExigePermisoEspecificoYModulo()
+    {
+        var type = typeof(DteDiagnosticoController);
+        type.GetCustomAttributes(typeof(NeoSTP.Api.Authorization.RequirePermisoAttribute), true)
+            .Cast<NeoSTP.Api.Authorization.RequirePermisoAttribute>().Single().Codigo.Should().Be("DTE.Diagnostico");
+        type.GetCustomAttributes(typeof(NeoSTP.Api.Authorization.RequireModuleAttribute), true).Should().ContainSingle();
+    }
+
     private static (DteController ctrl, IConnectDteService connect, IDteDocumentosService docs) Build(int? empresaId)
     {
         var docs = Substitute.For<IDteDocumentosService>();
@@ -33,6 +67,55 @@ public class DteControllerEmitirTests
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };
         return (ctrl, connect, docs);
+    }
+
+    [Fact]
+    public async Task Emitir_ConflictoDeClave_Devuelve409ConCodigo()
+    {
+        var (ctrl, connect, _) = Build(5);
+        connect.EmitirAsync(5, Arg.Any<CreateDteDocumentoRequest>(), "vendedor1", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.Fail("Clave usada con otros datos", "IDEMPOTENCY_CONFLICT"));
+        var result = await ctrl.Emitir(new(), null, default);
+        var conflict = result.Should().BeOfType<ConflictObjectResult>().Subject;
+        conflict.Value.Should().BeOfType<ApiResponse<DteDocumentoDto>>().Subject.Errors.Should().Contain("IDEMPOTENCY_CONFLICT");
+    }
+
+    [Fact]
+    public async Task Emitir_ErrorConDocumento_DevuelveIdParaRecuperacion()
+    {
+        var (ctrl, connect, _) = Build(5);
+        connect.EmitirAsync(5, Arg.Any<CreateDteDocumentoRequest>(), "vendedor1", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.FailWithValue(new() { Id = 88, EstadoCodigo = "BORRADOR" }, "Corregir emisor", "VALIDATION"));
+        var result = await ctrl.Emitir(new(), null, default);
+        var payload = result.Should().BeOfType<BadRequestObjectResult>().Subject.Value.Should().BeOfType<ApiResponse<DteDocumentoDto>>().Subject;
+        payload.Success.Should().BeFalse();
+        payload.Data!.Id.Should().Be(88);
+    }
+
+    [Theory]
+    [InlineData("emitir")]
+    [InlineData("emitir-factura")]
+    [InlineData("crear")]
+    [InlineData("crear-factura")]
+    public async Task EndpointsDeCreacion_PropaganHeaderTrasResolverTenant(string action)
+    {
+        var (ctrl, connect, docs) = Build(5);
+        ctrl.Request.Headers["Idempotency-Key"] = "sale-key";
+        connect.EmitirAsync(5, Arg.Any<CreateDteDocumentoRequest>(), "vendedor1", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.Ok(new() { Id = 1 }));
+        docs.CreateBorradorAsync(5, Arg.Any<CreateDteDocumentoRequest>(), "vendedor1", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.Ok(new() { Id = 1 }));
+        var req = new CreateDteDocumentoRequest();
+        _ = action switch
+        {
+            "emitir" => await ctrl.Emitir(req, 99, default),
+            "emitir-factura" => await ctrl.EmitirFactura(req, 99, default),
+            "crear" => await ctrl.CrearGenerico(req, 99, default),
+            _ => await ctrl.CrearFactura(req, 99, default),
+        };
+        req.IdempotencyKey.Should().Be("sale-key");
+        ctrl.Request.Headers["Idempotency-Key"] = new[] { "one", "two" };
+        (await ctrl.Emitir(new(), null, default)).Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]

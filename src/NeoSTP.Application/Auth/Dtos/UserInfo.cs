@@ -2,6 +2,9 @@ namespace NeoSTP.Application.Auth.Dtos;
 
 public class UserInfo
 {
+    public Guid SessionId { get; set; }
+    public DateTime SessionExpiresAt { get; set; }
+    public string SessionPurpose { get; set; } = SessionClaims.Full;
     public int Id { get; set; }
     public int? EmpresaId { get; set; }
     public string Username { get; set; } = null!;

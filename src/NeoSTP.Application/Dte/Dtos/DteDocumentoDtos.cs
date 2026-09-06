@@ -18,6 +18,8 @@ public class DteDocumentoListItemDto
 
 public class DteDocumentoDto
 {
+    /// <summary>True si se devolvió un DTE existente sin ejecutar nuevamente la emisión.</summary>
+    public bool IdempotencyReplayed { get; set; }
     public int Id { get; set; }
     public int EmpresaId { get; set; }
     public string TipoDteCodigo { get; set; } = null!;
@@ -92,6 +94,9 @@ public class DteDocumentoDto
     public string? JsonFirmado { get; set; }
     public string? RespuestaHacienda { get; set; }
 
+    /// <summary>Diagnóstico y siguiente paso sobre este mismo documento; nunca ejecuta reintentos.</summary>
+    public Diagnostico.Dtos.DteDiagnosticoActualDto? Diagnostico { get; set; }
+
     /// <summary>Trazabilidad de reintentos automáticos (Worker de contingencia).</summary>
     public int IntentoRetransmision { get; set; }
     public DateTime? UltimoIntentoRetransmisionAt { get; set; }
@@ -127,6 +132,13 @@ public class DteDocumentoDetalleDto
 
 public class CreateDteDocumentoRequest
 {
+    /// <summary>Clave estable por venta; reutilizar en cada reintento (1..128 caracteres ASCII visibles).</summary>
+    public string? IdempotencyKey { get; set; }
+
+    /// <summary>Origen interno POS. Nunca se acepta del JSON del cliente API.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int? VentaPosOrigenId { get; set; }
+
     /// <summary>01, 03, 05, 06, 14.</summary>
     public string TipoDteCodigo { get; set; } = "01";
     public int? SucursalId { get; set; }
@@ -247,6 +259,8 @@ public class ReceptorDto
 
 public class DteListQuery
 {
+    /// <summary>PRUEBAS o PRODUCCION. Omitir conserva la consulta histórica de ambos ambientes.</summary>
+    public string? AmbienteCodigo { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;
     public string? Search { get; set; }

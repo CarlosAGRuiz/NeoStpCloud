@@ -1,4 +1,5 @@
 using NeoSTP.Application.Pos;
+using NeoSTP.Infrastructure.Branding;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -13,8 +14,11 @@ public class TicketPdfService : ITicketPdfService
 
     static TicketPdfService() => QuestPDF.Settings.License = LicenseType.Community;
 
-    public byte[] GenerarTicket(TicketModel t) => Document.Create(container =>
+    public byte[] GenerarTicket(TicketModel t)
     {
+        var logo = BrandingImageValidator.SafeForPdf(t.LogoPng);
+        return Document.Create(container =>
+        {
         // Ancho del rollo en puntos (1mm ≈ 2.834 pt). Alto dinámico (rollo continuo).
         var anchoPt = t.AnchoMm * 2.834f;
         container.Page(page =>
@@ -23,19 +27,20 @@ public class TicketPdfService : ITicketPdfService
             page.MarginHorizontal(6);
             page.MarginVertical(8);
             page.DefaultTextStyle(x => x.FontFamily(Fonts.Consolas).FontSize(8).FontColor(Ink));
-            page.Content().Element(c => Body(c, t));
+            page.Content().Element(c => Body(c, t, logo));
         });
-    }).GeneratePdf();
+        }).GeneratePdf();
+    }
 
-    private static void Body(IContainer container, TicketModel t)
+    private static void Body(IContainer container, TicketModel t, byte[]? logo)
     {
         var money = t.MonedaSimbolo;
         container.Column(col =>
         {
             col.Spacing(2);
 
-            if (t.LogoPng is { Length: > 0 })
-                col.Item().AlignCenter().MaxWidth(120).Image(t.LogoPng).FitWidth();
+            if (logo is { Length: > 0 })
+                col.Item().AlignCenter().MaxWidth(120).Image(logo).FitWidth();
 
             col.Item().AlignCenter().Text(t.EmpresaNombre).Bold().FontSize(10);
             if (!string.IsNullOrWhiteSpace(t.EmpresaNit)) col.Item().AlignCenter().Text($"NIT: {t.EmpresaNit}").FontColor(Muted);

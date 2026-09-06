@@ -187,6 +187,8 @@ public class DteGeneratorTests
     public void Generar_FacturaExportacion_TipoDte11_ConPaisYTributoExportacion()
     {
         var d = NewDoc(TipoDteCodigos.FacturaExportacion);
+        d.Empresa.Municipio = "23"; // Resolved 2024 territory for this synthetic emitter.
+        d.Empresa.Distrito = "14";
         d.ReceptorPaisCodigo = "US"; // CAT-020 v1.1 (ISO 3166-1 alfa-2): Estados Unidos
         d.ReceptorPaisNombre = "ESTADOS UNIDOS";
         d.ReceptorTipoPersona = 2;

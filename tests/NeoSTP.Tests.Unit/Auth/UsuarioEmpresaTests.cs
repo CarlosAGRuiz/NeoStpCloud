@@ -51,15 +51,21 @@ public class UsuarioEmpresaTests
     {
         var jwt = Substitute.For<IJwtTokenService>();
         jwt.CreateAccessToken(Arg.Any<UserInfo>()).Returns(("token", DateTime.UtcNow.AddHours(1)));
-        jwt.CreateRefreshToken().Returns(Guid.NewGuid().ToString());
-        return new AuthService(db, Substitute.For<IPasswordHasher>(), jwt,
+        jwt.CreateRefreshToken().Returns(_ => Guid.NewGuid().ToString());
+        var hasher = Substitute.For<IPasswordHasher>();
+        hasher.Verify("valid", "h").Returns(true);
+        return new AuthService(db, hasher, jwt,
             Substitute.For<IAuditoriaService>(), Substitute.For<NeoSTP.Application.Ops.IMfaService>(),
             Options.Create(new JwtOptions { Key = "k", Issuer = "i", Audience = "a" }),
             Options.Create(new SecurityOptions()),
             Substitute.For<ILogger<AuthService>>());
     }
 
-    private static AuthContext Ctx() => new() { IpAddress = "127.0.0.1" };
+    private static async Task<AuthContext> Ctx(AuthService auth) => new()
+    {
+        IpAddress = "127.0.0.1",
+        SessionId = (await auth.LoginAsync(new LoginRequest { UsernameOrEmail = "contador", Password = "valid" }, new AuthContext())).Value!.User.SessionId
+    };
 
     [Fact]
     public async Task Agregar_PorEmail_CreaMembresia_YDuplicadoFalla()
@@ -128,7 +134,7 @@ public class UsuarioEmpresaTests
         await NewMiembros(db).AgregarAsync(EmpresaCliente, new AgregarMiembroRequest { EmailOUsername = "contador", RolId = 60 }, "a");
         var auth = NewAuth(db);
 
-        var r = await auth.CambiarEmpresaAsync(10, EmpresaCliente, Ctx());
+        var r = await auth.CambiarEmpresaAsync(10, EmpresaCliente, await Ctx(auth));
 
         r.IsSuccess.Should().BeTrue(r.Error);
         r.Value!.User.EmpresaId.Should().Be(EmpresaCliente);
@@ -142,13 +148,13 @@ public class UsuarioEmpresaTests
         var db = NewDb();
         var auth = NewAuth(db);
 
-        (await auth.CambiarEmpresaAsync(10, EmpresaCliente, Ctx())).ErrorCode.Should().Be("EMPRESA_NO_MEMBRESIA");
+        (await auth.CambiarEmpresaAsync(10, EmpresaCliente, await Ctx(auth))).ErrorCode.Should().Be("EMPRESA_NO_MEMBRESIA");
 
         await NewMiembros(db).AgregarAsync(EmpresaCliente, new AgregarMiembroRequest { EmailOUsername = "contador", RolId = 60 }, "a");
         (await db.Empresas.FirstAsync(e => e.Id == EmpresaCliente)).EstadoCodigo = "SUSPENDIDA";
         await db.SaveChangesAsync();
 
-        (await auth.CambiarEmpresaAsync(10, EmpresaCliente, Ctx())).ErrorCode.Should().Be("EMPRESA_SUSPENDIDA");
+        (await auth.CambiarEmpresaAsync(10, EmpresaCliente, await Ctx(auth))).ErrorCode.Should().Be("EMPRESA_SUSPENDIDA");
     }
 
     [Fact]
@@ -158,7 +164,7 @@ public class UsuarioEmpresaTests
         await NewMiembros(db).AgregarAsync(EmpresaCliente, new AgregarMiembroRequest { EmailOUsername = "contador", RolId = 60 }, "a");
         var auth = NewAuth(db);
 
-        var r = await auth.CambiarEmpresaAsync(10, EmpresaContador, Ctx());
+        var r = await auth.CambiarEmpresaAsync(10, EmpresaContador, await Ctx(auth));
 
         r.IsSuccess.Should().BeTrue(r.Error);
         r.Value!.User.EmpresaId.Should().Be(EmpresaContador);

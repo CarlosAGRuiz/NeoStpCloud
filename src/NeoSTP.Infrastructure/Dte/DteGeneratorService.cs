@@ -31,16 +31,23 @@ public class DteGeneratorService : IDteGeneratorService
     // Corte de esquemas MH 2026-08-25: cuando Dte:EsquemaNuevo=true se emiten las versiones
     // nuevas (Factura v2, CCF/NR/NC/ND v4, Retención/Sujeto Excluido v2). Por defecto false =
     // versiones vigentes (v1/v3) que apitest aún acepta hasta el corte. Toggle para no redeployar.
-    private readonly bool _esquemaNuevo;
+    private readonly DteSchemaPolicy _schemaPolicy;
 
     public DteGeneratorService(IOptions<TerritorialOptions> territorial, IConfiguration configuration)
     {
         _territorial = territorial.Value;
-        _esquemaNuevo = configuration.GetValue<bool>("Dte:EsquemaNuevo");
+        _schemaPolicy = new DteSchemaPolicy(configuration);
     }
 
     public Result<string> Generar(DteDocumento d, DteConfiguracion? config = null)
     {
+        if (!DteAmbientes.EsValido(d.AmbienteCodigo))
+            return Result<string>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
+        if (config is not null)
+        {
+            var contexto = DteFiscalContext.Validar(d.AmbienteCodigo, config);
+            if (contexto.IsFailure) return Result<string>.Fail(contexto.Error!, contexto.ErrorCode);
+        }
         if (string.IsNullOrWhiteSpace(d.NumeroControl))
             return Result<string>.Fail("Documento sin número de control.", "VALIDATION");
         if (string.IsNullOrWhiteSpace(d.CodigoGeneracion))
@@ -52,23 +59,55 @@ public class DteGeneratorService : IDteGeneratorService
         if (emisor is null)
             return Result<string>.Fail("Empresa emisora no cargada.", "VALIDATION");
 
+        var schema = _schemaPolicy.Resolve(d.EmpresaId, emisor.Nit, d.AmbienteCodigo);
+        if (schema.IsFailure) return Result<string>.Fail(schema.Error!, schema.ErrorCode);
+        var nuevo = schema.Value;
+        var territorio = ValidarTerritorio(d, nuevo);
+        if (territorio.IsFailure) return Result<string>.Fail(territorio.Error!, territorio.ErrorCode);
+
         object dte = d.TipoDteCodigo switch
         {
-            TipoDteCodigos.FacturaConsumidorFinal => BuildFactura(d, emisor, config, _esquemaNuevo, _territorial),
-            TipoDteCodigos.ComprobanteCreditoFiscal => BuildCcf(d, emisor, config),
-            TipoDteCodigos.NotaCredito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: true),
-            TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, isNotaCredito: false),
-            TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor, config),
-            TipoDteCodigos.NotaRemision => BuildNotaRemision(d, emisor, config),
+            TipoDteCodigos.FacturaConsumidorFinal => BuildFactura(d, emisor, config, nuevo, _territorial),
+            TipoDteCodigos.ComprobanteCreditoFiscal => BuildCcf(d, emisor, config, nuevo),
+            TipoDteCodigos.NotaCredito => BuildNotaCreditoDebito(d, emisor, config, nuevo, isNotaCredito: true),
+            TipoDteCodigos.NotaDebito => BuildNotaCreditoDebito(d, emisor, config, nuevo, isNotaCredito: false),
+            TipoDteCodigos.FacturaSujetoExcluido => BuildSujetoExcluido(d, emisor, config, nuevo),
+            TipoDteCodigos.NotaRemision => BuildNotaRemision(d, emisor, config, nuevo),
             TipoDteCodigos.FacturaExportacion => BuildFacturaExportacion(d, emisor, config, _territorial),
             TipoDteCodigos.ComprobanteDonacion => BuildComprobanteDonacion(d, emisor, config, _territorial),
-            TipoDteCodigos.ComprobanteRetencion => BuildComprobanteRetencion(d, emisor, config),
+            TipoDteCodigos.ComprobanteRetencion => BuildComprobanteRetencion(d, emisor, config, nuevo),
             TipoDteCodigos.ComprobanteLiquidacion => BuildComprobanteLiquidacion(d, emisor, config, _territorial),
             TipoDteCodigos.DocumentoContableLiquidacion => BuildDocumentoContableLiquidacion(d, emisor, config, _territorial),
             _ => throw new InvalidOperationException($"TipoDte no soportado: {d.TipoDteCodigo}"),
         };
 
         return Result<string>.Ok(JsonSerializer.Serialize(dte, JsonOpts));
+    }
+
+    public static bool EsTipoConTerritorioVerificado(string tipo) => tipo is "01" or "03" or "11" or "14";
+
+    public static bool RequiereTerritorio2024(string tipo, bool esquemaNuevo)
+        => tipo == "11" || (esquemaNuevo && (tipo is "01" or "03" or "14"));
+
+    // The caller resolves catalog identity and parent relationships before generation.
+    // Schema version controls district presence, not a guessed conversion of municipality codes.
+    private static Result<bool> ValidarTerritorio(DteDocumento d, bool esquemaNuevo)
+    {
+        if (!EsTipoConTerritorioVerificado(d.TipoDteCodigo)) return Result<bool>.Ok(true);
+        var nuevo = RequiereTerritorio2024(d.TipoDteCodigo, esquemaNuevo);
+        static bool Codigo(string? value) => value is { Length: 2 } && value.All(c => c is >= '0' and <= '9');
+        if (!Codigo(d.Empresa.Departamento) || !Codigo(d.Empresa.Municipio)
+            || (nuevo && !Codigo(d.Empresa.Distrito)))
+            return Result<bool>.Fail("El territorio del emisor requiere códigos MH resueltos para la versión del documento.", "DTE_TERRITORIO_EMISOR_INVALIDO");
+        if (d.TipoDteCodigo == "11") return Result<bool>.Ok(true); // Foreign receiver has no domestic territory.
+        var receptorRequerido = nuevo && (d.TipoDteCodigo is "03" or "14");
+        var receptorPresente = new[] { d.ReceptorDepartamentoCodigo, d.ReceptorMunicipioCodigo, d.ReceptorDistritoCodigo }
+            .Any(x => !string.IsNullOrEmpty(x));
+        if ((receptorRequerido || receptorPresente)
+            && (!Codigo(d.ReceptorDepartamentoCodigo) || !Codigo(d.ReceptorMunicipioCodigo)
+                || (nuevo && !Codigo(d.ReceptorDistritoCodigo))))
+            return Result<bool>.Fail("El territorio del receptor requiere códigos MH resueltos para la versión del documento.", "DTE_TERRITORIO_RECEPTOR_INVALIDO");
+        return Result<bool>.Ok(true);
     }
 
     // ----------- 01 Factura Consumidor Final --------------------------
@@ -84,8 +123,8 @@ public class DteGeneratorService : IDteGeneratorService
             {
                 identificacion = BuildIdentificacion(d, 2),
                 documentoRelacionado = (object?)null,
-                emisor = BuildEmisorContribuyenteV2(emisor, config, terr),
-                receptor = BuildReceptorFactura(d),
+                emisor = BuildEmisorContribuyenteV2(emisor, config, terr, territorioResuelto: true),
+                receptor = BuildReceptorFactura(d, nuevo: true),
                 otrosDocumentos = (object?)null,
                 ventaTercero = BuildVentaTercero(d),
                 cuerpoDocumento = BuildCuerpo(d, conIvaPorLinea: false),
@@ -114,7 +153,7 @@ public class DteGeneratorService : IDteGeneratorService
     /// Sin <c>tipoEstablecimiento</c> ni <c>codEstableMH</c>/<c>codPuntoVentaMH</c>; con
     /// <c>direccion.distrito</c> y <c>codEstable</c>/<c>codPuntoVenta</c> del contribuyente.
     /// </summary>
-    private static object BuildEmisorContribuyenteV2(Empresa e, DteConfiguracion? config, TerritorialOptions terr) => new
+    private static object BuildEmisorContribuyenteV2(Empresa e, DteConfiguracion? config, TerritorialOptions terr, bool territorioResuelto = false) => new
     {
         nit = e.Nit,
         nrc = e.Nrc,
@@ -124,9 +163,9 @@ public class DteGeneratorService : IDteGeneratorService
         nombreComercial = NullSiVacio(e.NombreComercial),
         direccion = new
         {
-            departamento = e.Departamento ?? "06",
-            municipio = terr.MunicipioDivision2024Default,
-            distrito = e.Distrito ?? terr.DistritoDefault,
+            departamento = territorioResuelto ? e.Departamento : e.Departamento ?? "06",
+            municipio = territorioResuelto ? e.Municipio : terr.MunicipioDivision2024Default,
+            distrito = territorioResuelto ? e.Distrito : e.Distrito ?? terr.DistritoDefault,
             complemento = e.Direccion,
         },
         telefono = NullSiVacio(e.Telefono),
@@ -199,18 +238,18 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 03 CCF -----------------------------------------------
 
-    private object BuildCcf(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildCcf(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool nuevo)
     {
         // fe-ccf-v4 (corte 2026-08-25): emisor/receptor división 2024 (con distrito), ventaTercero
         // con codDomiciliado, resumen con ivaPerci/ivaRete/observaciones (sin ivaPerci1/ivaRete1/
         // reteRenta) y sin bloque extension.
-        if (_esquemaNuevo)
+        if (nuevo)
         {
             return new
             {
                 identificacion = BuildIdentificacion(d, 4),
                 documentoRelacionado = (object?)null,
-                emisor = BuildEmisorContribuyenteV2(emisor, config, _territorial),
+                emisor = BuildEmisorContribuyenteV2(emisor, config, _territorial, territorioResuelto: true),
                 receptor = BuildReceptorContribuyenteV2(d, _territorial),
                 otrosDocumentos = (object?)null,
                 ventaTercero = BuildVentaTerceroV4(d),
@@ -246,9 +285,9 @@ public class DteGeneratorService : IDteGeneratorService
         nombreComercial = (string?)null,
         direccion = new
         {
-            departamento = d.ReceptorDepartamentoCodigo ?? "06",
-            municipio = terr.MunicipioDivision2024Default,
-            distrito = d.ReceptorDistritoCodigo ?? terr.DistritoDefault,
+            departamento = d.ReceptorDepartamentoCodigo,
+            municipio = d.ReceptorMunicipioCodigo,
+            distrito = d.ReceptorDistritoCodigo,
             complemento = d.ReceptorDireccion,
         },
         telefono = NullSiVacio(d.ReceptorTelefono),
@@ -321,14 +360,14 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 05 NC / 06 ND ---------------------------------------
 
-    private object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool isNotaCredito)
+    private object BuildNotaCreditoDebito(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool nuevo, bool isNotaCredito)
     {
         // fe-nc-v4 / fe-nd-v4 (corte 2026-08-25): identificacion con fusion; emisor división 2024
         // (con distrito, sin codEstable); receptor con tipoDocumento/numDocumento (no nit) y distrito;
         // cuerpo con noGravado/ivaPerci/totalIva/ivaRete por línea; resumen reescrito (ivaPerci,
         // totalIva, ivaRete, totalNoGravado, totalPagar, codigoRetencionMH, observaciones; sin
         // descu*/subTotal/ivaPerci1/ivaRete1/reteRenta) y sin extension.
-        if (_esquemaNuevo)
+        if (nuevo)
         {
             return new
             {
@@ -613,7 +652,7 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 14 Sujeto Excluido ----------------------------------
 
-    private object BuildSujetoExcluido(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildSujetoExcluido(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool nuevo)
     {
         var cuerpo = d.Detalles.OrderBy(l => l.NumeroLinea).Select((l, idx) => (object)new
         {
@@ -631,7 +670,7 @@ public class DteGeneratorService : IDteGeneratorService
         // fe-fse-v2 (corte 2026-08-25): el bloque se llama "receptor" (no "sujetoExcluido"), el
         // emisor lleva direccion.distrito y ya no codEstableMH/codPuntoVentaMH, y el resumen no
         // lleva ivaRete1.
-        if (_esquemaNuevo)
+        if (nuevo)
         {
             return new
             {
@@ -647,8 +686,8 @@ public class DteGeneratorService : IDteGeneratorService
                     direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
                     {
                         departamento = d.ReceptorDepartamentoCodigo,
-                        municipio = _territorial.MunicipioDivision2024Default,
-                        distrito = d.ReceptorDistritoCodigo ?? _territorial.DistritoDefault,
+                        municipio = d.ReceptorMunicipioCodigo,
+                        distrito = d.ReceptorDistritoCodigo,
                         complemento = d.ReceptorDireccion,
                     },
                     telefono = d.ReceptorTelefono,
@@ -720,9 +759,9 @@ public class DteGeneratorService : IDteGeneratorService
         descActividad = e.ActividadEconomica,
         direccion = new
         {
-            departamento = e.Departamento ?? "06",
-            municipio = terr.MunicipioDivision2024Default,
-            distrito = e.Distrito ?? terr.DistritoDefault,
+            departamento = e.Departamento,
+            municipio = e.Municipio,
+            distrito = e.Distrito,
             complemento = e.Direccion,
         },
         telefono = e.Telefono,
@@ -733,11 +772,11 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 04 Nota de Remisión ---------------------------------
 
-    private object BuildNotaRemision(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildNotaRemision(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool nuevo)
     {
         // fe-nr-v4 (corte 2026-08-25): emisor/receptor división 2024 (con distrito), resumen con
         // observaciones y sin bloque extension.
-        if (_esquemaNuevo)
+        if (nuevo)
         {
             return new
             {
@@ -944,9 +983,8 @@ public class DteGeneratorService : IDteGeneratorService
             codActividad = e.CodigoActividad,
             descActividad = e.ActividadEconomica,
             nombreComercial = e.NombreComercial,
-            // FEX v3 usa división territorial 2024 (municipio nuevo + distrito). El municipio
-            // por defecto sale de Dte:Territorial; el distrito del emisor si lo tiene registrado.
-            direccion = new { departamento = e.Departamento ?? "06", municipio = terr.MunicipioDivision2024Default, distrito = e.Distrito ?? terr.DistritoDefault, complemento = e.Direccion },
+            // FEX v3 receives the catalog-resolved 2024 municipality and district; no fallback.
+            direccion = new { departamento = e.Departamento, municipio = e.Municipio, distrito = e.Distrito, complemento = e.Direccion },
             telefono = e.Telefono,
             correo = e.Correo,
             codEstable = codEst,
@@ -1076,14 +1114,14 @@ public class DteGeneratorService : IDteGeneratorService
 
     // ----------- 07 Comprobante de Retención (fe-cr-v1) --------------
 
-    private object BuildComprobanteRetencion(DteDocumento d, Empresa emisor, DteConfiguracion? config)
+    private object BuildComprobanteRetencion(DteDocumento d, Empresa emisor, DteConfiguracion? config, bool nuevo)
     {
         // fe-cr-v2 (corte 2026-08-25): emisor contribuyente división 2024 (codEstable/codPuntoVenta,
         // distrito, sin codigo/codigoMH/puntoVenta*/tipoEstablecimiento); receptor con distrito;
         // cuerpo usa tipoGeneracion (antes tipoDoc); resumen agrega totalIva, totalIvaRetenido
         // (antes totalIVAretenido), totalLetras (antes totalIVAretenidoLetras) y observaciones;
         // sin extension.
-        if (_esquemaNuevo)
+        if (nuevo)
         {
             return new
             {
@@ -1563,7 +1601,7 @@ public class DteGeneratorService : IDteGeneratorService
         };
     }
 
-    private static object? BuildReceptorFactura(DteDocumento d)
+    private static object? BuildReceptorFactura(DteDocumento d, bool nuevo = false)
     {
         if (string.IsNullOrEmpty(d.ReceptorNombre)
             && string.IsNullOrEmpty(d.ReceptorNumeroDocumento))
@@ -1576,7 +1614,13 @@ public class DteGeneratorService : IDteGeneratorService
             nombre = d.ReceptorNombre,
             codActividad = d.ReceptorCodigoActividad,
             descActividad = d.ReceptorActividadEconomica,
-            direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : new
+            direccion = string.IsNullOrEmpty(d.ReceptorDepartamentoCodigo) ? null : nuevo ? (object)new
+            {
+                departamento = d.ReceptorDepartamentoCodigo,
+                municipio = d.ReceptorMunicipioCodigo,
+                distrito = d.ReceptorDistritoCodigo,
+                complemento = d.ReceptorDireccion,
+            } : new
             {
                 departamento = d.ReceptorDepartamentoCodigo,
                 municipio = d.ReceptorMunicipioCodigo,

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/NeoSTP.Infrastructure/NeoSTP.Infrastructure.csproj" />
+    <PackageReference Include="NJsonSchema" Version="11.1.0" />
+    <Compile Include="../ClientCertificationPreview/PreviewEngine.cs" Link="PreviewEngine.cs" />
+  </ItemGroup>
+</Project>

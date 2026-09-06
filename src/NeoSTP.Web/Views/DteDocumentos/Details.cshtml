@@ -168,6 +168,15 @@ else if (esProcesado && !string.IsNullOrEmpty(Model.SelloRecibido))
                 <button class="btn btn-sm btn-success" onclick="return confirm('¿Enviar a Hacienda?');">@(Model.EstadoCodigo == "RECHAZADO" ? "Reenviar a Hacienda" : "Enviar a Hacienda")</button>
             </form>
         }
+        @if (puedeEmitir && Model.Diagnostico?.RequiereConsultaHacienda == true)
+        {
+            <form asp-action="ConciliarHacienda" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm btn-warning" onclick="return confirm('Se consultará el mismo DTE en Hacienda sin volver a enviarlo. ¿Continuar?');">
+                    Consultar estado en Hacienda
+                </button>
+            </form>
+        }
         @if (Model.EstadoCodigo != "PROCESADO" && Model.EstadoCodigo != "INVALIDADO")
         {
             <form asp-action="Invalidar" asp-route-id="@Model.Id" method="post" class="d-inline">

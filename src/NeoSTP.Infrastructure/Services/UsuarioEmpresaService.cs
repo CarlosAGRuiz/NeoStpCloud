@@ -4,6 +4,7 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Usuarios;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
+using NeoSTP.Infrastructure.Auth;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -61,10 +62,10 @@ public class UsuarioEmpresaService : IUsuarioEmpresaService
         if (usuario.EmpresaId == empresaId)
             return Result<MiembroExternoDto>.Fail("Ese usuario ya pertenece a esta empresa como usuario propio.", "MIEMBRO_ES_PROPIO");
 
-        var rol = await _db.Roles.AsNoTracking()
+        var rol = await _db.Roles.AsNoTracking().Include(r => r.Permisos).ThenInclude(p => p.Permiso)
             .FirstOrDefaultAsync(r => r.Id == request.RolId && r.Activo
                                    && (r.EmpresaId == null || r.EmpresaId == empresaId), ct);
-        if (rol is null)
+        if (rol is null || !RbacSecurity.CanAssignToTenant(rol, empresaId))
             return Result<MiembroExternoDto>.Fail("El rol no existe o no es de esta empresa.", "ROLE_NOT_FOUND");
 
         var existente = await _db.UsuarioEmpresas

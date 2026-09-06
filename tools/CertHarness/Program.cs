@@ -55,6 +55,10 @@ if (comando.StartsWith("validate"))
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 builder.Services.AddInfrastructure(builder.Configuration);
+// La rama de Auth agregó dependencias de ICurrentUser (p. ej. BillingService) que la capa Web/Api
+// registra pero el arnés no. El flujo de certificación usa empresaId/actor explícitos, no el usuario
+// actual; un stub satisface la validación del contenedor sin afectar la emisión.
+builder.Services.AddScoped<NeoSTP.Application.Auth.Abstractions.ICurrentUser, HarnessCurrentUser>();
 
 using var host = builder.Build();
 using var scope = host.Services.CreateScope();
@@ -103,6 +107,15 @@ switch (comando)
         break;
     case "contingencia-e2e": await ContingenciaE2eAsync(sp); break;
     case "fill-eventos": await FillEventosAsync(sp); break;
+    case "cert-cliente":
+        {
+            var emp = args.Length > 1 && int.TryParse(args[1], out var e) ? e : 23;
+            var rest = args.Skip(2).ToList();
+            var fase = rest.FirstOrDefault(a => a is "inv" or "cont" or "all") ?? "all";
+            var idsExistentes = rest.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
+            await CertClienteEventosAsync(sp, emp, "cert-cliente-eventos", idsExistentes, fase);
+            break;
+        }
     case "fill-retornos": await FillRetornosAsync(sp); break;
     case "verify-fix-nc":
         {
@@ -269,6 +282,108 @@ static async Task<(bool ok, string msg, int? docId)> EmitirTipoAsync(IServicePro
         var extra = procesado ? "" : " " + Short(d.RespuestaHacienda, 500);
         return (procesado, $"{d.EstadoCodigo} sello={Short(d.SelloRecibido)} nc={d.NumeroControl}{extra}", d.Id);
     }
+    return (false, $"[{res.ErrorCode}] {Short(res.Error, 300)}", null);
+}
+
+// Certificación de EVENTOS del cliente (empresa parametrizada, p. ej. 23=DANIEL). Replica el flujo
+// probado con NEO: emite 5 CCF (tipo 03) auxiliares de PRUEBAS, les hace contingencia (tipos 1-5) e
+// invalidación (tipo 2). Verifica por evento y se DETIENE ante cualquier fallo. Los eventos usan los
+// servicios ya corregidos (invalidación v3 + fecEmi original; contingencia tipoEstablecimiento MH).
+static async Task CertClienteEventosAsync(IServiceProvider sp, int empresaId, string actor, List<int>? existentes = null, string fase = "all")
+{
+    var db = sp.GetRequiredService<NeoStpDbContext>();
+    var svc = sp.GetRequiredService<IDteDocumentosService>();
+    Console.WriteLine($"\n== CERT CLIENTE eventos empresa {empresaId}: 5 CCF + 5 contingencia (tipos 1-5) + 5 invalidacion (tipo 2) ==");
+
+    var cfIds = new List<int>();
+    if (existentes is { Count: > 0 })
+    {
+        // Reanudable: reutiliza CCF ya emitidos y PROCESADO (no emite nuevos).
+        foreach (var id in existentes)
+        {
+            var d = await db.DteDocumentos.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.EmpresaId == empresaId
+                && x.TipoDteCodigo == "03" && x.EstadoCodigo == DteEstadoCodigos.Procesado && x.SelloRecibido != null);
+            if (d is null) { Console.WriteLine($"   STOP: CCF #{id} no está PROCESADO con sello en empresa {empresaId}."); return; }
+            cfIds.Add(id);
+        }
+        Console.WriteLine($"   Reutilizando {cfIds.Count} CCF ya emitidos: {string.Join(", ", cfIds)}");
+    }
+    else
+    {
+        for (var i = 1; i <= 5; i++)
+        {
+            var (ok, msg, docId) = await EmitirCcfClienteAsync(sp, empresaId, actor);
+            Console.WriteLine($"   CCF {i}/5: {(ok ? $"✔ PROCESADO #{docId}" : "✘ " + msg)}");
+            if (!ok || docId is not int id) { Console.WriteLine("   STOP: emision de CCF fallo; no continuo con eventos."); return; }
+            cfIds.Add(id);
+        }
+    }
+
+    if (fase is "all" or "cont")
+    {
+        // Contingencia (MOMENTO 1): se emite un CCF NUEVO en modo contingencia (firmado, SIN enviar,
+        // codGen no existe aún en MH) por cada tipo 1..5; luego (MOMENTO 2) el evento lo informa.
+        // Un CCF ya PROCESADO no sirve: MH responde "codigo generacion ya existe".
+        for (var tipoCont = 1; tipoCont <= 5; tipoCont++)
+        {
+            var (ok, msg, docId) = await EmitirCcfContingenciaAsync(sp, empresaId, actor, tipoCont);
+            Console.WriteLine($"   CCF contingencia tipo {tipoCont}: {(ok ? $"✔ FIRMADO #{docId}" : "✘ " + msg)}");
+            if (!ok || docId is not int cid) { Console.WriteLine("   STOP: emision CCF contingencia fallo."); return; }
+            var res = await svc.TransmitirEventoContingenciaAsync(empresaId, new[] { cid }, tipoCont,
+                motivo: tipoCont == 5 ? "Prueba de certificacion contingencia tipo 5" : null,
+                nombreResponsable: "Carlos Antonio Garcia", tipoDocResponsable: "13", numeroDocResponsable: "000000000",
+                actor: actor);
+            Console.WriteLine($"   CONTINGENCIA tipo {tipoCont} (CCF #{cid}): {(res.IsSuccess ? $"✔ {res.Value!.SelloOEstado}" : $"✘ [{res.ErrorCode}] {Short(res.Error, 400)}")}");
+            if (res.IsFailure) { Console.WriteLine("   STOP: contingencia fallo."); return; }
+        }
+    }
+
+    for (var i = 0; (fase is "all" or "inv") && i < cfIds.Count; i++)
+    {
+        var res = await svc.TransmitirInvalidacionEventoAsync(empresaId, cfIds[i], tipoAnulacion: 2,
+            motivoAnulacion: "Rescindir de la operacion realizada (prueba de certificacion)",
+            codigoGeneracionReemplazo: null,
+            nombreResponsable: "Carlos Antonio Garcia", tipoDocResponsable: "13", numDocResponsable: "000000000",
+            actor: actor);
+        Console.WriteLine($"   INVALIDACION tipo 2 (CCF #{cfIds[i]}): {(res.IsSuccess ? $"✔ {res.Value!.SelloOEstado}" : $"✘ [{res.ErrorCode}] {Short(res.Error, 400)}")}");
+        if (res.IsFailure) { Console.WriteLine("   STOP: invalidacion fallo."); return; }
+    }
+    Console.WriteLine("   == COMPLETO: 5 CCF + 5 contingencia + 5 invalidacion transmitidos ==");
+}
+
+static async Task<(bool ok, string msg, int? docId)> EmitirCcfContingenciaAsync(IServiceProvider sp, int empresaId, string actor, int tipoContingencia)
+{
+    var db = sp.GetRequiredService<NeoStpDbContext>();
+    var svc = sp.GetRequiredService<IDteDocumentosService>();
+    var plantilla = await db.DteDocumentos.AsNoTracking().Include(d => d.Detalles)
+        .Where(d => d.EmpresaId == empresaId && d.TipoDteCodigo == "03" && d.EstadoCodigo == DteEstadoCodigos.Procesado)
+        .OrderByDescending(d => d.Id).FirstOrDefaultAsync();
+    if (plantilla is null) return (false, "sin CCF plantilla PROCESADO", null);
+    var req = ClonarRequest(plantilla);
+    req.TipoTransmision = 2;                                  // contingencia (modelo diferido)
+    req.TipoContingenciaCodigo = tipoContingencia.ToString();
+    req.MotivoContingencia = tipoContingencia == 5 ? "Prueba de certificacion contingencia tipo 5" : null;
+    var b = await svc.CreateBorradorAsync(empresaId, req, actor);
+    if (b.IsFailure || b.Value is not { } doc) return (false, $"borrador [{b.ErrorCode}] {Short(b.Error, 250)}", null);
+    var g = await svc.GenerarAsync(empresaId, doc.Id, actor);
+    if (g.IsFailure) return (false, $"generar [{g.ErrorCode}] {Short(g.Error, 300)}", doc.Id);
+    var f = await svc.FirmarAsync(empresaId, doc.Id, actor);   // firma SIN enviar: codGen no llega a MH todavia
+    if (f.IsFailure) return (false, $"firmar [{f.ErrorCode}] {Short(f.Error, 300)}", doc.Id);
+    return (true, $"estado={f.Value?.EstadoCodigo}", doc.Id);
+}
+
+static async Task<(bool ok, string msg, int? docId)> EmitirCcfClienteAsync(IServiceProvider sp, int empresaId, string actor)
+{
+    var db = sp.GetRequiredService<NeoStpDbContext>();
+    var emisor = sp.GetRequiredService<IConnectDteService>();
+    var plantilla = await db.DteDocumentos.AsNoTracking().Include(d => d.Detalles)
+        .Where(d => d.EmpresaId == empresaId && d.TipoDteCodigo == "03" && d.EstadoCodigo == DteEstadoCodigos.Procesado)
+        .OrderByDescending(d => d.Id).FirstOrDefaultAsync();
+    if (plantilla is null) return (false, "sin CCF PROCESADO para clonar", null);
+    var req = ClonarRequest(plantilla);
+    var res = await emisor.EmitirAsync(empresaId, req, actor);
+    if (res.IsSuccess && res.Value is { } d)
+        return (d.EstadoCodigo == DteEstadoCodigos.Procesado, $"{d.EstadoCodigo} {Short(d.RespuestaHacienda, 400)}", d.Id);
     return (false, $"[{res.ErrorCode}] {Short(res.Error, 300)}", null);
 }
 
@@ -676,3 +791,17 @@ static async Task ValidateTipoAsync(IServiceProvider sp, string apiDir, string t
 
 static string Short(string? s, int max = 40)
     => string.IsNullOrEmpty(s) ? "(vacío)" : s.Length <= max ? s : s[..max] + "…";
+
+sealed class HarnessCurrentUser : NeoSTP.Application.Auth.Abstractions.ICurrentUser
+{
+    public bool IsAuthenticated => true;
+    public int? UserId => 0;
+    public int? EmpresaId => null;
+    public string? Username => "cert-harness";
+    public string? Email => null;
+    public string? TipoUsuarioCodigo => null;
+    public IReadOnlyList<string> Roles => Array.Empty<string>();
+    public IReadOnlyList<string> Permisos => Array.Empty<string>();
+    public bool HasPermiso(string codigo) => true;
+    public bool IsInRole(string codigo) => true;
+}

@@ -27,6 +27,15 @@ public class DteController : ApiControllerBase
 
     // ---- listado y detalle ----
 
+    [HttpGet("tipos")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> Tipos([FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(NeoSTP.Application.Common.Result<IReadOnlyList<TipoDteDisponibleDto>>.Ok(
+            await _service.GetTiposDisponiblesAsync(eid, ct)));
+    }
+
     [HttpGet("documentos")]
     [RequirePermiso("DTE.Consultar")]
     public async Task<IActionResult> List([FromQuery] DteListQuery query, [FromQuery] int? empresaId, CancellationToken ct)
@@ -75,6 +84,8 @@ public class DteController : ApiControllerBase
     public async Task<IActionResult> CrearGenerico([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        var idempotency = DteIdempotencyHeader.Apply(HttpContext?.Request, req);
+        if (idempotency.IsFailure) return Respond(idempotency);
         return Respond(await _service.CreateBorradorAsync(eid, req, _currentUser.Username, ct));
     }
 
@@ -88,6 +99,8 @@ public class DteController : ApiControllerBase
     public async Task<IActionResult> Emitir([FromBody] CreateDteDocumentoRequest req, [FromQuery] int? empresaId, CancellationToken ct)
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        var idempotency = DteIdempotencyHeader.Apply(HttpContext?.Request, req);
+        if (idempotency.IsFailure) return Respond(idempotency);
         return Respond(await _connectDte.EmitirAsync(eid, req, _currentUser.Username, ct));
     }
 
@@ -166,6 +179,15 @@ public class DteController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         return Respond(await _service.EnviarAsync(eid, id, _currentUser.Username, ct));
+    }
+
+    /// <summary>Consulta el intento existente en Hacienda sin regenerarlo ni retransmitirlo.</summary>
+    [HttpPost("documentos/{id:int}/conciliar-hacienda")]
+    [RequirePermiso("DTE.Emitir")]
+    public async Task<IActionResult> ConciliarHacienda(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        return Respond(await _service.ConciliarHaciendaAsync(eid, id, _currentUser.Username, ct));
     }
 
     [HttpPost("documentos/{id:int}/invalidar")]
@@ -262,6 +284,8 @@ public class DteController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         req.TipoDteCodigo = tipoForzado;
+        var idempotency = DteIdempotencyHeader.Apply(HttpContext?.Request, req);
+        if (idempotency.IsFailure) return Respond(idempotency);
         return Respond(await _service.CreateBorradorAsync(eid, req, _currentUser.Username, ct));
     }
 
@@ -269,6 +293,8 @@ public class DteController : ApiControllerBase
     {
         if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
         req.TipoDteCodigo = tipoForzado;
+        var idempotency = DteIdempotencyHeader.Apply(HttpContext?.Request, req);
+        if (idempotency.IsFailure) return Respond(idempotency);
         return Respond(await _connectDte.EmitirAsync(eid, req, _currentUser.Username, ct));
     }
 

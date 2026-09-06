@@ -35,7 +35,10 @@ public record DiagnosticoDocumentoDto(
     string? JsonEnviado,
     string? RespuestaMhJson,
     IReadOnlyList<ErrorOcurrenciaListItemDto> Errores
-);
+)
+{
+    public DteDiagnosticoActualDto? Diagnostico { get; init; }
+}
 
 public record DiagnosticoEventoDto(
     int DteEventoId,

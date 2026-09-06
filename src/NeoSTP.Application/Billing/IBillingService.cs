@@ -7,6 +7,7 @@ public interface IBillingService
 {
     Task<Result<BillingSubscriptionDto>> StartTrialAsync(StartTrialRequest request, CancellationToken ct = default);
     Task<Result<CheckoutSessionResult>> CreateCheckoutSessionAsync(CreateCheckoutRequest request, CancellationToken ct = default);
+    Task<Result<BillingCheckoutDto>> GetCheckoutAsync(int empresaId, Guid correlationId, CancellationToken ct = default);
     Task<Result<BillingPortalResult>> GetPortalUrlAsync(int empresaId, CancellationToken ct = default);
     Task<Result> ChangePlanAsync(ChangePlanRequest request, CancellationToken ct = default);
     Task<Result> CancelSubscriptionAsync(CancelSubscriptionRequest request, CancellationToken ct = default);

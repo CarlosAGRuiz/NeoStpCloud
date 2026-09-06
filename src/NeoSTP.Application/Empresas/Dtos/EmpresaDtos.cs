@@ -72,6 +72,7 @@ public class EmpresaModuloDto
     public string Nombre { get; set; } = null!;
     public bool Activo { get; set; }
     public bool IncluidoEnPlan { get; set; }
+    public bool AutorizadoPorAcuerdo { get; set; }
     public DateTime? FechaActivacion { get; set; }
 }
 

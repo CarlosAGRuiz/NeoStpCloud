@@ -1,5 +1,6 @@
 @using Microsoft.EntityFrameworkCore
 @inject NeoSTP.Application.Empresas.IEmpresaContext EmpresaContext
+@inject NeoSTP.Application.Empresas.ILicenciaResolver LicenciaResolver
 @inject NeoSTP.Infrastructure.Persistence.NeoStpDbContext Db
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @inject Microsoft.Extensions.Localization.IStringLocalizer<NeoSTP.Web.SharedResource> L
@@ -30,15 +31,10 @@
         }
         else if (empresaActualId.HasValue)
         {
-            modulosActivos = (await Db.EmpresaModulos
-                    .AsNoTracking()
-                    .Where(em => em.EmpresaId == empresaActualId.Value
-                                 && em.Activo
-                                 && em.FechaInactivacion == null
-                                 && em.Modulo.Activo)
-                    .Select(em => em.Modulo.Codigo)
-                    .ToListAsync())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var licenciaMenu = await LicenciaResolver.ResolveAsync(empresaActualId.Value);
+            if (licenciaMenu?.Vigente == true)
+                modulosActivos = licenciaMenu.Modulos.Where(m => m.Activo).Select(m => m.Codigo)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
     }
 

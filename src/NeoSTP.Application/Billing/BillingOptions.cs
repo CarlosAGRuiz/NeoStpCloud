@@ -5,12 +5,21 @@ public class BillingOptions
     /// <summary>Proveedor por defecto: Mock | Stripe | MercadoPago | Wompi | PayPal | Transferencia</summary>
     public string Provider { get; set; } = "Mock";
     public int TrialDays { get; set; } = 14;
+    public BillingCheckoutOptions Checkout { get; set; } = new();
+    public BillingPaymentApplicationOptions PaymentApplication { get; set; } = new();
+    public BillingProviderOperationsOptions ProviderOperations { get; set; } = new();
 
     public StripeOptions Stripe { get; set; } = new();
     public MercadoPagoOptions MercadoPago { get; set; } = new();
     public WompiOptions Wompi { get; set; } = new();
     public PayPalOptions PayPal { get; set; } = new();
     public TransferenciaOptions Transferencia { get; set; } = new();
+}
+
+public class BillingProviderOperationsOptions
+{
+    public int BatchSize { get; set; } = 20;
+    public int LeaseSeconds { get; set; } = 120;
 }
 
 public class StripeOptions
@@ -34,6 +43,10 @@ public class MercadoPagoOptions
 /// <summary>Wompi El Salvador (wompi.sv). Checkout hospedado vía API REST.</summary>
 public class WompiOptions
 {
+    public bool WebhookEnabled { get; set; }
+    /// <summary>Expected provider mode; production checkout remains gated until payment verification is complete.</summary>
+    public bool IsProduction { get; set; }
+    public string CheckoutWebhookUrl { get; set; } = string.Empty;
     public string BaseUrl { get; set; } = "https://api.wompi.sv";
     /// <summary>Servidor de identidad de Wompi (OAuth2 client credentials).</summary>
     public string IdUrl { get; set; } = "https://id.wompi.sv";
@@ -63,4 +76,20 @@ public class TransferenciaOptions
     public string NumeroCuenta { get; set; } = string.Empty;
     public string Titular { get; set; } = string.Empty;
     public string Instrucciones { get; set; } = "Realiza la transferencia y sube el comprobante. Un administrador la verificará.";
+}
+
+/// <summary>Explicit capability gate and server-owned checkout identity. Never store credentials here.</summary>
+public class BillingCheckoutOptions
+{
+    public bool Enabled { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public string ProviderAccountId { get; set; } = string.Empty;
+    public string BeneficiaryId { get; set; } = string.Empty;
+    public string SuccessUrl { get; set; } = string.Empty;
+    public string CancelUrl { get; set; } = string.Empty;
+    public int LeaseSeconds { get; set; } = 120;
+}
+public class BillingPaymentApplicationOptions
+{
+    public bool Enabled { get; set; }
 }

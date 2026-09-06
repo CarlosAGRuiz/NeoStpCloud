@@ -3,42 +3,40 @@ using Microsoft.Extensions.Hosting;
 
 namespace NeoSTP.Infrastructure.Diagnostics;
 
-/// <summary>
-/// Verificaciones fail-fast de arranque para ambientes productivos.
-/// Evita que un despliegue quede operando con providers Mock en silencio
-/// (correo que no se envía, cobros que no se cobran, push que no llega).
-/// </summary>
+/// <summary>Rechaza selecciones que caerían silenciosamente en un proveedor Mock.</summary>
 public static class ProductionGuards
 {
-    /// <summary>Claves de configuración cuyo valor "Mock" es inaceptable en Producción.</summary>
-    private static readonly string[] ProviderKeys =
-    {
-        "Email:Provider",
-        "Billing:Provider",
-        "Scan:Provider",
-        "WhatsApp:Provider",
-        "Push:Provider",
-    };
+    // Mantener alineado con AddInfrastructure y PaymentProviderResolver: no recortar valores.
+    // Reconocer un proveedor no habilita sus operaciones ni certifica sus credenciales.
+    private static readonly (string Key, string[] Providers)[] ProviderMappings =
+    [
+        ("Email:Provider", ["Smtp"]),
+        ("Billing:Provider", ["Stripe", "MercadoPago", "Wompi", "PayPal", "Transferencia"]),
+        ("Scan:Provider", ["Gemini"]),
+        ("WhatsApp:Provider", ["Meta"]),
+        ("Push:Provider", ["Fcm"]),
+        ("Hacienda:Client", ["Http"]),
+        ("Dte:Signer", ["Pkcs12", "HaciendaCert"]),
+    ];
 
-    /// <summary>
-    /// Lanza <see cref="InvalidOperationException"/> si el ambiente es Producción y algún
-    /// provider crítico sigue en Mock. Se puede permitir explícitamente (demo/staging con
-    /// nombre Production) con <c>Ops:PermitirMocksEnProduccion = true</c>.
-    /// </summary>
     public static void ValidarProvidersDeProduccion(IConfiguration config, IHostEnvironment env)
     {
         if (!env.IsProduction()) return;
-        if (config.GetValue<bool>("Ops:PermitirMocksEnProduccion")) return;
 
-        var enMock = ProviderKeys
-            .Where(k => string.Equals(config[k], "Mock", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var invalidos = new List<string>();
+        var bypass = config["Ops:PermitirMocksEnProduccion"];
+        if (bypass is not null && (!bool.TryParse(bypass, out var permitidos) || permitidos))
+            invalidos.Add("Ops:PermitirMocksEnProduccion");
 
-        if (enMock.Count > 0)
+        foreach (var (key, providers) in ProviderMappings)
         {
-            throw new InvalidOperationException(
-                $"Arranque bloqueado: providers en Mock en Producción ({string.Join(", ", enMock)}). " +
-                "Configura los providers reales o establece Ops:PermitirMocksEnProduccion=true de forma explícita.");
+            if (!providers.Contains(config[key], StringComparer.OrdinalIgnoreCase))
+                invalidos.Add(key);
         }
+
+        if (invalidos.Count > 0)
+            throw new InvalidOperationException(
+                $"PRODUCTION_PROVIDERS_INVALID: Arranque bloqueado por configuración de proveedores ({string.Join(", ", invalidos)}). " +
+                "Configura proveedores reales registrados; no se permite omitir esta validación en Producción.");
     }
 }

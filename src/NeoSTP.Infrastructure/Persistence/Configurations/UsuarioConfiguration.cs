@@ -24,9 +24,12 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         // MFA (TOTP) — Sprint 20
         builder.Property(u => u.MfaSecretoCifrado).HasMaxLength(500);
         builder.Property(u => u.MfaRecoveryCodesJson).HasColumnType("nvarchar(max)");
+        builder.Property(u => u.MfaVersion).IsConcurrencyToken();
+        builder.Property(u => u.IntentosFallidos).IsConcurrencyToken();
 
         // SSO federado (E3)
         builder.Property(u => u.SsoProveedor).HasMaxLength(20);
+        builder.Property(u => u.SsoIssuer).HasMaxLength(200).IsConcurrencyToken();
         builder.Property(u => u.SsoSubject).HasMaxLength(200);
 
         builder.HasIndex(u => new { u.EmpresaId, u.Username }).IsUnique();
@@ -34,9 +37,9 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         builder.HasIndex(u => u.EstadoCodigo);
 
         // Un sujeto federado se vincula a una sola cuenta local (filtrado: solo cuentas SSO).
-        builder.HasIndex(u => new { u.SsoProveedor, u.SsoSubject })
+        builder.HasIndex(u => new { u.SsoProveedor, u.SsoIssuer, u.SsoSubject })
             .IsUnique()
-            .HasFilter("[SsoProveedor] IS NOT NULL AND [SsoSubject] IS NOT NULL");
+            .HasFilter("[SsoProveedor] IS NOT NULL AND [SsoIssuer] IS NOT NULL AND [SsoSubject] IS NOT NULL");
 
         builder.HasOne(u => u.Empresa)
             .WithMany()

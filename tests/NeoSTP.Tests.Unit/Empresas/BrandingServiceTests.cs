@@ -33,7 +33,8 @@ public class BrandingServiceTests
     private static BrandingService NewSvc(NeoStpDbContext db)
         => new(db, Substitute.For<IAuditoriaService>());
 
-    private static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4 };
+    private static readonly byte[] Png = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
     [Fact]
     public async Task GuardarLogo_FormatoInvalido_Validation()

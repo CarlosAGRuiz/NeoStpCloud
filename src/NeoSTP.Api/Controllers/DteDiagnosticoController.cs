@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dte.Diagnostico;
 using NeoSTP.Application.Dte.Diagnostico.Dtos;
+using NeoSTP.Api.Authorization;
 
 namespace NeoSTP.Api.Controllers;
 
 [Authorize]
+[RequireModule("NEODTE")]
+[RequirePermiso("DTE.Diagnostico")]
 [Route("api/dte/diagnostico")]
 public class DteDiagnosticoController : ApiControllerBase
 {

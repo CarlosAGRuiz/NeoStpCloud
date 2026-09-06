@@ -47,6 +47,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<Permiso> Permisos => Set<Permiso>();
     public DbSet<RolPermiso> RolPermisos => Set<RolPermiso>();
     public DbSet<UsuarioRol> UsuarioRoles => Set<UsuarioRol>();
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<EmpresaSso> EmpresaSso => Set<EmpresaSso>();
     public DbSet<NeoSTP.Domain.Core.Common.Correlativo> Correlativos => Set<NeoSTP.Domain.Core.Common.Correlativo>();
@@ -74,6 +75,9 @@ public class NeoStpDbContext : DbContext
     public DbSet<CertificacionEscenario> CertificacionEscenarios => Set<CertificacionEscenario>();
     public DbSet<CertificacionPrueba> CertificacionPruebas => Set<CertificacionPrueba>();
     public DbSet<CertificacionError> CertificacionErrores => Set<CertificacionError>();
+    public DbSet<CertificationCampaign> CertificationCampaigns => Set<CertificationCampaign>();
+    public DbSet<CertificationCampaignTypeBudget> CertificationCampaignTypeBudgets => Set<CertificationCampaignTypeBudget>();
+    public DbSet<CertificationCampaignConsumption> CertificationCampaignConsumptions => Set<CertificationCampaignConsumption>();
 
     // DTE - Eventos persistentes (Sprint 15)
     public DbSet<DteEvento> DteEventos => Set<DteEvento>();
@@ -97,8 +101,14 @@ public class NeoStpDbContext : DbContext
     public DbSet<BillingSubscription> BillingSubscriptions => Set<BillingSubscription>();
     public DbSet<BillingPayment> BillingPayments => Set<BillingPayment>();
     public DbSet<BillingInvoice> BillingInvoices => Set<BillingInvoice>();
+    public DbSet<BillingCalendarAgreement> BillingCalendarAgreements => Set<BillingCalendarAgreement>();
+    public DbSet<BillingCalendarPeriod> BillingCalendarPeriods => Set<BillingCalendarPeriod>();
     public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
     public DbSet<BillingPlanProviderMapping> BillingPlanProviderMappings => Set<BillingPlanProviderMapping>();
+    public DbSet<BillingProviderOperation> BillingProviderOperations => Set<BillingProviderOperation>();
+    public DbSet<BillingPaymentNotification> BillingPaymentNotifications => Set<BillingPaymentNotification>();
+    public DbSet<BillingPaymentApplication> BillingPaymentApplications => Set<BillingPaymentApplication>();
+    public DbSet<BillingCheckoutIntent> BillingCheckoutIntents => Set<BillingCheckoutIntent>();
 
     // Hardening / Operación (Sprint 20)
     public DbSet<BackupJob> BackupJobs => Set<BackupJob>();

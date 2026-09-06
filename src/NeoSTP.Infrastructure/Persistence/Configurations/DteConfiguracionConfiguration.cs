@@ -12,6 +12,7 @@ public class DteConfiguracionConfiguration : IEntityTypeConfiguration<DteConfigu
         builder.HasKey(c => c.Id);
 
         builder.Property(c => c.AmbienteCodigo).HasMaxLength(20).IsRequired();
+        builder.Property(c => c.TiposDteAutorizadosCsv).HasMaxLength(100);
 
         builder.Property(c => c.UsuarioMh).HasMaxLength(100);
         builder.Property(c => c.PasswordMhCifrado).HasMaxLength(2000);

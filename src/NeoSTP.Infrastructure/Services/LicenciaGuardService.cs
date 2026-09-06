@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Licenciamiento;
+using NeoSTP.Infrastructure.Billing;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -23,14 +24,16 @@ public class LicenciaGuardService : ILicenciaGuardService
     public async Task<Result> ValidarLimiteAsync(int empresaId, RecursoLimitado recurso, CancellationToken ct = default)
     {
         var ahora = DateTime.UtcNow;
-        var plan = await _db.EmpresaPlanes.AsNoTracking()
-            .Include(ep => ep.Plan)
+        var licencias = await _db.EmpresaPlanes.AsNoTracking()
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
                       && ep.FechaInicio <= ahora
                       && (ep.FechaFin == null || ep.FechaFin > ahora))
-            .Select(ep => ep.Plan)
-            .FirstOrDefaultAsync(ct);
-        if (plan is null)
+            .Take(2).ToListAsync(ct);
+        if (licencias.Count > 1)
+            return Result.Fail("La empresa tiene más de una licencia vigente; requiere revisión.", "LICENSE_INVALID");
+        if (licencias.Count == 0 && await _db.BillingPaymentApplications.AnyAsync(x => x.CheckoutIntent.EmpresaId == empresaId, ct))
+            return Result.Fail("La empresa requiere una licencia pagada vigente.", "LICENSE_INVALID");
+        if (licencias.Count == 0)
         {
             // El alta inicial puede crear recursos administrativos antes de asignar el plan,
             // pero nunca debe poder emitir facturas sin una suscripción vigente.
@@ -38,6 +41,10 @@ public class LicenciaGuardService : ILicenciaGuardService
                 ? Result.Fail("La empresa no tiene un plan vigente para emitir DTE.", "LICENSE_INVALID")
                 : Result.Ok();
         }
+
+        var entitlement = await BillingEntitlementReader.ReadAsync(_db, licencias[0], ct);
+        if (entitlement.IsFailure) return Result.Fail(entitlement.Error!, entitlement.ErrorCode);
+        var plan = entitlement.Value!;
 
         var (limite, nombre) = recurso switch
         {
@@ -62,7 +69,7 @@ public class LicenciaGuardService : ILicenciaGuardService
         {
             // Mismo código que ya usan sucursales/puntos de venta (SucursalesService).
             return Result.Fail(
-                $"Tu plan {plan.Nombre} permite {max} {nombre} y ya usas {usados}. " +
+                $"Tu plan {plan.PlanName} permite {max} {nombre} y ya usas {usados}. " +
                 "Mejora tu plan para continuar.", "LIMIT_EXCEEDED");
         }
         return Result.Ok();
@@ -72,7 +79,7 @@ public class LicenciaGuardService : ILicenciaGuardService
     {
         var hoy = DateTime.UtcNow;
         var inicioMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        return _db.DteDocumentos.CountAsync(d => d.EmpresaId == empresaId && d.CreatedAt >= inicioMes, ct);
+        return NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, ct);
     }
 
     public async Task<bool> EmpresaOperativaAsync(int empresaId, CancellationToken ct = default)

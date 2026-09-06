@@ -110,3 +110,36 @@ public class BillingPlanProviderMappingConfiguration : IEntityTypeConfiguration<
         b.HasOne(x => x.Plan).WithMany().HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class BillingProviderOperationConfiguration : IEntityTypeConfiguration<BillingProviderOperation>
+{
+    public void Configure(EntityTypeBuilder<BillingProviderOperation> b)
+    {
+        b.ToTable("Billing_ProviderOperations");
+        b.HasKey(x => x.Id);
+
+        b.Property(x => x.Provider).HasMaxLength(30).IsRequired();
+        b.Property(x => x.OperationType).HasMaxLength(50).IsRequired();
+        b.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
+        b.Property(x => x.ExternalResourceId).HasMaxLength(200);
+        b.Property(x => x.Status).HasMaxLength(40).IsRequired();
+        b.Property(x => x.LeaseId).HasMaxLength(64);
+        b.Property(x => x.LastErrorCode).HasMaxLength(100);
+        b.Property(x => x.LastError).HasMaxLength(2000);
+        b.Property(x => x.RowVersion).IsRowVersion();
+
+        b.HasIndex(x => x.EmpresaId);
+        b.HasIndex(x => new { x.EmpresaId, x.PlanId });
+        b.HasIndex(x => x.IdempotencyKey).IsUnique();
+        b.HasIndex(x => new { x.Status, x.NextAttemptAt, x.LeaseExpiresAt });
+
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.BillingSubscription).WithMany().HasForeignKey(x => x.BillingSubscriptionId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.EmpresaPlan).WithMany().HasForeignKey(x => x.EmpresaPlanId)
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Plan).WithMany().HasForeignKey(x => x.PlanId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

@@ -53,10 +53,15 @@ public sealed class SsoConfigService : ISsoConfigService
         {
             if (request.RolPorDefectoId is not int rolId)
                 return Result<EmpresaSsoDto>.Fail("El auto-aprovisionamiento requiere un rol por defecto.", "VALIDATION");
-            var rolValido = await _db.Roles.AnyAsync(r => r.Id == rolId, ct);
-            if (!rolValido)
+            var rol = await _db.Roles.AsNoTracking().Include(r => r.Permisos).ThenInclude(p => p.Permiso)
+                .FirstOrDefaultAsync(r => r.Id == rolId, ct);
+            if (rol is null || !RbacSecurity.CanAssignToTenant(rol, empresaId))
                 return Result<EmpresaSsoDto>.Fail("El rol por defecto no existe.", "VALIDATION");
         }
+
+        if (request.Habilitado && request.ProveedorCodigo == SsoProveedores.Entra
+            && (!Guid.TryParse(request.TenantIdExterno, out var directory) || directory == Guid.Empty))
+            return Result<EmpresaSsoDto>.Fail("Microsoft Entra requiere el ID (GUID) del directorio corporativo autorizado.", "SSO_TENANT_REQUIRED");
 
         var config = await _db.EmpresaSso
             .Include(c => c.RolPorDefecto)
@@ -81,6 +86,9 @@ public sealed class SsoConfigService : ISsoConfigService
             config.UpdatedBy = actor;
         }
 
+        // Policy changes invalidate existing federated sessions, including MFA challenges.
+        var linkedUsers = await _db.Usuarios.Where(u => u.EmpresaId == empresaId && u.SsoProveedor != null).ToListAsync(ct);
+        foreach (var user in linkedUsers) user.SecurityStamp = Guid.NewGuid();
         await _db.SaveChangesAsync(ct);
         await _auditoria.RegistrarAsync(new AuditoriaEvent
         {

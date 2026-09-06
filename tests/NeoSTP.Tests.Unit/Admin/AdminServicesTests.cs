@@ -51,11 +51,22 @@ public class AdminServicesTests
         return h;
     }
 
+    private static ICurrentUser PlatformActor()
+    {
+        var actor = Substitute.For<ICurrentUser>();
+        actor.IsAuthenticated.Returns(true);
+        actor.UserId.Returns(1);
+        actor.EmpresaId.Returns((int?)null);
+        actor.TipoUsuarioCodigo.Returns("SUPERADMIN");
+        actor.IsInRole("SUPERADMIN").Returns(true);
+        return actor;
+    }
+
     private static UsuariosService NewUsuarios(NeoStpDbContext db, IPasswordPolicy? policy = null)
-        => new(db, Hasher(), Substitute.For<IAuditoriaService>(), policy ?? PolicyOk());
+        => new(db, Hasher(), Substitute.For<IAuditoriaService>(), policy ?? PolicyOk(), currentUser: PlatformActor());
 
     private static RolesService NewRoles(NeoStpDbContext db)
-        => new(db, Substitute.For<IAuditoriaService>());
+        => new(db, Substitute.For<IAuditoriaService>(), PlatformActor());
 
     private static EmpresasService NewEmpresas(NeoStpDbContext db)
         => new(db, Substitute.For<IAuditoriaService>());
@@ -159,7 +170,7 @@ public class AdminServicesTests
         await db.SaveChangesAsync();
         var svc = NewRoles(db);
 
-        var r = await svc.UpdateAsync(Empresa, 50, new UpdateRolRequest { Nombre = "Hackeado", Activo = true }, "t");
+        var r = await svc.UpdateAsync(null, 50, new UpdateRolRequest { Nombre = "Hackeado", Activo = true }, "t");
 
         r.ErrorCode.Should().Be("ROLE_SYSTEM");
     }

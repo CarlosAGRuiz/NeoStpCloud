@@ -50,6 +50,10 @@ public class CertificacionDteService : ICertificacionDteService
     {
         var codigo = NormalizeTipo(tipoDteCodigo);
         if (codigo is null) return Result<IReadOnlyList<CertificacionEscenarioDto>>.Fail("Tipo DTE requerido.", "VALIDATION");
+        var restriccion = await _db.DteConfiguracion.AsNoTracking().Where(c => c.EmpresaId == empresaId)
+            .Select(c => c.TiposDteAutorizadosCsv).SingleOrDefaultAsync(ct);
+        if (restriccion is not null && !NeoSTP.Infrastructure.Dte.DteTypeAuthorization.Resolve(restriccion).Any(t => t.Codigo == codigo))
+            return Result<IReadOnlyList<CertificacionEscenarioDto>>.Fail("Tipo no habilitado para esta empresa.", "DTE_TIPO_NO_AUTORIZADO");
 
         var matriz = await _db.CertificacionMatriz.AsNoTracking()
             .FirstOrDefaultAsync(m => m.TipoDteCodigo == codigo && m.Activo, ct);
@@ -431,6 +435,14 @@ public class CertificacionDteService : ICertificacionDteService
             .Where(m => m.Activo)
             .OrderBy(m => m.Orden)
             .ToListAsync(ct);
+
+        var restriccion = await _db.DteConfiguracion.AsNoTracking().Where(c => c.EmpresaId == empresaId)
+            .Select(c => c.TiposDteAutorizadosCsv).SingleOrDefaultAsync(ct);
+        if (restriccion is not null)
+        {
+            var disponibles = NeoSTP.Infrastructure.Dte.DteTypeAuthorization.Resolve(restriccion).Select(t => t.Codigo).ToArray();
+            matrices = matrices.Where(m => disponibles.Contains(m.TipoDteCodigo)).ToList();
+        }
 
         // Estado actual por escenario (mayor IntentoNumero) para esta empresa.
         var estadoActualPorEscenario = await _db.CertificacionPruebas.AsNoTracking()

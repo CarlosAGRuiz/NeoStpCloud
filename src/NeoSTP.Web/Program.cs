@@ -1,18 +1,28 @@
+using Microsoft.Extensions.Hosting.WindowsServices;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using NeoSTP.Application;
+using NeoSTP.Application.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Legal;
 using NeoSTP.Infrastructure;
+using NeoSTP.Infrastructure.Auth;
 using NeoSTP.Infrastructure.Diagnostics;
 using NeoSTP.Web.Auth;
 using Serilog;
 using System.Net;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null
+});
+builder.Services.AddWindowsService(options => options.ServiceName = "NeoSTP.Web");
 
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+HostConfiguration.AddLocalDevelopmentSettings(builder.Configuration, builder.Environment);
+builder.Services.Configure<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>(
+    builder.Configuration.GetSection("HttpsRedirection"));
 
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -40,19 +50,12 @@ builder.Services.AddControllersWithViews(options =>
     })
     .AddViewLocalization();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthRateLimiting(builder.Configuration);
 
 // Cloudflare Tunnel termina TLS y reenvía la petición a Kestrel por localhost.
 // Solo se confían los encabezados del proxy local para conservar el esquema HTTPS
 // sin permitir que clientes externos falsifiquen X-Forwarded-*.
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.ForwardLimit = 1;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-    options.KnownProxies.Add(IPAddress.Loopback);
-    options.KnownProxies.Add(IPAddress.IPv6Loopback);
-});
+builder.Services.AddNeoStpForwardedHeaders();
 
 // V2.5-S6: i18n base es/en. Español por defecto; el idioma se persiste en la cookie
 // estándar de cultura (acción Home/CambiarIdioma).
@@ -72,18 +75,14 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptio
 });
 
 builder.Services.AddApplication(builder.Configuration);
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 builder.Services.AddNeoStpHealthChecks();
 builder.Services.AddNeoStpObservability(builder.Configuration, "neostp-web");
 builder.Services.Configure<LegalOptions>(builder.Configuration.GetSection("Legal"));
-builder.Services.Configure<CookiePolicyOptions>(options =>
-{
-    options.MinimumSameSitePolicy = SameSiteMode.Lax;
-    options.Secure = CookieSecurePolicy.Always;
-    options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
-});
+builder.Services.Configure<CookiePolicyOptions>(WebCookiePolicy.Configure);
 
 builder.Services.AddScoped<ICurrentUser, CookieCurrentUser>();
+builder.Services.AddScoped<SessionCookieEvents>();
 builder.Services.AddScoped<NeoSTP.Application.Empresas.IEmpresaContext, NeoSTP.Web.Auth.WebEmpresaContext>();
 
 // E3: SSO OIDC. Deshabilitado por defecto; solo registra esquemas si Sso:Enabled + credenciales.
@@ -103,6 +102,7 @@ builder.Services
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
+        options.EventsType = typeof(SessionCookieEvents);
     })
     .AddNeoStpSso(ssoOptions);
 
@@ -115,12 +115,8 @@ app.UseForwardedHeaders();
 // Fail-fast: en Producción no se arranca con providers Mock (correo, billing, scan, push).
 NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(app.Configuration, app.Environment);
 
-// Aplicar migraciones + seed al arrancar (idempotente). Garantiza que la Web tenga el
-// esquema al día aunque se ejecute sin la API; EF serializa con __EFMigrationsLock.
-await NeoSTP.Infrastructure.Persistence.Seed.DatabaseSeeder.SeedAsync(app.Services);
-await NeoSTP.Infrastructure.Persistence.Seed.EmpresaPruebaSeeder.SeedAsync(app.Services);
-// Ambiente de demostración comercial (DemoComercial:Enabled). Apagado por defecto.
-await NeoSTP.Infrastructure.Persistence.Seed.DemoComercialSeeder.SeedAsync(app.Services);
+// Production validates the deployed schema; migrations and seed are a separate deployment operation.
+await DatabaseStartup.InitializeAsync(app.Services, app.Configuration, app.Environment);
 
 app.UseSerilogRequestLogging();
 
@@ -135,7 +131,9 @@ app.UseSecurityHeaders();
 app.UseCookiePolicy();
 app.UseRequestLocalization();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
+app.UseMiddleware<MfaChallengeMiddleware>();
 app.UseAuthorization();
 
 // Enforcement comercial: una empresa no ACTIVA (suspendida/vencida) no navega la web.
@@ -163,7 +161,7 @@ app.Use(async (context, next) =>
     await next(context);
 });
 
-app.MapStaticAssets();
+app.MapStaticAssets().WithMetadata(new AllowMfaChallengeAttribute(SessionClaims.MfaEnroll, SessionClaims.MfaVerify));
 
 app.MapControllerRoute(
     name: "default",
@@ -179,6 +177,7 @@ try
 }
 catch (Exception ex)
 {
+    Environment.ExitCode = 1;
     Log.Fatal(ex, "NeoSTP.Web terminated unexpectedly");
 }
 finally

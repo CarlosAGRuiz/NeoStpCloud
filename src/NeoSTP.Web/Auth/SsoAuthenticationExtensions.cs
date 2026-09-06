@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Validators;
 using NeoSTP.Application.Auth;
 using NeoSTP.Domain.Core.Seguridad;
 
@@ -38,6 +39,7 @@ public static class SsoAuthenticationExtensions
             o.Cookie.SameSite = SameSiteMode.None;
             o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             o.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+            o.SlidingExpiration = false;
         });
 
         if (sso.Microsoft.IsConfigured)
@@ -58,9 +60,11 @@ public static class SsoAuthenticationExtensions
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
-                // App multi-tenant: el issuer varía por directorio; la restricción real
-                // se hace por empresa con EmpresaSso.TenantIdExterno.
-                options.TokenValidationParameters.ValidateIssuer = false;
+                options.UsePkce = true;
+                options.TokenValidationParameters.ValidateIssuer = true;
+                options.TokenValidationParameters.IssuerValidator = AadIssuerValidator
+                    .GetAadIssuerValidator(sso.Microsoft.Authority).Validate;
+                options.TokenValidationParameters.EnableAadSigningKeyIssuerValidation();
             });
         }
 
@@ -77,7 +81,9 @@ public static class SsoAuthenticationExtensions
                 options.SignedOutCallbackPath = "/signout-google";
                 options.SaveTokens = false;
                 options.MapInboundClaims = false;
-                options.GetClaimsFromUserInfoEndpoint = true;
+                // Identity claims come from the validated ID token, not a mutable profile response.
+                options.GetClaimsFromUserInfoEndpoint = false;
+                options.UsePkce = true;
                 options.Scope.Clear();
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");

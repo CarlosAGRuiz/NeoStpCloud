@@ -47,7 +47,13 @@ public class TransferenciaBillingTests
             new IPaymentProvider[] { new TransferenciaPaymentProvider(), new MockPaymentProvider() }, opts);
 
         var email = Substitute.For<IEmailSender>();
-        return (new BillingService(db, resolver, email, opts), db, planId);
+        var platformRole = db.Roles.Single(r => r.Codigo == "SUPERADMIN" && r.EmpresaId == null && r.EsSistema);
+        var administrator = BillingSecurityFixture.User(981000, "SUPERADMIN", null, platformRole);
+        administrator.Username = "admin";
+        db.Usuarios.Add(administrator);
+        db.SaveChanges();
+        return (new BillingService(db, resolver, email, opts,
+            BillingSecurityFixture.CurrentUser(administrator.Id, "SUPERADMIN", null)), db, planId);
     }
 
     [Fact]

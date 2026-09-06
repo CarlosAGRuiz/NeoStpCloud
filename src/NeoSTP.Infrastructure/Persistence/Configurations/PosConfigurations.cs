@@ -20,7 +20,8 @@ public class VentaPosConfiguration : IEntityTypeConfiguration<VentaPos>
         b.Property(x => x.TotalDescuento).HasPrecision(18, 2);
         b.Property(x => x.Total).HasPrecision(18, 2);
         b.Property(x => x.Nota).HasMaxLength(250);
-        b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired();
+        b.Property(x => x.EstadoCodigo).HasMaxLength(20).IsRequired().IsConcurrencyToken();
+        b.Property(x => x.DteDocumentoId).IsConcurrencyToken();
         b.Property(x => x.EstadoFacturacion).HasMaxLength(20).IsRequired();
         b.Property(x => x.CreatedBy).HasMaxLength(100);
         b.Property(x => x.UpdatedBy).HasMaxLength(100);

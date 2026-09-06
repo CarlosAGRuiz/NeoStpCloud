@@ -14,12 +14,12 @@ namespace NeoSTP.Infrastructure.Billing;
 /// Flujo: OAuth2 client-credentials contra el servidor de identidad → crear un
 /// "EnlacePago" (link de pago hospedado) → el cliente paga en la página de Wompi
 /// (los datos de tarjeta nunca tocan nuestros servidores). El webhook de Wompi
-/// notifica la transacción aprobada/rechazada (ver BillingWebhookHandler).
+/// notifica las transacciones exitosas.
 ///
-/// No maneja "customer" ni "subscription" nativos: se gestionan localmente, como
-/// en MercadoPago. Los nombres de campos siguen la API v1 de Wompi.sv.
+/// Este adaptador usa enlaces de un pago y períodos locales; los cargos recurrentes
+/// de Wompi pertenecen a otro contrato. Campos según la API v1 de Wompi.sv.
 /// </summary>
-public sealed class WompiBillingProvider : IPaymentProvider
+public sealed partial class WompiBillingProvider : IPaymentProvider, IBillingCheckoutProvider
 {
     public const string HttpClientName = "WompiClient";
 
@@ -39,51 +39,12 @@ public sealed class WompiBillingProvider : IPaymentProvider
     public Task<Result<string>> CreateCustomerAsync(string email, int empresaId, CancellationToken ct = default)
         => Task.FromResult(Result<string>.Ok($"wompi_cus_{empresaId}"));
 
-    public async Task<Result<CheckoutSessionResult>> CreateCheckoutSessionAsync(
+    public Task<Result<CheckoutSessionResult>> CreateCheckoutSessionAsync(
         string customerId, string externalPlanId, string successUrl, string cancelUrl, CancellationToken ct = default)
-    {
-        try
-        {
-            var token = await ObtenerTokenAsync(ct);
-            if (token is null)
-                return Result<CheckoutSessionResult>.Fail("No se pudo autenticar con Wompi.", "WOMPI_AUTH_FAILED");
+        => Task.FromResult(Result<CheckoutSessionResult>.Fail(
+            "Wompi requiere un checkout durable con importe y correlación verificados.", "BILLING_CHECKOUT_CAPABILITY_REQUIRED"));
 
-            var http = _httpFactory.CreateClient(HttpClientName);
-            http.DefaultRequestHeaders.Authorization = new("Bearer", token);
-
-            var idEnlace = $"neostp-{customerId}-{Guid.NewGuid():N}";
-            var body = new
-            {
-                identificadorEnlaceComercio = idEnlace,
-                monto = 0m, // el monto real se fija desde el mapping de plan en una iteración posterior
-                nombreProducto = "Suscripción NeoSTP",
-                formaPago = new { permitirTarjetaCreditoDebido = true, permitirPagoConPuntoAgricola = true },
-                configuracion = new { urlRedirect = successUrl, esMontoEditable = false, urlWebhook = (string?)null },
-            };
-
-            using var resp = await http.PostAsJsonAsync($"{_opts.BaseUrl}/EnlacePago", body, ct);
-            var json = await resp.Content.ReadAsStringAsync(ct);
-            if (!resp.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Wompi EnlacePago falló {Status}: {Body}", (int)resp.StatusCode, json);
-                return Result<CheckoutSessionResult>.Fail($"Wompi rechazó la creación del enlace ({(int)resp.StatusCode}).", "WOMPI_LINK_FAILED");
-            }
-
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var url = TryGetString(root, "urlEnlace") ?? TryGetString(root, "urlQrCodeEmv") ?? successUrl;
-            var id = TryGetString(root, "idEnlace") ?? idEnlace;
-
-            return Result<CheckoutSessionResult>.Ok(new CheckoutSessionResult(id, url));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creando enlace de pago Wompi");
-            return Result<CheckoutSessionResult>.Fail(ex.Message, "WOMPI_LINK_FAILED");
-        }
-    }
-
-    // Wompi no tiene portal ni suscripciones nativas: se gestionan localmente.
+    // Este adaptador no implementa el producto separado de cargos recurrentes de Wompi.
     public Task<Result<BillingPortalResult>> CreatePortalSessionAsync(string customerId, string returnUrl, CancellationToken ct = default)
         => Task.FromResult(Result<BillingPortalResult>.Ok(new BillingPortalResult(returnUrl)));
 

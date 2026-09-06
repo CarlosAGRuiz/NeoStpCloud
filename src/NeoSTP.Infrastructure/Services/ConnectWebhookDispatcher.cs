@@ -1,10 +1,10 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NeoSTP.Application.Connect;
 using NeoSTP.Domain.Core.Connect;
+using NeoSTP.Infrastructure.Connect;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -142,7 +142,7 @@ public class ConnectWebhookDispatcher : IConnectWebhookDispatcher
             _logger.LogInformation("ConnectWebhook entregado: deliveryId={Id} webhookId={Wid} status={Status}",
                 delivery.Id, delivery.WebhookId, httpStatus);
         }
-        else if (delivery.Intentos >= MaxIntentos)
+        else if (delivery.Intentos >= MaxIntentos || error == WebhookDestinationPolicy.BlockedMessage)
         {
             delivery.Estado = ConnectDeliveryEstados.Fallido;
             delivery.HttpStatus = httpStatus;
@@ -167,21 +167,30 @@ public class ConnectWebhookDispatcher : IConnectWebhookDispatcher
     {
         try
         {
+            var uri = WebhookDestinationPolicy.ValidateUrl(url); // Reject unsafe legacy rows before creating a client.
             var signature = ConnectWebhookService.ComputeHmac(secreto, payload);
-            var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
+            using var client = _httpClientFactory.CreateClient(WebhookHttpTransport.HttpClientName);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri)
+            {
+                Version = System.Net.HttpVersion.Version11,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            };
             request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
             request.Headers.Add("X-NeoConnect-Signature", $"sha256={signature}");
             request.Headers.Add("X-NeoConnect-Event", evento);
 
-            var response = await client.SendAsync(request, ct);
-            return ((int)response.StatusCode, null);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            return ((int)response.StatusCode, (int)response.StatusCode is >= 300 and < 400
+                ? "El webhook devolvió una redirección; configure la URL HTTPS final. No se siguió la redirección." : null);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (WebhookDestinationPolicy.IsBlocked(ex))
         {
-            return (null, ex.Message[..Math.Min(ex.Message.Length, 500)]);
+            return (null, WebhookDestinationPolicy.BlockedMessage);
+        }
+        catch (Exception)
+        {
+            return (null, "No se pudo entregar el webhook. Revise el destino HTTPS y su disponibilidad.");
         }
     }
 }

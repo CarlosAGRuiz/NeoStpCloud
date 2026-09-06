@@ -1,4 +1,5 @@
 using NeoSTP.Application.Cobranza;
+using NeoSTP.Infrastructure.Branding;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -24,18 +25,22 @@ public static class CobroPdfBuilder
 
     static CobroPdfBuilder() => QuestPDF.Settings.License = LicenseType.Community;
 
-    public static byte[] Generar(CobroPdfModel m) => Document.Create(container =>
+    public static byte[] Generar(CobroPdfModel m)
+    {
+        var logo = BrandingImageValidator.SafeForPdf(m.LogoPng);
+        return Document.Create(container =>
     {
         container.Page(page =>
         {
             page.Size(PageSizes.A5);
             page.Margin(28);
             page.DefaultTextStyle(x => x.FontSize(10).FontColor(Ink));
-            page.Content().Element(c => Body(c, m));
+            page.Content().Element(c => Body(c, m, logo));
         });
-    }).GeneratePdf();
+        }).GeneratePdf();
+    }
 
-    private static void Body(IContainer container, CobroPdfModel m)
+    private static void Body(IContainer container, CobroPdfModel m, byte[]? logo)
     {
         var c = m.Cobro;
         container.Column(col =>
@@ -44,8 +49,8 @@ public static class CobroPdfBuilder
 
             col.Item().Row(r =>
             {
-                if (m.LogoPng is { Length: > 0 })
-                    r.ConstantItem(64).MaxHeight(48).Image(m.LogoPng).FitArea();
+                if (logo is { Length: > 0 })
+                    r.ConstantItem(64).MaxHeight(48).Image(logo).FitArea();
                 r.RelativeItem().AlignMiddle().Column(h =>
                 {
                     h.Item().Text(m.EmpresaNombre).Bold().FontSize(14);

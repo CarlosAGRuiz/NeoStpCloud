@@ -139,7 +139,9 @@ public class CobroQrService : ICobroQrService
 
         var empresa = await _db.Empresas.AsNoTracking()
             .Where(e => e.Id == empresaId)
-            .Select(e => new { e.RazonSocial, e.NombreComercial, e.LogoBlob })
+            .Select(e => new { e.RazonSocial, e.NombreComercial,
+                LogoBlob = e.LogoBlob != null && e.LogoBlob.Length <= NeoSTP.Infrastructure.Branding.BrandingImageValidator.MaxBytes
+                    ? e.LogoBlob : null })
             .FirstOrDefaultAsync(ct);
         if (empresa is null) return Result<CobroPdfDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
 

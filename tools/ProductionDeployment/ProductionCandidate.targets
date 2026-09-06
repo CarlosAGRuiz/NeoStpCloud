@@ -1,0 +1,27 @@
+<Project>
+  <!-- Imported only by the isolated candidate command. No project files are changed. -->
+  <PropertyGroup>
+    <NeoCandidateForbidden>(?i)(^|[/\\])(appsettings[^/\\]*|secrets[^/\\]*|\.env[^/\\]*|key-[^/\\]*\.xml|[^/\\]*\.(pfx|p12|pem|key|bak|mdf|ldf|sqlite|db))$|(^|[/\\])(storage|dataprotection[^/\\]*|keys|logs|uploads|backups|certificates|certs)([/\\]|$)</NeoCandidateForbidden>
+    <NeoCandidateAllowed>(?i)\.(dll|exe|pdb|so|dylib|js|css|map|html|htm|svg|png|jpg|jpeg|gif|ico|webp|woff|woff2|ttf|eot|br|gz)$|(^|[/\\])[^/\\]+\.(deps|runtimeconfig|staticwebassets[^/\\]*)\.json$|(^|[/\\])(web\.config|LICENSE(?:\.md|\.txt)?)$</NeoCandidateAllowed>
+  </PropertyGroup>
+  <Target Name="NeoExcludeCandidateLocalContent" BeforeTargets="ResolveProjectStaticWebAssets;AssignTargetPaths" Condition="'$(NeoProductionCandidate)' == 'true'">
+    <ItemGroup>
+      <Content Remove="@(Content)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Content.Identity)', '$(NeoCandidateForbidden)'))" />
+      <None Remove="@(None)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(None.Identity)', '$(NeoCandidateForbidden)'))" />
+    </ItemGroup>
+  </Target>
+  <Target Name="NeoFilterProductionCandidate" AfterTargets="ComputeFilesToPublish" BeforeTargets="_ComputeResolvedFilesToPublishTypes">
+    <Error Condition="'$(NeoProductionCandidate)' != 'true' Or '$(PublishDir)' == ''" Text="Candidate filter requires explicit isolated publication." />
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.Identity)', '$(NeoCandidateForbidden)')) Or $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '$(NeoCandidateForbidden)')) Or !$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '$(NeoCandidateAllowed)'))" />
+    </ItemGroup>
+    <MakeDir Directories="$(PublishDir)" />
+    <WriteLinesToFile File="$(PublishDir).production-filter-applied" Lines="NeoProductionCandidate-v1;NoEnvironmentConfiguration" Overwrite="true" />
+  </Target>
+  <Target Name="NeoValidateStaticAssetCopy" BeforeTargets="_SplitPublishStaticWebAssetsByCopyOptions" Condition="'$(NeoProductionCandidate)' == 'true'">
+    <ItemGroup>
+      <_RejectedCandidateStaticAsset Include="@(StaticWebAsset)" Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(StaticWebAsset.Identity)', '$(NeoCandidateForbidden)')) Or $([System.Text.RegularExpressions.Regex]::IsMatch('%(StaticWebAsset.RelativePath)', '$(NeoCandidateForbidden)')) Or !$([System.Text.RegularExpressions.Regex]::IsMatch($([System.String]::Copy('%(StaticWebAsset.RelativePath)').Replace('#[.{fingerprint}]?', '')), '$(NeoCandidateAllowed)'))" />
+    </ItemGroup>
+    <Error Condition="'@(_RejectedCandidateStaticAsset)' != ''" Text="Candidate static asset publication rejected by path policy." />
+  </Target>
+</Project>

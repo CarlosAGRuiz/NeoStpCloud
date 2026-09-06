@@ -37,6 +37,13 @@ public sealed class LookupService : ILookupService
 
     public async Task<IReadOnlyList<LookupItem>> GetCatalogoAsync(string codigo, int? empresaId, string? parent = null, CancellationToken ct = default)
     {
+        // Fiscal authorizations are read on each request; a cached catalog cannot outlive a revocation.
+        if (string.Equals(codigo.Trim(), "TIPO_FACTURA", StringComparison.OrdinalIgnoreCase))
+        {
+            var fiscal = await _catalogos.GetItemsAsync("TIPO_FACTURA", empresaId, parent, ct);
+            return (fiscal.Value ?? []).Where(i => i.Activo).OrderBy(i => i.Orden)
+                .Select(i => new LookupItem(i.Codigo, i.Valor, i.ParentCodigo, i.MetadataJson)).ToArray();
+        }
         var version = _distributed is null ? "0" : await _distributed.GetStringAsync(VersionKey, ct) ?? "0";
         var key = $"{version}:{codigo}|{empresaId}|{parent}";
         if (_cache.TryGetValue(key, out var hit) && hit.Expira > DateTime.UtcNow)

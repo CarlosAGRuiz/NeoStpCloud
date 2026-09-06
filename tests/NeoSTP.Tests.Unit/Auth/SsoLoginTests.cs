@@ -41,6 +41,8 @@ public class SsoLoginTests
         jwt.CreateRefreshToken().Returns(_ => Guid.NewGuid().ToString("N"));
         var audit = Substitute.For<IAuditoriaService>();
         var mfa = Substitute.For<NeoSTP.Application.Ops.IMfaService>();
+        mfa.VerificarCodigoLoginAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(x => (string)x[1] == "123456" ? NeoSTP.Application.Common.Result.Ok() : NeoSTP.Application.Common.Result.Fail("Inválido"));
         var jwtOptions = Options.Create(new JwtOptions
         {
             Issuer = "test", Audience = "test", Key = "0123456789012345678901234567890123",
@@ -55,7 +57,7 @@ public class SsoLoginTests
     {
         Id = id, EmpresaId = Empresa, Username = email, Email = email, NombreCompleto = "Usuario",
         PasswordHash = hasher.Hash("x"), TipoUsuarioCodigo = "OPERADOR", EstadoCodigo = EstadoCodes.Activo,
-        SsoProveedor = ssoProv, SsoSubject = ssoSub,
+        SsoProveedor = ssoProv, SsoSubject = ssoSub, SsoIssuer = ssoProv is null ? null : SsoTestIdentity.Issuer,
     };
 
     private static void SeedConfig(NeoStpDbContext db, bool autoProvisionar, string? tenant = null, string proveedor = SsoProveedores.Entra)
@@ -63,7 +65,7 @@ public class SsoLoginTests
         db.EmpresaSso.Add(new EmpresaSso
         {
             EmpresaId = Empresa, ProveedorCodigo = proveedor, Habilitado = true,
-            DominioCorreo = "contoso.com", TenantIdExterno = tenant,
+            DominioCorreo = "contoso.com", TenantIdExterno = tenant ?? SsoTestIdentity.Tenant,
             AutoProvisionar = autoProvisionar, RolPorDefectoId = autoProvisionar ? RolOperador : null,
         });
         db.SaveChanges();
@@ -71,7 +73,9 @@ public class SsoLoginTests
 
     private static ExternalLoginInfo Info(string sub, string? email, string? tenant = null, string proveedor = SsoProveedores.Entra) => new()
     {
-        Proveedor = proveedor, Subject = sub, Email = email, NombreCompleto = "Ada Lovelace", TenantIdExterno = tenant,
+        Proveedor = proveedor, Subject = sub, Email = email, NombreCompleto = "Ada Lovelace", TenantIdExterno = tenant ?? SsoTestIdentity.Tenant,
+        Issuer = proveedor == SsoProveedores.Google ? "https://accounts.google.com" : $"https://login.microsoftonline.com/{tenant ?? SsoTestIdentity.Tenant}/v2.0",
+        EmailVerified = true, HostedDomain = "contoso.com",
     };
 
     [Fact]
@@ -79,6 +83,7 @@ public class SsoLoginTests
     {
         var (svc, db, hasher) = Build();
         db.Usuarios.Add(NuevoUsuario(hasher, 10, "ada@contoso.com", SsoProveedores.Entra, "sub-abc"));
+        SeedConfig(db, false);
         db.SaveChanges();
 
         var r = await svc.LoginExternoAsync(Info("sub-abc", "ada@contoso.com"), new AuthContext());
@@ -90,19 +95,20 @@ public class SsoLoginTests
     }
 
     [Fact]
-    public async Task CuentaLocalPorCorreo_SeVincula()
+    public async Task CuentaLocalPorCorreo_ExigePruebaLocalSinModificarLaCuenta()
     {
         var (svc, db, hasher) = Build();
         db.Usuarios.Add(NuevoUsuario(hasher, 11, "grace@contoso.com"));
+        SeedConfig(db, false);
         db.SaveChanges();
 
         var r = await svc.LoginExternoAsync(Info("sub-new", "GRACE@contoso.com"), new AuthContext());
 
-        r.IsSuccess.Should().BeTrue();
-        r.Value!.User.Id.Should().Be(11);
+        r.ErrorCode.Should().Be("SSO_LINK_REQUIRED");
         var u = await db.Usuarios.FirstAsync(x => x.Id == 11);
-        u.SsoProveedor.Should().Be(SsoProveedores.Entra);
-        u.SsoSubject.Should().Be("sub-new");
+        u.SsoProveedor.Should().BeNull();
+        u.SsoSubject.Should().BeNull();
+        db.AuthSessions.Should().BeEmpty();
     }
 
     [Fact]
@@ -147,9 +153,9 @@ public class SsoLoginTests
     public async Task TenantNoCoincide_Falla()
     {
         var (svc, db, _) = Build();
-        SeedConfig(db, autoProvisionar: true, tenant: "tenant-corporativo");
+        SeedConfig(db, autoProvisionar: true);
 
-        var r = await svc.LoginExternoAsync(Info("sub-3", "x@contoso.com", tenant: "tenant-ajeno"), new AuthContext());
+        var r = await svc.LoginExternoAsync(Info("sub-3", "x@contoso.com", tenant: "22222222-2222-2222-2222-222222222222"), new AuthContext());
 
         r.ErrorCode.Should().Be("SSO_TENANT_NO_COINCIDE");
     }
@@ -172,5 +178,108 @@ public class SsoLoginTests
         var r = await svc.LoginExternoAsync(Info("sub-5", email: null), new AuthContext());
 
         r.ErrorCode.Should().Be("SSO_SIN_CORREO");
+    }
+
+    [Theory]
+    [InlineData("x", true)]
+    [InlineData("incorrecta", false)]
+    public async Task VinculacionExplicita_ExigePasswordLocal(string password, bool valid)
+    {
+        var (svc, db, hasher) = Build();
+        SeedConfig(db, false);
+        db.Usuarios.Add(NuevoUsuario(hasher, 11, "grace@contoso.com"));
+        await db.SaveChangesAsync();
+        var result = await svc.VincularExternoAsync(Info("explicit", "grace@contoso.com"),
+            new LoginRequest { UsernameOrEmail = "grace@contoso.com", Password = password }, new());
+        result.IsSuccess.Should().Be(valid);
+        var user = await db.Usuarios.SingleAsync();
+        if (valid)
+        {
+            user.SsoIssuer.Should().Be(SsoTestIdentity.Issuer);
+            user.SecurityStamp.Should().NotBeEmpty();
+            (await svc.LoginExternoAsync(Info("explicit", "grace@contoso.com"), new())).IsSuccess.Should().BeTrue();
+        }
+        else { user.SsoSubject.Should().BeNull(); db.AuthSessions.Should().BeEmpty(); }
+    }
+
+    [Fact]
+    public async Task VinculacionExplicita_NoReemplazaOtroSujeto()
+    {
+        var (svc, db, hasher) = Build(); SeedConfig(db, false);
+        db.Usuarios.Add(NuevoUsuario(hasher, 11, "grace@contoso.com", "ENTRA", "original"));
+        await db.SaveChangesAsync();
+        var result = await svc.VincularExternoAsync(Info("replacement", "grace@contoso.com"),
+            new LoginRequest { UsernameOrEmail = "grace@contoso.com", Password = "x" }, new());
+        result.ErrorCode.Should().Be("SSO_LINK_CONFLICT");
+        (await db.Usuarios.SingleAsync()).SsoSubject.Should().Be("original");
+    }
+
+    [Theory]
+    [InlineData(false, "contoso.com")]
+    [InlineData(true, "attacker.test")]
+    [InlineData(true, null)]
+    public async Task Google_NoAprovisionaSinDominioWorkspaceVerificado(bool verified, string? hostedDomain)
+    {
+        var (svc, db, _) = Build(); SeedConfig(db, true, proveedor: "GOOGLE");
+        var info = Info("google-sub", "grace@contoso.com", proveedor: "GOOGLE");
+        info.EmailVerified = verified; info.HostedDomain = hostedDomain;
+        (await svc.LoginExternoAsync(info, new())).ErrorCode.Should().Be("SSO_DOMAIN_UNVERIFIED");
+        db.Usuarios.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Google_WorkspaceVerificadoPuedeAprovisionar()
+    {
+        var (svc, db, _) = Build(); SeedConfig(db, true, proveedor: "GOOGLE");
+        (await svc.LoginExternoAsync(Info("google-sub", "grace@contoso.com", proveedor: "GOOGLE"), new())).IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("disabled")]
+    [InlineData("directory")]
+    [InlineData("issuer")]
+    [InlineData("legacy")]
+    public async Task SujetoExistente_NoOmitePoliticaNiIssuer(string change)
+    {
+        var (svc, db, hasher) = Build(); SeedConfig(db, false);
+        var user = NuevoUsuario(hasher, 11, "grace@contoso.com", "ENTRA", "existing");
+        db.Usuarios.Add(user);
+        var info = Info("existing", "grace@contoso.com");
+        switch (change)
+        {
+            case "disabled": (await db.EmpresaSso.SingleAsync()).Habilitado = false; break;
+            case "directory": (await db.EmpresaSso.SingleAsync()).TenantIdExterno = Guid.NewGuid().ToString(); break;
+            case "issuer": info.Issuer = "https://attacker.test"; break;
+            case "legacy": user.SsoIssuer = null; break;
+        }
+        await db.SaveChangesAsync();
+        (await svc.LoginExternoAsync(info, new())).IsFailure.Should().BeTrue();
+        db.AuthSessions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task VinculacionNoBuscaCuentaEnOtraEmpresa()
+    {
+        var (svc, db, hasher) = Build(); SeedConfig(db, false);
+        var user = NuevoUsuario(hasher, 11, "grace@contoso.com"); user.EmpresaId = 987;
+        db.Usuarios.Add(user); await db.SaveChangesAsync();
+        (await svc.VincularExternoAsync(Info("sub", "grace@contoso.com"),
+            new LoginRequest { UsernameOrEmail = user.Email, Password = "x" }, new())).IsFailure.Should().BeTrue();
+        user.SsoSubject.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("wrong", false)]
+    [InlineData("123456", true)]
+    public async Task VinculacionRequiereMfaLocalSiEstaHabilitado(string? code, bool valid)
+    {
+        var (svc, db, hasher) = Build(); SeedConfig(db, false);
+        var user = NuevoUsuario(hasher, 11, "grace@contoso.com"); user.MfaHabilitado = true;
+        db.Usuarios.Add(user); await db.SaveChangesAsync();
+        var result = await svc.VincularExternoAsync(Info("sub", user.Email),
+            new LoginRequest { UsernameOrEmail = user.Email, Password = "x", MfaCode = code }, new());
+        result.IsSuccess.Should().Be(valid);
+        if (!valid) { user.SsoSubject.Should().BeNull(); db.AuthSessions.Should().BeEmpty(); }
     }
 }

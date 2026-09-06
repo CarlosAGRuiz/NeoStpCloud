@@ -13,6 +13,11 @@ public class LoginViewModel
     [Display(Name = "Contraseña")]
     public string Password { get; set; } = string.Empty;
 
+    [StringLength(32)]
+    [DataType(DataType.Password)]
+    [Display(Name = "Código de segundo factor")]
+    public string? MfaCode { get; set; }
+
     [Display(Name = "Recordarme")]
     public bool RememberMe { get; set; }
 

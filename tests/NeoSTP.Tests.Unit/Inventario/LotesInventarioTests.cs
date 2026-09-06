@@ -134,7 +134,7 @@ public class LotesInventarioTests
 
         todos.Value!.Count.Should().Be(3);
         criticos.Value!.Select(l => l.NumeroLote).Should().BeEquivalentTo(new[] { "VENCIDO", "CERCA" });
-        criticos.Value.Single(l => l.NumeroLote == "VENCIDO").Vencido.Should().BeTrue();
+        criticos.Value!.Single(l => l.NumeroLote == "VENCIDO").Vencido.Should().BeTrue();
     }
 
     [Fact]
