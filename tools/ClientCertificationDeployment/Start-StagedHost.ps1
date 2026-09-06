@@ -4,9 +4,9 @@ $ErrorActionPreference='Stop'
 $env:PSModulePath=[IO.Path]::Combine($env:WINDIR,'System32','WindowsPowerShell','v1.0','Modules')
 if($App-notin@('api','web')){throw 'HOST_REQUIRED'}
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$release=Join-Path $repo 'out/client-certification-release/20260905T232433Z-9062dc25354442429d2ef07f76f24d94'
+$release=Join-Path $repo 'out/client-certification-release/20260906T153647Z-8691442423df464a9110277a78b50232'
 $manifest=Get-Content -LiteralPath (Join-Path $release 'staging-manifest.json') -Raw|ConvertFrom-Json
-if($manifest.CandidateManifestSha256-cne'98722A2B38A922BBC389FDF7274136F0A729F4EB0382867B03911FC9E75C92D8'){throw 'STAGED_HOST_MANIFEST_REJECTED'}
+if($manifest.CandidateManifestSha256-cne'12977FC4D0E0FDA9BE8FAC0644EBD20C2485C11E44881A0527FE74EB5860D23F'){throw 'STAGED_HOST_MANIFEST_REJECTED'}
 $port=if($App-eq'api'){5058}else{5031}
 $assembly=if($App-eq'api'){'NeoSTP.Api'}else{'NeoSTP.Web'}
 $root=Join-Path $release $App

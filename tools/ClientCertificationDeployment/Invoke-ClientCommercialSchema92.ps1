@@ -100,7 +100,10 @@ try{
   $proofPath=RepoFile $RehearsalManifestPath
   Require ($RehearsalManifestSha256-and(Get-FileHash -LiteralPath $proofPath -Algorithm SHA256).Hash-ceq$RehearsalManifestSha256) 'REHEARSAL_HASH_REJECTED'
   $proof=Get-Content -LiteralPath $proofPath -Raw|ConvertFrom-Json
-  Require ($proof.Mode-ceq'Rehearse'-and$proof.Passed-and$proof.SqlSha256-ceq$SqlSha256-and$proof.ExpectedMigration-ceq$MigrationId-and$proof.SourceMigrationSetSha256-ceq$report.SourceMigrationSetSha256-and$proof.BackupVerified-and$proof.CloneRetained-and$proof.OriginalRowsPreserved-and$proof.DbccErrors-eq0-and[DateTime]::Parse($proof.AtUtc).ToUniversalTime()-gt[DateTime]::UtcNow.AddHours(-48)) 'SUCCESSFUL_RECENT_REHEARSAL_REQUIRED'
+  # ConvertFrom-Json already materializes ISO dates in PowerShell 7; parsing its
+  # culture-dependent ToString again can swap month/day (September 6 becomes June 9).
+  $proofTime=([DateTime]$proof.AtUtc).ToUniversalTime()
+  Require ($proof.Mode-ceq'Rehearse'-and$proof.Passed-and$proof.SqlSha256-ceq$SqlSha256-and$proof.ExpectedMigration-ceq$MigrationId-and$proof.SourceMigrationSetSha256-ceq$report.SourceMigrationSetSha256-and$proof.BackupVerified-and$proof.CloneRetained-and$proof.OriginalRowsPreserved-and$proof.DbccErrors-eq0-and$proofTime-gt[DateTime]::UtcNow.AddHours(-48)-and$proofTime-le[DateTime]::UtcNow.AddMinutes(5)) 'SUCCESSFUL_RECENT_REHEARSAL_REQUIRED'
   $report.RehearsalManifestSha256=$RehearsalManifestSha256
   $null=WindowsGuard 'Check'
  }
