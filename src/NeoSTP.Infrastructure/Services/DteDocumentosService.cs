@@ -1156,6 +1156,9 @@ public partial class DteDocumentosService : IDteDocumentosService
         if (nuevoEstado != DteEstadoCodigos.Procesado)
             RegistrarRespuestaNoProcesada(doc, resp.CodigoMsg, resp.DescripcionMsg);
         await _db.SaveChangesAsync(ct);
+        if (nuevoEstado == DteEstadoCodigos.Procesado)
+            await EnviarCorreoAutomaticoAsync(empresaId, doc.Id, actor);
+
         await Audit(empresaId, actor, "ENVIAR",
             resp.Success && nuevoEstado == DteEstadoCodigos.Procesado ? "OK" : "FAIL",
             $"[{resp.CodigoHttp}] estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg}",
@@ -1272,6 +1275,7 @@ public partial class DteDocumentosService : IDteDocumentosService
         var message = new EmailMessage
         {
             To = to,
+            Cc = CopiaCorreoEmisor(to, doc.Empresa?.Correo),
             Subject = subject,
             HtmlBody = body,
         };
@@ -1318,6 +1322,7 @@ public partial class DteDocumentosService : IDteDocumentosService
                 CodigoActividad = e.CodigoActividad,
                 ActividadEconomica = e.ActividadEconomica,
                 FirmaTexto = e.FirmaTexto,
+                Correo = e.Correo,
                 LogoContentType = e.LogoContentType,
                 FirmaContentType = e.FirmaContentType,
                 LogoBlob = e.LogoBlob != null && e.LogoBlob.Length <= BrandingImageValidator.MaxBytes ? e.LogoBlob : null,

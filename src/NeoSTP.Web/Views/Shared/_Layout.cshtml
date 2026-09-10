@@ -107,7 +107,12 @@
         && !actionName.Contains("Orden", StringComparison.OrdinalIgnoreCase) ? "active" : "";
 
     var haciendaHttp = string.Equals(Config["Hacienda:Client"], "Http", StringComparison.OrdinalIgnoreCase);
-    var envLabel = haciendaHttp ? "PRUEBAS · HACIENDA" : "MOCK";
+    var ambienteEmpresa = isAuth && empresaActualId.HasValue
+        ? await Db.DteConfiguracion.AsNoTracking()
+            .Where(c => c.EmpresaId == empresaActualId.Value)
+            .Select(c => c.AmbienteCodigo).SingleOrDefaultAsync()
+        : null;
+    var envBadge = NeoSTP.Web.Models.DteEnvironmentBadge.Resolve(haciendaHttp, ambienteEmpresa);
     var inicial = string.IsNullOrEmpty(username) ? "?" : username!.Substring(0, 1).ToUpperInvariant();
 }
 
@@ -472,8 +477,8 @@ else
                         <span class="material-symbols-outlined">menu</span>
                     </button>
                     <h1 class="ns-topbar-title">@(ViewData["Title"] ?? "NeoSTP Cloud")</h1>
-                    <span class="ns-env @(haciendaHttp ? "ns-env--prod" : "ns-env--test")">
-                        <span class="ns-env-dot"></span>@envLabel
+                    <span class="ns-env @(envBadge.IsProduction ? "ns-env--prod" : "ns-env--test")" title="Ambiente configurado para la empresa actual; los documentos existentes conservan su ambiente original.">
+                        <span class="ns-env-dot"></span>@envBadge.Label
                     </span>
                 </div>
                 <div class="ns-topbar-right">

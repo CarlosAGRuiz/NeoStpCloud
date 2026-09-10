@@ -1,5 +1,16 @@
 # NeoSTP.Web
 
+## Estado actualizado — 10 de septiembre de 2026
+
+- La insignia del encabezado consulta el ambiente fiscal de la empresa activa; no se elige producción en cada factura ni se deriva del entorno de alojamiento ASP.NET. Mantener empresas de prueba separadas de las productivas.
+- Clientes y Nuevo DTE muestran **Departamento → Municipio → Distrito**. Las listas respetan sus relaciones, limpian selecciones incompatibles y ocultan territorio local para clientes extranjeros.
+- Al elegir un cliente registrado, la factura muestra sus datos guardados, incluidos correo, dirección y distrito. Para corregir territorio se ofrece enlace a su ficha; el receptor manual permite seleccionar los tres campos. Escribir el distrito dentro de la dirección no sustituye su selección.
+- Después de confirmar y persistir PROCESADO con sello, se intenta enviar PDF y JSON al receptor, con copia al correo de la empresa emisora del DTE. También aplica al confirmar por conciliación; no reenvía automáticamente facturas anteriores.
+- Fallo de correo no revierte aceptación fiscal. Revisar auditoría `CORREO_AUTOMATICO` y entrega antes de usar Reenviar. SMTP aceptado no equivale a recibido; el envío aún no tiene cola durable ni reintentos automáticos.
+- Regresión del cambio: 2,401 unitarias, 9 de integración y 9 comprobaciones de navegador sobre vistas Razor aisladas. Estas últimas no certifican sesión real, AppShell completo ni entrega SMTP. El estado de instalaciones concretas y sus evidencias se conservan de forma privada.
+
+[Notas públicas y pendientes](../../docs/releases/2026-09-10.md). Los apartados GL siguientes son históricos; funciones de pago y workers siguen sujetos a sus bloqueos operativos.
+
 > El estado operativo se registra en [continuidad y certificación](../../docs/auditoria-2026-09-03/CONTINUAR-AQUI-2026-09-05.md). El release del cliente valida el esquema y mantiene desactivadas las migraciones y semillas al arrancar.
 
 ## Suscripción con cobro a fin de mes
@@ -142,6 +153,11 @@ La Web carga `src/NeoSTP.Web/appsettings.Local.json` si existe. Ese archivo esta
 debe contener solo configuracion local, nunca secretos commiteados.
 
 ## Inicio automatico local
+
+En instalaciones con servicios Windows, el arranque no debe depender del inicio de sesión.
+No ejecutar los instaladores de tareas de desarrollo sobre servicios existentes. Las rutas,
+identidades, claves y procedimientos de recuperación específicos se mantienen en documentación
+operativa privada, fuera de estas notas públicas.
 
 Para que API y Web arranquen al iniciar sesion en la PC de pruebas:
 

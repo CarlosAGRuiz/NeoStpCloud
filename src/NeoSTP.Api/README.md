@@ -1,5 +1,18 @@
 # NeoSTP.Api
 
+## Estado actualizado — 10 de septiembre de 2026
+
+- El ambiente fiscal y la política de esquema se resuelven por empresa. Separar pruebas de producción sin cambiar el interruptor global ni reutilizar datos productivos en ensayos.
+- API y Web comparten los servicios de aplicación, pero mantienen su configuración de ejecución. Evidencias de despliegue, datos de empresas y configuraciones privadas se conservan fuera de esta publicación.
+- Al persistir una transición a PROCESADO con sello, el servicio intenta enviar PDF y JSON al receptor y CC al `Correo` de la empresa propietaria del DTE. También aplica a confirmación por conciliación. No envía documentos anteriores en lote ni repite correo al consultar/reintentar un DTE ya procesado.
+- Correo vacío/inválido del emisor: se omite CC; correo igual al destinatario: no se duplica. Fallo SMTP: se conserva PROCESADO y se audita `CORREO_AUTOMATICO`; revisar entrega antes de usar Reenviar. No existe todavía cola durable de correo ni garantía de entrega al buzón.
+- Clientes expone `distritoCodigo` en alta, consulta, actualización e importación. Debe corresponder a municipio y departamento del catálogo autorizado. En actualización, omitir/null conserva el distrito si no cambian los padres; `""` lo limpia. Cambiar país/padres elimina asociaciones incompatibles; para extranjero no se guarda territorio salvadoreño. Los receptores manuales DTE ya admiten `DistritoCodigo`.
+- Regresión del hotfix: **2,401 pruebas unitarias + 9 de integración**; Web: 9 comprobaciones aisladas de navegador sin errores JavaScript. No se emitieron DTE ni se enviaron correos reales durante esta validación.
+
+[Detalle público de correo/distrito, validación y pendientes](../../docs/releases/2026-09-10.md).
+
+Los apartados GL anteriores conservan evidencia histórica. La presencia de código en el release no habilita pasarelas, workers o funciones con sus banderas desactivadas.
+
 > El estado operativo se registra en [continuidad y certificación](../../docs/auditoria-2026-09-03/CONTINUAR-AQUI-2026-09-05.md). El arranque valida el esquema; migraciones y semillas se gestionan explícitamente con las banderas de operaciones desactivadas en el release del cliente.
 
 ## Acuerdo de cobro mensual y módulos adicionales
@@ -269,6 +282,11 @@ docker compose up --build api
 ```
 
 ## Inicio automatico local en Windows
+
+En instalaciones con servicios Windows, el arranque no debe depender del inicio de sesión.
+No ejecutar los instaladores de tareas de desarrollo sobre servicios existentes. Las rutas,
+identidades, claves y procedimientos de recuperación específicos se mantienen en documentación
+operativa privada, fuera de estas notas públicas.
 
 Para una PC de pruebas local se puede publicar API y Web en Release y registrarlas como tareas de
 inicio de sesion:

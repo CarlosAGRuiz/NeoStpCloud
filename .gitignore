@@ -92,6 +92,10 @@ node_modules/
 *.ndf
 .codex/
 outputs/
+output/
+
+# Adjuntos privados compartidos en soporte; no forman parte del código.
+.codex-remote-attachments/
 
 # Arnés local de certificación DTE (no es parte del producto)
 tools/CertHarness/bin/

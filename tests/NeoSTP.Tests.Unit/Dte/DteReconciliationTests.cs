@@ -21,6 +21,34 @@ namespace NeoSTP.Tests.Unit.Dte;
 
 public class DteReconciliationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConfirmationEmailsOnceWithIssuerCopyAndMailFailureDoesNotUndoAcceptance(bool smtpFails)
+    {
+        await using var db = DteFiscalIsolationTests.Db();
+        var doc = await Seed(db);
+        doc.ReceptorCorreo = "receiver@example.invalid";
+        var issuer = await db.Empresas.SingleAsync(x => x.Id == 10);
+        issuer.Correo = "issuer@example.invalid";
+        db.Empresas.Add(new Empresa { Id=99, Nit="11111111111111", RazonSocial="Other tenant", Correo="other@example.invalid" });
+        await db.SaveChangesAsync();
+        var query = Substitute.For<IHaciendaConsultaDteClient>();
+        query.ConsultarAsync(Arg.Any<HaciendaConsultaDteRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call => Confirmed(call.Arg<HaciendaConsultaDteRequest>()));
+        var email = Substitute.For<ITenantEmailSender>();
+        email.EnviarAsync(10, Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>()).Returns(_ =>
+            smtpFails ? throw new IOException("Synthetic SMTP failure") : new EmailSendResult { Success=true });
+        var service = Service(db, query, Substitute.For<IHaciendaReceptionClient>(), emailOverride: email);
+        (await service.ConciliarHaciendaAsync(10, doc.Id, "test")).IsSuccess.Should().BeTrue();
+        (await service.ConciliarHaciendaAsync(10, doc.Id, "test")).IsSuccess.Should().BeTrue();
+        doc.EstadoCodigo.Should().Be(DteEstadoCodigos.Procesado);
+        doc.SelloRecibido.Should().Be("SELLO-CONSULTA");
+        await email.Received(1).EnviarAsync(10, Arg.Is<EmailMessage>(m => m.To == "receiver@example.invalid"
+            && m.Cc == "issuer@example.invalid" && m.Attachments.Count == 2), Arg.Any<CancellationToken>());
+        await email.DidNotReceive().EnviarAsync(99, Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task HttpClient_SendsOnlyPersistedIdentityAndParsesLegacyReceiptName()
     {
@@ -269,15 +297,17 @@ public class DteReconciliationTests
 
     private static DteDocumentosService Service(NeoStpDbContext db, IHaciendaConsultaDteClient query,
         IHaciendaReceptionClient reception, IConnectWebhookDispatcher? webhooks = null,
-        IHaciendaAuthClient? authOverride = null)
+        IHaciendaAuthClient? authOverride = null, ITenantEmailSender? emailOverride = null)
     {
         var auth = authOverride ?? Substitute.For<IHaciendaAuthClient>();
         if (authOverride is null)
             auth.AutenticarAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
                 .Returns(new HaciendaAuthResult { Success = true, Token = "synthetic", ExpiresAt = DateTime.UtcNow.AddHours(1) });
+        var pdf = Substitute.For<IDtePdfService>();
+        pdf.Generar(Arg.Any<DteDocumento>()).Returns("%PDF-synthetic"u8.ToArray());
         return new(db, new DteCalculator(), Substitute.For<IDteGeneratorService>(), Substitute.For<IDteSignerService>(),
             reception, Substitute.For<IHaciendaContingenciaClient>(), Substitute.For<IHaciendaEventoClient>(), auth,
-            DteFiscalIsolationTests.Protector(), Substitute.For<IDtePdfService>(), Substitute.For<ITenantEmailSender>(),
+            DteFiscalIsolationTests.Protector(), pdf, emailOverride ?? Substitute.For<ITenantEmailSender>(),
             Substitute.For<IAuditoriaService>(), webhooks ?? Substitute.For<IConnectWebhookDispatcher>(), consultaDte: query);
     }
 

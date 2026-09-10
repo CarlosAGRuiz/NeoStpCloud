@@ -21,6 +21,37 @@ namespace NeoSTP.Tests.Unit.Dte;
 /// </summary>
 public class DteEmailBodyTests
 {
+    [Theory]
+    [InlineData("receiver@example.invalid", "issuer@example.invalid", "issuer@example.invalid")]
+    [InlineData("ISSUER@example.invalid", "issuer@example.invalid", null)]
+    [InlineData("receiver@example.invalid;issuer@example.invalid", "issuer@example.invalid", null)]
+    [InlineData("receiver@example.invalid", "", null)]
+    [InlineData("receiver@example.invalid", "invalid address", null)]
+    public void CopyUsesOnlyValidIssuerEmailAndAvoidsDuplicateRecipient(string to, string issuer, string? expected)
+        => DteDocumentosService.CopiaCorreoEmisor(to, issuer).Should().Be(expected);
+
+    [Theory]
+    [InlineData("BORRADOR", "SEAL", 10)]
+    [InlineData("ERROR", "SEAL", 10)]
+    [InlineData("PROCESADO", null, 10)]
+    [InlineData("PROCESADO", "SEAL", 99)]
+    public async Task AutomaticEmailDoesNotSendUnprocessedUnsealedOrOtherTenant(string state, string? seal, int tenant)
+    {
+        await using var db = new NeoStpDbContext(new DbContextOptionsBuilder<NeoStpDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var doc = Sample(); doc.Id=20; doc.EmpresaId=10; doc.Empresa.Id=10;
+        doc.Empresa.Nit="00000000000000"; doc.EstadoCodigo=state; doc.SelloRecibido=seal;
+        db.DteDocumentos.Add(doc); await db.SaveChangesAsync();
+        var email=Substitute.For<ITenantEmailSender>();
+        var service=new DteDocumentosService(db,new DteCalculator(),Substitute.For<IDteGeneratorService>(),
+            Substitute.For<IDteSignerService>(),Substitute.For<IHaciendaReceptionClient>(),
+            Substitute.For<IHaciendaContingenciaClient>(),Substitute.For<IHaciendaEventoClient>(),
+            Substitute.For<IHaciendaAuthClient>(),DteFiscalIsolationTests.Protector(),Substitute.For<IDtePdfService>(),email,
+            Substitute.For<IAuditoriaService>(),Substitute.For<IConnectWebhookDispatcher>());
+        await service.EnviarCorreoAutomaticoAsync(tenant,20,"test");
+        email.ReceivedCalls().Should().BeEmpty();
+    }
+
     private static DteDocumento Sample()
     {
         var d = new DteDocumento

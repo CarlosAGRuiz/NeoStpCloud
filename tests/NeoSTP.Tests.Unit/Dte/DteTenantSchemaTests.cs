@@ -30,6 +30,26 @@ public class DteTenantSchemaTests
     [Theory]
     [InlineData("01", 2)]
     [InlineData("03", 4)]
+    public void ExplicitProductionPolicyPreservesSchemaAndUsesProductionEnvelope(string type, int version)
+    {
+        var values = Values();
+        values["Dte:TenantSchemas:23:Ambiente"] = "PRODUCCION";
+        var generator = Generator(Config(values));
+        var doc = Document(type);
+        doc.AmbienteCodigo = "PRODUCCION";
+        var result = generator.Generar(doc);
+        result.IsSuccess.Should().BeTrue(result.Error);
+        using var json = JsonDocument.Parse(result.Value!);
+        var identification = json.RootElement.GetProperty("identificacion");
+        identification.GetProperty("ambiente").GetString().Should().Be("01");
+        identification.GetProperty("version").GetInt32().Should().Be(version);
+        doc.AmbienteCodigo = "PRUEBAS";
+        generator.Generar(doc).ErrorCode.Should().Be("DTE_SCHEMA_POLICY_INVALID");
+    }
+
+    [Theory]
+    [InlineData("01", 2)]
+    [InlineData("03", 4)]
     [InlineData("11", 3)]
     [InlineData("14", 2)]
     public async Task OrdinaryServiceUsesTenantProfileAndPersistsActualVersionWithResolvedDistrict(string type, int expected)
@@ -180,6 +200,26 @@ public class DteTenantSchemaTests
         lookup.GetCatalogoAsync(CatalogCodes.DistritoEs, Tenant, null, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<LookupItem>>([new("DISTRICT", "Distrito emisor", "LA_LIBERTAD_CENTRO", "{\"codigoMH\":\"15\"}")]));
         return lookup;
+    }
+
+    [Fact]
+    public async Task RegisteredClientDistrictResolvesToFiscalCatalogCodes()
+    {
+        await using var db = DteEmisorSaneamientoTests.CreateDb();
+        db.Empresas.Add(Document("03").Empresa);
+        db.DteConfiguracion.Add(new() { EmpresaId=Tenant, AmbienteCodigo="PRODUCCION", CodigoEstablecimientoMh="M001", CodigoPuntoVentaMh="P001", TipoEstablecimientoCodigo="CASA_MATRIZ" });
+        db.Clientes.Add(new() { Id=73, EmpresaId=Tenant, Nombre="Synthetic registered receiver", TipoDocumentoCodigo="NIT", NumeroDocumento="06140101001011", Nrc="1234567", CodigoActividad="47739", TipoContribuyenteCodigo="CONTRIBUYENTE", DepartamentoCodigo="LA_LIBERTAD", MunicipioCodigo="LA_LIBERTAD_CENTRO", DistritoCodigo="DISTRICT", Direccion="Synthetic address" });
+        await db.SaveChangesAsync();
+        var client = await db.Clientes.AsNoTracking().SingleAsync(x => x.Id == 73 && x.EmpresaId == Tenant);
+        var lookup = Lookup();
+        var result = DteTerritoryResolver.Resolve(client.DepartamentoCodigo, client.MunicipioCodigo, client.DistritoCodigo,
+            await lookup.GetCatalogoAsync(CatalogCodes.DepartamentoEs, Tenant, null),
+            await lookup.GetCatalogoAsync(CatalogCodes.MunicipioEs, Tenant, null),
+            await lookup.GetCatalogoAsync(CatalogCodes.DistritoEs, Tenant, null), requireDistrict: true);
+        result.IsSuccess.Should().BeTrue(result.Error);
+        result.Value!.Department.Should().Be("05");
+        result.Value.Municipality.Should().Be("22");
+        result.Value.District.Should().Be("15");
     }
     private static DteDocumento Document(string type)
     {

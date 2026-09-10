@@ -1,5 +1,9 @@
 # Auditoría WEB aislada — 2026-09-04
 
+## Verificación de distrito — corte 08/09/2026
+
+`dotnet run --project tools/WebAuditPreview/WebAuditPreview.csproj -c Release --no-restore -- <raiz-repo> --district-mail` renderiza Clientes/Edit y DteDocumentos/Create con datos sintéticos. `node tools/WebAuditPreview/verify-district.cjs <raiz-repo>` ejecuta 9 comprobaciones de cascada, autocompletado, extranjero y móvil. Resultado observado: 9 aprobadas, cero errores JavaScript. HTML, capturas y reporte local en `tmp/district-mail/web/`. Sin SQL, SMTP, Hacienda ni solicitudes reales. Los resultados inferiores pertenecen al arnés anterior.
+
 Renderiza 11 fixtures desde las vistas Razor compiladas reales de NeoSTP.Web y ejecuta
 interacciones en Edge headless mediante Playwright. No modifica `src`, no levanta API/Web,
 no registra Infrastructure, no abre SQL, no transmite DTE ni emplea datos/credenciales reales.

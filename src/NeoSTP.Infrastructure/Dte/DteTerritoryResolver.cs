@@ -27,7 +27,9 @@ public static class DteTerritoryResolver
             return Result<DteTerritory>.Ok(new(departmentCode, municipality, null));
         if (mun is null || Code(mun) is not { } municipalityCode) return Fail("MUNICIPIO");
         if (string.IsNullOrWhiteSpace(district))
-            return requireDistrict ? Fail("DISTRITO") : Result<DteTerritory>.Ok(new(departmentCode, municipalityCode, null));
+            return requireDistrict
+                ? Result<DteTerritory>.Fail("Falta seleccionar el distrito en la ficha del cliente o en la dirección del emisor, según el origen indicado. Escribirlo en el texto de dirección no completa ese campo.", "DTE_TERRITORIO_DISTRITO")
+                : Result<DteTerritory>.Ok(new(departmentCode, municipalityCode, null));
         var districtItem = Find(districts.Where(x => ParentMatches(x.Parent, mun)).ToArray(), district);
         if (districtItem is null || Code(districtItem) is not { } districtCode) return Fail("DISTRITO");
         return Result<DteTerritory>.Ok(new(departmentCode, municipalityCode, districtCode));

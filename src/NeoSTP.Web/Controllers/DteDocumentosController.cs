@@ -215,6 +215,7 @@ public class DteDocumentosController : Controller
                 ActividadEconomica = model.ReceptorActividadEconomica,
                 DepartamentoCodigo = model.ReceptorDepartamentoCodigo,
                 MunicipioCodigo = model.ReceptorMunicipioCodigo,
+                DistritoCodigo = model.ReceptorDistritoCodigo,
                 Direccion = model.ReceptorDireccion,
                 Correo = model.ReceptorCorreo,
                 Telefono = model.ReceptorTelefono,
@@ -460,6 +461,8 @@ public class DteDocumentosController : Controller
         ViewBag.FormasPago = await Items("FORMA_PAGO");
         ViewBag.CondicionesOperacion = await Items("CONDICION_OPERACION");
         ViewBag.Departamentos = await Items("DEPARTAMENTO_ES");
+        ViewBag.Municipios = await Items("MUNICIPIO_ES");
+        ViewBag.Distritos = await Items("DISTRITO_ES");
         ViewBag.TiposDoc = await Items("TIPO_DOC_IDENTIDAD");
         ViewBag.TiposContrib = await Items("TIPO_CONTRIBUYENTE");
         ViewBag.Paises = await Items("PAIS");

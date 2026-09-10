@@ -16,8 +16,9 @@ using NeoSTP.Web.Models;
 // Offline rendering only. No AddInfrastructure, SQL provider, actual Web startup, Start/Run or network.
 var webhookPreview = args.Length == 2 && args[1] == "--wompi-webhook";
 var checkoutPreview = webhookPreview || (args.Length == 2 && args[1] == "--checkout");
-var workspace = Path.GetFullPath(checkoutPreview ? args[0] : args.Single());
-var output = webhookPreview ? Path.Combine(workspace, "tmp", "gl1hb", "web") : checkoutPreview ? Path.Combine(workspace, "tmp", "gl1h", "web") : Path.Combine(workspace, "tmp", "multiagent-qa", "web");
+var districtPreview = args.Length == 2 && args[1] == "--district-mail";
+var workspace = Path.GetFullPath(checkoutPreview || districtPreview ? args[0] : args.Single());
+var output = districtPreview ? Path.Combine(workspace, "tmp", "district-mail", "web") : webhookPreview ? Path.Combine(workspace, "tmp", "gl1hb", "web") : checkoutPreview ? Path.Combine(workspace, "tmp", "gl1h", "web") : Path.Combine(workspace, "tmp", "multiagent-qa", "web");
 Directory.CreateDirectory(output);
 var webRoot = Path.Combine(workspace, "src", "NeoSTP.Web");
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions {
@@ -36,6 +37,26 @@ http.Request.Scheme = "http";
 http.Request.Host = new HostString("web-audit.test");
 scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = http;
 var engine = scope.ServiceProvider.GetRequiredService<IRazorViewEngine>();
+if (districtPreview)
+{
+    var values = new Dictionary<string, object> {
+        ["Paises"] = new[] { Item("SV", "El Salvador"), Item("US", "Estados Unidos") },
+        ["TiposDoc"] = new[] { Item("DUI", "DUI"), Item("NIT", "NIT"), Item("36", "NIT") },
+        ["TiposContrib"] = new[] { Item("CONSUMIDOR_FINAL", "Consumidor final") },
+        ["Departamentos"] = new[] { Item("DEP1", "Departamento Uno"), Item("DEP2", "Departamento Dos") },
+        ["Municipios"] = new[] { Item("MUN1", "Municipio Uno", "DEP1"), Item("MUN2", "Municipio Dos", "DEP2") },
+        ["Distritos"] = new[] { Item("DIS1", "Distrito Uno", "MUN1"), Item("DIS2", "Distrito Dos", "MUN2") },
+        ["TiposDteDisponibles"] = new[] { new TipoDteDisponibleDto("03", "Crédito fiscal") },
+        ["Clientes"] = new[] {
+            new NeoSTP.Application.Clientes.Dtos.ClienteDto { Id=777, Nombre="Cliente sintético", PaisCodigo="SV", TipoDocumentoCodigo="NIT", NumeroDocumento="00000000000000", DepartamentoCodigo="DEP1", MunicipioCodigo="MUN1", DistritoCodigo="DIS1", Direccion="Dirección sintética", Correo="receiver@example.invalid" },
+            new NeoSTP.Application.Clientes.Dtos.ClienteDto { Id=778, Nombre="Cliente extranjero", PaisCodigo="US", Correo="foreign@example.invalid" }
+        }
+    };
+    await Render("Clientes", "Edit", new EditClienteViewModel { Id=777, Nombre="Cliente sintético", PaisCodigo="SV", DepartamentoCodigo="DEP1", MunicipioCodigo="MUN1", DistritoCodigo="DIS1" }, "cliente", values);
+    await Render("DteDocumentos", "Create", new CreateDteDocumentoViewModel { TipoDteCodigo="03", ClienteId=777 }, "factura", values);
+    Console.WriteLine($"Rendered isolated district Razor fixtures at {output}");
+    return;
+}
 if (checkoutPreview)
 {
     var correlation = Guid.Parse("77777777-7777-4777-8777-777777777777");
