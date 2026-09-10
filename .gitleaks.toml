@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Documented placeholders and published test vectors"
+regexTarget = "secret"
+regexes = [
+  '''replace-me-with-a-strong-32-plus-char-secret''',
+  '''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''',
+  '''ClaveSegura123'''
+]

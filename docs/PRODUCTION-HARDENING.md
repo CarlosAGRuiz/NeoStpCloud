@@ -6,22 +6,24 @@ Estado operativo del cierre v1.0. Este documento es la fuente pública de seguim
 
 Desde el 10 de septiembre de 2026 el objetivo es estabilizar y liberar la plataforma existente. No se agregan módulos generales ni se inicia NeoTaller hasta cerrar los gates P0, Notification Outbox, la semántica de precio/IVA y un STAGING operativo.
 
-La base de trabajo es `main`. Las ramas privadas o de soporte a clientes no se fusionan en `main`; únicamente se trasladan cambios comunes, revisados y libres de datos particulares.
+La base estable es `main`. Después de activar su protección, todo incremento parte de `main` y regresa mediante PR; las ramas privadas o de soporte a clientes nunca se fusionan completas.
 
 ## Baseline confirmado
 
 - Build Release: 0 errores y 0 advertencias.
-- Pruebas locales: 2,401 unitarias y 9 de integración aprobadas.
-- Higiene del árbol público: 1,450 archivos rastreados aprobados por `Check-PublicTree.ps1`.
+- Pruebas locales: 2,401 unitarias y 9 de integración aprobadas; el gate adicional de SQL Server real también fue aprobado.
+- Higiene del árbol público: 1,455 archivos rastreados aprobados por `Check-PublicTree.ps1`.
+- Gitleaks sobre 205 commits de `main`: 0 hallazgos con excepciones exactas para tres fixtures publicados.
+- Cuatro ramas remotas adicionales: 0 hallazgos.
 - GitHub Secret Scanning: 0 alertas abiertas al inicio del cierre.
 - CI y ZAP no llegan a ejecutar steps: GitHub reporta la cuenta bloqueada por un problema de facturación.
-- `main` no tenía protección de rama al inicio del cierre.
+- `main` está protegida con PR, aprobación, checks, rama actualizada, conversación resuelta e historial lineal; force-push y borrado están bloqueados.
 
 ## Orden de ejecución
 
 | Fase | Entregable verificable | Estado |
 |---|---|---|
-| 0. Freeze | Alcance, baseline y gates versionados | En curso |
+| 0. Freeze | Alcance, baseline y gates versionados | Completada |
 | 1. Seguridad/Git | Escaneo actual e histórico, rotaciones, CI/ZAP, `main` protegida | En curso |
 | 2. Ambientes | Matriz STAGING/PROD, configuración, DNS, TLS, secretos, storage y DataProtection separados | Pendiente |
 | 3. Base de datos | SQL Server 2022 efímero, migrations, aislamiento, concurrencia e idempotencia | En curso |
@@ -36,16 +38,18 @@ La base de trabajo es `main`. Las ramas privadas o de soporte a clientes no se f
 
 - [x] Confirmar `main` como base pública saneada.
 - [x] Preservar por separado el trabajo local privado antes de cambiar de contexto.
-- [x] Ejecutar build y suites locales.
+- [x] Ejecutar build, suite común y gate de SQL Server real.
+- [x] Eliminar de las pruebas públicas la dependencia de configuración privada.
 - [x] Ejecutar higiene del árbol público.
 - [x] Consultar alertas abiertas de GitHub Secret Scanning.
+- [x] Escanear `main` y las ramas remotas con Gitleaks.
+- [x] Clasificar fixtures sintéticos mediante excepciones de valor exacto.
 - [x] Diagnosticar el fallo temprano de CI y ZAP.
+- [x] Activar protección completa de `main`.
 - [ ] Resolver el bloqueo de facturación de GitHub Actions (acción del propietario de la cuenta).
-- [ ] Ejecutar Gitleaks sobre todo el historial una vez desbloqueado Actions.
-- [ ] Revisar ramas remotas y tags antes de declarar limpio el historial.
-- [ ] Rotar e invalidar cualquier credencial histórica confirmada; no registrar valores aquí.
-- [ ] Ejecutar CI, SQL Server integration y ZAP en verde.
-- [ ] Activar protección de `main`: PR, review, checks, conversación resuelta, sin force-push ni borrado.
+- [ ] Ejecutar CI, SQL Server integration, Gitleaks y ZAP en runners de GitHub.
+- [ ] Revisar manualmente las referencias locales privadas antes de mover o publicar cualquier contenido.
+- [ ] Rotar e invalidar cualquier credencial si la revisión manual confirma que estuvo activa; no registrar valores aquí.
 
 ## Gates de salida
 
