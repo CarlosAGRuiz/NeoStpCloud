@@ -319,6 +319,10 @@ public static class DependencyInjection
                 });
             services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.GeminiScanExtractionService>();
         }
+        else if (string.Equals(scanProvider, "Disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IScanExtractionService, DisabledScanExtractionService>();
+        }
         else
         {
             services.AddScoped<IScanExtractionService, NeoSTP.Infrastructure.Scan.MockScanExtractionService>();
@@ -343,6 +347,10 @@ public static class DependencyInjection
             services.AddSingleton<NeoSTP.Infrastructure.Notificaciones.IFcmAccessTokenProvider, NeoSTP.Infrastructure.Notificaciones.ServiceAccountTokenProvider>();
             services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.FcmPushSender>();
         }
+        else if (string.Equals(pushProvider, "Disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IPushSender, DisabledPushSender>();
+        }
         else
         {
             services.AddScoped<IPushSender, NeoSTP.Infrastructure.Notificaciones.MockPushSender>();
@@ -361,6 +369,10 @@ public static class DependencyInjection
                     opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(40);
                 });
             services.AddScoped<IWhatsAppSender, NeoSTP.Infrastructure.Notificaciones.MetaWhatsAppSender>();
+        }
+        else if (string.Equals(whatsAppProvider, "Disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IWhatsAppSender, DisabledWhatsAppSender>();
         }
         else
         {
@@ -414,7 +426,9 @@ public static class DependencyInjection
         // Todos los proveedores se registran; el cliente elige método en el checkout
         // y IPaymentProviderResolver resuelve por nombre. Billing:Provider = default.
         services.Configure<BillingOptions>(configuration.GetSection("Billing"));
-        services.AddScoped<IPaymentProvider, MockPaymentProvider>();
+        if (environment is null || (!environment.IsProduction() && !environment.IsStaging()))
+            services.AddScoped<IPaymentProvider, MockPaymentProvider>();
+        services.AddScoped<IPaymentProvider, DisabledPaymentProvider>();
         services.AddScoped<IPaymentProvider, StripeBillingProvider>();
         services.AddScoped<IPaymentProvider, MercadoPagoBillingProvider>();
         // Wompi has no documented idempotent POST: retry only read-only verification.
@@ -460,6 +474,8 @@ public static class DependencyInjection
         var emailProvider = configuration["Email:Provider"];
         if (string.Equals(emailProvider, "Smtp", StringComparison.OrdinalIgnoreCase))
             services.AddScoped<IEmailSender, SmtpEmailSender>();
+        else if (string.Equals(emailProvider, "Disabled", StringComparison.OrdinalIgnoreCase))
+            services.AddScoped<IEmailSender, DisabledEmailSender>();
         else
             services.AddScoped<IEmailSender, MockEmailSender>();
 

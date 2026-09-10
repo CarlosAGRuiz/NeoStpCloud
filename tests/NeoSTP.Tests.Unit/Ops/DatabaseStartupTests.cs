@@ -114,14 +114,16 @@ public sealed class DatabaseStartupTests
         policy.SeedCompany.Should().BeFalse(); policy.SeedDemo.Should().BeFalse();
     }
 
-    [Fact]
-    public void Explicit_staging_flags_can_opt_in_without_changing_production_defaults()
+    [Theory]
+    [InlineData("Staging")]
+    [InlineData("Production")]
+    public void Deployed_environments_reject_explicit_startup_writes(string environment)
     {
-        var policy = DatabaseStartup.GetPolicy(Configuration(("Ops:Database:ApplyMigrationsOnStartup", "true"),
-            ("Ops:Database:SeedOnStartup", "true"), ("SuperAdmin:BootstrapEnabled", "true")), Environment(Environments.Staging));
-        policy.ApplyMigrations.Should().BeTrue(); policy.Seed.Should().BeTrue(); policy.Bootstrap.Should().BeTrue();
-        var production = DatabaseStartup.GetPolicy(Configuration(), Environment(Environments.Production));
-        production.ApplyMigrations.Should().BeFalse(); production.Seed.Should().BeFalse(); production.Bootstrap.Should().BeFalse();
+        var action = () => DatabaseStartup.GetPolicy(
+            Configuration(("Ops:Database:ApplyMigrationsOnStartup", "true")),
+            Environment(environment));
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("DATABASE_STARTUP_WRITES_FORBIDDEN:*");
     }
 
     [Fact]
