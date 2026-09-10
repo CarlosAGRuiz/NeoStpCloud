@@ -1,5 +1,8 @@
 # NeoSTP Cloud
 
+[![CI](https://github.com/CarlosAGRuiz/NeoStpCloud/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/CarlosAGRuiz/NeoStpCloud/actions/workflows/ci.yml)
+[![OWASP ZAP Baseline](https://github.com/CarlosAGRuiz/NeoStpCloud/actions/workflows/zap-baseline.yml/badge.svg?branch=main)](https://github.com/CarlosAGRuiz/NeoStpCloud/actions/workflows/zap-baseline.yml)
+
 > **Estándar de main:** código común de Web y API, contratos móviles compatibles y pruebas con datos sintéticos. [Guía de desarrollo, privacidad y publicación](docs/MAIN-STANDARD.md). No incluir evidencias ni configuraciones de instalaciones reales.
 
 > Actualización funcional 10/09/2026: correo automático con copia al emisor, selección de distrito y ambiente fiscal por empresa. Ver [notas públicas y pendientes](docs/releases/2026-09-10.md), [API](src/NeoSTP.Api/README.md) y [Web](src/NeoSTP.Web/README.md). Los datos de clientes y evidencias de instalaciones no forman parte de estas notas.
@@ -21,7 +24,9 @@ libros fiscales y contabilidad mínima, y da autoservicio al cliente final por u
 Sobre eso, la capa empresarial: multi-empresa para contadores, inventario por sucursal, aprobaciones
 de compra, SSO corporativo, consolidado de grupo, webhooks de negocio y portabilidad de datos.
 
-**1005 pruebas unitarias + 9 de integracion en verde.**
+**2,401 pruebas unitarias + 9 de integración en verde.** El cierre productivo v1.0 se sigue en
+[`docs/PRODUCTION-HARDENING.md`](docs/PRODUCTION-HARDENING.md) y sus gates normativos en
+[`docs/RELEASE.md`](docs/RELEASE.md).
 
 > **Antes de vender:** el código está completo, pero un ambiente productivo necesita credenciales
 > reales (correo, pasarela de cobro, firmador DTE) y **cada empresa cliente debe tener aprobada su

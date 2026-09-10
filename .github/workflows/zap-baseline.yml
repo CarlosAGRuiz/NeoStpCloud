@@ -1,26 +1,39 @@
 name: OWASP ZAP Baseline
 
-# Escaneo de seguridad baseline (pasivo) con OWASP ZAP contra una instancia
-# efímera de la Web. Se ejecuta manualmente y semanalmente; no bloquea PRs por
-# defecto (genera un reporte/issues como warnings).
-
 on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'URL objetivo a escanear'
+        description: URL objetivo a escanear
         required: false
-        default: 'http://localhost:8080'
+        default: http://localhost:8080
   schedule:
-    - cron: '0 6 * * 1' # lunes 06:00 UTC
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
-  issues: write
+
+concurrency:
+  group: zap-baseline
+  cancel-in-progress: false
 
 jobs:
   zap-baseline:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: NeoSTP-ZAP-${{ github.run_id }}-Aa1!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'NeoSTP-ZAP-${{ github.run_id }}-Aa1!' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,20 +46,32 @@ jobs:
       - name: Publish Web
         run: dotnet publish src/NeoSTP.Web -c Release -o ./publish
 
-      - name: Run Web (background, mocks)
+      - name: Run Web and wait for liveness
         env:
           ASPNETCORE_URLS: http://0.0.0.0:8080
           ASPNETCORE_ENVIRONMENT: Development
-          # En CI se usan toggles Mock; la cadena de conexión apunta a una BD efímera.
+          ConnectionStrings__NeoStpDb: Server=localhost,1433;Database=NeoSTP_Zap_${{ github.run_id }};User Id=sa;Password=NeoSTP-ZAP-${{ github.run_id }}-Aa1!;Encrypt=True;TrustServerCertificate=True
+          Ops__Database__ApplyMigrationsOnStartup: 'true'
+          Ops__Database__SeedOnStartup: 'false'
+          SuperAdmin__BootstrapEnabled: 'false'
+          EmpresaPrueba__Enabled: 'false'
+          DemoComercial__Enabled: 'false'
           Hacienda__Client: Mock
           Dte__Signer: Mock
           Email__Provider: Mock
         run: |
           nohup dotnet ./publish/NeoSTP.Web.dll > web.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8080/health > /dev/null; then echo "up"; break; fi
+          web_pid=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/health/live > /dev/null; then exit 0; fi
+            if ! kill -0 "$web_pid" 2>/dev/null; then
+              cat web.log
+              exit 1
+            fi
             sleep 2
           done
+          cat web.log
+          exit 1
 
       - name: ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
@@ -54,3 +79,4 @@ jobs:
           target: ${{ github.event.inputs.target || 'http://localhost:8080' }}
           cmd_options: '-a -j'
           fail_action: false
+          allow_issue_writing: false

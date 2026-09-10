@@ -1,8 +1,5 @@
 name: CI
 
-# Build + test en cada push/PR a main (M5.3). Usa toggles Mock; no requiere BD ni
-# secretos (los tests corren con EF Core InMemory y HTTP simulado).
-
 on:
   push:
     branches: [ main ]
@@ -12,15 +9,20 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test:
+    name: Build and tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET
-        # Repository hygiene runs before restoring or building application code.
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -38,13 +40,66 @@ jobs:
       - name: Build
         run: dotnet build NeoSTP.slnx -c Release --no-restore
 
-      - name: Test (unit + integración)
+      - name: Test (unit and integration)
         run: dotnet test NeoSTP.slnx -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
 
-      - name: Publicar cobertura como artefacto
+      - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cobertura
+          name: coverage
           path: coverage/**/coverage.cobertura.xml
           retention-days: 30
+
+  sqlserver-schema:
+    name: SQL Server 2022 migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: NeoSTP-CI-${{ github.run_id }}-Aa1!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'NeoSTP-CI-${{ github.run_id }}-Aa1!' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      NEOSTP_SQLSERVER_TEST_CONNECTION: Server=localhost,1433;Database=master;User Id=sa;Password=NeoSTP-CI-${{ github.run_id }}-Aa1!;Encrypt=True;TrustServerCertificate=True
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore NeoSTP.slnx
+
+      - name: Run SQL Server migration gates
+        run: >-
+          dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
+          -c Release
+          --filter FullyQualifiedName~SqlServerMigrationIntegrationTests
+          --verbosity normal
+
+  secret-scan:
+    name: Git history secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

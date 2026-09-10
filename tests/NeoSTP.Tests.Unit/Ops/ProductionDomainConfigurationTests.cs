@@ -12,7 +12,10 @@ using NeoSTP.Infrastructure.Diagnostics;
 
 namespace NeoSTP.Tests.Unit.Ops;
 
-/// <summary>Exercise deployment domain fragments through actual HTTP middleware, without the application database or network.</summary>
+/// <summary>
+/// Exercises the public production-domain contract through actual HTTP middleware.
+/// Values are synthetic and intentionally independent from private deployment files.
+/// </summary>
 public sealed class ProductionDomainConfigurationTests
 {
     [Theory]
@@ -30,7 +33,8 @@ public sealed class ProductionDomainConfigurationTests
     [InlineData("api", "127.0.0.1", false)]
     [InlineData("api", "attacker.example", false)]
     [InlineData("api", "api.neostp.com.attacker.example", false)]
-    public async Task Published_allowed_hosts_reject_unapproved_host_before_endpoint(string application, string host, bool allowed)
+    public async Task Published_allowed_hosts_reject_unapproved_host_before_endpoint(
+        string application, string host, bool allowed)
     {
         using var server = await Server(application);
         using var client = server.GetTestClient();
@@ -54,7 +58,8 @@ public sealed class ProductionDomainConfigurationTests
     [InlineData("https://attacker.example", false)]
     [InlineData("http://localhost", false)]
     [InlineData("null", false)]
-    public async Task Api_preflight_grants_browser_access_only_to_configured_web_origin(string origin, bool allowed)
+    public async Task Api_preflight_grants_browser_access_only_to_configured_web_origin(
+        string origin, bool allowed)
     {
         using var server = await Server("api");
         using var client = server.GetTestClient();
@@ -88,7 +93,6 @@ public sealed class ProductionDomainConfigurationTests
 
         using var response = await client.SendAsync(request);
 
-        // CORS governs browser access; an origin denial does not replace endpoint authorization.
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         AssertCors(response, origin, allowed);
     }
@@ -150,7 +154,8 @@ public sealed class ProductionDomainConfigurationTests
     [InlineData("web", "app.neostp.com", "::1")]
     [InlineData("api", "api.neostp.com", "127.0.0.1")]
     [InlineData("api", "api.neostp.com", "::1")]
-    public async Task Loopback_proxy_https_header_prevents_redirect_loop(string application, string host, string peer)
+    public async Task Loopback_proxy_https_header_prevents_redirect_loop(
+        string application, string host, string peer)
     {
         using var server = await Server(application, peer);
         using var client = server.GetTestClient();
@@ -168,7 +173,8 @@ public sealed class ProductionDomainConfigurationTests
     [Theory]
     [InlineData("web", "app.neostp.com")]
     [InlineData("api", "api.neostp.com")]
-    public async Task Untrusted_peer_cannot_disable_https_redirect_with_forwarded_header(string application, string host)
+    public async Task Untrusted_peer_cannot_disable_https_redirect_with_forwarded_header(
+        string application, string host)
     {
         using var server = await Server(application, "203.0.113.9");
         using var client = server.GetTestClient();
@@ -207,14 +213,14 @@ public sealed class ProductionDomainConfigurationTests
 
     private static async Task<IHost> Server(string application, string peer = "203.0.113.9")
     {
-        var fragment = FragmentPath(application);
-        var configuration = new ConfigurationBuilder().AddJsonFile(fragment, optional: false, reloadOnChange: false).Build();
+        var settings = SyntheticProductionSettings(application);
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var builder = Host.CreateDefaultBuilder(Array.Empty<string>())
             .UseEnvironment("Production")
             .ConfigureAppConfiguration((_, configurationBuilder) =>
             {
                 configurationBuilder.Sources.Clear();
-                configurationBuilder.AddJsonFile(fragment, optional: false, reloadOnChange: false);
+                configurationBuilder.AddInMemoryCollection(settings);
             })
             .ConfigureWebHostDefaults(web => web.UseTestServer().ConfigureServices(services =>
             {
@@ -234,8 +240,11 @@ public sealed class ProductionDomainConfigurationTests
             })
             .Configure(app =>
             {
-                // HostFiltering installed by the defaults runs before this application pipeline.
-                app.Use((context, next) => { context.Connection.RemoteIpAddress = IPAddress.Parse(peer); return next(context); });
+                app.Use((context, next) =>
+                {
+                    context.Connection.RemoteIpAddress = IPAddress.Parse(peer);
+                    return next(context);
+                });
                 app.UseForwardedHeaders();
                 app.UseHttpsRedirection();
                 app.UseRouting();
@@ -250,12 +259,15 @@ public sealed class ProductionDomainConfigurationTests
         return await builder.StartAsync();
     }
 
-    private static string FragmentPath(string application)
+    private static Dictionary<string, string?> SyntheticProductionSettings(string application)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "NeoSTP.slnx")))
-            directory = directory.Parent;
-        if (directory is null) throw new InvalidOperationException("Repository root was not found for deployment fragment tests.");
-        return Path.Combine(directory.FullName, "tools", "ProductionDeployment", "config", application, "appsettings.Production.json");
+        var settings = new Dictionary<string, string?>
+        {
+            ["AllowedHosts"] = application == "api" ? "api.neostp.com" : "app.neostp.com",
+            ["HttpsRedirection:HttpsPort"] = "443",
+            ["HttpsRedirection:RedirectStatusCode"] = "308",
+        };
+        if (application == "api") settings["Cors:AllowedOrigins:0"] = "https://app.neostp.com";
+        return settings;
     }
 }
