@@ -26,6 +26,6 @@ public sealed class PaymentProviderResolver : IPaymentProviderResolver
             return p;
         if (_byName.TryGetValue(_opts.Provider, out var def))
             return def;
-        return _byName.Values.First(); // Mock siempre está registrado
+        return _byName.Values.First(); // Development conserva Mock; deployments son validados antes de servir.
     }
 }

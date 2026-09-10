@@ -53,8 +53,8 @@ public static class DatabaseStartup
         var bootstrap = Flag(configuration, BootstrapKey, development);
         var company = Flag(configuration, CompanyKey, false);
         var demo = Flag(configuration, DemoKey, false);
-        if (environment.IsProduction() && (migrate || seed || bootstrap || company || demo))
-            throw new InvalidOperationException("DATABASE_STARTUP_WRITES_FORBIDDEN: migrations, bootstrap and seed flags must be disabled in Production.");
+        if ((environment.IsProduction() || environment.IsStaging()) && (migrate || seed || bootstrap || company || demo))
+            throw new InvalidOperationException("DATABASE_STARTUP_WRITES_FORBIDDEN: migrations, bootstrap and seed flags must be disabled in deployed environments.");
         return new(migrate, seed, bootstrap, company, demo);
     }
 
