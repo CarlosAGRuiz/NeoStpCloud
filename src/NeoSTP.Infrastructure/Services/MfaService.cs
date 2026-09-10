@@ -7,6 +7,7 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Ops;
 using NeoSTP.Infrastructure.Persistence;
+using NeoSTP.Infrastructure.Auth;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -39,11 +40,15 @@ public class MfaService : IMfaService
         if (u is null)
             return Result<MfaEnrollDto>.Fail("Usuario no encontrado.", "AUTH_USER_NOT_FOUND");
 
+        if (u.MfaHabilitado)
+            return Result<MfaEnrollDto>.Fail("MFA ya está activo. Para cambiarlo, deshabilítalo con tu código actual.", "MFA_ALREADY_ENABLED");
+
         var secret = _totp.GenerarSecreto();
         u.MfaSecretoCifrado = _protector.Protect(secret);
         u.MfaHabilitado = false;      // queda pendiente hasta confirmar
         u.MfaConfirmadoAt = null;
-        await _db.SaveChangesAsync(ct);
+        if (!await SaveMfaAsync(u, ct))
+            return Result<MfaEnrollDto>.Fail(ConcurrentMessage, "MFA_CONCURRENT_CHANGE");
 
         return Result<MfaEnrollDto>.Ok(new MfaEnrollDto
         {
@@ -57,6 +62,8 @@ public class MfaService : IMfaService
         var u = await _db.Usuarios.FirstOrDefaultAsync(x => x.Id == userId, ct);
         if (u is null)
             return Result<MfaConfirmDto>.Fail("Usuario no encontrado.", "AUTH_USER_NOT_FOUND");
+        if (u.MfaHabilitado)
+            return Result<MfaConfirmDto>.Fail("MFA ya está confirmado.", "MFA_ALREADY_ENABLED");
         if (string.IsNullOrWhiteSpace(u.MfaSecretoCifrado))
             return Result<MfaConfirmDto>.Fail("No hay enrolamiento iniciado.", "MFA_NO_ENROLLMENT");
 
@@ -67,8 +74,10 @@ public class MfaService : IMfaService
         var recovery = GenerarRecoveryCodes();
         u.MfaRecoveryCodesJson = JsonSerializer.Serialize(recovery.Select(Hash).ToList());
         u.MfaHabilitado = true;
+        u.SecurityStamp = Guid.NewGuid();
         u.MfaConfirmadoAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct);
+        if (!await SaveMfaAsync(u, ct))
+            return Result<MfaConfirmDto>.Fail(ConcurrentMessage, "MFA_CONCURRENT_CHANGE");
 
         await Audit(ctx, u.Id, u.Username, u.EmpresaId, "MFA_ENABLE", "OK", "Segundo factor activado");
         return Result<MfaConfirmDto>.Ok(new MfaConfirmDto { RecoveryCodes = recovery });
@@ -76,9 +85,12 @@ public class MfaService : IMfaService
 
     public async Task<Result> DeshabilitarAsync(int userId, string code, AuthContext? ctx = null, CancellationToken ct = default)
     {
-        var u = await _db.Usuarios.FirstOrDefaultAsync(x => x.Id == userId, ct);
+        var u = await _db.Usuarios.Include(x => x.Roles).ThenInclude(x => x.Rol)
+            .FirstOrDefaultAsync(x => x.Id == userId, ct);
         if (u is null)
             return Result.Fail("Usuario no encontrado.", "AUTH_USER_NOT_FOUND");
+        if (RbacSecurity.IsPlatformUser(u))
+            return Result.Fail("El segundo factor es obligatorio para la administración de la plataforma.", "MFA_REQUIRED_FOR_PLATFORM");
         if (!u.MfaHabilitado || string.IsNullOrWhiteSpace(u.MfaSecretoCifrado))
             return Result.Fail("MFA no está habilitado.", "MFA_NOT_ENABLED");
 
@@ -90,7 +102,9 @@ public class MfaService : IMfaService
         u.MfaSecretoCifrado = null;
         u.MfaConfirmadoAt = null;
         u.MfaRecoveryCodesJson = null;
-        await _db.SaveChangesAsync(ct);
+        u.SecurityStamp = Guid.NewGuid();
+        if (!await SaveMfaAsync(u, ct))
+            return Result.Fail(ConcurrentMessage, "MFA_CONCURRENT_CHANGE");
 
         await Audit(ctx, u.Id, u.Username, u.EmpresaId, "MFA_DISABLE", "OK", "Segundo factor desactivado");
         return Result.Ok();
@@ -101,8 +115,10 @@ public class MfaService : IMfaService
         var u = await _db.Usuarios.FirstOrDefaultAsync(x => x.Id == userId, ct);
         if (u is null)
             return Result.Fail("Usuario no encontrado.", "AUTH_USER_NOT_FOUND");
-        if (!u.MfaHabilitado || string.IsNullOrWhiteSpace(u.MfaSecretoCifrado))
+        if (!u.MfaHabilitado)
             return Result.Ok(); // nada que verificar
+        if (string.IsNullOrWhiteSpace(u.MfaSecretoCifrado))
+            return Result.Fail("No se puede validar el segundo factor. Contacta a soporte.", "MFA_CONFIGURATION_INVALID");
 
         var secret = _protector.Unprotect(u.MfaSecretoCifrado);
         if (_totp.Validar(secret, code))
@@ -110,7 +126,8 @@ public class MfaService : IMfaService
 
         if (ConsumirRecovery(u, code))
         {
-            await _db.SaveChangesAsync(ct);
+            if (!await SaveMfaAsync(u, ct))
+                return Result.Fail(ConcurrentMessage, "MFA_CONCURRENT_CHANGE");
             return Result.Ok();
         }
 
@@ -118,6 +135,24 @@ public class MfaService : IMfaService
     }
 
     // -- helpers ----------------------------------------------------------
+
+    private const string ConcurrentMessage = "La configuración MFA cambió en otra solicitud. Vuelve a intentarlo con un código vigente.";
+
+    private async Task<bool> SaveMfaAsync(Domain.Core.Seguridad.Usuario user, CancellationToken ct)
+    {
+        user.MfaVersion = Guid.NewGuid();
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Never return the losing secret/recovery set or leave its changes pending.
+            await _db.Entry(user).ReloadAsync(ct);
+            return false;
+        }
+    }
 
     private bool ConsumirRecovery(Domain.Core.Seguridad.Usuario u, string code)
     {

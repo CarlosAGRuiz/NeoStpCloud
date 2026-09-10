@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Application.Auth.Abstractions;
@@ -13,6 +14,7 @@ namespace NeoSTP.Web.Controllers;
 public class BillingController : Controller
 {
     private readonly IBillingService _billing;
+    private readonly BillingCheckoutOptions _checkoutOptions;
     private readonly IPaymentProviderResolver _payments;
     private readonly IPlanesService _planes;
     private readonly ICurrentUser _currentUser;
@@ -23,9 +25,10 @@ public class BillingController : Controller
         IPaymentProviderResolver payments,
         IPlanesService planes,
         ICurrentUser currentUser,
-        IEmpresaContext empresaContext)
+        IEmpresaContext empresaContext, IOptions<BillingOptions>? billingOptions = null)
     {
         _billing = billing;
+        _checkoutOptions = billingOptions?.Value.Checkout ?? new();
         _payments = payments;
         _planes = planes;
         _currentUser = currentUser;
@@ -58,7 +61,8 @@ public class BillingController : Controller
             TempData["Error"] = planes.Error ?? "No se pudieron cargar los planes disponibles.";
         }
 
-        ViewBag.Metodos = _payments.Disponibles;
+        ViewBag.Metodos = _payments.Disponibles.Where(m => m == "Transferencia" || (_checkoutOptions.Enabled
+            && m == _checkoutOptions.Provider && _payments.Resolve(m) is IBillingCheckoutProvider)).ToList();
         return View(planes.Value ?? Array.Empty<NeoSTP.Application.Licenciamiento.Dtos.PlanDto>());
     }
 
@@ -67,9 +71,11 @@ public class BillingController : Controller
     public async Task<IActionResult> StartTrial(int planId, CancellationToken ct)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
 
         var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty;
         var result = await _billing.StartTrialAsync(new StartTrialRequest(empresaId, planId, email), ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
 
         if (!result.IsSuccess)
         {
@@ -83,15 +89,26 @@ public class BillingController : Controller
 
     [HttpPost("checkout/session")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CreateCheckout(int planId, string? metodo, CancellationToken ct)
+    public async Task<IActionResult> CreateCheckout(int planId, string? metodo, CancellationToken ct, string? idempotencyKey = null)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
 
         if (string.Equals(metodo, "Transferencia", StringComparison.OrdinalIgnoreCase))
-            return RedirectToAction(nameof(Transferencia), new { planId });
+        {
+            // Creation occurs only on this antiforgery-protected POST, never by following a GET link.
+            var transfer = await _billing.IniciarTransferenciaAsync(new IniciarTransferenciaRequest(empresaId, planId), ct);
+            if (transfer.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
+            if (transfer.IsSuccess) return View(nameof(Transferencia), transfer.Value);
+            TempData["Error"] = transfer.Error;
+            return RedirectToAction(nameof(Checkout));
+        }
 
-        var returnUrl = Url.Action(nameof(Portal), "Billing", null, Request.Scheme)!;
-        var result = await _billing.CreateCheckoutSessionAsync(new CreateCheckoutRequest(empresaId, planId, returnUrl, metodo), ct);
+        var returnUrl = _checkoutOptions.SuccessUrl;
+        var result = await _billing.CreateCheckoutSessionAsync(new CreateCheckoutRequest(empresaId, planId, returnUrl, metodo, idempotencyKey), ct);
+        if (result.Value?.CorrelationId is Guid correlation)
+            return RedirectToAction(nameof(CheckoutStatus), new { correlationId = correlation });
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
 
         if (!result.IsSuccess)
         {
@@ -99,22 +116,24 @@ public class BillingController : Controller
             return RedirectToAction(nameof(Checkout));
         }
 
-        return Redirect(result.Value!.RedirectUrl);
+        return RedirectToAction(nameof(CheckoutStatus), new { correlationId = result.Value!.CorrelationId });
     }
 
-    [HttpGet("transferencia")]
-    public async Task<IActionResult> Transferencia(int planId, CancellationToken ct)
+    [HttpGet("checkouts/{correlationId:guid}")]
+    public async Task<IActionResult> CheckoutStatus(Guid correlationId, CancellationToken ct)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
-
-        var result = await _billing.IniciarTransferenciaAsync(new IniciarTransferenciaRequest(empresaId, planId), ct);
-        if (!result.IsSuccess)
-        {
-            TempData["Error"] = result.Error;
-            return RedirectToAction(nameof(Checkout));
-        }
-
+        var result = await _billing.GetCheckoutAsync(empresaId, correlationId, ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
+        if (!result.IsSuccess) return NotFound();
         return View(result.Value);
+    }
+    [HttpGet("transferencia")]
+    public IActionResult Transferencia(int planId, CancellationToken ct)
+    {
+        if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
+        return RedirectToAction(nameof(Checkout));
     }
 
     [HttpPost("transferencia/comprobante")]
@@ -122,8 +141,10 @@ public class BillingController : Controller
     public async Task<IActionResult> SubirComprobante(int paymentId, string comprobante, CancellationToken ct)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
 
         var result = await _billing.RegistrarComprobanteAsync(empresaId, paymentId, comprobante ?? string.Empty, ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
             ? "Comprobante registrado. Un administrador verificara tu pago."
             : result.Error;
@@ -133,9 +154,10 @@ public class BillingController : Controller
     [HttpGet("transferencias")]
     public async Task<IActionResult> Transferencias(CancellationToken ct)
     {
-        if (!EsAdmin()) return Forbid();
+        if (!EsAdminCentral()) return Forbid();
 
         var result = await _billing.GetTransferenciasPendientesAsync(null, ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
         return View(result.Value ?? new List<TransferenciaPendienteDto>());
     }
 
@@ -143,9 +165,10 @@ public class BillingController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmarTransferencia(int paymentId, CancellationToken ct)
     {
-        if (!EsAdmin()) return Forbid();
+        if (!EsAdminCentral()) return Forbid();
 
         var result = await _billing.ConfirmarTransferenciaAsync(paymentId, _currentUser.Username ?? "admin", ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
             ? "Transferencia confirmada y suscripcion activada."
             : result.Error;
@@ -156,9 +179,10 @@ public class BillingController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RechazarTransferencia(int paymentId, string motivo, CancellationToken ct)
     {
-        if (!EsAdmin()) return Forbid();
+        if (!EsAdminCentral()) return Forbid();
 
         var result = await _billing.RechazarTransferenciaAsync(paymentId, motivo ?? "Sin motivo", _currentUser.Username ?? "admin", ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
             ? "Transferencia rechazada."
             : result.Error;
@@ -171,6 +195,8 @@ public class BillingController : Controller
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
 
         var sub = await _billing.GetActiveSubscriptionAsync(empresaId, ct);
+        if (sub.IsSuccess && sub.Value?.CalendarBilling == true)
+            return RedirectToAction(nameof(Index));
         var payments = await _billing.GetPaymentsAsync(empresaId, ct);
         var invoices = await _billing.GetInvoicesAsync(empresaId, ct);
         var planes = await _planes.GetListAsync(ct);
@@ -187,8 +213,10 @@ public class BillingController : Controller
     public async Task<IActionResult> OpenExternalPortal(CancellationToken ct)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
 
         var result = await _billing.GetPortalUrlAsync(empresaId, ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
 
         if (!result.IsSuccess)
         {
@@ -204,8 +232,10 @@ public class BillingController : Controller
     public async Task<IActionResult> ChangePlan(int newPlanId, CancellationToken ct)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
 
         var result = await _billing.ChangePlanAsync(new ChangePlanRequest(empresaId, newPlanId), ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
 
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
             ? "Plan actualizado correctamente."
@@ -219,8 +249,10 @@ public class BillingController : Controller
     public async Task<IActionResult> Cancel(bool atPeriodEnd, CancellationToken ct)
     {
         if (RequireEmpresa() is not int empresaId) return RedirectToSoporte();
+        if (!PuedeGestionar(empresaId)) return Forbid();
 
         var result = await _billing.CancelSubscriptionAsync(new CancelSubscriptionRequest(empresaId, atPeriodEnd), ct);
+        if (result.ErrorCode == "BILLING_FORBIDDEN") return Forbid();
 
         TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
             ? "Suscripcion cancelada."
@@ -231,8 +263,14 @@ public class BillingController : Controller
 
     private int? RequireEmpresa() => _empresaContext.CurrentEmpresaId;
 
-    private bool EsAdmin()
-        => _currentUser.TipoUsuarioCodigo is "SUPERADMIN" or "ADMIN";
+    private bool EsAdminCentral()
+        => _currentUser.IsAuthenticated && _currentUser.UserId is > 0
+            && _currentUser.EmpresaId is null && _currentUser.TipoUsuarioCodigo == "SUPERADMIN"
+            && _currentUser.IsInRole("SUPERADMIN");
+
+    private bool PuedeGestionar(int empresaId)
+        => EsAdminCentral() || (_currentUser.IsAuthenticated && _currentUser.EmpresaId == empresaId
+            && (_currentUser.TipoUsuarioCodigo == "ADMIN" || _currentUser.IsInRole("ADMIN")));
 
     private IActionResult RedirectToSoporte()
     {

@@ -38,8 +38,27 @@
 
                 <div class="mb-3">
                     <label asp-for="Password" class="form-label fw-medium"></label>
-                    <input asp-for="Password" class="form-control form-control-lg" type="password" />
+                    <div class="input-group">
+                        <input asp-for="Password" class="form-control form-control-lg" type="password" autocomplete="current-password" />
+                        <button id="toggle-password" type="button" class="btn btn-outline-secondary"
+                                aria-controls="Password" aria-pressed="false" aria-label="Mostrar contraseña" title="Mostrar contraseña">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                                <circle cx="12" cy="12" r="3" />
+                                <path data-password-slash d="m3 3 18 18" style="display:none" />
+                            </svg>
+                        </button>
+                    </div>
                     <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="MfaCode" class="form-label fw-medium"></label>
+                    <input asp-for="MfaCode" class="form-control form-control-lg" type="password"
+                           autocomplete="one-time-code" maxlength="32" aria-describedby="mfa-help" />
+                    <div id="mfa-help" class="form-text">Si activaste MFA, ingresa el código de tu autenticador o un código de recuperación.</div>
+                    <span asp-validation-for="MfaCode" class="text-danger small"></span>
                 </div>
 
                 <div class="form-check mb-4">
@@ -83,8 +102,9 @@
         </div>
     </div>
 
-    @await Html.PartialAsync("_ValidationScriptsPartial")
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script src="~/js/login-password.js" asp-append-version="true"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

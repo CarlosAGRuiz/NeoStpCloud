@@ -87,7 +87,8 @@ public class ContingenciaLoteWorker : BackgroundService
             // PASO 2: Consultar lotes enviados pendientes de sello individual
             var lotesPendientes = await db.DteContingenciaLotes
                 .Where(l => l.EmpresaId == empresaId
-                         && l.EstadoCodigo == NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLoteEstados.Enviado
+                         && (l.EstadoCodigo == NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLoteEstados.Enviado
+                             || l.EstadoCodigo == NeoSTP.Domain.Core.Dte.Contingencia.DteContingenciaLoteEstados.Consultado)
                          && !string.IsNullOrEmpty(l.CodigoLote))
                 .Select(l => l.Id)
                 .ToListAsync(ct);

@@ -65,6 +65,8 @@ public class ConnectApiV1Controller : ConnectApiControllerBase
     public async Task<IActionResult> EmitirDte([FromBody] CreateDteDocumentoRequest req, CancellationToken ct)
     {
         if (!TryAuthorize(ConnectScopes.DteWrite, out var eid, out var error)) return error!;
+        var idempotency = DteIdempotencyHeader.Apply(HttpContext?.Request, req);
+        if (idempotency.IsFailure) return Respond(idempotency);
         return Respond(await _connectDte.EmitirAsync(eid, req, Actor, ct));
     }
 

@@ -12,6 +12,9 @@ public sealed class ExternalLoginInfo
 
     /// <summary>Identificador estable del sujeto (claim "sub"/"oid"). Ancla la vinculación.</summary>
     public string Subject { get; set; } = null!;
+    public string Issuer { get; set; } = null!;
+    public bool EmailVerified { get; set; }
+    public string? HostedDomain { get; set; }
 
     public string? Email { get; set; }
     public string? NombreCompleto { get; set; }

@@ -15,6 +15,7 @@ public class ClienteDto
     public string? ActividadEconomica { get; set; }
     public string? DepartamentoCodigo { get; set; }
     public string? MunicipioCodigo { get; set; }
+    public string? DistritoCodigo { get; set; }
     public string? Direccion { get; set; }
     /// <summary>Código del catálogo PAIS (CAT-020). Null = El Salvador.</summary>
     public string? PaisCodigo { get; set; }
@@ -42,6 +43,8 @@ public class CreateClienteRequest
     public string? ActividadEconomica { get; set; }
     public string? DepartamentoCodigo { get; set; }
     public string? MunicipioCodigo { get; set; }
+    /// <summary>Código de DISTRITO_ES. En actualización, null conserva el distrito si no cambian sus padres; vacío lo elimina.</summary>
+    public string? DistritoCodigo { get; set; }
     public string? Direccion { get; set; }
     public string? Correo { get; set; }
     public string? Telefono { get; set; }

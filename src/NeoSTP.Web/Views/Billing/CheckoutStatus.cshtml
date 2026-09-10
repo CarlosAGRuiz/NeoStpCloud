@@ -1,0 +1,29 @@
+@model NeoSTP.Application.Billing.Dtos.BillingCheckoutDto
+@{
+    ViewData["Title"] = "Estado del pago";
+    var awaiting = Model.Status == "AWAITING_PAYMENT";
+    var completed = Model.Status == "COMPLETED";
+    var sandboxVerified = Model.Status == "PAYMENT_VERIFIED_SANDBOX";
+    var title = sandboxVerified ? "Prueba de pago verificada" : completed ? "Pago confirmado" : awaiting ? "Pago pendiente" : "Pago por verificar";
+}
+<section class="card mx-auto" style="max-width: 720px">
+    <div class="card-body p-4">
+        <h1 class="h3">@title</h1>
+        <p class="text-muted">@(sandboxVerified ? "Esta operación de prueba no representa un cobro real ni activa servicios." : completed ? "La operación fue confirmada por el servidor." : awaiting
+            ? "El enlace está preparado. El acceso se actualizará cuando el pago sea verificado."
+            : "Conserva esta referencia. Estamos pendientes de verificar el resultado; evita iniciar otro pago.")</p>
+        <dl class="row">
+            <dt class="col-sm-4">Referencia</dt><dd class="col-sm-8 text-break">@Model.CorrelationId</dd>
+            <dt class="col-sm-4">Importe</dt><dd class="col-sm-8">@Model.Currency @Model.Amount.ToString("N2")</dd>
+            <dt class="col-sm-4">Método</dt><dd class="col-sm-8">@Model.Provider</dd>
+        </dl>
+        <div class="d-flex flex-wrap gap-2">
+            @if (awaiting && !string.IsNullOrEmpty(Model.RedirectUrl))
+            {
+                <a class="btn btn-primary" href="@Model.RedirectUrl" rel="noreferrer">Continuar al pago</a>
+            }
+            <a class="btn btn-outline-primary" asp-action="CheckoutStatus" asp-route-correlationId="@Model.CorrelationId">Actualizar estado</a>
+            <a class="btn btn-outline-secondary" asp-action="Index">Volver a facturación</a>
+        </div>
+    </div>
+</section>

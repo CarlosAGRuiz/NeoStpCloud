@@ -18,6 +18,7 @@ public class CreateDteDocumentoViewModel
     public string? ReceptorActividadEconomica { get; set; }
     public string? ReceptorDepartamentoCodigo { get; set; }
     public string? ReceptorMunicipioCodigo { get; set; }
+    public string? ReceptorDistritoCodigo { get; set; }
     public string? ReceptorDireccion { get; set; }
     public string? ReceptorCorreo { get; set; }
     public string? ReceptorTelefono { get; set; }

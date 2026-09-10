@@ -1,5 +1,9 @@
 # NeoSTP Cloud
 
+> **Estándar de main:** código común de Web y API, contratos móviles compatibles y pruebas con datos sintéticos. [Guía de desarrollo, privacidad y publicación](docs/MAIN-STANDARD.md). No incluir evidencias ni configuraciones de instalaciones reales.
+
+> Actualización funcional 10/09/2026: correo automático con copia al emisor, selección de distrito y ambiente fiscal por empresa. Ver [notas públicas y pendientes](docs/releases/2026-09-10.md), [API](src/NeoSTP.Api/README.md) y [Web](src/NeoSTP.Web/README.md). Los datos de clientes y evidencias de instalaciones no forman parte de estas notas.
+
 **Suite SaaS de facturación electrónica (DTE) y ERP/CRM para El Salvador.**
 Monolito modular en **.NET 10** con Web (MVC/Razor), API REST y Worker de tareas en segundo plano.
 Multi-empresa (multi-tenant por `EmpresaId`), licenciamiento por planes/módulos y RBAC granular.

@@ -6,7 +6,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "${SA_PASSWORD:-Your_strong!Passw0rd}"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD:?Define SA_PASSWORD en .env privado}"
     ports:
       - "1433:1433"
     volumes:
@@ -23,8 +23,8 @@ services:
       dockerfile: src/NeoSTP.Api/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__NeoStpDb: "Server=db;Database=NeoSTP_Cloud;User Id=sa;Password=${SA_PASSWORD:-Your_strong!Passw0rd};TrustServerCertificate=True;MultipleActiveResultSets=True"
-      Jwt__Key: "${JWT_KEY:-dev-only-replace-me-with-a-strong-32-plus-char-secret-key}"
+      ConnectionStrings__NeoStpDb: "Server=db;Database=NeoSTP_Cloud;User Id=sa;Password=${SA_PASSWORD:?Define SA_PASSWORD en .env privado};TrustServerCertificate=True;MultipleActiveResultSets=True"
+      Jwt__Key: "${JWT_KEY:?Define JWT_KEY en .env privado}"
     ports:
       - "8080:8080"
     depends_on:
@@ -37,7 +37,7 @@ services:
       dockerfile: src/NeoSTP.Web/Dockerfile
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__NeoStpDb: "Server=db;Database=NeoSTP_Cloud;User Id=sa;Password=${SA_PASSWORD:-Your_strong!Passw0rd};TrustServerCertificate=True;MultipleActiveResultSets=True"
+      ConnectionStrings__NeoStpDb: "Server=db;Database=NeoSTP_Cloud;User Id=sa;Password=${SA_PASSWORD:?Define SA_PASSWORD en .env privado};TrustServerCertificate=True;MultipleActiveResultSets=True"
     ports:
       - "8081:8080"
     depends_on:
@@ -50,7 +50,7 @@ services:
       dockerfile: src/NeoSTP.Worker/Dockerfile
     environment:
       DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__NeoStpDb: "Server=db;Database=NeoSTP_Cloud;User Id=sa;Password=${SA_PASSWORD:-Your_strong!Passw0rd};TrustServerCertificate=True;MultipleActiveResultSets=True"
+      ConnectionStrings__NeoStpDb: "Server=db;Database=NeoSTP_Cloud;User Id=sa;Password=${SA_PASSWORD:?Define SA_PASSWORD en .env privado};TrustServerCertificate=True;MultipleActiveResultSets=True"
     depends_on:
       db:
         condition: service_healthy

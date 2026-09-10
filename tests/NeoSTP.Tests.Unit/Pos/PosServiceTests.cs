@@ -168,6 +168,43 @@ public class PosServiceTests
     }
 
     [Fact]
+    public async Task PromoverADte_Pendiente_ConservaIdSinMarcarFacturadaYNoEmiteOtro()
+    {
+        await using var db = NewDb();
+        var (svc, _, dte) = NewSvc(db);
+        var venta = (await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c")).Value!;
+        db.DteDocumentos.Add(new Domain.Core.Dte.DteDocumento { Id = 778, EmpresaId = Empresa,
+            NumeroControl = "DTE-01-M001P001-000000000000778", CodigoGeneracion = Guid.NewGuid().ToString(),
+            EstadoCodigo = "CONTINGENCIA" });
+        await db.SaveChangesAsync();
+        dte.EmitirAsync(Empresa, Arg.Any<CreateDteDocumentoRequest>(), "c", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.Ok(new() { Id = 778, EstadoCodigo = "CONTINGENCIA" }));
+        var first = await svc.PromoverADteAsync(Empresa, venta.Id, new(), "c");
+        first.Value!.DteDocumentoId.Should().Be(778);
+        first.Value.EstadoFacturacion.Should().Be("NO_FACTURADA");
+        var retry = await svc.PromoverADteAsync(Empresa, venta.Id, new(), "c");
+        retry.Value!.DteDocumentoId.Should().Be(778);
+        await dte.Received(1).EmitirAsync(Empresa,
+            Arg.Is<CreateDteDocumentoRequest>(r => r.VentaPosOrigenId == venta.Id && r.ReceptorManual!.Nombre == "Consumidor final"), "c", Arg.Any<CancellationToken>());
+        (await svc.AnularAsync(Empresa, venta.Id, "c")).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PromoverADte_ErrorConReferencia_ConservaVinculo()
+    {
+        await using var db = NewDb();
+        var (svc, _, dte) = NewSvc(db);
+        var venta = (await svc.CrearVentaAsync(Empresa, VentaConProducto(), "c")).Value!;
+        dte.EmitirAsync(Empresa, Arg.Any<CreateDteDocumentoRequest>(), "c", Arg.Any<CancellationToken>())
+            .Returns(Result<DteDocumentoDto>.FailWithValue(new() { Id = 779, EstadoCodigo = "BORRADOR" }, "Corregir emisor", "VALIDATION"));
+        var result = await svc.PromoverADteAsync(Empresa, venta.Id, new(), "c");
+        result.IsFailure.Should().BeTrue();
+        result.Value!.DteDocumentoId.Should().Be(779);
+        result.Value.EstadoFacturacion.Should().Be("NO_FACTURADA");
+        (await db.VentasPos.AsNoTracking().SingleAsync()).DteDocumentoId.Should().Be(779);
+    }
+
+    [Fact]
     public async Task PromoverADte_Exito_EnlazaYMarcaFacturada()
     {
         var db = NewDb(); var (svc, _, dte) = NewSvc(db);

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using NeoSTP.Domain.Core.Dte;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
@@ -36,6 +37,9 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
 
     public async Task<HaciendaReceptionResult> EnviarAsync(HaciendaReceptionRequest req, CancellationToken ct = default)
     {
+        if (!DteFiscalContext.CoincideRecepcion(req))
+            return new HaciendaReceptionResult { Success = false, CodigoMsg = "DTE_PAYLOAD_INCOMPATIBLE", DescripcionMsg = "El documento firmado y el sobre de recepción no coinciden en versión o identidad fiscal." };
+
         var baseUrl = req.AmbienteCodigo == "PRODUCCION" ? _options.ProduccionBaseUrl : _options.PruebasBaseUrl;
         var url = $"{baseUrl}/fesv/recepciondte";
         _logger.LogInformation("HttpHaciendaReceptionClient: POST {Url} tipo={Tipo} cod={Cod}", url, req.TipoDte, req.CodigoGeneracion);
@@ -58,7 +62,7 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
 
         try
         {
-            var resp = await http.SendAsync(message, ct);
+            using var resp = await http.SendAsync(message, ct);
             var raw = await resp.Content.ReadAsStringAsync(ct);
             var code = (int)resp.StatusCode;
 
@@ -72,26 +76,27 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
                     ClasificaMsg = code >= 500 ? "ERROR_SERVIDOR" : "ERROR",
                     DescripcionMsg = ExtractProp(raw, "descripcionMsg") ?? Truncate(raw, 500),
                     CodigoMsg = ExtractProp(raw, "codigoMsg"),
+                    Observaciones = ExtractObservaciones(raw),
                     Raw = raw,
                 };
             }
 
-            using var doc = JsonDocument.Parse(raw);
-            var root = doc.RootElement;
-            var estado = root.TryGetProperty("estado", out var e) ? e.GetString() : null;
-            var sello = root.TryGetProperty("selloRecibido", out var s) ? s.GetString() : null;
+            var estado = ExtractProp(raw, "estado");
+            var sello = ExtractProp(raw, "selloRecibido");
+            if (string.IsNullOrWhiteSpace(estado))
+                return new HaciendaReceptionResult
+                {
+                    Success = false, CodigoHttp = code, Estado = "ENVIADO",
+                    ClasificaMsg = "RESPUESTA_INVALIDA", CodigoMsg = "DTE_RESULTADO_INCIERTO",
+                    DescripcionMsg = "Hacienda no devolvió un estado interpretable. Se debe conciliar el documento existente.", Raw = raw,
+                };
             DateTime? fhProc = null;
-            if (root.TryGetProperty("fhProcesamiento", out var fh)
-                && DateTime.TryParse(fh.GetString(), out var parsed))
+            if (DateTime.TryParse(ExtractProp(raw, "fhProcesamiento"), out var parsed))
                 fhProc = parsed;
-            var observaciones = new List<string>();
-            if (root.TryGetProperty("observaciones", out var obs) && obs.ValueKind == JsonValueKind.Array)
-                foreach (var o in obs.EnumerateArray())
-                    if (o.GetString() is { Length: > 0 } v) observaciones.Add(v);
 
             return new HaciendaReceptionResult
             {
-                Success = string.Equals(estado, "PROCESADO", StringComparison.OrdinalIgnoreCase),
+                Success = string.Equals(estado, "PROCESADO", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(sello),
                 CodigoHttp = code,
                 Estado = estado,
                 SelloRecibido = sello,
@@ -99,8 +104,16 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
                 ClasificaMsg = ExtractProp(raw, "clasificaMsg"),
                 CodigoMsg = ExtractProp(raw, "codigoMsg"),
                 DescripcionMsg = ExtractProp(raw, "descripcionMsg"),
-                Observaciones = observaciones,
+                Observaciones = ExtractObservaciones(raw),
                 Raw = raw,
+            };
+        }
+        catch (Polly.Timeout.TimeoutRejectedException)
+        {
+            return new HaciendaReceptionResult
+            {
+                Success = false, CodigoHttp = 0, Estado = "ENVIADO", ClasificaMsg = "TIMEOUT",
+                DescripcionMsg = "La recepción no pudo confirmarse dentro del tiempo de espera. Consulte Hacienda antes de reintentar.",
             };
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
@@ -131,7 +144,9 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
         try
         {
             using var doc = JsonDocument.Parse(raw);
-            if (doc.RootElement.TryGetProperty(prop, out var v)) return v.GetString();
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty(prop, out var v))
+                return v.ValueKind == JsonValueKind.String ? v.GetString()
+                    : prop == "codigoMsg" && v.ValueKind == JsonValueKind.Number ? v.GetRawText() : null;
         }
         catch { /* no-op */ }
         return null;
@@ -139,4 +154,18 @@ public class HttpHaciendaReceptionClient : IHaciendaReceptionClient
 
     private static string Truncate(string s, int max)
         => string.IsNullOrEmpty(s) || s.Length <= max ? s : s[..max] + "…";
+
+    private static IReadOnlyList<string> ExtractObservaciones(string raw)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(raw);
+            if (json.RootElement.ValueKind == JsonValueKind.Object
+                && json.RootElement.TryGetProperty("observaciones", out var obs) && obs.ValueKind == JsonValueKind.Array)
+                return obs.EnumerateArray().Where(o => o.ValueKind == JsonValueKind.String)
+                    .Select(o => o.GetString()!).Where(o => !string.IsNullOrWhiteSpace(o)).ToArray();
+        }
+        catch (JsonException) { /* Se conserva el cuerpo original para diagnóstico. */ }
+        return [];
+    }
 }

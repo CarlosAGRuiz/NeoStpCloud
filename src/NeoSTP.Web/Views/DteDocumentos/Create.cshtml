@@ -15,6 +15,9 @@
 ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
     var esExportacion = Model.TipoDteCodigo == "11";
+    var departamentos = ViewBag.Departamentos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto> ?? [];
+    var municipios = ViewBag.Municipios as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto> ?? [];
+    var distritos = ViewBag.Distritos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto> ?? [];
     string TipoDocumentoMh(string? codigo) => (codigo ?? string.Empty).Trim().ToUpperInvariant() switch
     {
         "NIT" => "36",
@@ -24,17 +27,10 @@
         "OTRO" or "OTRO_DOCUMENTO" => "37",
         var valor => valor,
     };
-    var tiposDocStr = new (string Code, string Label)[]
-    {
-        ("01", "01 Factura"),
-        ("04", "04 Nota de Remision"),
-        ("03", "03 Crédito Fiscal"),
-        ("05", "05 Nota de Crédito"),
-        ("06", "06 Nota de Débito"),
-        ("14", "14 Sujeto Excluido"),
-        ("11", "11 Factura Exportacion"),
-        ("15", "15 Donacion"),
-    };
+    var tiposDocStr = (ViewBag.TiposDteDisponibles as IReadOnlyList<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>
+        ?? Array.Empty<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>())
+        .Where(t => t.Codigo is not ("07" or "08" or "09"))
+        .Select(t => (Code: t.Codigo, Label: $"{t.Codigo} {t.Nombre}")).ToArray();
     var esNotaCreditoDebito = Model.TipoDteCodigo is "05" or "06";
 }
 
@@ -169,7 +165,9 @@
                                         data-tipo-documento="@TipoDocumentoMh(c.TipoDocumentoCodigo)"
                                         data-documento="@c.NumeroDocumento"
                                         data-nrc="@c.Nrc"
-                                        data-correo="@c.Correo">@c.Nombre (@c.TipoDocumentoCodigo @c.NumeroDocumento)</option>
+                                        data-correo="@c.Correo" data-pais="@c.PaisCodigo"
+                                        data-departamento="@c.DepartamentoCodigo" data-municipio="@c.MunicipioCodigo"
+                                        data-distrito="@c.DistritoCodigo" data-direccion="@c.Direccion">@c.Nombre (@c.TipoDocumentoCodigo @c.NumeroDocumento)</option>
                             }
                         </select>
                         <small class="text-muted">Al seleccionar un cliente se muestran los datos guardados en su ficha.</small>
@@ -199,6 +197,33 @@
                     <div class="col-md-3">
                         <label class="form-label">Correo</label>
                         <input asp-for="ReceptorCorreo" class="form-control" />
+                    </div>
+                    <div class="col-md-4 territorio-receptor">
+                        <label asp-for="ReceptorDepartamentoCodigo" class="form-label">Departamento</label>
+                        <select asp-for="ReceptorDepartamentoCodigo" class="form-select">
+                            <option value="">— Seleccionar departamento —</option>
+                            @foreach (var d in departamentos.Where(x => x.Activo)) { <option value="@d.Codigo">@d.Valor</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-4 territorio-receptor">
+                        <label asp-for="ReceptorMunicipioCodigo" class="form-label">Municipio</label>
+                        <select asp-for="ReceptorMunicipioCodigo" class="form-select">
+                            <option value="">— Seleccionar municipio —</option>
+                            @foreach (var m in municipios.Where(x => x.Activo)) { <option value="@m.Codigo" data-parent="@NeoSTP.Web.Models.ClienteTerritorialUi.DepartamentoDe(m)">@m.Valor</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-4 territorio-receptor">
+                        <label asp-for="ReceptorDistritoCodigo" class="form-label">Distrito</label>
+                        <select asp-for="ReceptorDistritoCodigo" class="form-select">
+                            <option value="">— Seleccionar distrito —</option>
+                            @foreach (var d in distritos.Where(x => x.Activo)) { <option value="@d.Codigo" data-parent="@d.ParentCodigo">@d.Valor</option> }
+                        </select>
+                        <span asp-validation-for="ReceptorDistritoCodigo" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="ReceptorDireccion" class="form-label">Dirección</label>
+                        <input asp-for="ReceptorDireccion" class="form-control" />
+                        <a id="editar-cliente-territorio" class="small d-none" href="@Url.Action("Index", "Clientes")" data-edit-url="@Url.Action("Edit", "Clientes")">Completar o corregir dirección y distrito en la ficha del cliente</a>
                     </div>
                     @if (esExportacion)
                     {
@@ -370,8 +395,36 @@
         tipoDocumento: document.getElementById('ReceptorTipoDocumento'),
         documento: document.getElementById('ReceptorNumeroDocumento'),
         nrc: document.getElementById('ReceptorNrc'),
-        correo: document.getElementById('ReceptorCorreo')
+        correo: document.getElementById('ReceptorCorreo'),
+        direccion: document.getElementById('ReceptorDireccion')
     };
+    const departamento = document.getElementById('ReceptorDepartamentoCodigo');
+    const municipio = document.getElementById('ReceptorMunicipioCodigo');
+    const distrito = document.getElementById('ReceptorDistritoCodigo');
+    const paisReceptor = document.getElementById('ReceptorPaisCodigo');
+    const municipiosCatalogo = Array.from(municipio.options).slice(1);
+    const distritosCatalogo = Array.from(distrito.options).slice(1);
+    function filtrarTerritorio(select, opciones, parent, valor) {
+        select.replaceChildren(select.options[0], ...opciones.filter(o => parent && o.dataset.parent === parent).map(o => o.cloneNode(true)));
+        select.value = valor || '';
+        if (select.selectedIndex < 0) select.value = '';
+    }
+    function actualizarTerritorio(dep = departamento.value, mun = municipio.value, dist = distrito.value) {
+        const registrado = !!clienteSelect.value;
+        const pais = registrado ? clienteSelect.selectedOptions[0]?.dataset.pais : paisReceptor?.value;
+        const extranjero = !!pais && pais !== '@NeoSTP.Application.Clientes.ClienteValidator.PaisElSalvador';
+        document.querySelectorAll('.territorio-receptor').forEach(el => el.classList.toggle('d-none', extranjero));
+        departamento.value = extranjero ? '' : dep;
+        filtrarTerritorio(municipio, municipiosCatalogo, departamento.value, extranjero ? '' : mun);
+        filtrarTerritorio(distrito, distritosCatalogo, municipio.value, extranjero ? '' : dist);
+        [departamento, municipio, distrito].forEach(el => el.disabled = registrado || extranjero);
+        const editar = document.getElementById('editar-cliente-territorio');
+        editar.classList.toggle('d-none', !registrado);
+        if (registrado) editar.href = editar.dataset.editUrl + '/' + encodeURIComponent(clienteSelect.value);
+    }
+    departamento.addEventListener('change', () => actualizarTerritorio(departamento.value, '', ''));
+    municipio.addEventListener('change', () => actualizarTerritorio(departamento.value, municipio.value, ''));
+    paisReceptor?.addEventListener('change', () => actualizarTerritorio());
 
     function mostrarClienteSeleccionado() {
         if (!clienteSelect) return;
@@ -383,7 +436,10 @@
             receptorFields.documento.value = option.dataset.documento || '';
             receptorFields.nrc.value = option.dataset.nrc || '';
             receptorFields.correo.value = option.dataset.correo || '';
+            receptorFields.direccion.value = option.dataset.direccion || '';
         }
+        if (tieneCliente) actualizarTerritorio(option.dataset.departamento, option.dataset.municipio, option.dataset.distrito);
+        else actualizarTerritorio();
 
         Object.values(receptorFields).forEach(field => {
             if (!field) return;

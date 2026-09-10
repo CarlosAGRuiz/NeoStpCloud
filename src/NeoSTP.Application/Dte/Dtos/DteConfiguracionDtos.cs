@@ -4,6 +4,8 @@ public class DteConfiguracionDto
 {
     public int EmpresaId { get; set; }
     public string AmbienteCodigo { get; set; } = "PRUEBAS";
+    /// <summary>Restricción de soporte; null significa configuración heredada sin acreditación MH.</summary>
+    public string? TiposDteAutorizadosCsv { get; set; }
 
     public string? UsuarioMh { get; set; }
     /// <summary>True si hay password configurado; el valor nunca se devuelve.</summary>

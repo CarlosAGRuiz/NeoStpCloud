@@ -18,7 +18,7 @@ docker build -f src/NeoSTP.Worker/Dockerfile -t neostp-worker .
 
 ```bash
 # Define secretos en un .env (gitignored) o variables del host:
-#   SA_PASSWORD=Your_strong!Passw0rd
+#   SA_PASSWORD=<contraseña-fuerte-generada-localmente>
 #   JWT_KEY=<clave-32+ chars>
 docker compose up -d --build
 ```
@@ -27,6 +27,7 @@ docker compose up -d --build
   la BD esté `healthy`.
 - **Secretos:** nunca se hornean en la imagen (`.dockerignore` excluye `appsettings.Local.json`).
   Se inyectan por variable de entorno (`ConnectionStrings__NeoStpDb`, `Jwt__Key`, etc.) o `.env`.
+- Compose exige SA_PASSWORD y JWT_KEY; no arranca con credenciales predeterminadas públicas.
 - Web expone `8081`, Api `8080`; ambos con health checks en `/health/ready` (ver M3.2).
 
 ## Pendiente (mayor alcance)

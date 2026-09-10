@@ -90,7 +90,7 @@ public class ConnectWebhookDispatcherTests
     public async Task Procesar_RespuestaNo2xx_ReintentaConBackoff()
     {
         var db = NewDb();
-        db.ConnectWebhooks.Add(new ConnectWebhook { Id = 1, EmpresaId = EmpresaA, Url = "https://x/hook", SecretoHmac = "secret", Eventos = ConnectEventos.DteProcesado, Activo = true });
+        db.ConnectWebhooks.Add(new ConnectWebhook { Id = 1, EmpresaId = EmpresaA, Url = "https://x.example/hook", SecretoHmac = "secret", Eventos = ConnectEventos.DteProcesado, Activo = true });
         db.ConnectWebhookDeliveries.Add(new ConnectWebhookDelivery
         {
             Id = 10, WebhookId = 1, EmpresaId = EmpresaA, Evento = ConnectEventos.DteProcesado,
@@ -114,7 +114,7 @@ public class ConnectWebhookDispatcherTests
     public async Task Procesar_TrasMaxIntentos_MarcaFallido()
     {
         var db = NewDb();
-        db.ConnectWebhooks.Add(new ConnectWebhook { Id = 1, EmpresaId = EmpresaA, Url = "https://x/hook", SecretoHmac = "secret", Eventos = ConnectEventos.DteProcesado, Activo = true });
+        db.ConnectWebhooks.Add(new ConnectWebhook { Id = 1, EmpresaId = EmpresaA, Url = "https://x.example/hook", SecretoHmac = "secret", Eventos = ConnectEventos.DteProcesado, Activo = true });
         db.ConnectWebhookDeliveries.Add(new ConnectWebhookDelivery
         {
             Id = 11, WebhookId = 1, EmpresaId = EmpresaA, Evento = ConnectEventos.DteProcesado,

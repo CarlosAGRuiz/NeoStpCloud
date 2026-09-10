@@ -15,14 +15,11 @@
             <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Nuevo DTE
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
-            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="01">Factura (01)</a></li>
-            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="03">Comprobante Crédito Fiscal (03)</a></li>
-            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="05">Nota de Crédito (05)</a></li>
-            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="06">Nota de Débito (06)</a></li>
-            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="11">Factura de Exportación (11)</a></li>
-            <li><a class="dropdown-item" asp-action="Create" asp-route-tipo="14">Sujeto Excluido (14)</a></li>
-            <li><hr class="dropdown-divider" /></li>
-            <li><a class="dropdown-item" asp-action="CrearRetencion">Comprobante de Retención (07)</a></li>
+            @foreach (var tipo in (ViewBag.TiposDteDisponibles as IReadOnlyList<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>
+                ?? Array.Empty<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>()).Where(t => t.Codigo is not ("08" or "09")))
+            {
+                <li><a class="dropdown-item" asp-action="@(tipo.Codigo == "07" ? "CrearRetencion" : "Create")" asp-route-tipo="@tipo.Codigo">@tipo.Nombre (@tipo.Codigo)</a></li>
+            }
         </ul>
     </div>
 </div>
@@ -50,17 +47,11 @@
             <label class="form-label small mb-1">Tipo DTE</label>
             <select name="TipoDteCodigo" class="form-select form-select-sm">
                 <option value="">Todos los tipos</option>
-                <option value="01" selected="@(q.TipoDteCodigo == "01")">01 Factura</option>
-                <option value="03" selected="@(q.TipoDteCodigo == "03")">03 CCF</option>
-                <option value="04" selected="@(q.TipoDteCodigo == "04")">04 Nota Remisión</option>
-                <option value="05" selected="@(q.TipoDteCodigo == "05")">05 Nota Crédito</option>
-                <option value="06" selected="@(q.TipoDteCodigo == "06")">06 Nota Débito</option>
-                <option value="07" selected="@(q.TipoDteCodigo == "07")">07 Retención</option>
-                <option value="08" selected="@(q.TipoDteCodigo == "08")">08 Liquidación</option>
-                <option value="09" selected="@(q.TipoDteCodigo == "09")">09 Doc. liquidación</option>
-                <option value="11" selected="@(q.TipoDteCodigo == "11")">11 Exportación</option>
-                <option value="14" selected="@(q.TipoDteCodigo == "14")">14 Sujeto Excluido</option>
-                <option value="15" selected="@(q.TipoDteCodigo == "15")">15 Donación</option>
+                @foreach (var tipo in ViewBag.TiposDteConsulta as IReadOnlyList<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>
+                    ?? Array.Empty<NeoSTP.Application.Dte.Dtos.TipoDteDisponibleDto>())
+                {
+                    <option value="@tipo.Codigo" selected="@(q.TipoDteCodigo == tipo.Codigo)">@tipo.Codigo @tipo.Nombre</option>
+                }
             </select>
         </div>
         <div class="col-6 col-md-3 col-lg-2">

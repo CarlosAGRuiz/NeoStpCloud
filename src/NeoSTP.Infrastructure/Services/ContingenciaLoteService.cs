@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using NeoSTP.Infrastructure.Dte;
 using Microsoft.Extensions.Logging;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
+using NeoSTP.Application.Connect;
+using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Dte.Contingencia;
 using NeoSTP.Application.Dte.Contingencia.Dtos;
@@ -32,6 +35,7 @@ public class ContingenciaLoteService : IContingenciaLoteService
     private readonly IHaciendaAuthClient _haciendaAuth;
     private readonly ISecretProtector _protector;
     private readonly ILogger<ContingenciaLoteService> _logger;
+    private readonly IConnectWebhookDispatcher? _webhookDispatcher;
 
     public ContingenciaLoteService(
         NeoStpDbContext db,
@@ -39,7 +43,8 @@ public class ContingenciaLoteService : IContingenciaLoteService
         IHaciendaConsultaLoteClient consultaClient,
         IHaciendaAuthClient haciendaAuth,
         ISecretProtector protector,
-        ILogger<ContingenciaLoteService> logger)
+        ILogger<ContingenciaLoteService> logger,
+        IConnectWebhookDispatcher? webhookDispatcher = null)
     {
         _db = db;
         _loteClient = loteClient;
@@ -47,6 +52,7 @@ public class ContingenciaLoteService : IContingenciaLoteService
         _haciendaAuth = haciendaAuth;
         _protector = protector;
         _logger = logger;
+        _webhookDispatcher = webhookDispatcher;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -173,20 +179,39 @@ public class ContingenciaLoteService : IContingenciaLoteService
     public async Task<Result<CrearLoteResultadoDto>> CrearYEnviarLoteAsync(
         int eventoContingenciaId, int empresaId, string actor, CancellationToken ct = default)
     {
+        try { return await CrearYEnviarLoteCoreAsync(eventoContingenciaId, empresaId, actor, ct); }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+            return Result<CrearLoteResultadoDto>.Fail(
+                "Otro proceso modificó un documento del lote. Recargue y consulte Hacienda antes de reenviar.", "DTE_CONCURRENCY_CONFLICT");
+        }
+    }
+
+    private async Task<Result<CrearLoteResultadoDto>> CrearYEnviarLoteCoreAsync(
+        int eventoContingenciaId, int empresaId, string actor, CancellationToken ct)
+    {
         // Idempotencia: si ya existe un lote para este evento devolver el existente
         var loteExistente = await _db.DteContingenciaLotes
             .FirstOrDefaultAsync(l => l.EventoContingenciaId == eventoContingenciaId
                                    && l.EmpresaId == empresaId, ct);
         if (loteExistente is not null)
         {
-            return Result<CrearLoteResultadoDto>.Ok(new CrearLoteResultadoDto
+            var existente = new CrearLoteResultadoDto
             {
                 LoteId = loteExistente.Id,
                 EstadoCodigo = loteExistente.EstadoCodigo,
                 CodigoLote = loteExistente.CodigoLote,
                 SelloRecibido = loteExistente.SelloRecibido,
                 Mensaje = "El lote ya existe para este evento.",
-            });
+            };
+            return string.IsNullOrWhiteSpace(loteExistente.CodigoLote)
+                ? Result<CrearLoteResultadoDto>.FailWithValue(existente,
+                    "El lote ya tiene un intento sin código confirmado. Concilie con Hacienda; no se volvió a enviar.", "DTE_RESULTADO_INCIERTO")
+                : loteExistente.EstadoCodigo == DteContingenciaLoteEstados.Error
+                    ? Result<CrearLoteResultadoDto>.FailWithValue(existente,
+                        "El lote existente contiene errores. Revise sus resultados individuales.", "LOTE_CON_ERRORES")
+                    : Result<CrearLoteResultadoDto>.Ok(existente);
         }
 
         var evento = await _db.DteEventos
@@ -215,6 +240,31 @@ public class ContingenciaLoteService : IContingenciaLoteService
             .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
         if (config is null)
             return Result<CrearLoteResultadoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
+
+        var contexto = DteFiscalContext.Validar(evento.AmbienteCodigo, config);
+        if (contexto.IsFailure) return Result<CrearLoteResultadoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        if (documentos.Count != documentoIds.Count)
+            return Result<CrearLoteResultadoDto>.Fail("El evento contiene documentos inexistentes o de otra empresa.", "DTE_NOT_FOUND");
+        foreach (var tipo in documentos.Select(d => d.TipoDteCodigo).Distinct(StringComparer.Ordinal))
+        {
+            var autorizado = await DteTypeAuthorization.ValidateAsync(_db, empresaId, tipo, ct);
+            if (autorizado.IsFailure) return Result<CrearLoteResultadoDto>.Fail(autorizado.Error!, autorizado.ErrorCode);
+        }
+        foreach (var doc in documentos)
+        {
+            var campaignAccess = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, doc, ct);
+            if (campaignAccess.IsFailure) return Result<CrearLoteResultadoDto>.Fail(campaignAccess.Error!, campaignAccess.ErrorCode);
+            var contextoDoc = DteFiscalContext.Validar(doc.AmbienteCodigo, config);
+            if (contextoDoc.IsFailure) return Result<CrearLoteResultadoDto>.Fail(contextoDoc.Error!, contextoDoc.ErrorCode);
+            if (!DteFiscalContext.CoincideJws(doc.Json?.JsonFirmado, doc.AmbienteCodigo, doc))
+                return Result<CrearLoteResultadoDto>.Fail("Todos los documentos del lote deben tener una firma correspondiente a su identidad y ambiente.", "DTE_PAYLOAD_INCOMPATIBLE");
+            if (doc.EstadoCodigo is not (DteEstadoCodigos.Firmado or DteEstadoCodigos.Contingencia)
+                || doc.EnviadoAt.HasValue || !string.IsNullOrWhiteSpace(doc.SelloRecibido))
+                return Result<CrearLoteResultadoDto>.Fail(
+                    "El lote contiene documentos enviados, terminales o sin firma lista. Concilie los intentos anteriores antes de transmitir.", "DTE_LOTE_ESTADO_INVALIDO");
+        }
+        if (await _db.DteContingenciaLoteDetalles.AnyAsync(d => documentoIds.Contains(d.DteDocumentoId), ct))
+            return Result<CrearLoteResultadoDto>.Fail("Un documento ya pertenece a otro lote. Consulte ese lote sin reenviarlo.", "DTE_LOTE_EXISTENTE");
 
         var empresa = await _db.Empresas
             .FirstOrDefaultAsync(e => e.Id == empresaId, ct);
@@ -246,12 +296,29 @@ public class ContingenciaLoteService : IContingenciaLoteService
         if (items.Count == 0)
             return Result<CrearLoteResultadoDto>.Fail("Ningún DTE tiene JWS firmado disponible.", "SIN_JWS_DISPONIBLE");
 
-        // Persistir el lote antes de enviarlo
+        // Una sola transacción de SaveChanges reserva TODOS los DTE y crea el lote.
+        // Los tokens fiscales compiten con el envío individual y con otros lotes.
+        // Nunca envolver la llamada HTTP en una estrategia de reintento de transacciones.
+        var intentoAt = DateTime.UtcNow;
+        foreach (var document in documentos)
+        {
+            var campaignBeforeClaim = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, document, ct);
+            if (campaignBeforeClaim.IsFailure) return Result<CrearLoteResultadoDto>.Fail(campaignBeforeClaim.Error!, campaignBeforeClaim.ErrorCode);
+        }
+        foreach (var doc in documentos)
+        {
+            doc.EstadoCodigo = DteEstadoCodigos.Enviado;
+            doc.EnviadoAt = intentoAt;
+            doc.UpdatedAt = intentoAt;
+            doc.UpdatedBy = actor;
+        }
         var lote = new DteContingenciaLote
         {
             EmpresaId = empresaId,
             EventoContingenciaId = eventoContingenciaId,
-            EstadoCodigo = DteContingenciaLoteEstados.Pendiente,
+            EstadoCodigo = DteContingenciaLoteEstados.Enviado,
+            EnviadoAt = intentoAt,
+            Intentos = 1,
             AmbienteCodigo = config.AmbienteCodigo,
             CreatedBy = actor,
             UpdatedBy = actor,
@@ -269,7 +336,6 @@ public class ContingenciaLoteService : IContingenciaLoteService
         await _db.SaveChangesAsync(ct);
 
         // Enviar a Hacienda
-        lote.Intentos++;
         var envio = await _loteClient.EnviarLoteAsync(new HaciendaLoteRequest
         {
             Ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
@@ -280,17 +346,27 @@ public class ContingenciaLoteService : IContingenciaLoteService
             Token = tokenResult.Token!,
         }, ct);
 
-        lote.RawEnvio = envio.Raw;
-        lote.EnviadoAt = DateTime.UtcNow;
-        lote.UpdatedBy = actor;
-
-        if (!envio.Success)
+        lote.RawEnvio = envio.Raw ?? System.Text.Json.JsonSerializer.Serialize(new
         {
-            lote.EstadoCodigo = DteContingenciaLoteEstados.Error;
+            estado = envio.Estado, codigoHttp = envio.CodigoHttp, codigoMsg = envio.CodigoMsg,
+            descripcionMsg = envio.DescripcionMsg, resultadoIncierto = !envio.Success,
+        });
+        lote.UpdatedBy = actor;
+        lote.UpdatedAt = DateTime.UtcNow;
+        lote.CodigoLote = envio.CodigoLote;
+        lote.SelloRecibido = envio.SelloRecibido;
+
+        if (!envio.Success || string.IsNullOrWhiteSpace(envio.CodigoLote))
+        {
+            // Un error de transporte no demuestra que Hacienda no recibió el lote.
+            // Se conserva ENVIADO, incluso sin código, y nunca se libera la reserva.
             await _db.SaveChangesAsync(ct);
-            return Result<CrearLoteResultadoDto>.Fail(
-                envio.DescripcionMsg ?? "Error enviando lote.",
-                envio.CodigoMsg ?? "LOTE_ENVIO_FAILED");
+            return Result<CrearLoteResultadoDto>.FailWithValue(new CrearLoteResultadoDto
+            {
+                LoteId = lote.Id, EstadoCodigo = lote.EstadoCodigo, CodigoLote = lote.CodigoLote,
+                SelloRecibido = lote.SelloRecibido,
+                Mensaje = "Resultado del lote sin confirmar. Consulte Hacienda antes de cualquier reenvío.",
+            }, "Resultado del lote sin confirmar. Consulte Hacienda antes de cualquier reenvío.", "DTE_RESULTADO_INCIERTO");
         }
 
         lote.CodigoLote = envio.CodigoLote;
@@ -315,6 +391,18 @@ public class ContingenciaLoteService : IContingenciaLoteService
     public async Task<Result<ConsultarLoteResultadoDto>> ConsultarLoteAsync(
         int loteId, int empresaId, CancellationToken ct = default)
     {
+        try { return await ConsultarLoteCoreAsync(loteId, empresaId, ct); }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+            return Result<ConsultarLoteResultadoDto>.Fail(
+                "Otro proceso actualizó el lote o sus documentos. Recargue para conservar el resultado confirmado.", "DTE_CONCURRENCY_CONFLICT");
+        }
+    }
+
+    private async Task<Result<ConsultarLoteResultadoDto>> ConsultarLoteCoreAsync(
+        int loteId, int empresaId, CancellationToken ct)
+    {
         var lote = await _db.DteContingenciaLotes
             .Include(l => l.Detalles)
             .FirstOrDefaultAsync(l => l.Id == loteId && l.EmpresaId == empresaId, ct);
@@ -329,6 +417,13 @@ public class ContingenciaLoteService : IContingenciaLoteService
         if (config is null)
             return Result<ConsultarLoteResultadoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
 
+        var contexto = DteFiscalContext.Validar(lote.AmbienteCodigo, config);
+        if (contexto.IsFailure) return Result<ConsultarLoteResultadoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        var ids = lote.Detalles.Select(d => d.DteDocumentoId).ToArray();
+        var documentos = await _db.DteDocumentos.Include(d => d.Json)
+            .Where(d => ids.Contains(d.Id) && d.EmpresaId == empresaId && d.AmbienteCodigo == lote.AmbienteCodigo).ToListAsync(ct);
+        if (documentos.Count != ids.Distinct().Count())
+            return Result<ConsultarLoteResultadoDto>.Fail("El lote contiene documentos de otro contexto fiscal.", "DTE_AMBIENTE_INCOMPATIBLE");
         var tokenResult = await ObtenerTokenAsync(config, ct);
         if (!tokenResult.Success)
             return Result<ConsultarLoteResultadoDto>.Fail(
@@ -341,39 +436,80 @@ public class ContingenciaLoteService : IContingenciaLoteService
             Token = tokenResult.Token!,
         }, ct);
 
-        lote.UltimaConsultaAt = DateTime.UtcNow;
-        lote.RawConsulta = consulta.Raw;
+        lote.UltimaConsultaAt = DateTime.UtcNow > lote.UltimaConsultaAt.GetValueOrDefault()
+            ? DateTime.UtcNow : lote.UltimaConsultaAt!.Value.AddTicks(1);
+        lote.RawConsulta = consulta.Raw ?? System.Text.Json.JsonSerializer.Serialize(new
+        {
+            estado = consulta.Estado, codigoHttp = consulta.CodigoHttp, codigoMsg = consulta.CodigoMsg,
+            descripcionMsg = consulta.DescripcionMsg,
+        });
 
         if (!consulta.Success)
         {
-            lote.EstadoCodigo = DteContingenciaLoteEstados.Error;
+            // Fallar una consulta no cambia el resultado fiscal ni detiene el sondeo.
             await _db.SaveChangesAsync(ct);
             return Result<ConsultarLoteResultadoDto>.Fail(
                 consulta.DescripcionMsg ?? "Error consultando lote.", "LOTE_CONSULTA_FAILED");
         }
 
-        // Actualizar sello individual de cada DTE
+        if (consulta.Items.GroupBy(i => i.CodigoGeneracion, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
+        {
+            _db.ChangeTracker.Clear();
+            return Result<ConsultarLoteResultadoDto>.Fail("La respuesta contiene documentos duplicados. No se aplicaron resultados ambiguos.", "DTE_LOTE_EVIDENCIA_CONFLICTIVA");
+        }
+
+        // Aceptar únicamente evidencia terminal explícita de miembros del lote.
+        // Un sello aislado, un estado pendiente o un resultado omitido no son rechazo.
+        var cambios = new List<DteDocumento>();
         foreach (var item in consulta.Items)
         {
             var detalle = lote.Detalles.FirstOrDefault(d => d.CodigoGeneracion == item.CodigoGeneracion);
             if (detalle is null) continue;
-
-            detalle.SelloRecibido = item.SelloRecibido;
-            detalle.MensajeHacienda = item.DescripcionMsg;
-            detalle.EstadoCodigo = !string.IsNullOrEmpty(item.SelloRecibido)
-                ? DteContingenciaLoteEstados.Procesado
-                : DteContingenciaLoteEstados.Error;
-
-            if (!string.IsNullOrEmpty(item.SelloRecibido))
+            var procesado = string.Equals(item.Estado, "PROCESADO", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(item.SelloRecibido);
+            var rechazado = string.Equals(item.Estado, "RECHAZADO", StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(item.SelloRecibido);
+            if (!procesado && !rechazado) continue;
+            var dte = documentos.Single(d => d.Id == detalle.DteDocumentoId);
+            // Una consulta antigua nunca debe confirmar un JSON regenerado/reenviado.
+            // Los lotes previos sin reserva durable requieren conciliación explícita.
+            if (dte.EstadoCodigo != DteEstadoCodigos.Procesado
+                && (!lote.EnviadoAt.HasValue || dte.EnviadoAt != lote.EnviadoAt || dte.GeneradoAt > lote.EnviadoAt))
             {
-                var dte = await _db.DteDocumentos
-                    .FirstOrDefaultAsync(d => d.CodigoGeneracion == item.CodigoGeneracion
-                                           && d.EmpresaId == empresaId, ct);
-                if (dte is not null)
+                _db.ChangeTracker.Clear();
+                return Result<ConsultarLoteResultadoDto>.Fail(
+                    "El documento ya no corresponde al intento de este lote. Conserve la evidencia y concilie el intento anterior con Hacienda.", "DTE_LOTE_INTENTO_INCOMPATIBLE");
+            }
+            if (dte.CodigoGeneracion != item.CodigoGeneracion || dte.EstadoCodigo == DteEstadoCodigos.Invalidado
+                || (dte.EstadoCodigo == DteEstadoCodigos.Procesado
+                    && (!procesado || dte.SelloRecibido != item.SelloRecibido))
+                || (detalle.EstadoCodigo == DteContingenciaLoteEstados.Procesado
+                    && (!procesado || detalle.SelloRecibido != item.SelloRecibido)))
+            {
+                _db.ChangeTracker.Clear();
+                return Result<ConsultarLoteResultadoDto>.Fail(
+                    "La consulta contradice un resultado fiscal confirmado. Se conservó la evidencia existente; requiere conciliación.", "DTE_LOTE_EVIDENCIA_CONFLICTIVA");
+            }
+            if (rechazado && detalle.EstadoCodigo == DteContingenciaLoteEstados.Error
+                && dte.EstadoCodigo == DteEstadoCodigos.Rechazado) continue;
+            detalle.SelloRecibido = item.SelloRecibido;
+            detalle.MensajeHacienda = item.DescripcionMsg is { Length: > 500 } text ? text[..500] : item.DescripcionMsg;
+            detalle.EstadoCodigo = procesado ? DteContingenciaLoteEstados.Procesado : DteContingenciaLoteEstados.Error;
+            if (dte.EstadoCodigo == DteEstadoCodigos.Procesado) continue;
+            dte.SelloRecibido = item.SelloRecibido;
+            dte.EstadoCodigo = procesado ? DteEstadoCodigos.Procesado : DteEstadoCodigos.Rechazado;
+            if (!cambios.Contains(dte)) cambios.Add(dte);
+            if (procesado) dte.ProcesadoAt = lote.UltimaConsultaAt;
+            dte.UpdatedAt = lote.UltimaConsultaAt;
+            if (dte.Json is not null)
+            {
+                dte.Json.RespuestaHacienda = System.Text.Json.JsonSerializer.Serialize(new
                 {
-                    dte.SelloRecibido = item.SelloRecibido;
-                    dte.EstadoCodigo = DteEstadoCodigos.Procesado;
-                }
+                    estado = item.Estado, selloRecibido = item.SelloRecibido,
+                    codigoMsg = item.CodigoMsg, descripcionMsg = item.DescripcionMsg,
+                    codigoGeneracion = item.CodigoGeneracion, codigoLote = lote.CodigoLote,
+                });
+                dte.Json.RespuestaAt = lote.UltimaConsultaAt;
             }
         }
 
@@ -381,11 +517,20 @@ public class ContingenciaLoteService : IContingenciaLoteService
             d.EstadoCodigo == DteContingenciaLoteEstados.Procesado
          || d.EstadoCodigo == DteContingenciaLoteEstados.Error);
 
-        lote.EstadoCodigo = todosTerminados
-            ? DteContingenciaLoteEstados.Procesado
-            : DteContingenciaLoteEstados.Consultado;
+        var todosProcesados = lote.Detalles.Count > 0 && lote.Detalles.All(d => d.EstadoCodigo == DteContingenciaLoteEstados.Procesado);
+        lote.EstadoCodigo = todosProcesados ? DteContingenciaLoteEstados.Procesado
+            : todosTerminados ? DteContingenciaLoteEstados.Error : DteContingenciaLoteEstados.Enviado;
 
         await _db.SaveChangesAsync(ct);
+
+        if (_webhookDispatcher is not null)
+            foreach (var dte in cambios)
+                await _webhookDispatcher.DispatchAsync(new ConnectDteEventoPayload
+                {
+                    Evento = dte.EstadoCodigo == DteEstadoCodigos.Procesado ? ConnectEventos.DteProcesado : ConnectEventos.DteRechazado,
+                    EmpresaId = empresaId, DteId = dte.Id, CodigoGeneracion = dte.CodigoGeneracion,
+                    TipoDte = dte.TipoDteCodigo, Estado = dte.EstadoCodigo, OcurrioAt = DateTime.UtcNow,
+                }, ct);
 
         var procesados = lote.Detalles.Count(d => d.EstadoCodigo == DteContingenciaLoteEstados.Procesado);
         _logger.LogInformation(
@@ -399,7 +544,8 @@ public class ContingenciaLoteService : IContingenciaLoteService
             CodigoLote = lote.CodigoLote,
             DteProcesados = procesados,
             DtePendientes = lote.Detalles.Count - procesados,
-            Mensaje = todosTerminados ? "Lote procesado completamente." : "Lote parcialmente procesado.",
+            Mensaje = todosProcesados ? "Lote procesado completamente."
+                : todosTerminados ? "Lote terminado con documentos rechazados; revise sus errores." : "Lote pendiente de resultados individuales.",
         });
     }
 
@@ -410,6 +556,9 @@ public class ContingenciaLoteService : IContingenciaLoteService
             .FirstOrDefaultAsync(d => d.Id == dteDocumentoId && d.EmpresaId == empresaId, ct);
         if (dte is null)
             return Result<string>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+
+        if (dte.EnviadoAt.HasValue || await _db.DteContingenciaLoteDetalles.AnyAsync(d => d.DteDocumentoId == dteDocumentoId, ct))
+            return Result<string>.Fail("El documento tiene un intento previo. Concilie Hacienda antes de reintentar.", "DTE_RESULTADO_INCIERTO");
 
         if (dte.EstadoCodigo != DteEstadoCodigos.Contingencia)
             return Result<string>.Fail($"El documento está en estado {dte.EstadoCodigo}, no CONTINGENCIA.", "ESTADO_INVALIDO");
@@ -461,40 +610,9 @@ public class ContingenciaLoteService : IContingenciaLoteService
     /// Obtiene el token MH desde caché cifrado o hace refresh autenticando en Hacienda.
     /// Mismo patrón que DteDocumentosService.ObtenerTokenAsync.
     /// </summary>
-    private async Task<(bool Success, string? Token, string? Mensaje)> ObtenerTokenAsync(
+    private Task<(bool Success, string? Token, string? Mensaje)> ObtenerTokenAsync(
         Domain.Core.Dte.DteConfiguracion config, CancellationToken ct)
-    {
-        if (!string.IsNullOrEmpty(config.TokenMhCifrado)
-            && config.TokenMhExpiraAt.HasValue
-            && config.TokenMhExpiraAt.Value > DateTime.UtcNow.AddMinutes(5))
-        {
-            try
-            {
-                var raw = _protector.Unprotect(config.TokenMhCifrado);
-                var clean = raw?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true
-                    ? raw[7..].Trim()
-                    : raw;
-                return (true, clean, null);
-            }
-            catch { /* fall-through al refresh */ }
-        }
-
-        if (string.IsNullOrEmpty(config.UsuarioMh) || string.IsNullOrEmpty(config.PasswordMhCifrado))
-            return (false, null, "Faltan credenciales MH en Configuración DTE.");
-
-        string password;
-        try { password = _protector.Unprotect(config.PasswordMhCifrado); }
-        catch { return (false, null, "No se pudo descifrar el password MH."); }
-
-        var auth = await _haciendaAuth.AutenticarAsync(config.UsuarioMh, password, config.AmbienteCodigo, ct);
-        if (!auth.Success || string.IsNullOrEmpty(auth.Token))
-            return (false, null, $"Auth MH falló: [{auth.CodigoHttp}] {auth.Mensaje}");
-
-        config.TokenMhCifrado = _protector.Protect(auth.Token);
-        config.TokenMhExpiraAt = auth.ExpiresAt ?? DateTime.UtcNow.AddHours(8);
-        await _db.SaveChangesAsync(ct);
-        return (true, auth.Token, null);
-    }
+        => HaciendaTokenProvider.GetAsync(_db, config, _haciendaAuth, _protector, ct);
 
     private static ContingenciaLoteDto MapLoteDto(DteContingenciaLote lote) => new()
     {

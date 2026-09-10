@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Auditoría sintética · @ViewData["Title"]</title>
+<link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="/css/neostp.css" />
+</head><body class="ns-app">
+<main class="ns-content" style="padding:24px"><p class="small text-muted">QA aislado: vista Razor real, contenedor de prueba, datos sintéticos; sin SQL ni Hacienda.</p>
+@RenderBody()
+</main>
+<script src="/lib/jquery/dist/jquery.min.js"></script>
+<script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body></html>

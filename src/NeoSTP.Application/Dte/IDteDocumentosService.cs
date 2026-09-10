@@ -6,6 +6,8 @@ namespace NeoSTP.Application.Dte;
 
 public interface IDteDocumentosService
 {
+    Task<IReadOnlyList<TipoDteDisponibleDto>> GetTiposDisponiblesAsync(int empresaId, CancellationToken ct = default);
+    Task<IReadOnlyList<TipoDteDisponibleDto>> GetTiposConsultaAsync(int empresaId, CancellationToken ct = default);
     Task<Result<PagedResult<DteDocumentoListItemDto>>> GetListAsync(int empresaId, DteListQuery query, CancellationToken ct = default);
     Task<Result<DteDocumentoDto>> GetByIdAsync(int empresaId, int id, CancellationToken ct = default);
     Task<Result<DteDocumentoDto>> CreateBorradorAsync(int empresaId, CreateDteDocumentoRequest request, string? actor, CancellationToken ct = default);
@@ -13,6 +15,8 @@ public interface IDteDocumentosService
     Task<Result<DteDocumentoDto>> ValidarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result<DteDocumentoDto>> FirmarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result<DteDocumentoDto>> EnviarAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
+    /// <summary>Consulta el mismo intento en Hacienda; nunca regenera ni retransmite el DTE.</summary>
+    Task<Result<DteDocumentoDto>> ConciliarHaciendaAsync(int empresaId, int id, string? actor, CancellationToken ct = default);
     Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default);
     /// <summary>Guarda/actualiza la nota interna operativa del DTE (no fiscal, no afecta el JSON).</summary>
     Task<Result> GuardarNotaInternaAsync(int empresaId, int id, string? nota, string? actor, CancellationToken ct = default);

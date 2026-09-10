@@ -142,7 +142,8 @@ else
                             <form asp-action="CreateCheckout" method="post" class="d-grid gap-2">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="planId" value="@p.Id" />
-                                <select name="metodo" class="form-select form-select-sm">
+                                <input type="hidden" name="idempotencyKey" value="@Guid.NewGuid().ToString("N")" />
+                                <select name="metodo" class="form-select form-select-sm" aria-label="Método de pago">
                                     @foreach (var m in metodos)
                                     {
                                         <option value="@m">@MetodoLabel(m)</option>

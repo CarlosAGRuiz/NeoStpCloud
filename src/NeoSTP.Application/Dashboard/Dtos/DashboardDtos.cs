@@ -9,7 +9,15 @@ public class DashboardEmpresaDto
 {
     // ── KPIs del mes ──────────────────────────────
     public int DteHoy { get; set; }
+
+    /// <summary>Actividad total del mes: TODOS los documentos, incluida certificación/pruebas.</summary>
     public int DteMes { get; set; }
+
+    /// <summary>
+    /// Documentos que consumen el cupo COMERCIAL este mes (excluye la certificación de campañas
+    /// coherentes). Es la misma base que usa el guard de licencia; alimenta la barra de cupo.
+    /// </summary>
+    public int DteMesComercial { get; set; }
     public decimal TotalPagarMes { get; set; }
 
     // ── Por estado (acumulado total) ───────────────
@@ -24,10 +32,13 @@ public class DashboardEmpresaDto
     public string? PlanNombre { get; set; }
     public int? LimiteDteMensual { get; set; }
 
-    /// <summary>Porcentaje de consumo del cupo DTE mensual (0-100). 0 si no hay límite.</summary>
+    /// <summary>
+    /// Porcentaje de consumo del cupo DTE mensual (0-100). 0 si no hay límite. Usa el consumo
+    /// COMERCIAL (no la actividad total), para que las pruebas de certificación no llenen la barra.
+    /// </summary>
     public int PorcentajeUsoDte =>
         LimiteDteMensual is > 0
-            ? Math.Min(100, (int)Math.Round(DteMes * 100.0 / LimiteDteMensual.Value))
+            ? Math.Min(100, (int)Math.Round(DteMesComercial * 100.0 / LimiteDteMensual.Value))
             : 0;
 
     // ── Desgloses del mes ────────────────────────

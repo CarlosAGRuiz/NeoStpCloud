@@ -1,5 +1,6 @@
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Domain.Core.Dte;
+using NeoSTP.Infrastructure.Branding;
 using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -42,6 +43,10 @@ public class DtePdfService : IDtePdfService
 
     private static QuestPDF.Infrastructure.IDocument BuildDocument(DteDocumento d)
     {
+        // Branding is presentation only. Invalid legacy blobs are omitted, never repaired
+        // on the tracked entity, and neither fiscal JSON nor amounts are changed.
+        var logo = BrandingImageValidator.SafeForPdf(d.Empresa?.LogoBlob);
+        var firma = BrandingImageValidator.SafeForPdf(d.Empresa?.FirmaBlob);
         return Document.Create(container =>
         {
             container.Page(page =>
@@ -51,7 +56,7 @@ public class DtePdfService : IDtePdfService
                 page.MarginHorizontal(Margin);
                 page.DefaultTextStyle(x => x.FontSize(9).FontColor(Ink));
 
-                page.Content().Element(c => Body(c, d));
+                page.Content().Element(c => Body(c, d, logo, firma));
                 // El Footer no aplica el margen derecho como el Content; se compensa.
                 page.Footer().PaddingRight(Margin).Element(c => Footer(c, d));
             });
@@ -60,16 +65,15 @@ public class DtePdfService : IDtePdfService
 
     // ---------- Cuerpo completo ----------
 
-    private static void Body(IContainer container, DteDocumento d)
+    private static void Body(IContainer container, DteDocumento d, byte[]? logo, byte[]? firma)
     {
         container.Column(col =>
         {
-            col.Item().Element(c => Encabezado(c, d));
+            col.Item().Element(c => Encabezado(c, d, logo));
             col.Item().PaddingTop(12).Element(c => Receptor(c, d));
             col.Item().PaddingTop(12).Element(c => Detalle(c, d));
             col.Item().PaddingTop(10).Element(c => Totales(c, d));
 
-            var firma = d.Empresa?.FirmaBlob;
             var firmaTexto = d.Empresa?.FirmaTexto;
             if (firma is { Length: > 0 } || !string.IsNullOrWhiteSpace(firmaTexto))
                 col.Item().PaddingTop(28).Element(c => Firma(c, firma, firmaTexto));
@@ -95,7 +99,7 @@ public class DtePdfService : IDtePdfService
 
     // ---------- Encabezado (banda + identificadores) ----------
 
-    private static void Encabezado(IContainer container, DteDocumento d)
+    private static void Encabezado(IContainer container, DteDocumento d, byte[]? logo)
     {
         var emisor = d.Empresa;
 
@@ -104,7 +108,7 @@ public class DtePdfService : IDtePdfService
             // Banda de marca
             outer.Item().Background(Primary).Padding(14).Row(row =>
             {
-                if (emisor?.LogoBlob is { Length: > 0 } logo)
+                if (logo is { Length: > 0 })
                 {
                     row.ConstantItem(64).PaddingRight(12).AlignMiddle()
                         .Height(46).Image(logo).FitArea();

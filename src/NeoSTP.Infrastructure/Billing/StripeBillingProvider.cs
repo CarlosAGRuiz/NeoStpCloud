@@ -105,20 +105,30 @@ public sealed class StripeBillingProvider : IPaymentProvider
     }
 
     public async Task<Result> CancelSubscriptionAsync(string externalSubscriptionId, bool atPeriodEnd, CancellationToken ct = default)
+        => await CancelSubscriptionAsync(externalSubscriptionId, atPeriodEnd, string.Empty, ct);
+
+    public async Task<Result> CancelSubscriptionAsync(
+        string externalSubscriptionId,
+        bool atPeriodEnd,
+        string idempotencyKey,
+        CancellationToken ct = default)
     {
         try
         {
             var service = new SubscriptionService();
+            var requestOptions = string.IsNullOrWhiteSpace(idempotencyKey)
+                ? null
+                : new RequestOptions { IdempotencyKey = idempotencyKey };
             if (atPeriodEnd)
             {
                 await service.UpdateAsync(externalSubscriptionId, new SubscriptionUpdateOptions
                 {
                     CancelAtPeriodEnd = true,
-                }, cancellationToken: ct);
+                }, requestOptions, ct);
             }
             else
             {
-                await service.CancelAsync(externalSubscriptionId, cancellationToken: ct);
+                await service.CancelAsync(externalSubscriptionId, requestOptions: requestOptions, cancellationToken: ct);
             }
             return Result.Ok();
         }

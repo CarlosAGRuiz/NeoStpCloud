@@ -1,4 +1,6 @@
 using System.Data;
+using NeoSTP.Infrastructure.Dte;
+using NeoSTP.Infrastructure.Branding;
 using System.Globalization;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -58,11 +60,14 @@ public partial class DteDocumentosService : IDteDocumentosService
     private readonly NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? _metrics;
     private readonly NeoSTP.Application.Licenciamiento.ILicenciaGuardService? _licenciaGuard;
     private readonly NeoSTP.Application.Lookups.ILookupService? _lookup;
+    private readonly IHaciendaConsultaDteClient? _consultaDte;
+    private readonly Microsoft.Extensions.Logging.ILogger<DteDocumentosService>? _logger;
 
     // Corte de esquemas MH 2026-08-25: cuando Dte:EsquemaNuevo=true los eventos usan las
     // versiones nuevas (invalidación v3). Contingencia ya migró a v4 sin toggle porque apitest
     // la exige desde ya. Default false = versiones que apitest aún acepta hoy.
     private readonly bool _esquemaNuevo;
+    private readonly DteSchemaPolicy _schemaPolicy;
 
     public DteDocumentosService(
         NeoStpDbContext db,
@@ -81,8 +86,11 @@ public partial class DteDocumentosService : IDteDocumentosService
         NeoSTP.Infrastructure.Diagnostics.NeoStpMetrics? metrics = null,
         NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null,
         NeoSTP.Application.Lookups.ILookupService? lookup = null,
-        Microsoft.Extensions.Configuration.IConfiguration? configuration = null)
+        Microsoft.Extensions.Configuration.IConfiguration? configuration = null,
+        IHaciendaConsultaDteClient? consultaDte = null,
+        Microsoft.Extensions.Logging.ILogger<DteDocumentosService>? logger = null)
     {
+        _schemaPolicy = new DteSchemaPolicy(configuration);
         _metrics = metrics;
         _licenciaGuard = licenciaGuard;
         _lookup = lookup;
@@ -101,6 +109,8 @@ public partial class DteDocumentosService : IDteDocumentosService
         _email = email;
         _auditoria = auditoria;
         _webhookDispatcher = webhookDispatcher;
+        _consultaDte = consultaDte;
+        _logger = logger;
     }
 
     private static readonly TimeZoneInfo SvTimeZone = ResolveSvTimeZone();
@@ -131,13 +141,32 @@ public partial class DteDocumentosService : IDteDocumentosService
     /// el DTE ("departamento no cumple el formato requerido"). Es tolerante: si el código no
     /// está en catálogo (o ya es un código MH) lo deja como está, así no rompe datos válidos.
     /// </summary>
-    private async Task ResolverReceptorTerritorialMhAsync(DteDocumento doc, int empresaId, CancellationToken ct)
+    private async Task<Result> ResolverReceptorTerritorialMhAsync(DteDocumento doc, int empresaId, bool esquemaNuevo, CancellationToken ct)
     {
-        if (_lookup is null) return; // sin lookup (p. ej. tests antiguos) se conserva el comportamiento previo
+        if (_lookup is null) return Result.Ok();
+
+        if (DteGeneratorService.EsTipoConTerritorioVerificado(doc.TipoDteCodigo))
+        {
+            if (doc.TipoDteCodigo == "11" || (string.IsNullOrWhiteSpace(doc.ReceptorDepartamentoCodigo)
+                && string.IsNullOrWhiteSpace(doc.ReceptorMunicipioCodigo) && string.IsNullOrWhiteSpace(doc.ReceptorDistritoCodigo)))
+                return Result.Ok();
+            var departments = await _lookup.GetCatalogoAsync(CatalogCodes.DepartamentoEs, empresaId, null, ct);
+            var municipalities = await _lookup.GetCatalogoAsync(CatalogCodes.MunicipioEs, empresaId, null, ct);
+            var districts = await _lookup.GetCatalogoAsync(CatalogCodes.DistritoEs, empresaId, null, ct);
+            var resolved = DteTerritoryResolver.Resolve(doc.ReceptorDepartamentoCodigo, doc.ReceptorMunicipioCodigo,
+                doc.ReceptorDistritoCodigo, departments, municipalities, districts,
+                DteGeneratorService.RequiereTerritorio2024(doc.TipoDteCodigo, esquemaNuevo));
+            if (resolved.IsFailure) return Result.Fail("Receptor: " + resolved.Error, resolved.ErrorCode);
+            doc.ReceptorDepartamentoCodigo = resolved.Value!.Department;
+            doc.ReceptorMunicipioCodigo = resolved.Value.Municipality;
+            doc.ReceptorDistritoCodigo = resolved.Value.District;
+            return Result.Ok();
+        }
 
         doc.ReceptorDepartamentoCodigo = await MapCodigoMhAsync(CatalogCodes.DepartamentoEs, doc.ReceptorDepartamentoCodigo, empresaId, ct);
         doc.ReceptorMunicipioCodigo    = await MapCodigoMhAsync(CatalogCodes.MunicipioEs,    doc.ReceptorMunicipioCodigo,    empresaId, ct);
         doc.ReceptorDistritoCodigo     = await MapCodigoMhAsync(CatalogCodes.DistritoEs,     doc.ReceptorDistritoCodigo,     empresaId, ct);
+        return Result.Ok();
     }
 
     private async Task<string?> MapCodigoMhAsync(string catalogo, string? codigoInterno, int empresaId, CancellationToken ct)
@@ -198,13 +227,16 @@ public partial class DteDocumentosService : IDteDocumentosService
     /// <para>OJO: la Empresa que llega aquí YA debe estar Detach del contexto para evitar que
     /// SaveChanges persista los cambios y sobrescriba la data del usuario en BD.</para>
     /// </summary>
-    private async Task SanearEmisorParaMhAsync(Empresa e, DteConfiguracion? config, int empresaId, CancellationToken ct)
+    private async Task SanearEmisorParaMhAsync(Empresa e, DteConfiguracion? config, int empresaId, CancellationToken ct, bool skipTerritory = false)
     {
         e.Nit = ClienteValidator.StripToDigits(e.Nit) ?? e.Nit;
         e.Nrc = ClienteValidator.StripToDigits(e.Nrc);
-        e.Departamento = await MapCodigoMhAsync(CatalogCodes.DepartamentoEs, e.Departamento, empresaId, ct);
-        e.Municipio    = await MapCodigoMhAsync(CatalogCodes.MunicipioEs,    e.Municipio,    empresaId, ct);
-        e.Distrito     = await MapCodigoMhAsync(CatalogCodes.DistritoEs,     e.Distrito,     empresaId, ct);
+        if (!skipTerritory)
+        {
+            e.Departamento = await MapCodigoMhAsync(CatalogCodes.DepartamentoEs, e.Departamento, empresaId, ct);
+            e.Municipio = await MapCodigoMhAsync(CatalogCodes.MunicipioEs, e.Municipio, empresaId, ct);
+            e.Distrito = await MapCodigoMhAsync(CatalogCodes.DistritoEs, e.Distrito, empresaId, ct);
+        }
         if (config is not null && !string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo))
         {
             config.TipoEstablecimientoCodigo = await MapCodigoMhAsync(
@@ -234,11 +266,11 @@ public partial class DteDocumentosService : IDteDocumentosService
         var errors = new List<string>();
         if (e is null) { errors.Add("Empresa emisora no cargada."); return errors; }
         if (string.IsNullOrWhiteSpace(e.Nit))
-            errors.Add("La empresa no tiene NIT registrado.");
+            errors.Add("[emisor.nit] La empresa no tiene NIT registrado.");
         if (string.IsNullOrWhiteSpace(e.Correo))
-            errors.Add("La empresa no tiene correo registrado. Configúralo en Empresa → Editar antes de emitir.");
+            errors.Add("[emisor.correo] La empresa no tiene correo registrado. Configúralo en Empresa → Editar antes de emitir.");
         if (string.IsNullOrWhiteSpace(e.Telefono))
-            errors.Add("La empresa no tiene teléfono registrado. Configúralo en Empresa → Editar antes de emitir.");
+            errors.Add("[emisor.telefono] La empresa no tiene teléfono registrado. Configúralo en Empresa → Editar antes de emitir.");
         return errors;
     }
 
@@ -262,6 +294,12 @@ public partial class DteDocumentosService : IDteDocumentosService
     public async Task<Result<PagedResult<DteDocumentoListItemDto>>> GetListAsync(int empresaId, DteListQuery query, CancellationToken ct = default)
     {
         var q = _db.DteDocumentos.AsNoTracking().Where(d => d.EmpresaId == empresaId);
+        if (query.AmbienteCodigo is not null)
+        {
+            if (!DteAmbientes.EsValido(query.AmbienteCodigo))
+                return Result<PagedResult<DteDocumentoListItemDto>>.Fail("Filtro de ambiente inválido. Use PRUEBAS o PRODUCCION.", "DTE_AMBIENTE_INVALIDO");
+            q = q.Where(d => d.AmbienteCodigo == query.AmbienteCodigo);
+        }
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -337,6 +375,16 @@ public partial class DteDocumentosService : IDteDocumentosService
 
     public async Task<Result<DteDocumentoDto>> CreateBorradorAsync(int empresaId, CreateDteDocumentoRequest request, string? actor, CancellationToken ct = default)
     {
+        var keyValidation = DteIdempotency.ValidateKey(request.IdempotencyKey);
+        if (keyValidation.IsFailure) return Result<DteDocumentoDto>.Fail(keyValidation.Error!, keyValidation.ErrorCode);
+        if (request.VentaPosOrigenId.HasValue && request.TipoDteCodigo is not ("01" or "03"))
+            return Result<DteDocumentoDto>.Fail("POS solo admite factura o crédito fiscal.", "VALIDATION");
+        // Clave aleatoria por invocación legacy: protege también un commit incierto dentro del execution strategy.
+        // Solo una clave provista por el consumidor (o la venta POS) deduplica POST independientes.
+        var scope = request.VentaPosOrigenId.HasValue ? "POS" : request.IdempotencyKey is null ? "ATTEMPT" : "DTE";
+        var key = request.VentaPosOrigenId?.ToString(CultureInfo.InvariantCulture) ?? request.IdempotencyKey ?? Guid.NewGuid().ToString("N");
+        var keyHash = DteIdempotency.HashKey(key);
+        var requestHash = DteIdempotency.Fingerprint(request);
         var validation = ValidateRequest(request);
         if (validation.Count > 0)
             return Result<DteDocumentoDto>.Fail("Datos del documento inválidos.", "VALIDATION", validation);
@@ -359,6 +407,34 @@ public partial class DteDocumentosService : IDteDocumentosService
 
             await using var limiteTransaction = await BeginDteLimitTransactionAsync(empresaId, ct);
 
+        // Se consulta bajo el mismo lock/transacción de creación, antes de consumir cupo o correlativo.
+        var previous = await _db.DteDocumentos.AsNoTracking().FirstOrDefaultAsync(d =>
+            d.EmpresaId == empresaId && d.IdempotencyScope == scope && d.IdempotencyKeyHash == keyHash, ct);
+        if (previous is not null)
+        {
+            if (previous.IdempotencyRequestHash != requestHash)
+                return Result<DteDocumentoDto>.Fail("La clave ya corresponde a otra solicitud. No cambie los datos ni genere otra clave para reintentar una venta existente.", "IDEMPOTENCY_CONFLICT");
+            var currentConfig = await _db.DteConfiguracion.AsNoTracking().FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+            var replayContext = DteFiscalContext.Validar(previous.AmbienteCodigo, currentConfig);
+            var replay = await GetByIdAsync(empresaId, previous.Id, ct);
+            if (replay.IsFailure) return replay;
+            replay.Value!.IdempotencyReplayed = true;
+            if (replayContext.IsFailure)
+                return Result<DteDocumentoDto>.FailWithValue(replay.Value, replayContext.Error!, replayContext.ErrorCode);
+            return replay;
+        }
+
+        NeoSTP.Domain.Core.Pos.VentaPos? ventaOrigen = null;
+        if (request.VentaPosOrigenId is int posId)
+        {
+            ventaOrigen = await _db.VentasPos.FirstOrDefaultAsync(v => v.Id == posId && v.EmpresaId == empresaId, ct);
+            if (ventaOrigen is null) return Result<DteDocumentoDto>.Fail("Venta POS no encontrada.", "VENTA_POS_NOT_FOUND");
+            if (ventaOrigen.EstadoCodigo != NeoSTP.Domain.Core.Pos.VentaPosEstados.Completada
+                || ventaOrigen.DteDocumentoId.HasValue
+                || ventaOrigen.EstadoFacturacion == NeoSTP.Domain.Core.Pos.VentaPosFacturacion.Facturada)
+                return Result<DteDocumentoDto>.Fail("La venta POS está anulada o ya tiene un DTE asociado. Consulte el documento existente.", "IDEMPOTENCY_CONFLICT");
+        }
+
         // Enforcement comercial: límite mensual de documentos del plan.
         if (_licenciaGuard is not null)
         {
@@ -373,7 +449,21 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         var config = await _db.DteConfiguracion.AsNoTracking()
             .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
-        var ambiente = config?.AmbienteCodigo ?? "PRUEBAS";
+        var contexto = DteFiscalContext.Validar(config?.AmbienteCodigo, config);
+        if (contexto.IsFailure) return Result<DteDocumentoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        var ambiente = config!.AmbienteCodigo;
+        var schema = _schemaPolicy.Resolve(empresaId, empresa.Nit, ambiente);
+        if (schema.IsFailure) return Result<DteDocumentoDto>.Fail(schema.Error!, schema.ErrorCode);
+        var tipoAutorizado = await DteTypeAuthorization.ValidateAsync(_db, empresaId, request.TipoDteCodigo, ct);
+        if (tipoAutorizado.IsFailure) return Result<DteDocumentoDto>.Fail(tipoAutorizado.Error!, tipoAutorizado.ErrorCode);
+        if (request.DocumentoRelacionadoId is int relacionadoId)
+        {
+            var relacionado = await _db.DteDocumentos.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == relacionadoId && d.EmpresaId == empresaId, ct);
+            if (relacionado is null) return Result<DteDocumentoDto>.Fail("Documento relacionado no encontrado.", "DTE_NOT_FOUND");
+            var contextoRelacionado = DteFiscalContext.Validar(relacionado.AmbienteCodigo, config);
+            if (contextoRelacionado.IsFailure) return Result<DteDocumentoDto>.Fail(contextoRelacionado.Error!, contextoRelacionado.ErrorCode);
+        }
         // numeroControl: DTE-XX-{bloqueEstab}-{15 digitos}.
         // Formato oficial MH (esquemas svfe): el bloque de 8 chars es
         //   (M|B|S|P)([0-9]{3})(P)([0-9]{3})  →  letraTipoEstablecimiento + codEstable(3) + 'P' + codPuntoVenta(3)
@@ -383,6 +473,9 @@ public partial class DteDocumentosService : IDteDocumentosService
         var doc = new DteDocumento
         {
             EmpresaId = empresaId,
+            IdempotencyScope = scope,
+            IdempotencyKeyHash = keyHash,
+            IdempotencyRequestHash = requestHash,
             SucursalId = request.SucursalId,
             PuntoVentaId = request.PuntoVentaId,
             TipoDteCodigo = request.TipoDteCodigo,
@@ -466,7 +559,9 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         // El receptor guarda códigos territoriales internos (p. ej. "SAN_SALVADOR"); Hacienda
         // exige el código MH numérico ("06"). Traducirlos antes de persistir el DTE.
-        await ResolverReceptorTerritorialMhAsync(doc, empresaId, ct);
+        var receptorTerritorial = await ResolverReceptorTerritorialMhAsync(doc, empresaId, schema.Value, ct);
+        if (receptorTerritorial.IsFailure)
+            return Result<DteDocumentoDto>.Fail(receptorTerritorial.Error!, receptorTerritorial.ErrorCode);
 
         // NC/ND: MH exige la fecha REAL del documento relacionado. Si se referencia un DTE
         // electrónico por Id, tomamos su fecha de emisión (evita "017 FECHA NO ES CORRECTA"
@@ -505,7 +600,10 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         // Número de control: correlativo atómico por (empresa, tipoDte)
         // UPSERT + incremento en una sola operación SQL para evitar race conditions.
-        var correlativoNum = await NextCorrelativoAsync(empresaId, request.TipoDteCodigo, ct);
+        int correlativoNum;
+        try { correlativoNum = await NextCorrelativoAsync(empresaId, request.TipoDteCodigo, ct); }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 50002)
+        { return Result<DteDocumentoDto>.Fail("Correlativo agotado o fuera del rango soportado. Contacte soporte; no reinicie la secuencia.", "DTE_CORRELATIVO_AGOTADO"); }
         var correlativo = correlativoNum.ToString().PadLeft(15, '0');
         doc.NumeroControl = $"DTE-{request.TipoDteCodigo}-{bloqueEstab}-{correlativo}";
 
@@ -638,6 +736,13 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         _db.DteDocumentos.Add(doc);
         await _db.SaveChangesAsync(ct);
+        if (ventaOrigen is not null)
+        {
+            ventaOrigen.DteDocumentoId = doc.Id;
+            ventaOrigen.UpdatedAt = DateTime.UtcNow;
+            ventaOrigen.UpdatedBy = actor;
+            await _db.SaveChangesAsync(ct);
+        }
         if (limiteTransaction is not null) await limiteTransaction.CommitAsync(ct);
         await Audit(empresaId, actor, "CREATE_BORRADOR", "OK",
             $"DTE {doc.TipoDteCodigo} #{doc.NumeroControl} en borrador (total={doc.TotalPagar:0.00})", doc.Id);
@@ -648,7 +753,7 @@ public partial class DteDocumentosService : IDteDocumentosService
 
     private async Task<IDbContextTransaction?> BeginDteLimitTransactionAsync(int empresaId, CancellationToken ct)
     {
-        if (_licenciaGuard is null || !_db.Database.IsRelational()) return null;
+        if (!_db.Database.IsRelational()) return null;
 
         IDbContextTransaction? ownTransaction = null;
         if (_db.Database.CurrentTransaction is null)
@@ -680,46 +785,81 @@ public partial class DteDocumentosService : IDteDocumentosService
         }
     }
 
-    public async Task<Result<DteDocumentoDto>> GenerarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    public Task<Result<DteDocumentoDto>> GenerarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+        => EjecutarCambioFiscalAsync(empresaId, id, () => GenerarCoreAsync(empresaId, id, actor, ct), ct);
+
+    private async Task<Result<DteDocumentoDto>> GenerarCoreAsync(int empresaId, int id, string? actor, CancellationToken ct)
     {
         var doc = await _db.DteDocumentos
             .Include(d => d.Detalles)
             .Include(d => d.Json)
-            .Include(d => d.Empresa)
             .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
-        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado or DteEstadoCodigos.Enviado)
-            return Result<DteDocumentoDto>.Fail("El documento ya fue enviado o procesado.", "INVALID_STATE");
-
-        // Re-snapshot del cálculo por si cambiaron líneas
-        _calculator.Recalcular(doc);
+        var empresaFiscal = await CargarEmpresaFiscalAsync(empresaId, ct);
+        if (empresaFiscal is null)
+            return Result<DteDocumentoDto>.Fail("Empresa emisora no encontrada.", "EMPRESA_NOT_FOUND");
+        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado or DteEstadoCodigos.Enviado or DteEstadoCodigos.Invalidado)
+            return Result<DteDocumentoDto>.Fail("No se puede regenerar un documento enviado, procesado o invalidado.", "INVALID_STATE");
+        if (doc.EnviadoAt.HasValue && NeoSTP.Application.Dte.Diagnostico.DteDiagnosticoGuia.Crear(
+            doc.EstadoCodigo, doc.SelloRecibido, doc.EnviadoAt, doc.Json?.RespuestaHacienda).RequiereConsultaHacienda)
+            return Result<DteDocumentoDto>.FailWithValue(MapToDto(doc),
+                "Debe conciliar la recepción antes de regenerar este documento. Se conservó su JSON original.", "DTE_RESULTADO_INCIERTO");
 
         // Cargar config DTE para inyectar codEstable/codPuntoVenta/tipoEstablecimiento en el bloque emisor.
         var configForJson = await _db.DteConfiguracion.AsNoTracking()
             .FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
 
+        var contexto = ValidarContextoDocumento(doc, configForJson);
+        if (contexto.IsFailure) return Result<DteDocumentoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        var campaignAccess = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, doc, ct);
+        if (campaignAccess.IsFailure) return Result<DteDocumentoDto>.Fail(campaignAccess.Error!, campaignAccess.ErrorCode);
+        var tipoAutorizado = await DteTypeAuthorization.ValidateAsync(_db, empresaId, doc.TipoDteCodigo, ct);
+        if (tipoAutorizado.IsFailure) return Result<DteDocumentoDto>.Fail(tipoAutorizado.Error!, tipoAutorizado.ErrorCode);
+        _calculator.Recalcular(doc);
+
         // Validar datos MH-obligatorios del emisor que no podemos inventar (correo/teléfono/NIT).
-        var emisorErrors = ValidarEmisorParaMh(doc.Empresa);
+        var emisorErrors = ValidarEmisorParaMh(empresaFiscal);
         if (emisorErrors.Count > 0)
-            return Result<DteDocumentoDto>.Fail(
-                "La empresa emisora tiene datos incompletos para emitir a Hacienda.",
+            return Result<DteDocumentoDto>.FailWithValue(MapToDto(doc),
+                "Corrija los datos de la empresa emisora: " + string.Join(" ", emisorErrors),
                 "VALIDATION", emisorErrors);
 
-        // Sanear emisor DEFENSIVAMENTE: quitar guiones al NIT/NRC, resolver
-        // departamento/municipio/distrito/tipoEstablecimiento a códigos MH. La Empresa se detach
-        // para no persistir estos cambios y respetar el dato original del usuario en BD.
-        if (doc.Empresa is not null)
-        {
-            _db.Entry(doc.Empresa).State = EntityState.Detached;
-            await SanearEmisorParaMhAsync(doc.Empresa, configForJson, empresaId, ct);
-        }
+        // Sanear una proyección fiscal sin tracking para no persistir estos cambios ni
+        // materializar el branding. No se asocia a la navegación mientras consultamos
+        // catálogos, porque el DbContext puede tener ya otra instancia de Empresa cargada.
+        await SanearEmisorParaMhAsync(empresaFiscal, configForJson, empresaId, ct,
+            skipTerritory: DteGeneratorService.EsTipoConTerritorioVerificado(doc.TipoDteCodigo));
+        var schema = _schemaPolicy.Resolve(empresaId, empresaFiscal.Nit, doc.AmbienteCodigo);
+        if (schema.IsFailure) return Result<DteDocumentoDto>.Fail(schema.Error!, schema.ErrorCode);
+        var territorioFiscal = await ResolverTerritorioParaGeneracionAsync(empresaFiscal, doc, empresaId, schema.Value, ct);
+        if (territorioFiscal.IsFailure)
+            return Result<DteDocumentoDto>.Fail(territorioFiscal.Error!, territorioFiscal.ErrorCode);
         // Sanear receptor DEFENSIVAMENTE: quitar guiones del NIT/NRC persistidos con
         // NormalizeNit (formato con guiones para presentación).
         SanearReceptorParaMh(doc);
 
-        var json = _generator.Generar(doc, configForJson);
+        Result<string> json;
+        var empresaOriginal = doc.Empresa;
+        var receptorTerritorialOriginal = (doc.ReceptorDepartamentoCodigo, doc.ReceptorMunicipioCodigo, doc.ReceptorDistritoCodigo);
+        doc.Empresa = empresaFiscal;
+        doc.ReceptorDepartamentoCodigo = territorioFiscal.Value!.Department;
+        doc.ReceptorMunicipioCodigo = territorioFiscal.Value.Municipality;
+        doc.ReceptorDistritoCodigo = territorioFiscal.Value.District;
+        try
+        {
+            json = _generator.Generar(doc, configForJson);
+        }
+        finally
+        {
+            // La proyección solo existe para construir el JSON. Restaurar la navegación
+            // evita que EF intente adjuntarla y choque con una Empresa ya rastreada.
+            doc.Empresa = empresaOriginal;
+            (doc.ReceptorDepartamentoCodigo, doc.ReceptorMunicipioCodigo, doc.ReceptorDistritoCodigo) = receptorTerritorialOriginal;
+        }
         if (json.IsFailure)
             return Result<DteDocumentoDto>.Fail(json.Error ?? "Error al generar JSON.", json.ErrorCode);
+        if (!DteFiscalContext.TryGetGeneratedVersion(json.Value, doc, out var generatedVersion))
+            return Result<DteDocumentoDto>.Fail("El JSON generado no tiene una versión o identidad fiscal compatible con el documento.", "DTE_PAYLOAD_INCOMPATIBLE");
 
         if (doc.Json is null)
         {
@@ -733,6 +873,10 @@ public partial class DteDocumentosService : IDteDocumentosService
         }
         else
         {
+            if (!string.IsNullOrWhiteSpace(doc.Json.RespuestaHacienda)
+                && !await _db.DteErrorOcurrencias.AnyAsync(o => o.EmpresaId == empresaId && o.DteDocumentoId == id
+                    && o.RespuestaMhJson == doc.Json.RespuestaHacienda, ct))
+                RegistrarRespuestaNoProcesada(doc, "RESPUESTA_HISTORICA", "Respuesta anterior conservada antes de regenerar el DTE.");
             doc.Json.JsonDte = json.Value!;
             doc.Json.JsonFirmado = null;
             doc.Json.FirmadoAt = null;
@@ -744,6 +888,11 @@ public partial class DteDocumentosService : IDteDocumentosService
         }
 
         doc.EstadoCodigo = DteEstadoCodigos.Generado;
+        doc.VersionDte = generatedVersion;
+        // Nuevo intento explícito tras un rechazo confirmado. El intento anterior permanece
+        // en diagnóstico; EnviadoAt representa la transmisión del JSON vigente.
+        doc.EnviadoAt = null;
+        doc.ValidadoAt = null;
         doc.GeneradoAt = DateTime.UtcNow;
         doc.UpdatedAt = DateTime.UtcNow;
         doc.UpdatedBy = actor;
@@ -754,14 +903,30 @@ public partial class DteDocumentosService : IDteDocumentosService
         return await GetByIdAsync(empresaId, doc.Id, ct);
     }
 
-    public async Task<Result<DteDocumentoDto>> ValidarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    public Task<Result<DteDocumentoDto>> ValidarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+        => EjecutarCambioFiscalAsync(empresaId, id, () => ValidarCoreAsync(empresaId, id, actor, ct), ct);
+
+    private async Task<Result<DteDocumentoDto>> ValidarCoreAsync(int empresaId, int id, string? actor, CancellationToken ct)
     {
         var doc = await _db.DteDocumentos
             .Include(d => d.Detalles)
             .Include(d => d.Json)
-            .Include(d => d.Empresa)
             .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+
+        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado or DteEstadoCodigos.Enviado or DteEstadoCodigos.Invalidado)
+            return Result<DteDocumentoDto>.Fail("No se puede revalidar un documento enviado, procesado o invalidado.", "INVALID_STATE");
+        if (doc.EstadoCodigo == DteEstadoCodigos.Firmado)
+            return Result<DteDocumentoDto>.Fail("El documento ya está firmado. Para cambiar sus datos, regenere el JSON antes de volver a validarlo.", "INVALID_STATE");
+        if (RequiereConciliacion(doc))
+            return Result<DteDocumentoDto>.FailWithValue(MapToDto(doc), "Consulte la recepción en Hacienda antes de modificar este DTE.", "DTE_RESULTADO_INCIERTO");
+        var configValidacion = await _db.DteConfiguracion.AsNoTracking().FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+        var contexto = ValidarContextoDocumento(doc, configValidacion);
+        if (contexto.IsFailure) return Result<DteDocumentoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        var campaignAccess = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, doc, ct);
+        if (campaignAccess.IsFailure) return Result<DteDocumentoDto>.Fail(campaignAccess.Error!, campaignAccess.ErrorCode);
+        var tipoAutorizado = await DteTypeAuthorization.ValidateAsync(_db, empresaId, doc.TipoDteCodigo, ct);
+        if (tipoAutorizado.IsFailure) return Result<DteDocumentoDto>.Fail(tipoAutorizado.Error!, tipoAutorizado.ErrorCode);
 
         var errors = ValidateDomain(doc);
         if (errors.Count > 0)
@@ -788,17 +953,21 @@ public partial class DteDocumentosService : IDteDocumentosService
         return await GetByIdAsync(empresaId, doc.Id, ct);
     }
 
-    public async Task<Result<DteDocumentoDto>> FirmarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    public Task<Result<DteDocumentoDto>> FirmarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+        => EjecutarCambioFiscalAsync(empresaId, id, () => FirmarCoreAsync(empresaId, id, actor, ct), ct);
+
+    private async Task<Result<DteDocumentoDto>> FirmarCoreAsync(int empresaId, int id, string? actor, CancellationToken ct)
     {
         var doc = await _db.DteDocumentos
             .Include(d => d.Detalles)
             .Include(d => d.Json)
-            .Include(d => d.Empresa)
             .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
 
-        if (doc.EstadoCodigo is DteEstadoCodigos.Enviado or DteEstadoCodigos.Procesado)
-            return Result<DteDocumentoDto>.Fail("El documento ya fue enviado.", "INVALID_STATE");
+        if (doc.EstadoCodigo is DteEstadoCodigos.Enviado or DteEstadoCodigos.Procesado or DteEstadoCodigos.Invalidado)
+            return Result<DteDocumentoDto>.Fail("No se puede firmar un documento enviado, procesado o invalidado.", "INVALID_STATE");
+        if (RequiereConciliacion(doc))
+            return Result<DteDocumentoDto>.FailWithValue(MapToDto(doc), "Consulte la recepción en Hacienda antes de modificar este DTE.", "DTE_RESULTADO_INCIERTO");
 
         if (doc.Json is null || string.IsNullOrEmpty(doc.Json.JsonDte))
         {
@@ -812,6 +981,20 @@ public partial class DteDocumentosService : IDteDocumentosService
         var config = await _db.DteConfiguracion.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
         if (config is null)
             return Result<DteDocumentoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
+        var contexto = ValidarContextoDocumento(doc, config);
+        if (contexto.IsFailure) return Result<DteDocumentoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        if (!DteFiscalContext.CoincideJson(doc.Json?.JsonDte, doc.AmbienteCodigo, doc))
+            return Result<DteDocumentoDto>.Fail("El JSON no corresponde al ambiente o identidad del DTE. Regenere el JSON antes de firmar.", "DTE_PAYLOAD_INCOMPATIBLE");
+        var campaignAccess = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, doc, ct);
+        if (campaignAccess.IsFailure) return Result<DteDocumentoDto>.Fail(campaignAccess.Error!, campaignAccess.ErrorCode);
+        var tipoAutorizado = await DteTypeAuthorization.ValidateAsync(_db, empresaId, doc.TipoDteCodigo, ct);
+        if (tipoAutorizado.IsFailure) return Result<DteDocumentoDto>.Fail(tipoAutorizado.Error!, tipoAutorizado.ErrorCode);
+        // A signed generation is immutable. Re-signing it could replace the JWS while
+        // another host is preparing its send claim. A new signature requires regeneration.
+        if (doc.EstadoCodigo == DteEstadoCodigos.Firmado)
+            return DteFiscalContext.CoincideJws(doc.Json?.JsonFirmado, doc.AmbienteCodigo, doc)
+                ? await GetByIdAsync(empresaId, id, ct)
+                : Result<DteDocumentoDto>.Fail("La firma existente no es compatible. Regenere el documento antes de firmarlo nuevamente.", "DTE_PAYLOAD_INCOMPATIBLE");
         if (config.CertificadoBlob is null || config.CertificadoBlob.Length == 0)
             return Result<DteDocumentoDto>.Fail("Certificado no cargado en Configuración DTE.", "VALIDATION");
 
@@ -849,24 +1032,33 @@ public partial class DteDocumentosService : IDteDocumentosService
         return await GetByIdAsync(empresaId, doc.Id, ct);
     }
 
-    public async Task<Result<DteDocumentoDto>> EnviarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+    public Task<Result<DteDocumentoDto>> EnviarAsync(int empresaId, int id, string? actor, CancellationToken ct = default)
+        => EjecutarCambioFiscalAsync(empresaId, id, () => EnviarCoreAsync(empresaId, id, actor, ct), ct);
+
+    private async Task<Result<DteDocumentoDto>> EnviarCoreAsync(int empresaId, int id, string? actor, CancellationToken ct)
     {
         var doc = await _db.DteDocumentos
             .Include(d => d.Detalles)
             .Include(d => d.Json)
-            .Include(d => d.Empresa)
             .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result<DteDocumentoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
-        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado)
-            return Result<DteDocumentoDto>.Fail("El documento ya fue procesado por Hacienda.", "INVALID_STATE");
+        if (doc.EstadoCodigo is DteEstadoCodigos.Procesado or DteEstadoCodigos.Invalidado)
+            return Result<DteDocumentoDto>.Fail("No se puede enviar un documento procesado o invalidado.", "INVALID_STATE");
 
+        if (RequiereConciliacion(doc))
+            return Result<DteDocumentoDto>.FailWithValue(MapToDto(doc),
+                "Debe conciliar la recepción en Hacienda antes de volver a enviar este DTE.", "DTE_RESULTADO_INCIERTO");
+
+        var campaignAccess = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, doc, ct);
+        if (campaignAccess.IsFailure) return Result<DteDocumentoDto>.Fail(campaignAccess.Error!, campaignAccess.ErrorCode);
+        var tipoAutorizado = await DteTypeAuthorization.ValidateAsync(_db, empresaId, doc.TipoDteCodigo, ct);
+        if (tipoAutorizado.IsFailure) return Result<DteDocumentoDto>.Fail(tipoAutorizado.Error!, tipoAutorizado.ErrorCode);
         if (doc.EstadoCodigo is not DteEstadoCodigos.Enviado)
         {
             var gen = await GenerarAsync(empresaId, id, actor, ct);
             if (gen.IsFailure) return gen;
             doc = await _db.DteDocumentos
                 .Include(d => d.Json)
-                .Include(d => d.Empresa)
                 .FirstAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         }
 
@@ -897,14 +1089,32 @@ public partial class DteDocumentosService : IDteDocumentosService
                 "FIRMA_MOCK_NO_ENVIABLE");
         }
 
+        var contextoEnvio = DteFiscalContext.Validar(doc.AmbienteCodigo, config);
+        if (contextoEnvio.IsFailure) return Result<DteDocumentoDto>.Fail(contextoEnvio.Error!, contextoEnvio.ErrorCode);
+        if (!DteFiscalContext.CoincideJws(doc.Json?.JsonFirmado, doc.AmbienteCodigo, doc))
+            return Result<DteDocumentoDto>.Fail("La firma contiene un ambiente o identidad diferente al DTE. No se transmitió.", "DTE_PAYLOAD_INCOMPATIBLE");
         var tokenResult = await ObtenerTokenAsync(config, ct);
         if (!tokenResult.Success)
             return Result<DteDocumentoDto>.Fail(tokenResult.Mensaje ?? "No se pudo obtener token Hacienda.", "HACIENDA_AUTH_FAILED");
 
+        // Marca durable antes de cruzar la frontera HTTP: si se pierde la respuesta o
+        // se cancela la petición, otro intento no debe regenerar y volver a emitir a ciegas.
+        var campaignBeforeClaim = await NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.ValidateAsync(_db, empresaId, doc, ct);
+        if (campaignBeforeClaim.IsFailure) return Result<DteDocumentoDto>.Fail(campaignBeforeClaim.Error!, campaignBeforeClaim.ErrorCode);
+        doc.EstadoCodigo = DteEstadoCodigos.Enviado;
+        doc.EnviadoAt = DateTime.UtcNow;
+        doc.UpdatedAt = DateTime.UtcNow;
+        doc.UpdatedBy = actor;
+        // EF includes the original state, EnviadoAt and GeneradoAt in the UPDATE predicate.
+        // Only the winner reaches HTTP; a conflict must never retry this whole operation.
+        await _db.SaveChangesAsync(ct);
+
+        var nitEmisor = await _db.Empresas.AsNoTracking().Where(e => e.Id == empresaId)
+            .Select(e => e.Nit).FirstOrDefaultAsync(ct);
         var resp = await _reception.EnviarAsync(new HaciendaReceptionRequest
         {
-            Nit = doc.Empresa?.Nit,                          // NIT del emisor para lookup de cert
-            Ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00",
+            Nit = nitEmisor,                                // NIT del emisor para lookup de cert
+            Ambiente = DteAmbientes.CodigoMh(doc.AmbienteCodigo),
             AmbienteCodigo = config.AmbienteCodigo,
             IdEnvio = doc.Id,
             Version = doc.VersionDte,
@@ -914,7 +1124,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             Token = tokenResult.Token!,
         }, ct);
 
-        doc.Json.RespuestaHacienda = resp.Raw;
+        // Conservar también el diagnóstico cuando no hubo cuerpo HTTP (timeout/red).
+        doc.Json.RespuestaHacienda = NeoSTP.Infrastructure.Dte.HaciendaReceptionEvidence.ForStorage(resp);
         doc.Json.RespuestaAt = DateTime.UtcNow;
         doc.Json.UpdatedAt = DateTime.UtcNow;
         doc.Json.UpdatedBy = actor;
@@ -923,7 +1134,10 @@ public partial class DteDocumentosService : IDteDocumentosService
         // Map response -> estado interno
         var nuevoEstado = (resp.Estado ?? string.Empty).ToUpperInvariant() switch
         {
-            "PROCESADO" => DteEstadoCodigos.Procesado,
+            _ when resp.CodigoHttp is 0 or >= 500 || resp.ClasificaMsg is "TIMEOUT" or "NETWORK_ERROR" or "RESPUESTA_INVALIDA" => DteEstadoCodigos.Enviado,
+            "PROCESADO" when resp.Success && !string.IsNullOrWhiteSpace(resp.SelloRecibido) => DteEstadoCodigos.Procesado,
+            "PROCESADO" => DteEstadoCodigos.Enviado,
+            "ENVIADO" or "RECIBIDO" => DteEstadoCodigos.Enviado,
             "RECHAZADO" => DteEstadoCodigos.Rechazado,
             "CONTINGENCIA" => DteEstadoCodigos.Contingencia,
             "NO_AUTORIZADO" => DteEstadoCodigos.Error,
@@ -939,7 +1153,12 @@ public partial class DteDocumentosService : IDteDocumentosService
         doc.UpdatedAt = DateTime.UtcNow;
         doc.UpdatedBy = actor;
 
+        if (nuevoEstado != DteEstadoCodigos.Procesado)
+            RegistrarRespuestaNoProcesada(doc, resp.CodigoMsg, resp.DescripcionMsg);
         await _db.SaveChangesAsync(ct);
+        if (nuevoEstado == DteEstadoCodigos.Procesado)
+            await EnviarCorreoAutomaticoAsync(empresaId, doc.Id, actor);
+
         await Audit(empresaId, actor, "ENVIAR",
             resp.Success && nuevoEstado == DteEstadoCodigos.Procesado ? "OK" : "FAIL",
             $"[{resp.CodigoHttp}] estado={resp.Estado} cod={resp.CodigoMsg} desc={resp.DescripcionMsg}",
@@ -966,55 +1185,37 @@ public partial class DteDocumentosService : IDteDocumentosService
             }, ct);
         }
 
-        return await GetByIdAsync(empresaId, doc.Id, ct);
+        var resultado = await GetByIdAsync(empresaId, doc.Id, ct);
+        if (nuevoEstado == DteEstadoCodigos.Procesado || resultado.IsFailure) return resultado;
+        var diagnostico = resultado.Value!.Diagnostico!;
+        var errorEnvio = diagnostico.RequiereConsultaHacienda ? "DTE_RESULTADO_INCIERTO"
+            : diagnostico.Codigo == "HACIENDA_AUTH_FAILED" ? "HACIENDA_AUTH_FAILED"
+            : diagnostico.Campos.Count > 0 ? "HACIENDA_DATOS_INVALIDOS" : "HACIENDA_RECHAZO";
+        return Result<DteDocumentoDto>.FailWithValue(resultado.Value, diagnostico.Mensaje, errorEnvio, resp.Observaciones);
     }
 
-    private async Task<(bool Success, string? Token, string? Mensaje)> ObtenerTokenAsync(
-        Domain.Core.Dte.DteConfiguracion config, CancellationToken ct)
+    private void RegistrarRespuestaNoProcesada(DteDocumento doc, string? codigo, string? mensaje)
     {
-        // Token cacheado vigente: 5 minutos de margen antes de expirar.
-        // Defensivo: quitar prefijo "Bearer " si quedó almacenado con él (bug previo en el cliente MH).
-        if (!string.IsNullOrEmpty(config.TokenMhCifrado)
-            && config.TokenMhExpiraAt.HasValue
-            && config.TokenMhExpiraAt.Value > DateTime.UtcNow.AddMinutes(5))
+        var codigoError = codigo ?? "DTE_RESULTADO_INCIERTO";
+        var descripcion = mensaje ?? "La recepción del DTE no está confirmada. Consulte el diagnóstico.";
+        _db.DteErrorOcurrencias.Add(new NeoSTP.Domain.Core.Dte.Diagnostico.DteErrorOcurrencia
         {
-            try
-            {
-                var raw = _protector.Unprotect(config.TokenMhCifrado);
-                var clean = raw?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true
-                    ? raw[7..].Trim()
-                    : raw;
-                return (true, clean, null);
-            }
-            catch { /* fall-through al refresh */ }
-        }
-
-        // Refresh: autenticar contra Hacienda con las credenciales guardadas
-        if (string.IsNullOrEmpty(config.UsuarioMh) || string.IsNullOrEmpty(config.PasswordMhCifrado))
-            return (false, null, "Faltan credenciales MH en Configuración DTE.");
-
-        string password;
-        try { password = _protector.Unprotect(config.PasswordMhCifrado); }
-        catch { return (false, null, "No se pudo descifrar el password MH (¿llave DataProtection cambió?)."); }
-
-        var auth = await _haciendaAuth.AutenticarAsync(config.UsuarioMh, password, config.AmbienteCodigo, ct);
-        if (!auth.Success || string.IsNullOrEmpty(auth.Token))
-            return (false, null, $"Auth MH falló: [{auth.CodigoHttp}] {auth.Mensaje}");
-
-        config.TokenMhCifrado = _protector.Protect(auth.Token);
-        config.TokenMhExpiraAt = auth.ExpiresAt ?? DateTime.UtcNow.AddHours(8);
-        await _db.SaveChangesAsync(ct);
-        return (true, auth.Token, null);
+            EmpresaId = doc.EmpresaId, DteDocumentoId = doc.Id,
+            CodigoError = codigoError.Length > 50 ? codigoError[..50] : codigoError,
+            Mensaje = descripcion.Length > 1000 ? descripcion[..1000] : descripcion,
+            RespuestaMhJson = doc.Json?.RespuestaHacienda, JsonEnviado = doc.Json?.JsonFirmado ?? doc.Json?.JsonDte,
+            OcurrioAt = doc.Json?.RespuestaAt ?? doc.EnviadoAt ?? DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow, CreatedBy = doc.UpdatedBy,
+        });
     }
+
+    private Task<(bool Success, string? Token, string? Mensaje)> ObtenerTokenAsync(
+        DteConfiguracion config, CancellationToken ct)
+        => HaciendaTokenProvider.GetAsync(_db, config, _haciendaAuth, _protector, ct);
 
     public async Task<Result<DteArchivosDto>> ObtenerArchivosAsync(int empresaId, int id, CancellationToken ct = default)
     {
-        var doc = await _db.DteDocumentos
-            .Include(d => d.Detalles)
-            .Include(d => d.Json)
-            .Include(d => d.Empresa)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        var doc = await CargarDocumentoParaRepresentacionAsync(empresaId, id, ct);
         if (doc is null) return Result<DteArchivosDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
 
         var safeNumero = (doc.NumeroControl ?? "documento").Replace(" ", "_");
@@ -1033,12 +1234,7 @@ public partial class DteDocumentosService : IDteDocumentosService
 
     public async Task<Result<DteReenvioResultDto>> ReenviarPorCorreoAsync(int empresaId, int id, string? destinatario, string? actor, CancellationToken ct = default)
     {
-        var doc = await _db.DteDocumentos
-            .Include(d => d.Detalles)
-            .Include(d => d.Json)
-            .Include(d => d.Empresa)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        var doc = await CargarDocumentoParaRepresentacionAsync(empresaId, id, ct);
         if (doc is null) return Result<DteReenvioResultDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
 
         var to = !string.IsNullOrWhiteSpace(destinatario) ? destinatario!.Trim() : doc.ReceptorCorreo;
@@ -1071,12 +1267,15 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         var emisor = doc.Empresa?.RazonSocial ?? "su proveedor";
         var subject = $"DTE {doc.TipoDteCodigo} {doc.NumeroControl} - {emisor}";
-        var tieneLogo = doc.Empresa?.LogoBlob is { Length: > 0 };
+        var logoValido = BrandingImageValidator.TryValidate(doc.Empresa?.LogoBlob, null,
+            out var logoContentType, out _) ? doc.Empresa!.LogoBlob : null;
+        var tieneLogo = logoValido is { Length: > 0 };
         var body = BuildBody(doc, emisor, tieneLogo);
 
         var message = new EmailMessage
         {
             To = to,
+            Cc = CopiaCorreoEmisor(to, doc.Empresa?.Correo),
             Subject = subject,
             HtmlBody = body,
         };
@@ -1085,8 +1284,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             message.InlineImages.Add(new EmailInlineImage
             {
                 ContentId = "logo",
-                MediaType = doc.Empresa!.LogoContentType ?? "image/png",
-                Content = doc.Empresa!.LogoBlob!,
+                MediaType = logoContentType,
+                Content = logoValido!,
             });
         var result = await _email.EnviarAsync(empresaId, message, ct);
 
@@ -1106,6 +1305,53 @@ public partial class DteDocumentosService : IDteDocumentosService
             ? Result<DteReenvioResultDto>.Ok(dto)
             : Result<DteReenvioResultDto>.Fail(result.Detalle ?? result.Mensaje ?? "Error enviando correo.", "EMAIL_FAILED");
     }
+
+    private async Task<DteDocumento?> CargarDocumentoParaRepresentacionAsync(int empresaId, int id, CancellationToken ct)
+    {
+        var doc = await _db.DteDocumentos.Include(d => d.Detalles).Include(d => d.Json)
+            .AsNoTracking().FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        if (doc is null) return null;
+        var empresa = await _db.Empresas.AsNoTracking().Where(e => e.Id == empresaId)
+            .Select(e => new Empresa
+            {
+                Id = e.Id,
+                RazonSocial = e.RazonSocial,
+                NombreComercial = e.NombreComercial,
+                Nit = e.Nit,
+                Nrc = e.Nrc,
+                CodigoActividad = e.CodigoActividad,
+                ActividadEconomica = e.ActividadEconomica,
+                FirmaTexto = e.FirmaTexto,
+                Correo = e.Correo,
+                LogoContentType = e.LogoContentType,
+                FirmaContentType = e.FirmaContentType,
+                LogoBlob = e.LogoBlob != null && e.LogoBlob.Length <= BrandingImageValidator.MaxBytes ? e.LogoBlob : null,
+                FirmaBlob = e.FirmaBlob != null && e.FirmaBlob.Length <= BrandingImageValidator.MaxBytes ? e.FirmaBlob : null,
+            }).FirstOrDefaultAsync(ct);
+        if (empresa is null) return null;
+        doc.Empresa = empresa;
+        return doc;
+    }
+
+    private Task<Empresa?> CargarEmpresaFiscalAsync(int empresaId, CancellationToken ct)
+        => _db.Empresas.AsNoTracking().Where(e => e.Id == empresaId)
+            .Select(e => new Empresa
+            {
+                Id = e.Id,
+                Nit = e.Nit,
+                Nrc = e.Nrc,
+                RazonSocial = e.RazonSocial,
+                NombreComercial = e.NombreComercial,
+                CodigoActividad = e.CodigoActividad,
+                ActividadEconomica = e.ActividadEconomica,
+                Departamento = e.Departamento,
+                Municipio = e.Municipio,
+                Distrito = e.Distrito,
+                Direccion = e.Direccion,
+                Telefono = e.Telefono,
+                Correo = e.Correo,
+                EstadoCodigo = e.EstadoCodigo,
+            }).FirstOrDefaultAsync(ct);
 
     internal static string BuildBody(DteDocumento d, string emisor, bool incluirLogo = false)
     {
@@ -1217,10 +1463,24 @@ public partial class DteDocumentosService : IDteDocumentosService
 
     public async Task<Result> InvalidarAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct = default)
     {
-        var doc = await _db.DteDocumentos.FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
+        try { return await InvalidarCoreAsync(empresaId, id, motivo, actor, ct); }
+        catch (DbUpdateConcurrencyException)
+        {
+            _db.ChangeTracker.Clear();
+            return Result.Fail("Otro proceso modificó este DTE. Recargue su estado antes de continuar; no se invalidó.", "DTE_CONCURRENCY_CONFLICT");
+        }
+    }
+
+    private async Task<Result> InvalidarCoreAsync(int empresaId, int id, string? motivo, string? actor, CancellationToken ct)
+    {
+        var doc = await _db.DteDocumentos.Include(d => d.Json).FirstOrDefaultAsync(d => d.Id == id && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
         if (doc.EstadoCodigo is DteEstadoCodigos.Procesado)
             return Result.Fail("No se puede invalidar un DTE ya procesado en Hacienda. Use anulación.", "INVALID_STATE");
+        if (doc.EstadoCodigo == DteEstadoCodigos.Invalidado)
+            return Result.Fail("El documento ya está invalidado.", "INVALID_STATE");
+        if (RequiereConciliacion(doc))
+            return Result.Fail("No se puede invalidar localmente un envío sin respuesta confirmada. Consulte primero su recepción en Hacienda.", "DTE_RESULTADO_INCIERTO");
 
         doc.EstadoCodigo = DteEstadoCodigos.Invalidado;
         doc.Observaciones = string.IsNullOrEmpty(motivo) ? doc.Observaciones : $"[INVALIDADO] {motivo}";
@@ -1398,38 +1658,6 @@ public partial class DteDocumentosService : IDteDocumentosService
         return digits.PadLeft(3, '0');
     }
 
-    private async Task<int> NextCorrelativoAsync(int empresaId, string tipoDte, CancellationToken ct)
-    {
-        // Intentar actualizar si ya existe el registro
-        var updated = await _db.Database.ExecuteSqlAsync(
-            $"""
-            UPDATE Dte_Correlativos
-               SET UltimoCorrelativo = UltimoCorrelativo + 1,
-                   ActualizadoAt     = GETUTCDATE()
-             WHERE EmpresaId = {empresaId}
-               AND TipoDteCodigo = {tipoDte}
-            """, ct);
-
-        if (updated == 0)
-        {
-            // Primera vez: insertar con correlativo = 1, ignorar duplicado por concurrencia
-            await _db.Database.ExecuteSqlAsync(
-                $"""
-                IF NOT EXISTS (SELECT 1 FROM Dte_Correlativos WHERE EmpresaId = {empresaId} AND TipoDteCodigo = {tipoDte})
-                    INSERT INTO Dte_Correlativos (EmpresaId, TipoDteCodigo, UltimoCorrelativo, ActualizadoAt)
-                    VALUES ({empresaId}, {tipoDte}, 1, GETUTCDATE())
-                ELSE
-                    UPDATE Dte_Correlativos
-                       SET UltimoCorrelativo = UltimoCorrelativo + 1,
-                           ActualizadoAt     = GETUTCDATE()
-                     WHERE EmpresaId = {empresaId}
-                       AND TipoDteCodigo = {tipoDte}
-                """, ct);
-        }
-
-        var row = await _db.DteCorrelativos
-            .FirstOrDefaultAsync(c => c.EmpresaId == empresaId && c.TipoDteCodigo == tipoDte, ct);
-
-        return row?.UltimoCorrelativo ?? 1;
-    }
+    private Task<int> NextCorrelativoAsync(int empresaId, string tipoDte, CancellationToken ct)
+        => DteCorrelativoAllocator.NextAsync(_db, empresaId, tipoDte, ct);
 }

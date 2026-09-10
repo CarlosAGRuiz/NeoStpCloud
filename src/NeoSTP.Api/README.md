@@ -1,5 +1,28 @@
 # NeoSTP.Api
 
+## Estado actualizado — 10 de septiembre de 2026
+
+- El ambiente fiscal y la política de esquema se resuelven por empresa. Separar pruebas de producción sin cambiar el interruptor global ni reutilizar datos productivos en ensayos.
+- API y Web comparten los servicios de aplicación, pero mantienen su configuración de ejecución. Evidencias de despliegue, datos de empresas y configuraciones privadas se conservan fuera de esta publicación.
+- Al persistir una transición a PROCESADO con sello, el servicio intenta enviar PDF y JSON al receptor y CC al `Correo` de la empresa propietaria del DTE. También aplica a confirmación por conciliación. No envía documentos anteriores en lote ni repite correo al consultar/reintentar un DTE ya procesado.
+- Correo vacío/inválido del emisor: se omite CC; correo igual al destinatario: no se duplica. Fallo SMTP: se conserva PROCESADO y se audita `CORREO_AUTOMATICO`; revisar entrega antes de usar Reenviar. No existe todavía cola durable de correo ni garantía de entrega al buzón.
+- Clientes expone `distritoCodigo` en alta, consulta, actualización e importación. Debe corresponder a municipio y departamento del catálogo autorizado. En actualización, omitir/null conserva el distrito si no cambian los padres; `""` lo limpia. Cambiar país/padres elimina asociaciones incompatibles; para extranjero no se guarda territorio salvadoreño. Los receptores manuales DTE ya admiten `DistritoCodigo`.
+- Regresión del hotfix: **2,401 pruebas unitarias + 9 de integración**; Web: 9 comprobaciones aisladas de navegador sin errores JavaScript. No se emitieron DTE ni se enviaron correos reales durante esta validación.
+
+[Detalle público de correo/distrito, validación y pendientes](../../docs/releases/2026-09-10.md).
+
+Los apartados GL anteriores conservan evidencia histórica. La presencia de código en el release no habilita pasarelas, workers o funciones con sus banderas desactivadas.
+
+> El estado operativo se registra en [continuidad y certificación](../../docs/MAIN-STANDARD.md). El arranque valida el esquema; migraciones y semillas se gestionan explícitamente con las banderas de operaciones desactivadas en el release del cliente.
+
+## Acuerdo de cobro mensual y módulos adicionales
+
+La respuesta de suscripción incluye `calendarBilling`, `nextDueLocalDate`, `servicePeriodStartLocal` y `servicePeriodEndExclusiveLocal`. Los acuerdos administrativos cobran al último día del mes en `America/El_Salvador`; la fecha de cobro no constituye una fecha de suspensión. `dueLocalDate` de las mensualidades es una fecha local, sin convertirla desde la frontera UTC del período.
+
+`Billing:Calendar:Enabled=true` habilita el generador mensual idempotente en un host (API). No cobra ni marca pagos automáticamente. Los pagos reales se concilian mediante `IBillingCalendarService` y el procedimiento administrativo privado, con identidad central persistida, importe, referencia y fecha verificables. Checkout y renovación heredada rechazan un acuerdo activo con `BILLING_CALENDAR_MANAGED`.
+
+Las licencias distinguen `incluidoEnPlan` y `autorizadoPorAcuerdo`. Los complementos por empresa conservan actor, fecha y motivo; no amplían los tipos fiscales de `TiposDteAutorizadosCsv`. Se requiere la migración de acuerdos calendario y complementos antes de iniciar estos binarios.
+
 API REST central de NeoSTP Cloud. Expone la operacion multiempresa de la suite, sirve a la app movil y publica NeoConnect para integradores externos.
 
 La app movil Android vive en el repo externo
@@ -7,6 +30,136 @@ La app movil Android vive en el repo externo
 contrato backend/API que esa app consume: endpoints, DTOs, permisos, datos demo y pruebas.
 
 ## Resumen
+
+### GL1H: checkout y webhook Wompi (pruebas locales, sin desplegar)
+
+H-05a agrega un consumidor interno de captura durable y ledger único; sin endpoint/job/caller habilitado y con `Billing:PaymentApplication:Enabled=false`. H-04 no produce capturas productivas. Cuotas/versiones, conciliación/outbox y sandbox real siguen pendientes. [Alcance H-05a y evidencia](../../docs/MAIN-STANDARD.md).
+
+- Checkout durable y consulta autenticada por empresa: [contrato GL1H-A](../../docs/MAIN-STANDARD.md).
+- `POST /api/billing/webhooks/wompi`: callback del proveedor sin JWT, autenticado por un único `wompi_hash` HMAC-SHA256 del cuerpo original con API Secret. Límite de 65,536 bytes.
+- 202 devuelve `{ receiptId, status }` tras persistencia, incluida cuarentena; **no confirma pago comercial**. Firma/identidad inválidas: 401; JSON inválido: 400; cuerpo grande: 413; conflicto semántico: 409; verificación pendiente/no disponible: 503.
+- Recepción durable antes de GET; cuenta/aplicativo/enlace/transacción y monto USD deben coincidir. El estado `PAYMENT_VERIFIED_SANDBOX` se consulta conservando referencia, sin URL para volver a pagar.
+- `Billing:Wompi:WebhookEnabled=false`, `Billing:Checkout:Enabled=false` por defecto. Producción bloqueada explícitamente. No aplica períodos/licencias; H05/H06 y sandbox real pendientes.
+- Requiere migraciones GL1H-A y `20260905043506_GL1H_WompiPaymentInbox`. [Detalle H04 y evidencia](../../docs/MAIN-STANDARD.md); [configuración sin secretos](../../docs/MAIN-STANDARD.md).
+
+### GL-1G: coordinacion durable de cancelaciones SaaS (sin desplegar)
+
+- El servicio compartido que usa la ruta Web `POST /billing/cancel` confirma primero en SQL una
+  intencion `Billing_ProviderOperations` ligada a empresa, suscripcion, plan, licencia, proveedor y
+  modo de cancelacion. Esta ruta pertenece a `NeoSTP.Web`; no se presenta como endpoint de esta API.
+  La clave idempotente estable evita crear dos efectos para la misma solicitud.
+- Un procesador con *lease* reclama la operacion ya comprometida. Stripe recibe esa clave como
+  `Idempotency-Key`; los adaptadores que no ofrecen idempotencia no se reenvian automaticamente si
+  el resultado pudo ser ambiguo.
+- El ACK del proveedor se guarda antes de modificar el estado local. Despues, suscripcion, licencia y
+  operacion se completan juntas bajo bloqueo por empresa. Si el proceso vence sin ACK, o cambia la
+  correlacion esperada, la operacion queda `REQUIRES_RECONCILIATION`, conserva el acceso local y no
+  vuelve a llamar al proveedor a ciegas.
+- La correlacion se valida antes de llamar al proveedor y las demas mutaciones Billing se rechazan
+  mientras exista una cancelacion pendiente o en conciliacion. Una cuarentena obsoleta no puede
+  sobrescribir un ACK ni el estado terminal `COMPLETED`.
+- El Worker de recuperacion esta registrado pero `Worker:BillingProviderOperations:Enabled=false`
+  por defecto. Requiere la migracion `20260905002545_GL1G_BillingProviderOperations`, validacion de
+  proveedor y procedimiento operativo de conciliacion antes de habilitarse.
+
+Ver [cierre y evidencia GL1G](../../docs/MAIN-STANDARD.md).
+
+**Gate de produccion GL1G:** la cancelacion proveedor-SQL ya tiene coordinacion durable local y
+pruebas SQL aisladas, pero no fue desplegada ni probada con una pasarela real. Checkout, monto/moneda,
+correlacion de pagos, autenticidad/cobertura de webhooks y activacion de licencias por cobro siguen
+**NO-GO**. No habilitar Stripe, MercadoPago, Wompi o PayPal en produccion con este alcance.
+
+### GL-1F: conciliacion fiscal, billing y branding (sin desplegar)
+
+#### Conciliacion manual con Hacienda
+
+- `POST /api/dte/documentos/{id}/conciliar-hacienda` exige el modulo `NEODTE`, el permiso
+  `DTE.Emitir` y una empresa activa dentro del alcance del usuario.
+- La operacion consulta el intento ya transmitido usando la identidad del JWS persistido (ambiente,
+  NIT emisor, tipo DTE y codigo de generacion). No regenera JSON, no vuelve a firmar y **nunca
+  retransmite** el DTE.
+- Una consulta nueva devuelve HTTP 200 solo cuando Hacienda confirma inequivocamente el mismo
+  intento: respuesta 2xx, ambiente y UUID coincidentes, codigo `001`, estado vacio/`PROCESADO` y
+  sello no vacio. Entonces conserva el mismo DTE, registra sello/fecha y publica el evento procesado.
+- Cualquier respuesta remota no concluyente devuelve HTTP 409 con
+  `code=DTE_RESULTADO_INCIERTO` y el DTE actual en `data`; persiste la ocurrencia y no cambia el
+  estado fiscal anterior. Un DTE ya `PROCESADO` y sellado responde idempotentemente con su detalle.
+- La consulta y los cambios fiscales del mismo DTE se serializan. Ausencia de intento verificable,
+  identidad/JWS incompatible o configuracion no apta se rechazan sin consultar ni enviar a Hacienda.
+
+#### Cancelacion de suscripciones
+
+- La cancelacion compartida con la Web valida usuario persistido, tenant y rol administrador. Se
+  bloquea si existe una transferencia pendiente o si la suscripcion/licencia activa no se puede
+  asociar de forma unica al mismo plan.
+- Inmediata (`atPeriodEnd=false`): marca la suscripcion cancelada y revoca la licencia en ese momento;
+  nunca extiende `FechaFin`. Conserva datos y asignaciones de modulos, pero los guards de licencia
+  impiden utilizarlos.
+- Programada (`atPeriodEnd=true`): mantiene acceso solo hasta el menor limite futuro ya existente
+  entre fin de trial/periodo y `FechaFin` de la licencia. No crea licencia, no inventa un periodo, no
+  extiende el vencimiento y no revive una cancelacion inmediata. Repetir la misma cancelacion es
+  idempotente; una programada puede adelantarse a inmediata.
+- Las llamadas al proveedor no tienen reintento automatico para evitar repetir una cancelacion. Si el
+  proveedor confirma y luego falla el commit local, el resultado queda incierto y requiere
+  conciliacion operativa; no existe todavia coordinacion distribuida ni outbox durable de billing.
+
+#### Stripe y branding
+
+- El webhook Stripe opera *fail-closed*: secreto ausente, con espacios, formato no `whsec_` o valor
+  placeholder devuelve 503; JSON o firma Stripe invalidos devuelven 400. No se registra el payload ni
+  la firma en esos rechazos. Esto protege el ingreso, pero no certifica el ciclo de cobro completo.
+- Branding por empresa acepta PNG, JPEG o WEBP **estaticos** de hasta 1 MiB, 4096 px por lado y
+  4 megapixeles. El formato real debe coincidir con el MIME y la imagen debe decodificarse completa;
+  APNG, WEBP animado, archivos truncados o corruptos se rechazan. El texto de firma admite 300
+  caracteres.
+- Logo/firma se usan solo en presentacion: PDF DTE, logo en cobro QR/ticket POS y logo del correo DTE.
+  Blobs legacy sobredimensionados o invalidos se omiten al leer/renderizar; no se reparan ni eliminan
+  automaticamente. El branding no modifica JSON/JWS fiscal, estados ni totales.
+
+**Gate de produccion:** estos contratos existen solo en la rama; no hubo despliegue, migracion sobre
+la base del cliente ni llamadas a proveedores reales. Pasarelas completas y links de pago,
+correlacion fiable de eventos con pago/suscripcion/licencia, conciliacion automatica de proveedores y
+outbox durable siguen en estado **NO-GO**. No habilitar ninguna pasarela —Stripe, MercadoPago,
+Wompi o PayPal— en produccion con este alcance.
+
+### GL-1C: diagnóstico y recuperación DTE (sin desplegar)
+
+- `DteDocumentoDto.diagnostico` identifica mensaje, campos (`campo`, `seccion`, `accionSugerida`), código MH y siguiente paso sobre el mismo DTE. Disponible en detalle/emisión de API y NeoConnect; no modifica la APK.
+- `ApiResponse.code` expone el código estable del fallo; `errors` conserva su formato anterior. Una recepción fallida devuelve `success=false` **con `data.id`**: HTTP 422 para rechazo/datos, 409 para resultado incierto, 502 para autenticación MH. No crear otra factura al recibir estos estados.
+- `PROCESADO` exige respuesta exitosa y sello no vacío. Timeout/red/HTTP 5xx/respuesta ilegible conservan `ENVIADO` pendiente de conciliación; no se encolan como contingencia automática. Hay marca durable antes de la llamada HTTP y bloqueo de reenvíos secuenciales inciertos.
+- Un rechazo confirmado permite corregir y regenerar/validar/firmar/enviar el DTE existente; la respuesta y el JSON del intento se conservan en diagnóstico. La guía nunca ejecuta reintentos.
+- `GET /api/dte/diagnostico/documentos/{id}` lee la respuesta actual sin sincronización previa y exige módulo NEODTE + permiso `DTE.Diagnostico`. El detalle ordinario mantiene sus permisos/scopes existentes.
+- **Consultar el detalle sigue siendo una lectura local.** La consulta remota ahora es exclusivamente
+  el POST `conciliar-hacienda` descrito en GL-1F; no se ejecuta al abrir una pantalla ni reenvia el DTE.
+  La recuperacion automatica y su despliegue en produccion siguen fuera de alcance.
+
+[Contrato para Manuel y límites de recuperación](../../docs/MAIN-STANDARD.md).
+
+### GL-1B: reintentos de emisión (sin desplegar)
+
+- En creación/emisión DTE (`/api/dte/documentos`, atajos por tipo, `/api/dte/emitir*` y `/api/v1/dte`), envíe `Idempotency-Key` o `idempotencyKey` en el cuerpo. Use una clave estable por venta y repita exactamente los mismos datos. Si envía ambos, deben coincidir.
+- Una misma clave y empresa devuelve el mismo DTE con `data.idempotencyReplayed=true`, sin consumir otro correlativo ni ejecutar nuevamente el pipeline. Datos diferentes con la misma clave devuelven HTTP 409/`IDEMPOTENCY_CONFLICT`.
+- La clave no vence automáticamente ni se reinicia al cambiar de ambiente. Un cambio de ambiente incompatible bloquea el reintento y conserva la referencia original.
+- Un replay puede devolver BORRADOR, FIRMADO, ERROR o CONTINGENCIA: HTTP 200 no significa aceptación fiscal. Consulte `data.estadoCodigo` y el sello. Si el primer intento falló después de crear el DTE, `success=false` puede incluir `data.id` para recuperación.
+- POS reserva y enlaza el DTE por venta antes de generar/transmitir. Repetir la promoción consulta ese DTE; solo PROCESADO marca FACTURADA.
+- Compatibilidad: sin clave, API/NeoConnect aún aceptan solicitudes antiguas y **no deduplican POST independientes**. Manuel debe persistir y reutilizar la clave desde la APK. Este bloque no modifica Android ni deduplica la creación del ticket POS.
+- Requiere `20260904140909_GL1B_DteIdempotency`, preparada pero no aplicada a la base activa. Tres columnas nullable e índice único; no borra ni renumera documentos. Desplegar todos los emisores compatibles en un corte controlado.
+
+[Contrato, evidencia y límites de recuperación](../../docs/MAIN-STANDARD.md).
+
+### GL-1A: integridad fiscal (2026-09-04, sin desplegar)
+
+- DTE, eventos y lotes no pueden transmitirse con una configuración de otro ambiente. Se comprueba también el ambiente del JSON/JWS antes de enviar.
+- Crear un borrador exige configuración fiscal explícita. Cambiar ambiente o usuario MH exige reingresar la contraseña correspondiente; los tokens quedan vinculados a empresa/ambiente/credenciales.
+- Correlativo histórico por empresa/tipo preservado, con reserva transaccional y piso del mayor número existente. No se reinicia por cambio de ambiente ni de año.
+- Nuevo filtro opcional: `GET /api/dte/documentos?ambienteCodigo=PRODUCCION` (también `PRUEBAS`). Sin filtro conserva ambos ambientes.
+- NeoProfit y libros fiscales excluyen DTE de pruebas. Compras/gastos ERP todavía no tienen ambiente fiscal propio.
+- Los errores `DTE_AMBIENTE_INCOMPATIBLE`, `DTE_PAYLOAD_INCOMPATIBLE` y `DTE_ESTABLECIMIENTO_INCOMPATIBLE` requieren revisar el contexto original, no renumerar ni reintentar en otro ambiente.
+- Este bloque no agrega migración. La rama sí conserva las migraciones de autenticación indicadas arriba; no iniciar los hosts sobre la base activa.
+
+[Verificación, alcance y siguientes pasos](../../docs/MAIN-STANDARD.md).
+
+### Plataforma
 
 - Proyecto: `src/NeoSTP.Api/NeoSTP.Api.csproj`.
 - OpenAPI JSON: `/openapi/v1.json`.
@@ -25,6 +178,77 @@ la activa sin volver a autenticarse (`/api/auth/empresas`, `/api/auth/cambiar-em
 consolidado de grupo (`/api/dashboard/grupo`), inventario y traslados por sucursal, aprobacion de
 ordenes de compra por umbral, webhooks de negocio ademas de los de DTE, y portabilidad completa de
 datos (`/api/datos/exportar`).
+
+## GL-0A: sesiones (2026-09-03, pendiente de despliegue)
+
+- Refresh conserva la empresa seleccionada y revalida empresa, membresía y rol; /api/auth/me usa el mismo contexto.
+- Sesiones históricas sin contexto exigen nuevo login (401). Pérdida de membresía/empresa activa devuelve 403; nunca se cambia silenciosamente al tenant principal.
+- Se rechaza reutilizar un refresh; la rotación tiene control de concurrencia y logout es idempotente.
+- MFA incorrecto acumula intentos junto con contraseña. Solo el bloqueo temporal vencido se libera automáticamente.
+- Requiere la migración GL0A_RefreshSessionContext antes de usar esta release. **Preparada, no aplicada**; no iniciar el host sobre la base activa sin aprobar el corte, ya que su arranque ejecuta migraciones/seed.
+- El incremento GL-0B siguiente integra rate limit Web, enrolamiento restringido y validación de JWT/cookies. No constituye aprobación de producción.
+
+Ver [avance y evidencia](../../docs/MAIN-STANDARD.md).
+
+## GL-0B: límite de intentos de autenticación API (2026-09-03)
+
+Integrado en Program y en las acciones reales de AuthController. Las cuotas de negocio/API keys
+se conservan separadas. Web utiliza las mismas políticas; el contrato de sesiones cambió como se detalla abajo.
+
+| Política | Rutas POST bajo /api/auth | Predeterminado por IP y proceso |
+|---|---|---|
+| auth-login | login, change-password | 10 solicitudes por 60 segundos, presupuesto compartido |
+| auth-mfa | mfa/enroll, mfa/confirm, mfa/disable, mfa/verify | 10 solicitudes por 60 segundos, presupuesto compartido |
+| auth-refresh | refresh | 30 solicitudes por 60 segundos |
+
+Al agotarse la ventana devuelve HTTP 429, Retry-After y Cache-Control: no-store, con ApiResponse
+en español. No encola la petición ni llama al servicio. Logout, me y las demás rutas no consumen
+estas políticas; conservan sus controles existentes. Los preflight CORS no consumen el límite.
+
+Configuración: Security:AuthRateLimit:WindowSeconds, LoginPermits, MfaPermits y RefreshPermits.
+Ventana permitida: 1–3600 segundos; cada límite: 1–1000. Valores inválidos detienen el registro al
+inicio, antes de ejecutar seeds. Los contadores son locales al proceso: no son límites distribuidos
+y se reinician con el proceso. Ajustar capacidad considerando clientes detrás de una misma IP/NAT.
+
+Se procesan X-Forwarded-For/Proto solo desde el proxy de loopback y con un salto; el limitador usa
+RemoteIpAddress normalizada, nunca los encabezados crudos. Un proxy externo requiere revisión explícita.
+Antes de desplegar detrás del túnel, verificar también que la allowlist administrativa contenga las IP
+reales permitidas, no solo localhost: ahora recibe la IP validada del cliente.
+
+Verificación específica: 23 pruebas con AuthController real y servicios/autenticación ficticios,
+más 13 del middleware. Cubren 429 sin ejecutar acciones, autorización, logout/me/health/refresh,
+mayúsculas/slash final, JSON inválido, CORS e IP reenviada falsa. Además hay pruebas HTTP del
+ciclo real JWT/cookie/MFA con almacenamiento InMemory; ver el informe del incremento.
+
+**Sin despliegue, reinicio ni migraciones aplicadas.** El limitador por sí solo no requiere migración,
+pero esta rama incluye las preparadas GL0A_RefreshSessionContext y GL0B_AuthSessionFoundation.
+No ejecutar su arranque contra la base del cliente hasta aprobar el corte. Las credenciales de prueba
+son sintéticas; no se verificaron proveedores OIDC reales, Android ni concurrencia con SQL Server.
+
+## GL-0B: contrato de sesiones y MFA (2026-09-04)
+
+- Login, SSO y cambio de empresa persisten Core_AuthSessions. JWT incluye session_id/session_purpose;
+  UserInfo agrega sessionId, sessionPurpose y sessionExpiresAt. /me devuelve el contexto vigente.
+- Cada JWT/cookie se valida contra la sesión, usuario, empresa, membresía, roles y permisos actuales.
+  Sesiones históricas sin identificador válido requieren nuevo login; no hay fallback a tokens antiguos.
+- Refresh rota dentro de la misma sesión/empresa, sin extender su vencimiento absoluto (Jwt:RefreshTokenExpiryDays).
+  Cambios de autorización/credenciales invalidan la renovación. Logout revoca la sesión padre; no solo el refresh.
+- POST /api/auth/logout admite cuerpo vacío, {} o {"refreshToken":"..."}; usa la sesión autenticada.
+  Un token ajeno en el cuerpo no revoca otra sesión. Las API keys conservan su ciclo independiente.
+- Un administrador global legítimo sin MFA recibe mfaEnrollmentRequired=true, propósito MFA_ENROLL,
+  sin empresa, roles, permisos ni refresh. Solo puede iniciar/confirmar MFA o cerrar sesión.
+- SSO con MFA habilitado recibe mfaVerificationRequired=true y propósito MFA_VERIFY. POST
+  /api/auth/mfa/verify con {"code":"..."} consume ese desafío y devuelve un nuevo LoginResponse completo.
+- Ambos desafíos vencen en 10 minutos. No permiten operaciones de negocio ni renovación; HTTP 403
+  explica qué paso falta. Un desafío consumido, revocado o vencido deja de autenticar (401).
+- Tras confirmar enrolamiento, guardar recoveryCodes del único resultado no-store y volver al login
+  con contraseña + MFA. La sesión anterior queda inválida. El administrador global no puede deshabilitar MFA.
+- El cierre de sesión y cambios de contraseña/MFA invalidan las credenciales previas. El acceso en
+  curso no se cancela retrospectivamente: la comprobación ocurre al autenticar la siguiente solicitud.
+
+El consumidor Android debe manejar los indicadores/desafíos y limpiar sus credenciales al recibir 401.
+No se modificó ni publicó la app en este incremento. La vinculación automática SSO por correo (SEC-02)
+sigue pendiente; MFA no la convierte en segura por sí sola.
 
 ## Arquitectura
 
@@ -58,6 +282,11 @@ docker compose up --build api
 ```
 
 ## Inicio automatico local en Windows
+
+En instalaciones con servicios Windows, el arranque no debe depender del inicio de sesión.
+No ejecutar los instaladores de tareas de desarrollo sobre servicios existentes. Las rutas,
+identidades, claves y procedimientos de recuperación específicos se mantienen en documentación
+operativa privada, fuera de estas notas públicas.
 
 Para una PC de pruebas local se puede publicar API y Web en Release y registrarlas como tareas de
 inicio de sesion:
@@ -250,16 +479,17 @@ Fuente operativa: [`../../docs/API-Contratos-Versionado.md`](../../docs/API-Cont
 |---|---|---|
 | POST | `/api/auth/login` | Login con usuario/password y posible MFA. |
 | POST | `/api/auth/refresh` | Renovar access token. |
-| POST | `/api/auth/logout` | Revocar refresh token. |
+| POST | `/api/auth/logout` | Revocar la sesión autenticada; refresh opcional. |
 | POST | `/api/auth/change-password` | Cambiar password. |
 | POST | `/api/auth/mfa/enroll` | Enrolar TOTP. |
 | POST | `/api/auth/mfa/confirm` | Confirmar MFA. |
+| POST | `/api/auth/mfa/verify` | Completar un desafío local MFA_VERIFY y emitir nueva sesión. |
 | POST | `/api/auth/mfa/disable` | Desactivar MFA. |
 | GET | `/api/auth/me` | Usuario autenticado. |
 | GET | `/api/auth/empresas` | Empresas donde el usuario puede operar: la principal + sus membresias. |
 | POST | `/api/auth/cambiar-empresa` | Cambia la empresa activa y reemite el token con los permisos del rol en esa empresa. |
 
-El login federado (SSO OIDC) es interactivo y vive en la Web; por API solo se administra su
+El login federado (SSO OIDC) es interactivo y vive en la Web; por API se administra su
 configuracion. Ver `/api/sso/config`.
 
 ### Core
@@ -333,6 +563,7 @@ configuracion. Ver `/api/sso/config`.
 | POST | `/api/dte/documentos/{id}/validar` | Validar DTE. |
 | POST | `/api/dte/documentos/{id}/firmar` | Firmar JWS. |
 | POST | `/api/dte/documentos/{id}/enviar` | Enviar a Hacienda. |
+| POST | `/api/dte/documentos/{id}/conciliar-hacienda` | Consultar el mismo intento transmitido, sin reenviarlo. |
 | POST | `/api/dte/documentos/{id}/invalidar` | Invalidar DTE. |
 | GET | `/api/dte/documentos/{id}/pdf` | Descargar PDF. |
 | GET | `/api/dte/documentos/{id}/json` | Descargar JSON sellado. |
@@ -591,7 +822,7 @@ con token de 256 bits expirable/revocable (solo el hash queda en BD).
 | GET/POST | `/api/hardening/backups` | Backups. |
 | GET/POST/DELETE | `/api/hardening/cuotas` | Cuotas. |
 | GET/POST/DELETE | `/api/hardening/ip-allowlist` | Allowlist admin. |
-| POST | `/api/billing/webhooks/stripe` | Webhook Stripe. |
+| POST | `/api/billing/webhooks/stripe` | Webhook Stripe; rechaza cerrado si falta secreto o la firma/payload es invalido. |
 | POST | `/api/billing/webhooks/mercadopago` | Webhook MercadoPago. |
 
 ### NeoConnect gestion y API publica v1
@@ -779,8 +1010,8 @@ Areas con cobertura relevante:
 - WhatsApp Meta: payload, normalizacion E.164 y manejo de errores con HTTP simulado.
 - Operacion: purga de auditoria por retencion y storage externo de escaneos.
 
-Estado actual validado 2026-08-21: `dotnet build NeoSTP.slnx` con 0 warnings/0 errores y
-`dotnet test NeoSTP.slnx` con ~960 unitarias + 9 integracion. Los 11 tipos DTE certificados. La suite incluye contrato mobile
+Estado actual validado 2026-09-04: `dotnet build NeoSTP.slnx` en Release con 0 warnings/0 errores;
+1,616 unitarias + 9 de integracion aprobadas (1,625 pruebas disjuntas). Los 11 tipos DTE certificados. La suite incluye contrato mobile
 operativo (`MobileApiContractOperationalTests`), demo readiness HB-3/HB-4
 (`DemoReadinessContractTests`), datos demo HB-5 (`EmpresaPruebaSeederTests`) y versionado HB-6
 (`ApiVersioningContractTests`) sin cambios breaking de API, mas HB-7 (`Hb7StorageSecretRetentionTests`)

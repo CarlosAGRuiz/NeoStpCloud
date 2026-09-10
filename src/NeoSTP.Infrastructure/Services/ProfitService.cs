@@ -10,7 +10,7 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Services;
 
 /// <summary>
-/// Implementación financiera de NeoProfit. Proyecta DTE PROCESADO, costos de producto
+/// Implementación financiera de NeoProfit. Proyecta DTE PROCESADO de PRODUCCION, costos de producto
 /// y gastos/compras hacia el <see cref="ProfitCalculator"/> (reglas puras), aislado por EmpresaId.
 /// </summary>
 public class ProfitService : IProfitService
@@ -38,6 +38,7 @@ public class ProfitService : IProfitService
         // Cabeceras PROCESADO en el período
         var docs = await _db.DteDocumentos.AsNoTracking()
             .Where(d => d.EmpresaId == empresaId
+                     && d.AmbienteCodigo == DteAmbientes.Produccion
                      && d.EstadoCodigo == DteEstadoCodigos.Procesado
                      && d.FechaEmision >= desdeDt && d.FechaEmision < hastaExclusivo)
             .Select(d => new DocRow(
@@ -318,6 +319,7 @@ public class ProfitService : IProfitService
         var (desdeDt, hastaExclusivo) = ToDateTimeRange(desde, hasta);
         return await _db.DteDocumentos.AsNoTracking()
             .Where(d => d.EmpresaId == empresaId
+                     && d.AmbienteCodigo == DteAmbientes.Produccion
                      && d.EstadoCodigo == DteEstadoCodigos.Procesado
                      && d.FechaEmision >= desdeDt && d.FechaEmision < hastaExclusivo)
             .Select(d => new DocRow(
@@ -329,6 +331,7 @@ public class ProfitService : IProfitService
     private async Task<List<LineaRow>> CargarLineasAsync(int empresaId, DateTime desdeDt, DateTime hastaExclusivo, CancellationToken ct)
         => await _db.Set<Domain.Core.Dte.DteDocumentoDetalle>().AsNoTracking()
             .Where(x => x.Documento.EmpresaId == empresaId
+                     && x.Documento.AmbienteCodigo == DteAmbientes.Produccion
                      && x.Documento.EstadoCodigo == DteEstadoCodigos.Procesado
                      && x.Documento.FechaEmision >= desdeDt && x.Documento.FechaEmision < hastaExclusivo)
             .Select(x => new LineaRow(

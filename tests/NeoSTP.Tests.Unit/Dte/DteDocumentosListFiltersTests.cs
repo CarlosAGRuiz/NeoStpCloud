@@ -17,6 +17,28 @@ public class DteDocumentosListFiltersTests
 {
     private const int EmpresaId = 7;
 
+    [Theory]
+    [InlineData("PRUEBAS")]
+    [InlineData("PRODUCCION")]
+    public async Task GetList_FiltraAmbienteSinMezclarEmpresa(string ambiente)
+    {
+        await using var db = CreateDb();
+        var test = Documento(EmpresaId, "01", 100m, "Test");
+        var prod = Documento(EmpresaId, "01", 200m, "Prod");
+        prod.AmbienteCodigo = DteAmbientes.Produccion;
+        var other = Documento(99, "01", 300m, "Other");
+        other.AmbienteCodigo = ambiente;
+        db.DteDocumentos.AddRange(test, prod, other);
+        await db.SaveChangesAsync();
+        var result = await CreateService(db).GetListAsync(EmpresaId, new() { AmbienteCodigo = ambiente });
+        result.Value!.Items.Should().ContainSingle(d => d.AmbienteCodigo == ambiente);
+        result.Value.Total.Should().Be(1);
+        var historical = await CreateService(db).GetListAsync(EmpresaId, new());
+        historical.Value!.Total.Should().Be(2);
+        var invalid = await CreateService(db).GetListAsync(EmpresaId, new() { AmbienteCodigo = "otro" });
+        invalid.ErrorCode.Should().Be("DTE_AMBIENTE_INVALIDO");
+    }
+
     [Fact]
     public async Task GetList_FiltraTenantTiposElegiblesYRangeDeMonto()
     {

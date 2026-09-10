@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
@@ -57,8 +58,12 @@ public class DteConfiguracionService : IDteConfiguracionService
         };
 
         var ambienteCambio = config.AmbienteCodigo != ambiente;
+        var usuario = string.IsNullOrWhiteSpace(request.UsuarioMh) ? null : request.UsuarioMh.Trim();
+        var usuarioCambio = config.UsuarioMh != usuario;
+        if (!creando && (ambienteCambio || usuarioCambio) && string.IsNullOrWhiteSpace(request.PasswordMh))
+            return Result<DteConfiguracionDto>.Fail("Al cambiar ambiente o usuario de Hacienda, ingrese explícitamente la contraseña correspondiente al nuevo contexto.", "DTE_CREDENCIALES_REQUERIDAS");
         config.AmbienteCodigo = ambiente;
-        config.UsuarioMh = string.IsNullOrWhiteSpace(request.UsuarioMh) ? null : request.UsuarioMh.Trim();
+        config.UsuarioMh = usuario;
 
         if (!string.IsNullOrEmpty(request.PasswordMh))
         {
@@ -76,7 +81,7 @@ public class DteConfiguracionService : IDteConfiguracionService
         {
             config.UpdatedAt = DateTime.UtcNow;
             config.UpdatedBy = actor;
-            if (ambienteCambio)
+            if (ambienteCambio || usuarioCambio)
             {
                 // Cambiar de ambiente invalida cualquier token cacheado
                 config.TokenMhCifrado = null;
@@ -154,6 +159,8 @@ public class DteConfiguracionService : IDteConfiguracionService
         if (config is null)
             return Result<ProbarConexionResultadoDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
 
+        if (!DteAmbientes.EsValido(config.AmbienteCodigo))
+            return Result<ProbarConexionResultadoDto>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
         if (string.IsNullOrEmpty(config.UsuarioMh) || string.IsNullOrEmpty(config.PasswordMhCifrado))
             return Result<ProbarConexionResultadoDto>.Fail("Faltan usuario o password de Hacienda.", "VALIDATION");
 
@@ -173,8 +180,8 @@ public class DteConfiguracionService : IDteConfiguracionService
 
         if (resp.Success && resp.Token is not null)
         {
-            config.TokenMhCifrado = _protector.Protect(resp.Token);
-            config.TokenMhExpiraAt = resp.ExpiresAt;
+            if (!await HaciendaTokenCache.StoreAsync(_db, config, _protector, resp.Token, resp.ExpiresAt, ct))
+                return Result<ProbarConexionResultadoDto>.Fail("La configuración fiscal cambió durante la autenticación. Reintente con el ambiente correcto.", "DTE_CONFIG_CAMBIO");
         }
 
         await _db.SaveChangesAsync(ct);
@@ -210,6 +217,7 @@ public class DteConfiguracionService : IDteConfiguracionService
     {
         EmpresaId = c.EmpresaId,
         AmbienteCodigo = c.AmbienteCodigo,
+        TiposDteAutorizadosCsv = c.TiposDteAutorizadosCsv,
         UsuarioMh = c.UsuarioMh,
         TienePasswordMh = !string.IsNullOrEmpty(c.PasswordMhCifrado),
         TipoEstablecimientoCodigo = c.TipoEstablecimientoCodigo,

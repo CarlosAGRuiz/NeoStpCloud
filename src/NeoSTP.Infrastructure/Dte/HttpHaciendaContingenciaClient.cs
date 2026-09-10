@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using NeoSTP.Domain.Core.Dte;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NeoSTP.Application.Dte;
@@ -34,6 +35,9 @@ public class HttpHaciendaContingenciaClient : IHaciendaContingenciaClient
 
     public async Task<ContingenciaResult> EnviarAsync(ContingenciaRequest req, CancellationToken ct = default)
     {
+        if (!DteAmbientes.EsValido(req.AmbienteCodigo) || req.Ambiente != DteAmbientes.CodigoMh(req.AmbienteCodigo) || !DteFiscalContext.CoincideJws(req.Documento, req.AmbienteCodigo))
+            return new ContingenciaResult { Success = false, CodigoMsg = "DTE_PAYLOAD_INCOMPATIBLE", DescripcionMsg = "La contingencia firmada y el ambiente no coinciden." };
+
         var baseUrl = req.AmbienteCodigo == "PRODUCCION" ? _options.ProduccionBaseUrl : _options.PruebasBaseUrl;
         var url = $"{baseUrl}/fesv/contingencia";
         _logger.LogInformation("HttpHaciendaContingenciaClient: POST {Url} nit={Nit}", url, req.Nit);

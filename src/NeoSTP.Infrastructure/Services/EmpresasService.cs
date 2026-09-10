@@ -6,6 +6,7 @@ using NeoSTP.Application.Empresas.Dtos;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Licenciamiento;
+using NeoSTP.Infrastructure.Billing;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -70,9 +71,17 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             .GroupBy(u => u.EmpresaId!.Value).Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+        var terminosPorEmpresa = new Dictionary<int, BillingEntitlements>();
+        foreach (var licencia in planesPorEmpresa)
+        {
+            var terminos = await BillingEntitlementReader.ReadAsync(_db, licencia, ct);
+            if (terminos.IsSuccess) terminosPorEmpresa[licencia.EmpresaId] = terminos.Value!;
+        }
+
         var items = raw.Select(e =>
         {
             var plan = planesPorEmpresa.FirstOrDefault(p => p.EmpresaId == e.Id);
+            var terminos = terminosPorEmpresa.GetValueOrDefault(e.Id);
             return new EmpresaDto
             {
                 Id = e.Id, Nit = e.Nit, Nrc = e.Nrc,
@@ -84,8 +93,8 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
                 Sucursales = sucursalesPorEmpresa.GetValueOrDefault(e.Id),
                 PuntosVenta = pvPorEmpresa.GetValueOrDefault(e.Id),
                 Usuarios = usuariosPorEmpresa.GetValueOrDefault(e.Id),
-                PlanActualCodigo = plan?.Plan.Codigo,
-                PlanActualNombre = plan?.Plan.Nombre,
+                PlanActualCodigo = terminos?.PlanCode,
+                PlanActualNombre = terminos?.PlanName,
                 PlanFechaFin = plan?.FechaFin,
             };
         }).ToList();
@@ -107,6 +116,8 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             .OrderByDescending(ep => ep.FechaInicio)
             .FirstOrDefaultAsync(ct);
 
+        var terminos = plan is null ? null : (await BillingEntitlementReader.ReadAsync(_db, plan, ct)).Value;
+
         var dto = new EmpresaDto
         {
             Id = e.Id, Nit = e.Nit, Nrc = e.Nrc,
@@ -118,8 +129,8 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             Sucursales = await _db.Sucursales.CountAsync(s => s.EmpresaId == id, ct),
             PuntosVenta = await _db.PuntosVenta.CountAsync(p => p.Sucursal.EmpresaId == id, ct),
             Usuarios = await _db.Usuarios.CountAsync(u => u.EmpresaId == id, ct),
-            PlanActualCodigo = plan?.Plan.Codigo,
-            PlanActualNombre = plan?.Plan.Nombre,
+            PlanActualCodigo = terminos?.PlanCode,
+            PlanActualNombre = terminos?.PlanName,
             PlanFechaFin = plan?.FechaFin,
         };
 
@@ -195,8 +206,13 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             : Result<LicenciaDto>.Ok(lic);
     }
 
-    public async Task<Result<LicenciaDto>> AsignarPlanAsync(int empresaId, AsignarPlanRequest request, string? actor, CancellationToken ct = default)
+    public Task<Result<LicenciaDto>> AsignarPlanAsync(int empresaId, AsignarPlanRequest request, string? actor, CancellationToken ct = default)
+        => BillingCompanyTransaction.RunAsync(_db, empresaId, () => AsignarPlanCoreAsync(empresaId, request, actor, ct), ct);
+
+    private async Task<Result<LicenciaDto>> AsignarPlanCoreAsync(int empresaId, AsignarPlanRequest request, string? actor, CancellationToken ct)
     {
+        if (await _db.BillingCalendarAgreements.AnyAsync(x => x.EmpresaId == empresaId && x.Active, ct))
+            return Result<LicenciaDto>.Fail("La empresa tiene un acuerdo mensual vigente; concilie el acuerdo antes de sustituir su licencia.", "BILLING_CALENDAR_MANAGED");
         var empresa = await _db.Empresas.FirstOrDefaultAsync(e => e.Id == empresaId, ct);
         if (empresa is null) return Result<LicenciaDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
 
@@ -205,6 +221,9 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             .FirstOrDefaultAsync(p => p.Id == request.PlanId && p.Activo, ct);
         if (plan is null) return Result<LicenciaDto>.Fail("Plan no encontrado o inactivo.", "PLAN_NOT_FOUND");
 
+        if (await HasPendingBillingAsync(empresaId, ct)
+            || await _db.BillingPaymentApplications.AnyAsync(x => x.CheckoutIntent.EmpresaId == empresaId, ct))
+            return Result<LicenciaDto>.Fail("La licencia se administra mediante su pago; resuelva el cambio en Billing.", "LICENSE_MANAGED_BY_BILLING");
         // Cerrar el plan vigente (si existe) marcandolo VENCIDO
         var planActual = await _db.EmpresaPlanes
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO")
@@ -266,7 +285,10 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
     public async Task<Result<LicenciaDto>> DesactivarModuloAsync(int empresaId, int moduloId, string? actor, CancellationToken ct = default)
         => await ToggleModuloAsync(empresaId, moduloId, false, actor, ct);
 
-    private async Task<Result<LicenciaDto>> ToggleModuloAsync(int empresaId, int moduloId, bool activar, string? actor, CancellationToken ct)
+    private Task<Result<LicenciaDto>> ToggleModuloAsync(int empresaId, int moduloId, bool activar, string? actor, CancellationToken ct)
+        => BillingCompanyTransaction.RunAsync(_db, empresaId, () => ToggleModuloCoreAsync(empresaId, moduloId, activar, actor, ct), ct);
+
+    private async Task<Result<LicenciaDto>> ToggleModuloCoreAsync(int empresaId, int moduloId, bool activar, string? actor, CancellationToken ct)
     {
         var empresa = await _db.Empresas.AnyAsync(e => e.Id == empresaId, ct);
         if (!empresa) return Result<LicenciaDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
@@ -274,6 +296,14 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
         var modulo = await _db.Modulos.FirstOrDefaultAsync(m => m.Id == moduloId, ct);
         if (modulo is null) return Result<LicenciaDto>.Fail("Módulo no encontrado.", "MODULO_NOT_FOUND");
 
+        if (await HasPendingBillingAsync(empresaId, ct))
+            return Result<LicenciaDto>.Fail("Hay una operación de Billing pendiente.", "LICENSE_MANAGED_BY_BILLING");
+        if (activar && await _db.BillingPaymentApplications.AnyAsync(x => x.CheckoutIntent.EmpresaId == empresaId, ct))
+        {
+            var current = await ResolveAsync(empresaId, ct);
+            if (current?.Vigente != true || !modulo.Activo || !current.Modulos.Any(x => x.ModuloId == moduloId && (x.IncluidoEnPlan || x.AutorizadoPorAcuerdo)))
+                return Result<LicenciaDto>.Fail("El módulo no está incluido en las condiciones adquiridas.", "LICENSE_MANAGED_BY_BILLING");
+        }
         var em = await _db.EmpresaModulos.FirstOrDefaultAsync(x => x.EmpresaId == empresaId && x.ModuloId == moduloId, ct);
         if (em is null)
         {
@@ -309,31 +339,43 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             .FirstOrDefaultAsync(e => e.Id == empresaId, ct);
         if (empresa is null) return null;
 
-        var planActivo = await _db.EmpresaPlanes.AsNoTracking()
-            .Include(ep => ep.Plan).ThenInclude(p => p.Modulos)
-            .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO")
-            .OrderByDescending(ep => ep.FechaInicio)
-            .FirstOrDefaultAsync(ct);
+        var ahora = DateTime.UtcNow;
+        var licenciasVigentes = await _db.EmpresaPlanes.AsNoTracking()
+            .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
+                && ep.FechaInicio <= ahora && (ep.FechaFin == null || ep.FechaFin > ahora))
+            .OrderByDescending(ep => ep.FechaInicio).Take(2).ToListAsync(ct);
+        var planActivo = licenciasVigentes.FirstOrDefault()
+            ?? await _db.EmpresaPlanes.AsNoTracking()
+                .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO")
+                .OrderByDescending(ep => ep.FechaInicio).FirstOrDefaultAsync(ct);
+        BillingEntitlements? terminos = null;
+        if (planActivo is not null && licenciasVigentes.Count <= 1)
+        {
+            var lectura = await BillingEntitlementReader.ReadAsync(_db, planActivo, ct);
+            if (lectura.IsSuccess) terminos = lectura.Value;
+        }
 
         var modulosEmpresa = await _db.EmpresaModulos.AsNoTracking()
             .Include(em => em.Modulo)
             .Where(em => em.EmpresaId == empresaId)
             .ToListAsync(ct);
 
-        var modulosPlanIds = planActivo?.Plan.Modulos.Select(pm => pm.ModuloId).ToHashSet() ?? new HashSet<int>();
+        var modulosPlanIds = terminos?.ModuleIds.ToHashSet() ?? new HashSet<int>();
 
         var modulos = modulosEmpresa.Select(em => new EmpresaModuloDto
         {
             ModuloId = em.ModuloId,
             Codigo = em.Modulo.Codigo,
             Nombre = em.Modulo.Nombre,
-            Activo = em.Activo,
+            Activo = terminos is not null && licenciasVigentes.Count == 1 && empresa.EstadoCodigo == "ACTIVA"
+                && em.Activo && em.FechaInactivacion == null && em.Modulo.Activo
+                && (!terminos.FromPayment || modulosPlanIds.Contains(em.ModuloId) || EmpresaModuloEntitlements.HasGrant(em)),
             IncluidoEnPlan = modulosPlanIds.Contains(em.ModuloId),
+            AutorizadoPorAcuerdo = EmpresaModuloEntitlements.HasGrant(em),
             FechaActivacion = em.FechaActivacion,
         }).OrderBy(m => m.Codigo).ToList();
 
-        var ahora = DateTime.UtcNow;
-        var vigente = planActivo is not null
+        var vigente = terminos is not null && licenciasVigentes.Count == 1 && planActivo is not null
                       && planActivo.EstadoCodigo == "ACTIVO"
                       && planActivo.FechaInicio <= ahora
                       && (planActivo.FechaFin is null || planActivo.FechaFin > ahora)
@@ -343,8 +385,10 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
         var sucursales = await _db.Sucursales.CountAsync(s => s.EmpresaId == empresaId, ct);
         var pv = await _db.PuntosVenta.CountAsync(p => p.Sucursal.EmpresaId == empresaId, ct);
         var inicioMes = new DateTime(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var dteMensual = await _db.DteDocumentos.CountAsync(
-            d => d.EmpresaId == empresaId && d.CreatedAt >= inicioMes, ct);
+        // Consumo COMERCIAL del mes: excluye la certificación de campañas coherentes, igual que el
+        // guard de licencia. Sin esto, las pruebas de certificación llenaban el cupo por error.
+        var dteMensual = await NeoSTP.Infrastructure.Dte.Certificacion
+            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, ct);
 
         return new LicenciaDto
         {
@@ -352,17 +396,17 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             EmpresaNombre = empresa.RazonSocial,
             EmpresaEstado = empresa.EstadoCodigo,
             PlanId = planActivo?.PlanId,
-            PlanCodigo = planActivo?.Plan.Codigo,
-            PlanNombre = planActivo?.Plan.Nombre,
+            PlanCodigo = terminos?.PlanCode,
+            PlanNombre = terminos?.PlanName,
             PlanFechaInicio = planActivo?.FechaInicio,
             PlanFechaFin = planActivo?.FechaFin,
             PlanEstado = planActivo?.EstadoCodigo,
             Vigente = vigente,
             Modulos = modulos,
-            LimiteUsuarios = planActivo?.Plan.LimiteUsuarios,
-            LimiteSucursales = planActivo?.Plan.LimiteSucursales,
-            LimitePuntosVenta = planActivo?.Plan.LimitePuntosVenta,
-            LimiteDteMensual = planActivo?.Plan.LimiteDteMensual,
+            LimiteUsuarios = terminos is null ? 0 : terminos.LimiteUsuarios,
+            LimiteSucursales = terminos is null ? 0 : terminos.LimiteSucursales,
+            LimitePuntosVenta = terminos is null ? 0 : terminos.LimitePuntosVenta,
+            LimiteDteMensual = terminos is null ? 0 : terminos.LimiteDteMensual,
             UsuariosUsados = usuarios,
             SucursalesUsadas = sucursales,
             PuntosVentaUsados = pv,
@@ -370,6 +414,10 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
         };
     }
 
+    private async Task<bool> HasPendingBillingAsync(int empresaId, CancellationToken ct)
+        => await _db.BillingCheckoutIntents.AnyAsync(x => x.EmpresaId == empresaId && x.Status != "COMPLETED", ct)
+            || await _db.BillingProviderOperations.AnyAsync(x => x.EmpresaId == empresaId && x.Status != "COMPLETED", ct)
+            || await _db.BillingPayments.AnyAsync(x => x.Subscription.Customer.EmpresaId == empresaId && x.Status == "PENDIENTE_VERIFICACION", ct);
     // -- helpers -------------------------------------------------------
 
     private static List<string> ValidateEmpresaBase(string? nit, string? razon)

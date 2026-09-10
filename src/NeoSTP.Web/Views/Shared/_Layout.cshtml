@@ -1,5 +1,6 @@
 @using Microsoft.EntityFrameworkCore
 @inject NeoSTP.Application.Empresas.IEmpresaContext EmpresaContext
+@inject NeoSTP.Application.Empresas.ILicenciaResolver LicenciaResolver
 @inject NeoSTP.Infrastructure.Persistence.NeoStpDbContext Db
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @inject Microsoft.Extensions.Localization.IStringLocalizer<NeoSTP.Web.SharedResource> L
@@ -30,15 +31,10 @@
         }
         else if (empresaActualId.HasValue)
         {
-            modulosActivos = (await Db.EmpresaModulos
-                    .AsNoTracking()
-                    .Where(em => em.EmpresaId == empresaActualId.Value
-                                 && em.Activo
-                                 && em.FechaInactivacion == null
-                                 && em.Modulo.Activo)
-                    .Select(em => em.Modulo.Codigo)
-                    .ToListAsync())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var licenciaMenu = await LicenciaResolver.ResolveAsync(empresaActualId.Value);
+            if (licenciaMenu?.Vigente == true)
+                modulosActivos = licenciaMenu.Modulos.Where(m => m.Activo).Select(m => m.Codigo)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -111,7 +107,12 @@
         && !actionName.Contains("Orden", StringComparison.OrdinalIgnoreCase) ? "active" : "";
 
     var haciendaHttp = string.Equals(Config["Hacienda:Client"], "Http", StringComparison.OrdinalIgnoreCase);
-    var envLabel = haciendaHttp ? "PRUEBAS · HACIENDA" : "MOCK";
+    var ambienteEmpresa = isAuth && empresaActualId.HasValue
+        ? await Db.DteConfiguracion.AsNoTracking()
+            .Where(c => c.EmpresaId == empresaActualId.Value)
+            .Select(c => c.AmbienteCodigo).SingleOrDefaultAsync()
+        : null;
+    var envBadge = NeoSTP.Web.Models.DteEnvironmentBadge.Resolve(haciendaHttp, ambienteEmpresa);
     var inicial = string.IsNullOrEmpty(username) ? "?" : username!.Substring(0, 1).ToUpperInvariant();
 }
 
@@ -476,8 +477,8 @@ else
                         <span class="material-symbols-outlined">menu</span>
                     </button>
                     <h1 class="ns-topbar-title">@(ViewData["Title"] ?? "NeoSTP Cloud")</h1>
-                    <span class="ns-env @(haciendaHttp ? "ns-env--prod" : "ns-env--test")">
-                        <span class="ns-env-dot"></span>@envLabel
+                    <span class="ns-env @(envBadge.IsProduction ? "ns-env--prod" : "ns-env--test")" title="Ambiente configurado para la empresa actual; los documentos existentes conservan su ambiente original.">
+                        <span class="ns-env-dot"></span>@envBadge.Label
                     </span>
                 </div>
                 <div class="ns-topbar-right">

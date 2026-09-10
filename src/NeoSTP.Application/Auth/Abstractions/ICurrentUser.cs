@@ -4,6 +4,7 @@ public interface ICurrentUser
 {
     bool IsAuthenticated { get; }
     int? UserId { get; }
+    Guid? SessionId => null;
     int? EmpresaId { get; }
     string? Username { get; }
     string? Email { get; }

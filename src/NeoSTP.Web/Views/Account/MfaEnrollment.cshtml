@@ -1,0 +1,26 @@
+@model NeoSTP.Web.Models.MfaViewModel
+@{ Layout = "_MfaLayout"; ViewData["Title"] = "Configura tu segundo factor"; }
+<p>Completa la configuración con tu aplicación autenticadora. Si vienes del inicio de sesión, termina este paso en 10 minutos para continuar.</p>
+@if (Model.Enrollment is not null)
+{
+    <div class="alert alert-info">
+        <p>Agrega una cuenta en tu aplicación autenticadora usando esta clave de configuración manual:</p>
+        <code class="d-block text-break" id="mfa-secret">@Model.Enrollment.Secret</code>
+        <p class="small mt-2 mb-0">No compartas esta clave. Se muestra solo al iniciar la configuración.</p>
+    </div>
+}
+<form action="@Url.Content("~/Account/MfaBegin")" method="post" class="mb-4">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-outline-primary w-100">Generar nueva clave de configuración</button>
+    <p class="small text-muted mt-2">Si ya guardaste la clave, confirma abajo. Generar otra reemplaza la anterior.</p>
+</form>
+<form action="@Url.Content("~/Account/MfaConfirm")" method="post" autocomplete="off">
+    @Html.AntiForgeryToken()
+    <label asp-for="Code" class="form-label">Código de seis dígitos</label>
+    <input asp-for="Code" type="password" class="form-control" inputmode="numeric" autocomplete="one-time-code" maxlength="6" />
+    <span asp-validation-for="Code" class="text-danger small"></span>
+    <button type="submit" class="btn btn-primary w-100 mt-3">Confirmar y guardar códigos de recuperación</button>
+</form>
+<form asp-controller="Account" asp-action="Logout" method="post" class="mt-3">
+    <button type="submit" class="btn btn-link w-100">Cancelar y cerrar sesión</button>
+</form>

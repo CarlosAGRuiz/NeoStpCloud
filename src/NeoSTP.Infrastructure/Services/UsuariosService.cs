@@ -6,6 +6,7 @@ using NeoSTP.Application.Usuarios.Dtos;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
+using NeoSTP.Infrastructure.Auth;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -17,20 +18,23 @@ public class UsuariosService : IUsuariosService
     private readonly IPasswordHasher _hasher;
     private readonly IAuditoriaService _auditoria;
     private readonly IPasswordPolicy _passwordPolicy;
+    private readonly ICurrentUser? _currentUser;
     private readonly NeoSTP.Application.Licenciamiento.ILicenciaGuardService? _licenciaGuard;
 
     public UsuariosService(NeoStpDbContext db, IPasswordHasher hasher, IAuditoriaService auditoria, IPasswordPolicy passwordPolicy,
-        NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null)
+        NeoSTP.Application.Licenciamiento.ILicenciaGuardService? licenciaGuard = null, ICurrentUser? currentUser = null)
     {
         _db = db;
         _hasher = hasher;
         _auditoria = auditoria;
         _passwordPolicy = passwordPolicy;
         _licenciaGuard = licenciaGuard;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<PagedResult<UsuarioDto>>> GetListAsync(int? empresaId, PagedQuery query, CancellationToken ct = default)
     {
+        if (!CanManageScope(empresaId)) return Result<PagedResult<UsuarioDto>>.Fail("No tienes acceso a ese ámbito.", "FORBIDDEN");
         var q = _db.Usuarios
             .AsNoTracking()
             .Include(u => u.Roles).ThenInclude(ur => ur.Rol)
@@ -68,6 +72,11 @@ public class UsuariosService : IUsuariosService
 
     public async Task<Result<UsuarioDto>> CreateAsync(int? empresaId, CreateUsuarioRequest request, string? actor, CancellationToken ct = default)
     {
+        if (!CanManageScope(empresaId) || (RbacSecurity.IsReservedRole(request.TipoUsuarioCodigo)
+            && (empresaId is not null || !RbacSecurity.IsPlatformAdministrator(_currentUser))))
+            return Result<UsuarioDto>.Fail("No puedes asignar privilegios de plataforma.", "FORBIDDEN");
+        var roles = await ValidateRolesAsync(request.RoleIds, empresaId, ct);
+        if (roles.IsFailure) return Result<UsuarioDto>.Fail(roles.Error!, roles.ErrorCode);
         var validation = ValidateCreate(request);
         if (validation.IsFailure) return Result<UsuarioDto>.Fail(validation.Error!, validation.ErrorCode, validation.ValidationErrors);
 
@@ -100,14 +109,10 @@ public class UsuariosService : IUsuariosService
             CreatedBy = actor,
         };
 
+        foreach (var role in roles.Value!)
+            usuario.Roles.Add(new UsuarioRol { RolId = role.Id, Rol = role, CreatedAt = DateTime.UtcNow });
         _db.Usuarios.Add(usuario);
         await _db.SaveChangesAsync(ct);
-
-        if (request.RoleIds is { Count: > 0 })
-        {
-            await AssignRolesAsync(usuario, request.RoleIds, empresaId, ct);
-            await _db.SaveChangesAsync(ct);
-        }
 
         var dto = await ReloadDtoAsync(usuario.Id, ct);
         await Audit(empresaId, actor, "CREATE", "OK", $"Usuario {usuario.Username} creado", usuario.Id);
@@ -119,19 +124,29 @@ public class UsuariosService : IUsuariosService
         var usuario = await LoadAsync(empresaId, id, asNoTracking: false, ct);
         if (usuario is null) return Result<UsuarioDto>.Fail("Usuario no encontrado.", "USER_NOT_FOUND");
 
+        if (RbacSecurity.IsReservedRole(request.TipoUsuarioCodigo)
+            && (usuario.EmpresaId is not null || !RbacSecurity.IsPlatformAdministrator(_currentUser)))
+            return Result<UsuarioDto>.Fail("No puedes asignar privilegios de plataforma.", "FORBIDDEN");
+        var roles = await ValidateRolesAsync(request.RoleIds, usuario.EmpresaId, ct);
+        if (roles.IsFailure) return Result<UsuarioDto>.Fail(roles.Error!, roles.ErrorCode);
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.NombreCompleto))
+            return Result<UsuarioDto>.Fail("Correo y nombre son obligatorios.", "VALIDATION");
+
         usuario.Email = request.Email.Trim();
         usuario.NombreCompleto = request.NombreCompleto.Trim();
         usuario.Telefono = request.Telefono;
         usuario.TipoUsuarioCodigo = NormalizeTipo(request.TipoUsuarioCodigo);
         usuario.EstadoCodigo = string.IsNullOrWhiteSpace(request.EstadoCodigo) ? usuario.EstadoCodigo : request.EstadoCodigo;
         usuario.UpdatedAt = DateTime.UtcNow;
+        usuario.SecurityStamp = Guid.NewGuid();
         usuario.UpdatedBy = actor;
 
         if (request.RoleIds is not null)
         {
             _db.UsuarioRoles.RemoveRange(usuario.Roles);
             usuario.Roles.Clear();
-            await AssignRolesAsync(usuario, request.RoleIds, empresaId, ct);
+            foreach (var role in roles.Value!)
+                usuario.Roles.Add(new UsuarioRol { UsuarioId = usuario.Id, RolId = role.Id, Rol = role, CreatedAt = DateTime.UtcNow });
         }
 
         await _db.SaveChangesAsync(ct);
@@ -147,7 +162,9 @@ public class UsuariosService : IUsuariosService
         if (usuario is null) return Result.Fail("Usuario no encontrado.", "USER_NOT_FOUND");
 
         usuario.EstadoCodigo = EstadoCodes.Bloqueado;
+        usuario.BloqueadoHasta = null; // bloqueo administrativo: nunca expira como un lockout temporal.
         usuario.UpdatedAt = DateTime.UtcNow;
+        usuario.SecurityStamp = Guid.NewGuid();
         usuario.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "BLOQUEAR", "OK", $"Usuario {usuario.Username} bloqueado", usuario.Id);
@@ -163,6 +180,7 @@ public class UsuariosService : IUsuariosService
         usuario.IntentosFallidos = 0;
         usuario.BloqueadoHasta = null;
         usuario.UpdatedAt = DateTime.UtcNow;
+        usuario.SecurityStamp = Guid.NewGuid();
         usuario.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "DESBLOQUEAR", "OK", $"Usuario {usuario.Username} desbloqueado", usuario.Id);
@@ -171,6 +189,8 @@ public class UsuariosService : IUsuariosService
 
     public async Task<Result> ChangePasswordAsync(int userId, ChangePasswordRequest request, string? actor, CancellationToken ct = default)
     {
+        if (_currentUser?.IsAuthenticated != true || _currentUser.UserId != userId)
+            return Result.Fail("No puedes cambiar la contraseña de otro usuario.", "FORBIDDEN");
         var policy = _passwordPolicy.Validate(request.NewPassword);
         if (policy.IsFailure) return policy;
 
@@ -185,6 +205,7 @@ public class UsuariosService : IUsuariosService
 
         usuario.PasswordHash = _hasher.Hash(request.NewPassword);
         usuario.UpdatedAt = DateTime.UtcNow;
+        usuario.SecurityStamp = Guid.NewGuid();
         usuario.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(usuario.EmpresaId, actor, "CHANGE_PWD", "OK", "Contraseña cambiada", usuario.Id);
@@ -201,6 +222,7 @@ public class UsuariosService : IUsuariosService
 
         usuario.PasswordHash = _hasher.Hash(request.NewPassword);
         usuario.UpdatedAt = DateTime.UtcNow;
+        usuario.SecurityStamp = Guid.NewGuid();
         usuario.UpdatedBy = actor;
         await _db.SaveChangesAsync(ct);
         await Audit(empresaId, actor, "RESET_PWD", "OK", $"Password de {usuario.Username} reseteada", usuario.Id);
@@ -232,6 +254,7 @@ public class UsuariosService : IUsuariosService
 
     private async Task<Usuario?> LoadAsync(int? empresaId, int id, bool asNoTracking, CancellationToken ct)
     {
+        if (!CanManageScope(empresaId)) return null;
         var q = _db.Usuarios.Include(u => u.Roles).ThenInclude(ur => ur.Rol).AsQueryable();
         if (asNoTracking) q = q.AsNoTracking();
         return await q.FirstOrDefaultAsync(u => u.Id == id && (empresaId == null || u.EmpresaId == empresaId), ct);
@@ -245,17 +268,20 @@ public class UsuariosService : IUsuariosService
         return MapToDto(u);
     }
 
-    private async Task AssignRolesAsync(Usuario usuario, IReadOnlyList<int> roleIds, int? empresaId, CancellationToken ct)
-    {
-        var validRoles = await _db.Roles
-            .Where(r => roleIds.Contains(r.Id) && (r.EmpresaId == null || r.EmpresaId == empresaId))
-            .Select(r => r.Id)
-            .ToListAsync(ct);
+    private bool CanManageScope(int? empresaId) =>
+        RbacSecurity.IsPlatformAdministrator(_currentUser)
+        || (_currentUser?.IsAuthenticated == true && empresaId is not null && _currentUser.EmpresaId == empresaId);
 
-        foreach (var rolId in validRoles.Distinct())
-        {
-            usuario.Roles.Add(new UsuarioRol { UsuarioId = usuario.Id, RolId = rolId, CreatedAt = DateTime.UtcNow });
-        }
+    private async Task<Result<IReadOnlyList<Rol>>> ValidateRolesAsync(IReadOnlyList<int>? ids, int? empresaId, CancellationToken ct)
+    {
+        if (ids is null || ids.Count == 0) return Result<IReadOnlyList<Rol>>.Ok(Array.Empty<Rol>());
+        var distinct = ids.Distinct().ToArray();
+        var roles = await _db.Roles.Include(r => r.Permisos).ThenInclude(p => p.Permiso)
+            .Where(r => distinct.Contains(r.Id)).ToListAsync(ct);
+        if (roles.Count != distinct.Length || roles.Any(r => !r.Activo
+            || (empresaId is int e ? !RbacSecurity.CanAssignToTenant(r, e) : r.EmpresaId is not null)))
+            return Result<IReadOnlyList<Rol>>.Fail("El rol no existe, está inactivo o no puede asignarse en esta empresa.", "FORBIDDEN");
+        return Result<IReadOnlyList<Rol>>.Ok(roles);
     }
 
     private static UsuarioDto MapToDto(Usuario u) => new()

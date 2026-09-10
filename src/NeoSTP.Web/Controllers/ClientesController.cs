@@ -134,6 +134,7 @@ public class ClientesController : Controller
             ActividadEconomica = c.ActividadEconomica,
             DepartamentoCodigo = c.DepartamentoCodigo,
             MunicipioCodigo = c.MunicipioCodigo,
+            DistritoCodigo = c.DistritoCodigo,
             Direccion = c.Direccion,
             Correo = c.Correo,
             Telefono = c.Telefono,
@@ -168,6 +169,7 @@ public class ClientesController : Controller
             ActividadEconomica = model.ActividadEconomica,
             DepartamentoCodigo = model.DepartamentoCodigo,
             MunicipioCodigo = model.MunicipioCodigo,
+            DistritoCodigo = model.DistritoCodigo ?? string.Empty,
             Direccion = model.Direccion,
             Correo = model.Correo,
             Telefono = model.Telefono,
@@ -225,6 +227,7 @@ public class ClientesController : Controller
         ActividadEconomica = m.ActividadEconomica,
         DepartamentoCodigo = m.DepartamentoCodigo,
         MunicipioCodigo = m.MunicipioCodigo,
+        DistritoCodigo = m.DistritoCodigo,
         Direccion = m.Direccion,
         Correo = m.Correo,
         Telefono = m.Telefono,
@@ -260,6 +263,7 @@ public class ClientesController : Controller
             .Where(d => !d.Codigo.Equals("OTRO_EXTRANJERO", StringComparison.OrdinalIgnoreCase))
             .ToList();
         ViewBag.Municipios = await Items("MUNICIPIO_ES");
+        ViewBag.Distritos = await Items("DISTRITO_ES");
         ViewBag.Estados = await Items("ESTADO_GENERICO");
         ViewBag.Paises = await Items("PAIS");
     }

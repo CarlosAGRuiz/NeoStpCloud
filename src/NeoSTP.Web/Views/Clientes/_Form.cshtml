@@ -4,6 +4,7 @@
     var tiposContrib = (ViewBag.TiposContrib as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var departamentos = (ViewBag.Departamentos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var municipios = (ViewBag.Municipios as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var distritos = (ViewBag.Distritos as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var paises = (ViewBag.Paises as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
     var esExtranjero = NeoSTP.Application.Clientes.ClienteValidator.EsExtranjero(Model.PaisCodigo);
 }
@@ -103,6 +104,18 @@
             }
         </select>
     </div>
+    <div class="col-md-4 territorio-sv @(esExtranjero ? "d-none" : null)">
+        <label asp-for="DistritoCodigo" class="form-label"></label>
+        <select asp-for="DistritoCodigo" id="distritoSelect" class="form-select">
+            <option value="">— Selecciona un municipio</option>
+            @foreach (var d in distritos)
+            {
+                <option value="@d.Codigo" data-municipio="@d.ParentCodigo" selected="@(d.Codigo == Model.DistritoCodigo)">@d.Valor</option>
+            }
+        </select>
+        <div class="form-text">Selecciona el distrito; escribirlo en la dirección no sustituye este dato fiscal.</div>
+        <span asp-validation-for="DistritoCodigo" class="text-danger small"></span>
+    </div>
     <div class="col-md-4">
         <label asp-for="Telefono" class="form-label"></label>
         <input asp-for="Telefono" class="form-control" />
@@ -126,10 +139,26 @@
     var numero = document.getElementById('numeroDocumentoInput');
     var depto = document.getElementById('departamentoSelect');
     var muni  = document.getElementById('municipioSelect');
+    var distrito = document.getElementById('distritoSelect');
     var camposTerritorio = document.querySelectorAll('.territorio-sv');
-    if (!pais || !hint || !numero || !depto || !muni) return;
+    if (!pais || !hint || !numero || !depto || !muni || !distrito) return;
 
-    var EL_SALVADOR = '9300';
+    var EL_SALVADOR = '@NeoSTP.Application.Clientes.ClienteValidator.PaisElSalvador';
+
+    function filterDistritos() {
+        var current = distrito.value;
+        var found = false;
+        Array.prototype.forEach.call(distrito.options, function(opt) {
+            if (!opt.value) { opt.textContent = muni.value ? '— Selecciona un distrito' : '— Selecciona un municipio'; return; }
+            var matches = !!muni.value && opt.getAttribute('data-municipio') === muni.value;
+            opt.hidden = !matches;
+            opt.style.display = matches ? '' : 'none';
+            opt.disabled = !matches;
+            if (matches && opt.value === current) found = true;
+        });
+        if (!found) distrito.value = '';
+        distrito.required = !distrito.disabled && !!muni.value;
+    }
 
     function filterMunicipios() {
         var selected = depto.value;
@@ -144,6 +173,7 @@
             if (opt.value === currentMuni && matches) foundCurrent = true;
         });
         if (!foundCurrent) muni.value = '';
+        filterDistritos();
     }
 
     function refreshPais() {
@@ -158,16 +188,20 @@
         });
         depto.disabled = !!extranjero;
         muni.disabled = !!extranjero;
+        distrito.disabled = !!extranjero;
+        distrito.required = false;
 
         if (extranjero) {
             depto.value = '';
             muni.value = '';
+            distrito.value = '';
         } else {
             filterMunicipios();
         }
     }
 
     depto.addEventListener('change', filterMunicipios);
+    muni.addEventListener('change', filterDistritos);
     pais.addEventListener('change', refreshPais);
     refreshPais();
 })();

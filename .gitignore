@@ -91,7 +91,28 @@ node_modules/
 *.ldf
 *.ndf
 .codex/
+.claude/
 outputs/
+output/
+
+# Adjuntos privados compartidos en soporte; no forman parte del código.
+.codex-remote-attachments/
+
+# Evidencia operativa y herramientas vinculadas a instalaciones concretas.
+docs/auditoria-*/
+docs/Analisis-Pruebas-Cliente-V2.md
+tools/CertHarness/
+tools/Client*/
+tools/CompanyPreflight/
+tools/KeyRecoveryVerification/
+tools/ProductionDeployment/
+tools/ProductionReadinessSqlVerification/
+tools/WindowsServices/
+private/
+*.pfx
+*.p12
+*.p8
+*.key
 
 # Arnés local de certificación DTE (no es parte del producto)
 tools/CertHarness/bin/

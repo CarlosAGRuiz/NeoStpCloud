@@ -33,6 +33,7 @@ public class SsoConfigServiceTests
     {
         ProveedorCodigo = SsoProveedores.Entra,
         Habilitado = true,
+        TenantIdExterno = SsoTestIdentity.Tenant,
         DominioCorreo = dominio,
         AutoProvisionar = autoProv,
         RolPorDefectoId = rol,
@@ -44,6 +45,27 @@ public class SsoConfigServiceTests
         var svc = Build(out _);
         var r = await svc.GetAsync(Empresa);
         r.Value!.Configurado.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("organizations")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    public async Task ActivarEntraExigeDirectorioConcreto(string? directory)
+    {
+        var svc = Build(out _); var request = Req(); request.TenantIdExterno = directory;
+        (await svc.GuardarAsync(Empresa, request, "fixture")).ErrorCode.Should().Be("SSO_TENANT_REQUIRED");
+    }
+
+    [Fact]
+    public async Task CambiarPoliticaRotaCredencialesDeUsuariosFederados()
+    {
+        var svc = Build(out var db);
+        db.Usuarios.Add(new Usuario { EmpresaId = Empresa, Username = "fixture", Email = "fixture@contoso.com",
+            NombreCompleto = "Fixture", PasswordHash = "fake", SsoProveedor = "ENTRA", SsoSubject = "subject" });
+        await db.SaveChangesAsync();
+        await svc.GuardarAsync(Empresa, Req(), "fixture");
+        (await db.Usuarios.SingleAsync()).SecurityStamp.Should().NotBeEmpty();
     }
 
     [Fact]

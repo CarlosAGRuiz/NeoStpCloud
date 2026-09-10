@@ -1,7 +1,16 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Comunicaciones;
+using NeoSTP.Application.Connect;
+using NeoSTP.Application.Dte;
+using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Infrastructure.Dte;
+using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
+using NSubstitute;
 using Xunit;
 
 namespace NeoSTP.Tests.Unit.Dte;
@@ -12,6 +21,37 @@ namespace NeoSTP.Tests.Unit.Dte;
 /// </summary>
 public class DteEmailBodyTests
 {
+    [Theory]
+    [InlineData("receiver@example.invalid", "issuer@example.invalid", "issuer@example.invalid")]
+    [InlineData("ISSUER@example.invalid", "issuer@example.invalid", null)]
+    [InlineData("receiver@example.invalid;issuer@example.invalid", "issuer@example.invalid", null)]
+    [InlineData("receiver@example.invalid", "", null)]
+    [InlineData("receiver@example.invalid", "invalid address", null)]
+    public void CopyUsesOnlyValidIssuerEmailAndAvoidsDuplicateRecipient(string to, string issuer, string? expected)
+        => DteDocumentosService.CopiaCorreoEmisor(to, issuer).Should().Be(expected);
+
+    [Theory]
+    [InlineData("BORRADOR", "SEAL", 10)]
+    [InlineData("ERROR", "SEAL", 10)]
+    [InlineData("PROCESADO", null, 10)]
+    [InlineData("PROCESADO", "SEAL", 99)]
+    public async Task AutomaticEmailDoesNotSendUnprocessedUnsealedOrOtherTenant(string state, string? seal, int tenant)
+    {
+        await using var db = new NeoStpDbContext(new DbContextOptionsBuilder<NeoStpDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var doc = Sample(); doc.Id=20; doc.EmpresaId=10; doc.Empresa.Id=10;
+        doc.Empresa.Nit="00000000000000"; doc.EstadoCodigo=state; doc.SelloRecibido=seal;
+        db.DteDocumentos.Add(doc); await db.SaveChangesAsync();
+        var email=Substitute.For<ITenantEmailSender>();
+        var service=new DteDocumentosService(db,new DteCalculator(),Substitute.For<IDteGeneratorService>(),
+            Substitute.For<IDteSignerService>(),Substitute.For<IHaciendaReceptionClient>(),
+            Substitute.For<IHaciendaContingenciaClient>(),Substitute.For<IHaciendaEventoClient>(),
+            Substitute.For<IHaciendaAuthClient>(),DteFiscalIsolationTests.Protector(),Substitute.For<IDtePdfService>(),email,
+            Substitute.For<IAuditoriaService>(),Substitute.For<IConnectWebhookDispatcher>());
+        await service.EnviarCorreoAutomaticoAsync(tenant,20,"test");
+        email.ReceivedCalls().Should().BeEmpty();
+    }
+
     private static DteDocumento Sample()
     {
         var d = new DteDocumento
@@ -66,5 +106,39 @@ public class DteEmailBodyTests
         var html = DteDocumentosService.BuildBody(d, "Emisor");
 
         html.Should().NotContain("Sello de recepción");
+    }
+
+    [Fact]
+    public async Task Reenvio_OmiteLogoLegacyInvalidoSinFallarElCorreo()
+    {
+        await using var db = new NeoStpDbContext(new DbContextOptionsBuilder<NeoStpDbContext>()
+            .UseInMemoryDatabase("dte-email-branding-" + Guid.NewGuid()).Options);
+        var empresa = new Empresa { Id = 10, Nit = "00000000000000", RazonSocial = "Empresa sintética",
+            LogoBlob = "not-an-image"u8.ToArray(), LogoContentType = "image/png" };
+        var dte = Sample();
+        dte.Id = 20; dte.EmpresaId = empresa.Id; dte.Empresa = empresa; dte.ReceptorCorreo = "cliente@example.invalid";
+        dte.Json = new DteDocumentoJson { JsonDte = "{\"synthetic\":true}" };
+        db.Empresas.Add(empresa); db.DteDocumentos.Add(dte); await db.SaveChangesAsync();
+        EmailMessage? captured = null;
+        var email = Substitute.For<ITenantEmailSender>();
+        email.EnviarAsync(10, Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            captured = call.ArgAt<EmailMessage>(1);
+            return new EmailSendResult { Success = true, Mensaje = "synthetic" };
+        });
+        var pdf = Substitute.For<IDtePdfService>(); pdf.Generar(Arg.Any<DteDocumento>()).Returns("%PDF-synthetic"u8.ToArray());
+        var service = new DteDocumentosService(db, new DteCalculator(), Substitute.For<IDteGeneratorService>(),
+            Substitute.For<IDteSignerService>(), Substitute.For<IHaciendaReceptionClient>(),
+            Substitute.For<IHaciendaContingenciaClient>(), Substitute.For<IHaciendaEventoClient>(),
+            Substitute.For<IHaciendaAuthClient>(), DteFiscalIsolationTests.Protector(), pdf, email,
+            Substitute.For<IAuditoriaService>(), Substitute.For<IConnectWebhookDispatcher>());
+
+        var result = await service.ReenviarPorCorreoAsync(10, dte.Id, null, "audit");
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.InlineImages.Should().BeEmpty();
+        captured.HtmlBody.Should().NotContain("cid:logo");
+        captured.Attachments.Should().HaveCount(2);
     }
 }

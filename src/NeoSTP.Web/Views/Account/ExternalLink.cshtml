@@ -1,0 +1,25 @@
+@model NeoSTP.Web.Models.LoginViewModel
+@{
+    Layout = "_MfaLayout";
+    ViewData["Title"] = "Vincular acceso corporativo";
+}
+<h2 class="h5 mb-3">Confirma tu cuenta local</h2>
+<p>Para vincular el acceso corporativo, introduce tu contraseña de NeoSTP y tu segundo factor si está habilitado. Coincidir en el correo no basta para vincular una cuenta.</p>
+<form asp-controller="Account" asp-action="ExternalLink" method="post" autocomplete="off">
+    <input asp-for="ReturnUrl" type="hidden" />
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="mb-3">
+        <label asp-for="UsernameOrEmail" class="form-label">Usuario o correo local</label>
+        <input asp-for="UsernameOrEmail" class="form-control" autocomplete="username" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label">Contraseña local</label>
+        <input asp-for="Password" type="password" class="form-control" autocomplete="current-password" value="" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="MfaCode" class="form-label">Código MFA o de recuperación</label>
+        <input asp-for="MfaCode" class="form-control" autocomplete="one-time-code" maxlength="32" value="" />
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Confirmar vinculación e ingresar</button>
+    <a asp-action="Login" class="btn btn-link w-100 mt-2">Volver al acceso local</a>
+</form>

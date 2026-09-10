@@ -4,6 +4,8 @@ public class ApiResponse<T>
 {
     public bool Success { get; set; }
     public string? Message { get; set; }
+    /// <summary>Código estable de error de la API; no es necesariamente el código devuelto por Hacienda.</summary>
+    public string? Code { get; set; }
     public T? Data { get; set; }
     public List<string> Errors { get; set; } = new();
     public string? TraceId { get; set; }

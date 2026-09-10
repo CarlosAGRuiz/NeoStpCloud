@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using NeoSTP.Application.Auth.Abstractions;
+using NeoSTP.Application.Auth;
 using NeoSTP.Infrastructure.Auth;
 
 namespace NeoSTP.Api.Auth;
@@ -17,6 +18,7 @@ public class CurrentUserAccessor : ICurrentUser
     private ClaimsPrincipal? Principal => _accessor.HttpContext?.User;
 
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated ?? false;
+    public Guid? SessionId => Guid.TryParse(Principal?.FindFirstValue(SessionClaims.Id), out var id) ? id : null;
 
     public int? UserId
     {
@@ -43,7 +45,15 @@ public class CurrentUserAccessor : ICurrentUser
     public string? Email => Principal?.FindFirstValue(JwtRegisteredClaimNames.Email)
         ?? Principal?.FindFirstValue(ClaimTypes.Email);
 
-    public string? TipoUsuarioCodigo => Principal?.FindFirstValue(JwtTokenService.ClaimTipoUsuario);
+    public string? TipoUsuarioCodigo
+    {
+        get
+        {
+            var tipo = Principal?.FindFirstValue(JwtTokenService.ClaimTipoUsuario);
+            return tipo == "SUPERADMIN" && (Principal is null || !SessionClaims.IsPlatformAdministrator(Principal))
+                ? "OPERADOR" : tipo;
+        }
+    }
 
     public IReadOnlyList<string> Roles => Principal?
         .FindAll(ClaimTypes.Role)
@@ -56,8 +66,11 @@ public class CurrentUserAccessor : ICurrentUser
         .ToList() ?? new List<string>();
 
     public bool HasPermiso(string codigo)
-        => Principal?.HasClaim(JwtTokenService.ClaimPermiso, codigo) ?? false;
+        => Principal is not null && (SessionClaims.IsPlatformPermission(codigo)
+            ? SessionClaims.IsPlatformAdministrator(Principal)
+            : Principal.HasClaim(JwtTokenService.ClaimPermiso, codigo));
 
     public bool IsInRole(string codigo)
-        => Principal?.IsInRole(codigo) ?? false;
+        => Principal is not null && (codigo == "SUPERADMIN"
+            ? SessionClaims.IsPlatformAdministrator(Principal) : Principal.IsInRole(codigo));
 }

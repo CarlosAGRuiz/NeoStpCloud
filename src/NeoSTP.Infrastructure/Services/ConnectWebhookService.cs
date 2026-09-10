@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Connect;
 using NeoSTP.Domain.Core.Connect;
+using NeoSTP.Infrastructure.Connect;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -16,12 +16,15 @@ public class ConnectWebhookService : IConnectWebhookService
     private readonly NeoStpDbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ConnectWebhookService> _logger;
+    private readonly WebhookDestinationPolicy _destinations;
 
-    public ConnectWebhookService(NeoStpDbContext db, IHttpClientFactory httpClientFactory, ILogger<ConnectWebhookService> logger)
+    public ConnectWebhookService(NeoStpDbContext db, IHttpClientFactory httpClientFactory, ILogger<ConnectWebhookService> logger,
+        WebhookDestinationPolicy? destinations = null)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _destinations = destinations ?? new WebhookDestinationPolicy();
     }
 
     public async Task<IReadOnlyList<ConnectWebhookDto>> ListarAsync(int empresaId, CancellationToken ct = default)
@@ -49,12 +52,25 @@ public class ConnectWebhookService : IConnectWebhookService
         if (string.IsNullOrWhiteSpace(request.Url))
             return Result<ConnectWebhookDto>.Fail("La URL es obligatoria.", "VALIDATION");
 
-        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri)
-            || (uri.Scheme != "https" && uri.Scheme != "http"))
-            return Result<ConnectWebhookDto>.Fail("La URL debe ser una dirección HTTP/HTTPS válida.", "VALIDATION");
-
         if (request.Eventos.Length == 0)
             return Result<ConnectWebhookDto>.Fail("Debe suscribirse a al menos un evento.", "VALIDATION");
+
+        Uri uri;
+        try
+        {
+            uri = WebhookDestinationPolicy.ValidateUrl(request.Url);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            await _destinations.ResolvePublicAsync(uri, timeout.Token);
+        }
+        catch (WebhookDestinationException)
+        {
+            return Result<ConnectWebhookDto>.Fail(WebhookDestinationPolicy.BlockedMessage, "WEBHOOK_DESTINATION_BLOCKED");
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException || ex is OperationCanceledException && !ct.IsCancellationRequested)
+        {
+            return Result<ConnectWebhookDto>.Fail("No se pudo verificar el destino público del webhook. Revise el dominio y su DNS.", "WEBHOOK_DESTINATION_UNVERIFIED");
+        }
 
         var secreto = GenerateHmacSecret();
 
@@ -62,7 +78,7 @@ public class ConnectWebhookService : IConnectWebhookService
         {
             EmpresaId = request.EmpresaId,
             ApiKeyId = request.ApiKeyId,
-            Url = request.Url.Trim(),
+            Url = uri.AbsoluteUri,
             SecretoHmac = secreto,
             Eventos = string.Join(",", request.Eventos),
             Activo = true,
@@ -73,8 +89,8 @@ public class ConnectWebhookService : IConnectWebhookService
         _db.ConnectWebhooks.Add(entity);
         await _db.SaveChangesAsync(ct);
 
-        _logger.LogInformation("ConnectWebhook creado: id={Id} empresa={EmpresaId} url={Url}",
-            entity.Id, entity.EmpresaId, entity.Url);
+        _logger.LogInformation("ConnectWebhook creado: id={Id} empresa={EmpresaId}",
+            entity.Id, entity.EmpresaId);
 
         return Result<ConnectWebhookDto>.Ok(ToDto(entity));
     }
@@ -218,22 +234,32 @@ public class ConnectWebhookService : IConnectWebhookService
     {
         try
         {
+            var uri = WebhookDestinationPolicy.ValidateUrl(url); // Includes legacy saved destinations.
             var signature = ComputeHmac(secreto, payload);
-            var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
+            using var client = _httpClientFactory.CreateClient(WebhookHttpTransport.HttpClientName);
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri)
+            {
+                Version = System.Net.HttpVersion.Version11,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            };
             request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
             request.Headers.Add("X-NeoConnect-Signature", $"sha256={signature}");
             request.Headers.Add("X-NeoConnect-Event", "TEST");
 
-            var response = await client.SendAsync(request, ct);
-            return ((int)response.StatusCode, null);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            return ((int)response.StatusCode, (int)response.StatusCode is >= 300 and < 400
+                ? "El webhook devolvió una redirección; configure la URL HTTPS final. No se siguió la redirección." : null);
+        }
+        catch (Exception ex) when (WebhookDestinationPolicy.IsBlocked(ex))
+        {
+            return (null, WebhookDestinationPolicy.BlockedMessage);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error enviando webhook test a {Url}", url);
-            return (null, ex.Message[..Math.Min(ex.Message.Length, 500)]);
+            // Neither URL query credentials nor underlying network details belong in logs/delivery errors.
+            _logger.LogWarning("Error enviando webhook test: {ErrorType}", ex.GetType().Name);
+            return (null, "No se pudo entregar el webhook. Revise el destino HTTPS y su disponibilidad.");
         }
     }
 

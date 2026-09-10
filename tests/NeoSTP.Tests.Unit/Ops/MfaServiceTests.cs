@@ -143,4 +143,38 @@ public class MfaServiceTests
         u.MfaSecretoCifrado.Should().BeNull();
         u.MfaRecoveryCodesJson.Should().BeNull();
     }
+
+    [Fact]
+    public async Task ReenrollOrReconfirm_EnabledMfa_DoesNotReplaceSecretOrRecoveryCodes()
+    {
+        var (svc, db) = Build();
+        var enrolled = await svc.IniciarEnrolamientoAsync(1);
+        var code = _totp.GenerarCodigo(enrolled.Value!.Secret, DateTimeOffset.UtcNow);
+        await svc.ConfirmarEnrolamientoAsync(1, code);
+        var before = await db.Usuarios.AsNoTracking().SingleAsync();
+
+        (await svc.IniciarEnrolamientoAsync(1)).ErrorCode.Should().Be("MFA_ALREADY_ENABLED");
+        (await svc.ConfirmarEnrolamientoAsync(1, code)).ErrorCode.Should().Be("MFA_ALREADY_ENABLED");
+
+        var after = await db.Usuarios.AsNoTracking().SingleAsync();
+        after.MfaHabilitado.Should().BeTrue();
+        after.MfaSecretoCifrado.Should().Be(before.MfaSecretoCifrado);
+        after.MfaRecoveryCodesJson.Should().Be(before.MfaRecoveryCodesJson);
+        after.MfaConfirmadoAt.Should().Be(before.MfaConfirmadoAt);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task EnabledMfa_MissingSecret_FailsClosed(string? secret)
+    {
+        var (svc, db) = Build();
+        var user = await db.Usuarios.SingleAsync();
+        user.MfaHabilitado = true;
+        user.MfaSecretoCifrado = secret;
+        await db.SaveChangesAsync();
+
+        (await svc.VerificarCodigoLoginAsync(1, "123456")).ErrorCode.Should().Be("MFA_CONFIGURATION_INVALID");
+    }
 }

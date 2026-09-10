@@ -42,6 +42,7 @@ public class ProfitServiceTests
         });
         db.DteDocumentos.Add(new DteDocumento
         {
+            AmbienteCodigo = DteAmbientes.Produccion,
             Id = docId, EmpresaId = empresaId, TipoDteCodigo = TipoDteCodigos.FacturaConsumidorFinal,
             EstadoCodigo = DteEstadoCodigos.Procesado, FechaEmision = DateTime.UtcNow.Date,
             NumeroControl = $"DTE-01-{docId:D6}", CodigoGeneracion = Guid.NewGuid().ToString(),
@@ -53,6 +54,21 @@ public class ProfitServiceTests
             Descripcion = $"Prod {prodId}", Cantidad = cantidad, PrecioUnitario = venta / cantidad,
             VentaGravada = venta,
         });
+    }
+
+    [Fact]
+    public async Task Dashboard_ExcluyeVentasYCostosDePruebas()
+    {
+        await using var db = NewDb();
+        SeedVentaConCosto(db, EmpresaA, 1, 1, 1m, 100m, 60m, 13m);
+        SeedVentaConCosto(db, EmpresaA, 2, 2, 1m, 900m, 700m, 117m);
+        db.DteDocumentos.Local.Single(d => d.Id == 2).AmbienteCodigo = DteAmbientes.Pruebas;
+        await db.SaveChangesAsync();
+        var dash = await NewSvc(db).GetDashboardAsync(EmpresaA, new ProfitPeriodoQuery());
+        dash.VentaNeta.Should().Be(100m);
+        dash.CostoVentas.Should().Be(60m);
+        dash.IvaGenerado.Should().Be(13m);
+        dash.TopProductos.Should().ContainSingle();
     }
 
     [Fact]

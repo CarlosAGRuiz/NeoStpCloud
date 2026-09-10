@@ -34,7 +34,7 @@ public class DiagnosticoHaciendaService : IDiagnosticoHaciendaService
 
         var topDto = topCodigos.Select(x => new ErrorPorCodigoDto(
             x.Codigo, x.Cantidad,
-            catalogoMap.TryGetValue(x.Codigo, out var cat) ? cat.Descripcion : null
+            catalogoMap.TryGetValue(x.Codigo, out var cat) ? CatalogoSeguro(cat).Descripcion : null
         )).ToList();
 
         return new DiagnosticoResumenDto(total, noResueltos, erroresHoy, topDto);
@@ -94,7 +94,10 @@ public class DiagnosticoHaciendaService : IDiagnosticoHaciendaService
             json?.JsonFirmado ?? json?.JsonDte,
             json?.RespuestaHacienda,
             errores.Select(o => MapOcurrencia(o, catalogoMap)).ToList()
-        );
+        )
+        {
+            Diagnostico = DteDiagnosticoGuia.Crear(doc.EstadoCodigo, doc.SelloRecibido, doc.EnviadoAt, json?.RespuestaHacienda)
+        };
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -132,10 +135,10 @@ public class DiagnosticoHaciendaService : IDiagnosticoHaciendaService
             .OrderBy(c => c.Tipo).ThenBy(c => c.Codigo)
             .ToListAsync(ct);
 
-        return items.Select(c => new ErrorCatalogoDto(
+        return items.Select(c => DteDiagnosticoGuia.AjustarCatalogo(new ErrorCatalogoDto(
             c.Codigo, c.Tipo, c.MensajeTecnico, c.Descripcion,
             c.CausaProbable, c.AccionSugerida, c.Severidad
-        )).ToList();
+        ))).ToList();
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -243,10 +246,17 @@ public class DiagnosticoHaciendaService : IDiagnosticoHaciendaService
         DteErrorOcurrencia o, Dictionary<string, DteErrorCatalogo> catalogo)
     {
         catalogo.TryGetValue(o.CodigoError, out var cat);
+        var safe = cat is null ? null : CatalogoSeguro(cat);
+        var guia = DteDiagnosticoGuia.Crear("ERROR", null, null, o.RespuestaMhJson, o.CodigoError, o.Mensaje);
+        var campo = guia.Campos.FirstOrDefault();
         return new ErrorOcurrenciaListItemDto(
             o.Id, o.CodigoError, o.Mensaje, o.Fuente,
             o.DteDocumentoId, o.DteEventoId, o.OcurrioAt, o.Resuelta,
-            cat?.Descripcion, cat?.CausaProbable, cat?.AccionSugerida, cat?.Severidad
+            campo?.Mensaje ?? safe?.Descripcion, safe?.CausaProbable,
+            campo?.AccionSugerida ?? safe?.AccionSugerida, safe?.Severidad
         );
     }
+
+    private static ErrorCatalogoDto CatalogoSeguro(DteErrorCatalogo cat) => DteDiagnosticoGuia.AjustarCatalogo(new(
+        cat.Codigo, cat.Tipo, cat.MensajeTecnico, cat.Descripcion, cat.CausaProbable, cat.AccionSugerida, cat.Severidad));
 }

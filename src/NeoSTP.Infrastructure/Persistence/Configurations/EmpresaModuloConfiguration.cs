@@ -10,6 +10,8 @@ public class EmpresaModuloConfiguration : IEntityTypeConfiguration<EmpresaModulo
     {
         builder.ToTable("Core_EmpresaModulos");
         builder.HasKey(em => new { em.EmpresaId, em.ModuloId });
+        builder.Property(em => em.ComplementoAutorizadoBy).HasMaxLength(200);
+        builder.Property(em => em.ComplementoMotivo).HasMaxLength(500);
 
         builder.HasOne(em => em.Empresa)
             .WithMany()

@@ -1,0 +1,8 @@
+@model NeoSTP.Application.Ops.MfaConfirmDto
+@{ Layout = "_MfaLayout"; ViewData["Title"] = "Guarda tus códigos de recuperación"; }
+<div class="alert alert-success">Segundo factor activado. Por seguridad, cerramos la sesión anterior.</div>
+<p>Guarda estos códigos en un lugar seguro. Cada uno funciona una sola vez si no tienes acceso a tu autenticador. No se mostrarán de nuevo.</p>
+<ul class="list-unstyled text-center" id="recovery-codes">
+    @foreach (var code in Model.RecoveryCodes) { <li><code>@code</code></li> }
+</ul>
+<a asp-controller="Account" asp-action="Login" class="btn btn-primary w-100">Ya los guardé, iniciar sesión</a>

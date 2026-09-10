@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Hosting;
+using NeoSTP.Infrastructure.Diagnostics;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -37,7 +39,7 @@ namespace NeoSTP.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration, IHostEnvironment? environment = null)
     {
         var connectionString = configuration.GetConnectionString("NeoStpDb")
             ?? throw new InvalidOperationException("Connection string 'NeoStpDb' not found.");
@@ -61,6 +63,7 @@ public static class DependencyInjection
         services.Configure<NeoSTP.Application.Auth.SecurityOptions>(configuration.GetSection(NeoSTP.Application.Auth.SecurityOptions.SectionName));
         services.AddScoped<IPasswordPolicy, PasswordPolicy>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAuthSessionService, AuthSessionService>();
         // SSO federado OIDC (E3): configuración por empresa (dominio→empresa, auto-provisión).
         services.Configure<NeoSTP.Application.Auth.SsoOptions>(configuration.GetSection(NeoSTP.Application.Auth.SsoOptions.SectionName));
         services.AddScoped<ISsoConfigService, SsoConfigService>();
@@ -109,7 +112,7 @@ public static class DependencyInjection
         services.AddScoped<IProductosService, ProductosService>();
 
         // Sprint 4: cifrado de secretos DTE + cliente Hacienda + servicio config
-        services.AddDataProtection().SetApplicationName("NeoSTP.Cloud");
+        services.AddNeoStpDataProtection(configuration, environment);
         services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
 
         // Cliente Hacienda: toggle "Mock" (default) vs "Http" según Hacienda:Client
@@ -134,6 +137,8 @@ public static class DependencyInjection
             services.AddHttpClient(HttpHaciendaReceptionClient.HttpClientName)
                 .AddStandardResilienceHandler(opts =>
                 {
+                    // Fiscal POSTs must be reconciled, never replayed automatically after an uncertain response.
+                    opts.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
                     opts.Retry.MaxRetryAttempts = 3;
                     opts.Retry.Delay = TimeSpan.FromSeconds(2);
                     opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
@@ -146,6 +151,7 @@ public static class DependencyInjection
             services.AddHttpClient(HttpHaciendaContingenciaClient.HttpClientName)
                 .AddStandardResilienceHandler(opts =>
                 {
+                    opts.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
                     opts.Retry.MaxRetryAttempts = 3;
                     opts.Retry.Delay = TimeSpan.FromSeconds(2);
                     opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
@@ -156,6 +162,7 @@ public static class DependencyInjection
             services.AddHttpClient(HttpHaciendaEventoClient.HttpClientName)
                 .AddStandardResilienceHandler(opts =>
                 {
+                    opts.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
                     opts.Retry.MaxRetryAttempts = 3;
                     opts.Retry.Delay = TimeSpan.FromSeconds(2);
                     opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
@@ -166,6 +173,7 @@ public static class DependencyInjection
             services.AddHttpClient(HttpHaciendaLoteClient.HttpClientName)
                 .AddStandardResilienceHandler(opts =>
                 {
+                    opts.Retry.ShouldHandle = _ => ValueTask.FromResult(false);
                     opts.Retry.MaxRetryAttempts = 3;
                     opts.Retry.Delay = TimeSpan.FromSeconds(2);
                     opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
@@ -183,12 +191,24 @@ public static class DependencyInjection
                     opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
                 });
 
+            services.AddHttpClient(HttpHaciendaConsultaDteClient.HttpClientName)
+                .AddStandardResilienceHandler(opts =>
+                {
+                    // La consulta es de solo lectura y puede reintentarse; nunca reenvía el DTE.
+                    opts.Retry.MaxRetryAttempts = 3;
+                    opts.Retry.Delay = TimeSpan.FromSeconds(2);
+                    opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+                    opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(35);
+                    opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(80);
+                });
+
             services.AddScoped<IHaciendaAuthClient, HttpHaciendaAuthClient>();
             services.AddScoped<IHaciendaReceptionClient, HttpHaciendaReceptionClient>();
             services.AddScoped<IHaciendaContingenciaClient, HttpHaciendaContingenciaClient>();
             services.AddScoped<IHaciendaEventoClient, HttpHaciendaEventoClient>();
             services.AddScoped<IHaciendaLoteClient, HttpHaciendaLoteClient>();
             services.AddScoped<IHaciendaConsultaLoteClient, HttpHaciendaConsultaLoteClient>();
+            services.AddScoped<IHaciendaConsultaDteClient, HttpHaciendaConsultaDteClient>();
         }
         else
         {
@@ -198,6 +218,7 @@ public static class DependencyInjection
             services.AddScoped<IHaciendaEventoClient, MockHaciendaEventoClient>();
             services.AddScoped<IHaciendaLoteClient, MockHaciendaLoteClient>();
             services.AddScoped<IHaciendaConsultaLoteClient, MockHaciendaConsultaLoteClient>();
+            services.AddScoped<IHaciendaConsultaDteClient, MockHaciendaConsultaDteClient>();
         }
 
         services.AddScoped<IDteConfiguracionService, DteConfiguracionService>();
@@ -363,6 +384,14 @@ public static class DependencyInjection
         services.AddScoped<IConnectApiKeyService, ConnectApiKeyService>();
         services.AddScoped<IConnectWebhookService, ConnectWebhookService>();
         services.AddScoped<IConnectWebhookDispatcher, ConnectWebhookDispatcher>();
+        services.AddSingleton<NeoSTP.Infrastructure.Connect.WebhookDestinationPolicy>();
+        services.AddHttpClient(NeoSTP.Infrastructure.Connect.WebhookHttpTransport.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestVersion = System.Net.HttpVersion.Version11;
+            client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+        }).ConfigurePrimaryHttpMessageHandler(sp => NeoSTP.Infrastructure.Connect.WebhookHttpTransport.CreateHandler(
+            sp.GetRequiredService<NeoSTP.Infrastructure.Connect.WebhookDestinationPolicy>()));
         services.AddScoped<IConnectDteService, ConnectDteService>();
 
         // Sprint 20: Hardening — cuotas / rate limiting, MFA (TOTP), IP allowlist
@@ -388,11 +417,17 @@ public static class DependencyInjection
         services.AddScoped<IPaymentProvider, MockPaymentProvider>();
         services.AddScoped<IPaymentProvider, StripeBillingProvider>();
         services.AddScoped<IPaymentProvider, MercadoPagoBillingProvider>();
-        // Pagos LATAM — Wompi (HttpClient resiliente)
+        // Wompi has no documented idempotent POST: retry only read-only verification.
         services.AddHttpClient(WompiBillingProvider.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false,
+            })
             .AddStandardResilienceHandler(opts =>
             {
                 opts.Retry.MaxRetryAttempts = 2;
+                opts.Retry.DisableForUnsafeHttpMethods();
                 opts.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(40);
                 opts.AttemptTimeout.Timeout = TimeSpan.FromSeconds(15);
                 opts.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(40);
@@ -411,7 +446,14 @@ public static class DependencyInjection
         services.AddScoped<IPaymentProvider, TransferenciaPaymentProvider>();
         services.AddScoped<IPaymentProviderResolver, PaymentProviderResolver>();
         services.AddScoped<IBillingService, BillingService>();
+        services.AddScoped<IBillingCalendarService, BillingCalendarService>();
+        if (configuration.GetValue<bool>("Billing:Calendar:Enabled"))
+            services.AddHostedService<BillingCalendarWorker>();
         services.AddScoped<IBillingWebhookHandler, BillingWebhookHandler>();
+        services.AddScoped<IWompiPaymentVerifier, WompiPaymentVerifier>();
+        services.AddScoped<IWompiWebhookReceiver, WompiWebhookReceiver>();
+        services.AddScoped<IBillingProviderOperationProcessor, BillingProviderOperationProcessor>();
+        services.AddScoped<IBillingPaymentApplicationProcessor, BillingPaymentApplicationProcessor>();
 
         // Sprint 7: PDF + correo
         services.AddScoped<IDtePdfService, DtePdfService>();

@@ -72,7 +72,7 @@ public class ClientesService : IClientesService
             return Result<ClienteDto>.Fail($"El país '{paisCodigo}' no existe en el catálogo PAIS.", "VALIDATION");
 
         var errorTerritorio = await ValidarTerritorioAsync(
-            request.DepartamentoCodigo, request.MunicipioCodigo, paisCodigo, ct);
+            empresaId, request.DepartamentoCodigo, request.MunicipioCodigo, request.DistritoCodigo, paisCodigo, ct);
         if (errorTerritorio is not null)
             return Result<ClienteDto>.Fail("Datos territoriales del cliente inválidos.", "VALIDATION", [errorTerritorio]);
 
@@ -101,6 +101,7 @@ public class ClientesService : IClientesService
             ActividadEconomica = request.ActividadEconomica?.Trim(),
             DepartamentoCodigo = NormalizarCodigoTerritorial(request.DepartamentoCodigo, paisCodigo),
             MunicipioCodigo = NormalizarCodigoTerritorial(request.MunicipioCodigo, paisCodigo),
+            DistritoCodigo = NormalizarCodigoTerritorial(request.DistritoCodigo, paisCodigo),
             Direccion = request.Direccion,
             Correo = request.Correo?.Trim(),
             Telefono = request.Telefono,
@@ -124,13 +125,13 @@ public class ClientesService : IClientesService
         if (!string.IsNullOrEmpty(paisCodigoUpd) && !await PaisExisteAsync(paisCodigoUpd, ct))
             return Result<ClienteDto>.Fail($"El país '{paisCodigoUpd}' no existe en el catálogo PAIS.", "VALIDATION");
 
-        var errorTerritorio = await ValidarTerritorioAsync(
-            request.DepartamentoCodigo, request.MunicipioCodigo, paisCodigoUpd, ct);
-        if (errorTerritorio is not null)
-            return Result<ClienteDto>.Fail("Datos territoriales del cliente inválidos.", "VALIDATION", [errorTerritorio]);
-
         var cliente = await _db.Clientes.FirstOrDefaultAsync(c => c.Id == id && c.EmpresaId == empresaId, ct);
         if (cliente is null) return Result<ClienteDto>.Fail("Cliente no encontrado.", "CLIENTE_NOT_FOUND");
+        var distrito = DistritoParaActualizar(cliente, request);
+        var errorTerritorio = await ValidarTerritorioAsync(
+            empresaId, request.DepartamentoCodigo, request.MunicipioCodigo, distrito, paisCodigoUpd, ct);
+        if (errorTerritorio is not null)
+            return Result<ClienteDto>.Fail("Datos territoriales del cliente inválidos.", "VALIDATION", [errorTerritorio]);
 
         // El tipo/número de documento sí son editables. Se normaliza igual que en Create (NIT sin
         // guiones, tipo MH → interno) y se valida unicidad contra otros clientes de la empresa.
@@ -157,6 +158,7 @@ public class ClientesService : IClientesService
         cliente.ActividadEconomica = request.ActividadEconomica?.Trim();
         cliente.DepartamentoCodigo = NormalizarCodigoTerritorial(request.DepartamentoCodigo, paisCodigoUpd);
         cliente.MunicipioCodigo = NormalizarCodigoTerritorial(request.MunicipioCodigo, paisCodigoUpd);
+        cliente.DistritoCodigo = distrito;
         cliente.Direccion = request.Direccion;
         cliente.Correo = request.Correo?.Trim();
         cliente.Telefono = request.Telefono;
@@ -246,6 +248,7 @@ public class ClientesService : IClientesService
                 ActividadEconomica = row.Get("actividadeconomica"),
                 DepartamentoCodigo = row.Get("departamento") ?? row.Get("departamentocodigo"),
                 MunicipioCodigo = row.Get("municipio") ?? row.Get("municipiocodigo"),
+                DistritoCodigo = row.Get("distrito") ?? row.Get("distritocodigo"),
                 Direccion = row.Get("direccion"),
                 Correo = row.Get("correo"),
                 Telefono = row.Get("telefono"),
@@ -255,7 +258,7 @@ public class ClientesService : IClientesService
 
             var errors = ClienteValidator.Validate(req);
             var errorTerritorio = await ValidarTerritorioAsync(
-                req.DepartamentoCodigo, req.MunicipioCodigo, req.PaisCodigo, ct);
+                empresaId, req.DepartamentoCodigo, req.MunicipioCodigo, req.DistritoCodigo, req.PaisCodigo, ct);
             if (errorTerritorio is not null) errors.Add(errorTerritorio);
             // El upsert de la carga masiva usa tipo+número como llave, así que aquí
             // el documento sigue siendo obligatorio aunque el cliente sea extranjero.
@@ -306,18 +309,22 @@ public class ClientesService : IClientesService
             i.Catalogo.Codigo == "PAIS" && i.Codigo == paisCodigo && i.Activo, ct);
 
     private async Task<string?> ValidarTerritorioAsync(
-        string? departamentoCodigo, string? municipioCodigo, string? paisCodigo, CancellationToken ct)
+        int empresaId, string? departamentoCodigo, string? municipioCodigo, string? distritoCodigo, string? paisCodigo, CancellationToken ct)
     {
         if (ClienteValidator.EsExtranjero(paisCodigo)) return null;
 
         var departamento = departamentoCodigo?.Trim();
         var municipio = municipioCodigo?.Trim();
+        var distrito = distritoCodigo?.Trim();
+        if (!string.IsNullOrEmpty(distrito) && (string.IsNullOrEmpty(departamento) || string.IsNullOrEmpty(municipio)))
+            return "Para seleccionar distrito debe indicar departamento y municipio.";
         if (string.IsNullOrEmpty(departamento) && string.IsNullOrEmpty(municipio)) return null;
         if (string.IsNullOrEmpty(departamento) || string.IsNullOrEmpty(municipio))
             return "Departamento y municipio deben seleccionarse juntos para clientes de El Salvador.";
 
         var departamentoExiste = await _db.CatalogoItems.AsNoTracking().AnyAsync(i =>
             i.Catalogo.Codigo == CatalogCodes.DepartamentoEs
+            && (i.Catalogo.EmpresaId == null || i.Catalogo.EmpresaId == empresaId)
             && i.Catalogo.Activo
             && i.Activo
             && i.Codigo == departamento, ct);
@@ -326,13 +333,21 @@ public class ClientesService : IClientesService
 
         var municipioPertenece = await _db.CatalogoItems.AsNoTracking().AnyAsync(i =>
             i.Catalogo.Codigo == CatalogCodes.MunicipioEs
+            && (i.Catalogo.EmpresaId == null || i.Catalogo.EmpresaId == empresaId)
             && i.Catalogo.Activo
             && i.Activo
             && i.Codigo == municipio
             && i.ParentCodigo == departamento, ct);
-        return municipioPertenece
-            ? null
-            : $"El municipio '{municipio}' no pertenece al departamento seleccionado.";
+        if (!municipioPertenece)
+            return $"El municipio '{municipio}' no pertenece al departamento seleccionado.";
+        // Master records may remain incomplete for legacy integrations; DTE validation
+        // still requires the district when the fiscal schema does. Never guess it.
+        if (string.IsNullOrEmpty(distrito)) return null;
+        var distritoPertenece = await _db.CatalogoItems.AsNoTracking().AnyAsync(i =>
+            i.Catalogo.Codigo == CatalogCodes.DistritoEs
+            && (i.Catalogo.EmpresaId == null || i.Catalogo.EmpresaId == empresaId)
+            && i.Catalogo.Activo && i.Activo && i.Codigo == distrito && i.ParentCodigo == municipio, ct);
+        return distritoPertenece ? null : $"El distrito '{distrito}' no pertenece al municipio seleccionado o no está activo.";
     }
 
     /// <summary>
@@ -344,6 +359,17 @@ public class ClientesService : IClientesService
         => ClienteValidator.EsExtranjero(paisCodigo) || string.IsNullOrWhiteSpace(codigo)
             ? null
             : codigo.Trim();
+
+    private static string? DistritoParaActualizar(Cliente cliente, CreateClienteRequest request)
+    {
+        if (ClienteValidator.EsExtranjero(request.PaisCodigo)) return null;
+        if (request.DistritoCodigo is not null)
+            return NormalizarCodigoTerritorial(request.DistritoCodigo, request.PaisCodigo);
+        return !cliente.EsExtranjero
+            && cliente.DepartamentoCodigo == request.DepartamentoCodigo?.Trim()
+            && cliente.MunicipioCodigo == request.MunicipioCodigo?.Trim()
+                ? cliente.DistritoCodigo : null;
+    }
 
     private static Cliente BuildCliente(int empresaId, CreateClienteRequest req, string tipoDoc, string? numero, string? actor) => new()
     {
@@ -360,6 +386,7 @@ public class ClientesService : IClientesService
         ActividadEconomica = req.ActividadEconomica?.Trim(),
         DepartamentoCodigo = NormalizarCodigoTerritorial(req.DepartamentoCodigo, req.PaisCodigo),
         MunicipioCodigo = NormalizarCodigoTerritorial(req.MunicipioCodigo, req.PaisCodigo),
+        DistritoCodigo = NormalizarCodigoTerritorial(req.DistritoCodigo, req.PaisCodigo),
         Direccion = req.Direccion,
         Correo = req.Correo?.Trim(),
         Telefono = req.Telefono,
@@ -369,6 +396,7 @@ public class ClientesService : IClientesService
 
     private static void ApplyUpdate(Cliente c, CreateClienteRequest req, string? actor)
     {
+        c.DistritoCodigo = DistritoParaActualizar(c, req);
         c.PaisCodigo = string.IsNullOrWhiteSpace(req.PaisCodigo) ? null : req.PaisCodigo.Trim();
         c.TipoPersona = req.TipoPersona;
         c.Nombre = req.Nombre.Trim();
@@ -399,6 +427,7 @@ public class ClientesService : IClientesService
         ActividadEconomica = c.ActividadEconomica,
         DepartamentoCodigo = c.DepartamentoCodigo,
         MunicipioCodigo = c.MunicipioCodigo,
+        DistritoCodigo = c.DistritoCodigo,
         Direccion = c.Direccion,
         Correo = c.Correo, Telefono = c.Telefono,
         PaisCodigo = c.PaisCodigo,

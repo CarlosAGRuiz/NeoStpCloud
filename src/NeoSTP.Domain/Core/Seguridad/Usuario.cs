@@ -10,6 +10,7 @@ public class Usuario : AuditableEntity
 
     public string Username { get; set; } = null!;
     public string Email { get; set; } = null!;
+    public Guid SecurityStamp { get; set; }
     public string PasswordHash { get; set; } = null!;
     public string NombreCompleto { get; set; } = null!;
     public string? Telefono { get; set; }
@@ -27,6 +28,9 @@ public class Usuario : AuditableEntity
     /// <summary>Indica si el usuario tiene activado el segundo factor (TOTP).</summary>
     public bool MfaHabilitado { get; set; }
 
+    /// <summary>Control optimista de enrolamiento y consumo único de recuperación.</summary>
+    public Guid MfaVersion { get; set; }
+
     /// <summary>Secreto TOTP cifrado con DataProtection. Nunca se expone en claro.</summary>
     public string? MfaSecretoCifrado { get; set; }
 
@@ -40,7 +44,10 @@ public class Usuario : AuditableEntity
     /// <summary>Proveedor OIDC con el que se vinculó la cuenta: ENTRA | GOOGLE. Null si es cuenta local.</summary>
     public string? SsoProveedor { get; set; }
 
-    /// <summary>Identificador estable del sujeto en el proveedor (claim "sub"/"oid"). Único por proveedor.</summary>
+    /// <summary>Issuer OIDC validado. Las vinculaciones antiguas deben probarse de nuevo.</summary>
+    public string? SsoIssuer { get; set; }
+
+    /// <summary>Identificador estable "sub"/"oid". Único junto al proveedor y al issuer.</summary>
     public string? SsoSubject { get; set; }
 
     public ICollection<UsuarioRol> Roles { get; set; } = new List<UsuarioRol>();

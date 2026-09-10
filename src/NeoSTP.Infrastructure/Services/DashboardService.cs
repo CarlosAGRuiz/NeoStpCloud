@@ -3,6 +3,7 @@ using NeoSTP.Application.Dashboard;
 using NeoSTP.Application.Dashboard.Dtos;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Dte;
+using NeoSTP.Infrastructure.Billing;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -32,6 +33,9 @@ public class DashboardService : IDashboardService
         // ── KPIs simples ──────────────────────────────────────────
         var dteHoy = await base_.CountAsync(d => d.FechaEmision == hoy, ct);
         var dteMes = await base_.CountAsync(d => d.FechaEmision >= inicioMes, ct);
+        // Consumo comercial del mes: misma base que el guard de licencia (excluye certificación).
+        var dteMesComercial = await NeoSTP.Infrastructure.Dte.Certificacion
+            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, ct);
 
         var totalPagarMes = await base_
             .Where(d => d.FechaEmision >= inicioMes && d.EstadoCodigo == DteEstadoCodigos.Procesado)
@@ -99,24 +103,31 @@ public class DashboardService : IDashboardService
         }
 
         // ── Plan activo de la empresa ─────────────────────────────
-        var plan = await _db.EmpresaPlanes
+        var ahora = DateTime.UtcNow;
+        var licencias = await _db.EmpresaPlanes
             .AsNoTracking()
-            .Include(ep => ep.Plan)
-            .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == EstadoCodes.Activo)
-            .OrderByDescending(ep => ep.FechaInicio)
-            .FirstOrDefaultAsync(ct);
+            .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == EstadoCodes.Activo
+                && ep.FechaInicio <= ahora && (ep.FechaFin == null || ep.FechaFin > ahora))
+            .Take(2).ToListAsync(ct);
+        BillingEntitlements? terminos = null;
+        if (licencias.Count == 1)
+        {
+            var lectura = await BillingEntitlementReader.ReadAsync(_db, licencias[0], ct);
+            if (lectura.IsSuccess) terminos = lectura.Value;
+        }
 
         return new DashboardEmpresaDto
         {
             DteHoy = dteHoy,
             DteMes = dteMes,
+            DteMesComercial = dteMesComercial,
             TotalPagarMes = totalPagarMes,
             Procesados = procesados,
             Rechazados = rechazados,
             Contingencias = contingencias,
             Pendientes = pendientes,
-            PlanNombre = plan?.Plan.Nombre,
-            LimiteDteMensual = plan?.Plan.LimiteDteMensual,
+            PlanNombre = terminos?.PlanName,
+            LimiteDteMensual = terminos is null ? 0 : terminos.LimiteDteMensual,
             PorEstado = porEstado,
             PorTipo = porTipo,
             TendenciaDiaria = tendencia,

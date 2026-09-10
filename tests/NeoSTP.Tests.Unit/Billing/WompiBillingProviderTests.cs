@@ -49,48 +49,64 @@ public class WompiBillingProviderTests
     public void ProviderName_EsWompi() => Build(_ => (HttpStatusCode.OK, "{}")).ProviderName.Should().Be("Wompi");
 
     [Fact]
-    public async Task CreateCheckout_Exitoso_DevuelveUrlDelEnlace()
+    public async Task LegacyCheckout_ConProveedorExitoso_ExigeCapacidadSinHttp()
     {
+        var httpCalls = 0;
         var svc = Build(req =>
-            req.RequestUri!.AbsoluteUri.Contains("/connect/token")
+        {
+            httpCalls++;
+            return req.RequestUri!.AbsoluteUri.Contains("/connect/token")
                 ? (HttpStatusCode.OK, "{\"access_token\":\"tok-123\"}")
-                : (HttpStatusCode.OK, "{\"idEnlace\":\"ENL-9\",\"urlEnlace\":\"https://pay.wompi.sv/ENL-9\"}"));
+                : (HttpStatusCode.OK, "{\"idEnlace\":\"ENL-9\",\"urlEnlace\":\"https://pay.wompi.sv/ENL-9\"}");
+        });
 
         var r = await svc.CreateCheckoutSessionAsync("wompi_cus_1", "plan_1", "https://ok", "https://cancel");
 
-        r.IsSuccess.Should().BeTrue();
-        r.Value!.SessionId.Should().Be("ENL-9");
-        r.Value.RedirectUrl.Should().Be("https://pay.wompi.sv/ENL-9");
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("BILLING_CHECKOUT_CAPABILITY_REQUIRED");
+        r.Value.Should().BeNull();
+        httpCalls.Should().Be(0);
     }
 
     [Fact]
-    public async Task CreateCheckout_AuthFalla_DevuelveError()
+    public async Task LegacyCheckout_ConAuthRechazada_SeBloqueaAntesDeHttp()
     {
+        var httpCalls = 0;
         var svc = Build(req =>
-            req.RequestUri!.AbsoluteUri.Contains("/connect/token")
+        {
+            httpCalls++;
+            return req.RequestUri!.AbsoluteUri.Contains("/connect/token")
                 ? (HttpStatusCode.Unauthorized, "{\"error\":\"invalid_client\"}")
-                : (HttpStatusCode.OK, "{}"));
+                : (HttpStatusCode.OK, "{}");
+        });
 
         var r = await svc.CreateCheckoutSessionAsync("c", "p", "https://ok", "https://cancel");
 
         r.IsFailure.Should().BeTrue();
-        r.ErrorCode.Should().Be("WOMPI_AUTH_FAILED");
+        r.ErrorCode.Should().Be("BILLING_CHECKOUT_CAPABILITY_REQUIRED");
+        r.Value.Should().BeNull();
+        httpCalls.Should().Be(0);
     }
 
     [Fact]
-    public async Task CreateCheckout_EnlaceRechazado_DevuelveError()
+    public async Task LegacyCheckout_ConEnlaceRechazado_SeBloqueaAntesDeHttp()
     {
+        var httpCalls = 0;
         var svc = Build(req =>
-            req.RequestUri!.AbsoluteUri.Contains("/connect/token")
+        {
+            httpCalls++;
+            return req.RequestUri!.AbsoluteUri.Contains("/connect/token")
                 ? (HttpStatusCode.OK, "{\"access_token\":\"tok\"}")
-                : (HttpStatusCode.BadRequest, "{\"error\":\"monto invalido\"}"));
+                : (HttpStatusCode.BadRequest, "{\"error\":\"monto invalido\"}");
+        });
 
         var r = await svc.CreateCheckoutSessionAsync("c", "p", "https://ok", "https://cancel");
 
         r.IsFailure.Should().BeTrue();
-        r.ErrorCode.Should().Be("WOMPI_LINK_FAILED");
+        r.ErrorCode.Should().Be("BILLING_CHECKOUT_CAPABILITY_REQUIRED");
+        r.Value.Should().BeNull();
+        httpCalls.Should().Be(0);
     }
-
     [Fact]
     public async Task CreateCustomer_DevuelveIdSintetico()
     {

@@ -11,6 +11,10 @@ namespace NeoSTP.Domain.Core.Dte;
 public class DteDocumento : AuditableEntity
 {
     public int EmpresaId { get; set; }
+    /// <summary>Reserva durable por empresa, scope y hash de clave; sin vencimiento automático.</summary>
+    public string? IdempotencyScope { get; set; }
+    public string? IdempotencyKeyHash { get; set; }
+    public string? IdempotencyRequestHash { get; set; }
     public Empresa Empresa { get; set; } = null!;
 
     public int? SucursalId { get; set; }

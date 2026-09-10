@@ -36,35 +36,44 @@ public class BillingWebhookController : ControllerBase
     {
         var payload = await new StreamReader(Request.Body).ReadToEndAsync(ct);
 
-        // Verificar firma si está configurado el webhook secret.
+        var signingSecret = _opts.Stripe.WebhookSecret;
+        if (!IsConfiguredStripeSigningSecret(signingSecret))
+        {
+            _logger.LogWarning("Stripe webhook rechazado: el secreto de firma no está configurado correctamente.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Webhook de Stripe no disponible.");
+        }
+
         string eventType;
         string eventId;
         try
         {
-            if (!string.IsNullOrWhiteSpace(_opts.Stripe.WebhookSecret)
-                && !_opts.Stripe.WebhookSecret.StartsWith("REPLACE"))
-            {
-                var stripeSignature = Request.Headers["Stripe-Signature"].ToString();
-                var stripeEvent = EventUtility.ConstructEvent(payload, stripeSignature, _opts.Stripe.WebhookSecret);
-                eventType = stripeEvent.Type;
-                eventId   = stripeEvent.Id;
-            }
-            else
-            {
-                // Sin webhook secret configurado: extraemos tipo e id del payload directo (solo para Mock/dev).
-                using var doc = System.Text.Json.JsonDocument.Parse(payload);
-                eventType = doc.RootElement.GetProperty("type").GetString() ?? "unknown";
-                eventId   = doc.RootElement.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? Guid.NewGuid().ToString() : Guid.NewGuid().ToString();
-            }
+            // Se valida también el JSON de forma acotada para devolver un rechazo genérico
+            // ante contenido malformado, sin registrar el cuerpo ni datos de la firma.
+            using var _ = System.Text.Json.JsonDocument.Parse(payload);
+            var stripeSignature = Request.Headers["Stripe-Signature"].ToString();
+            var stripeEvent = EventUtility.ConstructEvent(payload, stripeSignature, signingSecret!);
+            eventType = stripeEvent.Type;
+            eventId   = stripeEvent.Id;
         }
-        catch (StripeException ex)
+        catch (Exception ex) when (ex is StripeException or System.Text.Json.JsonException
+            || ex.GetType().Namespace?.StartsWith("Newtonsoft.Json", StringComparison.Ordinal) == true)
         {
-            _logger.LogWarning("Stripe webhook firma inválida: {Message}", ex.Message);
-            return BadRequest("Firma inválida.");
+            _logger.LogWarning("Stripe webhook rechazado: firma o payload inválido.");
+            return BadRequest("Webhook inválido.");
         }
 
         var result = await _handler.HandleAsync("Stripe", eventType, eventId, payload, ct);
         return result.IsSuccess ? Ok() : StatusCode(500, result.Error);
+    }
+
+    private static bool IsConfiguredStripeSigningSecret(string? secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret) || !string.Equals(secret, secret.Trim(), StringComparison.Ordinal))
+            return false;
+        if (!secret.StartsWith("whsec_", StringComparison.Ordinal) || secret.Length < 18)
+            return false;
+        return !secret.Contains("REPLACE", StringComparison.OrdinalIgnoreCase)
+            && !secret.Contains("CHANGEME", StringComparison.OrdinalIgnoreCase);
     }
 
     // ─── MercadoPago ──────────────────────────────────────────────────────

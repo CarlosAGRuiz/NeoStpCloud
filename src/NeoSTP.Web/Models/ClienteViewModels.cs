@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace NeoSTP.Web.Models;
 
-public class CreateClienteViewModel
+public class CreateClienteViewModel : IValidatableObject
 {
     [Required, Display(Name = "Tipo de documento")]
     public string TipoDocumentoCodigo { get; set; } = "DUI";
@@ -34,6 +34,9 @@ public class CreateClienteViewModel
     [StringLength(100), Display(Name = "Municipio")]
     public string? MunicipioCodigo { get; set; }
 
+    [StringLength(100), Display(Name = "Distrito")]
+    public string? DistritoCodigo { get; set; }
+
     [StringLength(500), Display(Name = "Dirección")]
     public string? Direccion { get; set; }
 
@@ -48,6 +51,13 @@ public class CreateClienteViewModel
 
     [Range(1, 2), Display(Name = "Tipo de persona")]
     public int? TipoPersona { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (!NeoSTP.Application.Clientes.ClienteValidator.EsExtranjero(PaisCodigo)
+            && !string.IsNullOrWhiteSpace(MunicipioCodigo) && string.IsNullOrWhiteSpace(DistritoCodigo))
+            yield return new ValidationResult("Selecciona el distrito del cliente para completar su dirección fiscal.", [nameof(DistritoCodigo)]);
+    }
 }
 
 public class EditClienteViewModel : CreateClienteViewModel

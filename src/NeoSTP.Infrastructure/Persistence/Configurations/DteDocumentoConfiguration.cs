@@ -10,6 +10,11 @@ public class DteDocumentoConfiguration : IEntityTypeConfiguration<DteDocumento>
     {
         builder.ToTable("Dte_Documentos");
         builder.HasKey(d => d.Id);
+        builder.Property(d => d.IdempotencyScope).HasMaxLength(10);
+        builder.Property(d => d.IdempotencyKeyHash).HasMaxLength(64).IsUnicode(false);
+        builder.Property(d => d.IdempotencyRequestHash).HasMaxLength(64).IsUnicode(false);
+        builder.HasIndex(d => new { d.EmpresaId, d.IdempotencyScope, d.IdempotencyKeyHash })
+            .IsUnique().HasFilter("[IdempotencyKeyHash] IS NOT NULL");
 
         builder.Property(d => d.TipoDteCodigo).HasMaxLength(4).IsRequired();
         builder.Property(d => d.AmbienteCodigo).HasMaxLength(20).IsRequired();
@@ -92,7 +97,13 @@ public class DteDocumentoConfiguration : IEntityTypeConfiguration<DteDocumento>
 
         builder.Property(d => d.TotalLetras).HasMaxLength(500);
 
-        builder.Property(d => d.EstadoCodigo).HasMaxLength(30).IsRequired();
+        // Compare the persisted fiscal state/attempt on every update, across all hosts.
+        // This turns the durable ENVIADO transition into an atomic claim and rejects stale writes.
+        builder.Property(d => d.EstadoCodigo).HasMaxLength(30).IsRequired().IsConcurrencyToken();
+        builder.Property(d => d.EnviadoAt).IsConcurrencyToken();
+        // Generation revision prevents FIRMADO -> GENERADO -> FIRMADO ABA without
+        // treating a harmless internal-note edit as a competing fiscal response.
+        builder.Property(d => d.GeneradoAt).IsConcurrencyToken();
         builder.Property(d => d.CreatedBy).HasMaxLength(100);
         builder.Property(d => d.UpdatedBy).HasMaxLength(100);
 

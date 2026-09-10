@@ -16,6 +16,11 @@ public class DteConfiguracion : AuditableEntity
     /// <summary>Catálogo AMBIENTE_DTE: PRUEBAS o PRODUCCION.</summary>
     public string AmbienteCodigo { get; set; } = "PRUEBAS";
 
+    /// <summary>Restricción fiscal por empresa, provisionada por soporte. Null conserva
+    /// compatibilidad heredada (no acredita autorización MH); vacío deniega todos los tipos.
+    /// No se modifica mediante la configuración fiscal ordinaria del cliente.</summary>
+    public string? TiposDteAutorizadosCsv { get; set; }
+
     // ----- Credenciales API Hacienda (usuario MH) -----
     public string? UsuarioMh { get; set; }
     /// <summary>Cifrado con IDataProtector. Nunca exponer al cliente.</summary>

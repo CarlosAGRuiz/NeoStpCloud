@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas;
+using NeoSTP.Infrastructure.Branding;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -13,8 +14,6 @@ namespace NeoSTP.Infrastructure.Services;
 public class BrandingService : IBrandingService
 {
     private const string AuditModule = "EMPRESAS";
-    private const int MaxBytes = 1_048_576; // 1 MB
-    private static readonly string[] TiposPermitidos = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 
     private readonly NeoStpDbContext _db;
     private readonly IAuditoriaService _auditoria;
@@ -31,10 +30,8 @@ public class BrandingService : IBrandingService
             .Where(x => x.Id == empresaId)
             .Select(x => new
             {
-                TieneLogo = x.LogoBlob != null && x.LogoBlob.Length > 0,
-                x.LogoContentType,
-                TieneFirma = x.FirmaBlob != null && x.FirmaBlob.Length > 0,
-                x.FirmaContentType,
+                LogoBlob = x.LogoBlob != null && x.LogoBlob.Length <= BrandingImageValidator.MaxBytes ? x.LogoBlob : null,
+                FirmaBlob = x.FirmaBlob != null && x.FirmaBlob.Length <= BrandingImageValidator.MaxBytes ? x.FirmaBlob : null,
                 x.FirmaTexto,
             })
             .FirstOrDefaultAsync(ct);
@@ -42,10 +39,10 @@ public class BrandingService : IBrandingService
         if (e is null) return new BrandingDto();
         return new BrandingDto
         {
-            TieneLogo = e.TieneLogo,
-            LogoContentType = e.LogoContentType,
-            TieneFirma = e.TieneFirma,
-            FirmaContentType = e.FirmaContentType,
+            TieneLogo = BrandingImageValidator.TryValidate(e.LogoBlob, null, out var logoType, out _),
+            LogoContentType = string.IsNullOrEmpty(logoType) ? null : logoType,
+            TieneFirma = BrandingImageValidator.TryValidate(e.FirmaBlob, null, out var firmaType, out _),
+            FirmaContentType = string.IsNullOrEmpty(firmaType) ? null : firmaType,
             FirmaTexto = e.FirmaTexto,
         };
     }
@@ -54,10 +51,10 @@ public class BrandingService : IBrandingService
     {
         var e = await _db.Empresas.AsNoTracking()
             .Where(x => x.Id == empresaId && x.LogoBlob != null)
-            .Select(x => new { x.LogoBlob, x.LogoContentType })
+            .Select(x => new { LogoBlob = x.LogoBlob!.Length <= BrandingImageValidator.MaxBytes ? x.LogoBlob : null })
             .FirstOrDefaultAsync(ct);
-        return e?.LogoBlob is { Length: > 0 }
-            ? new BrandingImagen(e.LogoBlob, e.LogoContentType ?? "image/png")
+        return e is not null && BrandingImageValidator.TryValidate(e.LogoBlob, null, out var type, out _)
+            ? new BrandingImagen(e.LogoBlob!, type)
             : null;
     }
 
@@ -65,10 +62,10 @@ public class BrandingService : IBrandingService
     {
         var e = await _db.Empresas.AsNoTracking()
             .Where(x => x.Id == empresaId && x.FirmaBlob != null)
-            .Select(x => new { x.FirmaBlob, x.FirmaContentType })
+            .Select(x => new { FirmaBlob = x.FirmaBlob!.Length <= BrandingImageValidator.MaxBytes ? x.FirmaBlob : null })
             .FirstOrDefaultAsync(ct);
-        return e?.FirmaBlob is { Length: > 0 }
-            ? new BrandingImagen(e.FirmaBlob, e.FirmaContentType ?? "image/png")
+        return e is not null && BrandingImageValidator.TryValidate(e.FirmaBlob, null, out var type, out _)
+            ? new BrandingImagen(e.FirmaBlob!, type)
             : null;
     }
 
@@ -80,14 +77,8 @@ public class BrandingService : IBrandingService
 
     private async Task<Result> GuardarImagenAsync(int empresaId, byte[] contenido, string contentType, bool esLogo, string? actor, CancellationToken ct)
     {
-        if (contenido is null || contenido.Length == 0)
-            return Result.Fail("El archivo está vacío.", "VALIDATION");
-        if (contenido.Length > MaxBytes)
-            return Result.Fail($"La imagen excede el máximo de {MaxBytes / 1024} KB.", "VALIDATION");
-
-        var ct2 = (contentType ?? string.Empty).ToLowerInvariant();
-        if (!TiposPermitidos.Contains(ct2))
-            return Result.Fail("Formato no soportado. Usa PNG, JPG o WEBP.", "VALIDATION");
+        if (!BrandingImageValidator.TryValidate(contenido, contentType ?? string.Empty, out var ct2, out var error))
+            return Result.Fail(error, "VALIDATION");
 
         var e = await _db.Empresas.FirstOrDefaultAsync(x => x.Id == empresaId, ct);
         if (e is null) return Result.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");

@@ -130,6 +130,16 @@ public class CatalogosService : ICatalogosService
             })
             .ToListAsync(ct);
 
+        if (codigo == "TIPO_FACTURA" && empresaId.HasValue)
+        {
+            var restriccion = await _db.DteConfiguracion.AsNoTracking().Where(c => c.EmpresaId == empresaId.Value)
+                .Select(c => c.TiposDteAutorizadosCsv).SingleOrDefaultAsync(ct);
+            if (restriccion is not null)
+            {
+                var disponibles = NeoSTP.Infrastructure.Dte.DteTypeAuthorization.Resolve(restriccion);
+                items = items.Where(i => i.Activo && NeoSTP.Infrastructure.Dte.DteTypeAuthorization.CatalogItemAllowed(i.MetadataJson, disponibles)).ToList();
+            }
+        }
         return Result<IReadOnlyList<CatalogoItemDto>>.Ok(items);
     }
 

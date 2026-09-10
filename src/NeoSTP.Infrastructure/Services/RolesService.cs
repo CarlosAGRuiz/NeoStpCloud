@@ -5,6 +5,7 @@ using NeoSTP.Application.Roles;
 using NeoSTP.Application.Roles.Dtos;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
+using NeoSTP.Infrastructure.Auth;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -14,39 +15,48 @@ public class RolesService : IRolesService
 
     private readonly NeoStpDbContext _db;
     private readonly IAuditoriaService _auditoria;
+    private readonly ICurrentUser? _currentUser;
 
-    public RolesService(NeoStpDbContext db, IAuditoriaService auditoria)
+    public RolesService(NeoStpDbContext db, IAuditoriaService auditoria, ICurrentUser? currentUser = null)
     {
         _db = db;
         _auditoria = auditoria;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<IReadOnlyList<RolDto>>> GetListAsync(int? empresaId, CancellationToken ct = default)
     {
-        var items = await _db.Roles
+        if (!CanManageScope(empresaId)) return Result<IReadOnlyList<RolDto>>.Fail("No tienes acceso a ese ámbito.", "FORBIDDEN");
+        var roles = await _db.Roles
             .AsNoTracking()
             .Include(r => r.Permisos).ThenInclude(rp => rp.Permiso)
             .Where(r => r.EmpresaId == null || r.EmpresaId == empresaId)
             .OrderBy(r => r.EmpresaId == null ? 0 : 1)
             .ThenBy(r => r.Nombre)
-            .Select(r => MapToDto(r))
             .ToListAsync(ct);
+        var items = roles.Where(r => empresaId is not int e || RbacSecurity.IsTenantRole(r, e))
+            .Select(MapToDto).ToList();
         return Result<IReadOnlyList<RolDto>>.Ok(items);
     }
 
     public async Task<Result<RolDto>> GetByIdAsync(int? empresaId, int id, CancellationToken ct = default)
     {
+        if (!CanManageScope(empresaId)) return Result<RolDto>.Fail("No tienes acceso a ese ámbito.", "FORBIDDEN");
         var rol = await _db.Roles
             .AsNoTracking()
             .Include(r => r.Permisos).ThenInclude(rp => rp.Permiso)
             .FirstOrDefaultAsync(r => r.Id == id && (r.EmpresaId == null || r.EmpresaId == empresaId), ct);
-        return rol is null
+        return rol is null || (empresaId is int e && !RbacSecurity.IsTenantRole(rol, e))
             ? Result<RolDto>.Fail("Rol no encontrado.", "ROLE_NOT_FOUND")
             : Result<RolDto>.Ok(MapToDto(rol));
     }
 
     public async Task<Result<RolDto>> CreateAsync(int? empresaId, CreateRolRequest request, string? actor, CancellationToken ct = default)
     {
+        if (!CanManageScope(empresaId) || RbacSecurity.IsReservedRole(request.Codigo))
+            return Result<RolDto>.Fail("El código o ámbito está reservado para administración de plataforma.", "FORBIDDEN");
+        var permissions = await ValidatePermissionsAsync(request.PermisoIds, empresaId, ct);
+        if (permissions.IsFailure) return Result<RolDto>.Fail(permissions.Error!, permissions.ErrorCode);
         if (string.IsNullOrWhiteSpace(request.Codigo) || string.IsNullOrWhiteSpace(request.Nombre))
         {
             return Result<RolDto>.Fail("Código y nombre son obligatorios.", "VALIDATION");
@@ -67,17 +77,10 @@ public class RolesService : IRolesService
             CreatedAt = DateTime.UtcNow,
             CreatedBy = actor,
         };
+        foreach (var pid in permissions.Value!)
+            rol.Permisos.Add(new RolPermiso { PermisoId = pid, CreatedAt = DateTime.UtcNow });
         _db.Roles.Add(rol);
         await _db.SaveChangesAsync(ct);
-
-        if (request.PermisoIds is { Count: > 0 })
-        {
-            foreach (var pid in request.PermisoIds.Distinct())
-            {
-                _db.RolPermisos.Add(new RolPermiso { RolId = rol.Id, PermisoId = pid, CreatedAt = DateTime.UtcNow });
-            }
-            await _db.SaveChangesAsync(ct);
-        }
 
         await Audit(empresaId, actor, "CREATE", "OK", $"Rol {rol.Codigo} creado", rol.Id);
         var dto = await ReloadDtoAsync(rol.Id, ct);
@@ -86,11 +89,17 @@ public class RolesService : IRolesService
 
     public async Task<Result<RolDto>> UpdateAsync(int? empresaId, int id, UpdateRolRequest request, string? actor, CancellationToken ct = default)
     {
+        if (!CanManageScope(empresaId)) return Result<RolDto>.Fail("No tienes acceso a ese ámbito.", "FORBIDDEN");
         var rol = await _db.Roles
             .Include(r => r.Permisos)
-            .FirstOrDefaultAsync(r => r.Id == id && (r.EmpresaId == null || r.EmpresaId == empresaId), ct);
+            .FirstOrDefaultAsync(r => r.Id == id && r.EmpresaId == empresaId, ct);
         if (rol is null) return Result<RolDto>.Fail("Rol no encontrado.", "ROLE_NOT_FOUND");
         if (rol.EsSistema) return Result<RolDto>.Fail("Los roles del sistema no se pueden modificar.", "ROLE_SYSTEM");
+
+        var permissions = await ValidatePermissionsAsync(request.PermisoIds, rol.EmpresaId, ct);
+        if (permissions.IsFailure) return Result<RolDto>.Fail(permissions.Error!, permissions.ErrorCode);
+        if (string.IsNullOrWhiteSpace(request.Nombre))
+            return Result<RolDto>.Fail("Nombre obligatorio.", "VALIDATION");
 
         rol.Nombre = request.Nombre.Trim();
         rol.Descripcion = request.Descripcion;
@@ -102,7 +111,7 @@ public class RolesService : IRolesService
         {
             _db.RolPermisos.RemoveRange(rol.Permisos);
             rol.Permisos.Clear();
-            foreach (var pid in request.PermisoIds.Distinct())
+            foreach (var pid in permissions.Value!)
             {
                 _db.RolPermisos.Add(new RolPermiso { RolId = rol.Id, PermisoId = pid, CreatedAt = DateTime.UtcNow });
             }
@@ -116,12 +125,29 @@ public class RolesService : IRolesService
 
     public async Task<Result<IReadOnlyList<PermisoDto>>> GetPermisosAsync(CancellationToken ct = default)
     {
-        var items = await _db.Permisos
+        var platform = RbacSecurity.IsPlatformAdministrator(_currentUser);
+        var permissions = await _db.Permisos
             .AsNoTracking()
             .OrderBy(p => p.Modulo).ThenBy(p => p.Codigo)
             .Select(p => new PermisoDto { Id = p.Id, Codigo = p.Codigo, Modulo = p.Modulo, Descripcion = p.Descripcion })
             .ToListAsync(ct);
+        var items = permissions.Where(p => platform
+            || (!RbacSecurity.IsPlatformPermission(p.Codigo) && p.Modulo != "ADMIN")).ToList();
         return Result<IReadOnlyList<PermisoDto>>.Ok(items);
+    }
+
+    private bool CanManageScope(int? empresaId) =>
+        RbacSecurity.IsPlatformAdministrator(_currentUser)
+        || (_currentUser?.IsAuthenticated == true && empresaId is not null && _currentUser.EmpresaId == empresaId);
+
+    private async Task<Result<IReadOnlyList<int>>> ValidatePermissionsAsync(IReadOnlyList<int>? ids, int? empresaId, CancellationToken ct)
+    {
+        var distinct = ids?.Distinct().ToArray() ?? Array.Empty<int>();
+        var permissions = await _db.Permisos.Where(p => distinct.Contains(p.Id)).ToListAsync(ct);
+        if (permissions.Count != distinct.Length || (empresaId is not null
+            && permissions.Any(p => RbacSecurity.IsPlatformPermission(p.Codigo) || p.Modulo == "ADMIN")))
+            return Result<IReadOnlyList<int>>.Fail("No puedes conceder permisos globales o inexistentes a un rol de empresa.", "FORBIDDEN");
+        return Result<IReadOnlyList<int>>.Ok(distinct);
     }
 
     // -- helpers -------------------------------------------------------

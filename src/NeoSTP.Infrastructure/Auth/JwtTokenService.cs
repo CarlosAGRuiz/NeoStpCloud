@@ -31,7 +31,9 @@ public class JwtTokenService : IJwtTokenService
     public (string Token, DateTime ExpiresAt) CreateAccessToken(UserInfo user)
     {
         var now = DateTime.UtcNow;
-        var expires = now.AddMinutes(_options.ExpiryMinutes);
+        var expires = now.AddMinutes(user.SessionPurpose == SessionClaims.Full ? _options.ExpiryMinutes : 10);
+        if (user.SessionExpiresAt != default && user.SessionExpiresAt < expires)
+            expires = user.SessionExpiresAt;
 
         var claims = new List<Claim>
         {
@@ -42,6 +44,8 @@ public class JwtTokenService : IJwtTokenService
             new(ClaimTypes.Name, user.Username),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTipoUsuario, user.TipoUsuarioCodigo),
+            new(SessionClaims.Id, user.SessionId.ToString()),
+            new(SessionClaims.Purpose, user.SessionPurpose),
         };
 
         if (user.EmpresaId is not null)

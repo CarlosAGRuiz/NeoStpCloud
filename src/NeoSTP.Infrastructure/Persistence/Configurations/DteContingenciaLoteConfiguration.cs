@@ -13,7 +13,9 @@ public class DteContingenciaLoteConfiguration : IEntityTypeConfiguration<DteCont
 
         builder.Property(l => l.CodigoLote).HasMaxLength(50);
         builder.Property(l => l.SelloRecibido).HasMaxLength(100);
-        builder.Property(l => l.EstadoCodigo).HasMaxLength(20).IsRequired();
+        builder.Property(l => l.EstadoCodigo).HasMaxLength(20).IsRequired().IsConcurrencyToken();
+        builder.Property(l => l.EnviadoAt).IsConcurrencyToken();
+        builder.Property(l => l.UltimaConsultaAt).IsConcurrencyToken();
         builder.Property(l => l.AmbienteCodigo).HasMaxLength(20).IsRequired();
         builder.Property(l => l.RawEnvio).HasColumnType("nvarchar(max)");
         builder.Property(l => l.RawConsulta).HasColumnType("nvarchar(max)");

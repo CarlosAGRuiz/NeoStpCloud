@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte;
@@ -32,6 +33,14 @@ public partial class DteDocumentosService
             .ToListAsync(ct);
         if (docs.Count == 0) return Result<CrearEventoResultadoDto>.Fail("No hay documentos para el evento.", "VALIDATION");
 
+        if (docs.Count != documentoIds.Distinct().Count())
+            return Result<CrearEventoResultadoDto>.Fail("Uno o más documentos no pertenecen a esta empresa o no existen.", "DTE_NOT_FOUND");
+        foreach (var documento in docs)
+        {
+            var contexto = DteFiscalContext.Validar(documento.AmbienteCodigo, config);
+            if (contexto.IsFailure) return Result<CrearEventoResultadoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        }
+
         var ahora = NowSv();
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var fechaMin = docs.Min(d => d.FechaEmision);
@@ -42,7 +51,14 @@ public partial class DteDocumentosService
         // evento pasa la validación de esquema v4.
         string? codEst = null;
         string? codPv = null;
-        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+        if (!DteAmbientes.EsValido(config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
+        var ambiente = DteAmbientes.CodigoMh(config.AmbienteCodigo);
+        // tipoEstablecimiento debe ser código MH de CAT-009 (p. ej. "01"). La empresa puede tener
+        // guardado el código interno ("CASA_MATRIZ"); se resuelve igual que en el saneador del emisor.
+        var tipoEstablecimientoMh = await MapCodigoMhAsync(
+            NeoSTP.Domain.Common.CatalogCodes.TipoEstablecimiento, config.TipoEstablecimientoCodigo, empresaId, ct);
+        if (string.IsNullOrWhiteSpace(tipoEstablecimientoMh)) tipoEstablecimientoMh = "02";
 
         var evento = new
         {
@@ -56,12 +72,12 @@ public partial class DteDocumentosService
             },
             emisor = new
             {
-                nit = empresa.Nit,
+                nit = NeoSTP.Application.Clientes.ClienteValidator.StripToDigits(empresa.Nit),
                 nombre = empresa.RazonSocial,
                 nombreResponsable,
                 tipoDocResponsable,
                 numeroDocResponsable,
-                tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
+                tipoEstablecimiento = tipoEstablecimientoMh,
                 codEstableMH = codEst,
                 codPuntoVentaMH = codPv,   // v4 exige codPuntoVentaMH (antes se enviaba codPuntoVenta → rechazo)
                 telefono = empresa.Telefono,
@@ -90,6 +106,8 @@ public partial class DteDocumentosService
         var relacionados = docs.Select(d => (d.Id, DteEventoRolCodigos.LoteContingencia, (string?)d.NumeroControl)).ToList();
         var motivoLibre = tipoContingencia == 5 ? (motivo ?? "Falla de conexión") : motivo;
 
+        if (!DteFiscalContext.CoincideJson(json, config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("El evento no corresponde al ambiente fiscal configurado.", "DTE_PAYLOAD_INCOMPATIBLE");
         var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
         if (!firma.Success)
         {
@@ -98,6 +116,8 @@ public partial class DteDocumentosService
             return Result<CrearEventoResultadoDto>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
         }
 
+        if (!DteFiscalContext.CoincideJws(firma.JsonFirmado, config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("La firma del evento no corresponde al ambiente configurado.", "DTE_PAYLOAD_INCOMPATIBLE");
         var tokenResult = await ObtenerTokenAsync(config, ct);
         if (!tokenResult.Success)
         {
@@ -136,6 +156,8 @@ public partial class DteDocumentosService
         IReadOnlyList<(int docId, string rol, string? nc)> relacionados,
         string? motivoLibre, string? numeroControlRef, CancellationToken ct)
     {
+        if (!DteFiscalContext.CoincideJson(json, config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("El evento no corresponde al ambiente fiscal configurado.", "DTE_PAYLOAD_INCOMPATIBLE");
         var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
         if (!firma.Success)
         {
@@ -144,6 +166,8 @@ public partial class DteDocumentosService
             return Result<CrearEventoResultadoDto>.Fail(firma.Detalle ?? "Error firmando evento.", "FIRMA_FAILED");
         }
 
+        if (!DteFiscalContext.CoincideJws(firma.JsonFirmado, config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("La firma del evento no corresponde al ambiente configurado.", "DTE_PAYLOAD_INCOMPATIBLE");
         var tok = await ObtenerTokenAsync(config, ct);
         if (!tok.Success)
         {
@@ -277,6 +301,17 @@ public partial class DteDocumentosService
 
         var doc = await _db.DteDocumentos.AsNoTracking().FirstOrDefaultAsync(d => d.Id == documentoId && d.EmpresaId == empresaId, ct);
         if (doc is null) return Result<CrearEventoResultadoDto>.Fail("Documento no encontrado.", "DTE_NOT_FOUND");
+        var contexto = DteFiscalContext.Validar(doc.AmbienteCodigo, config);
+        if (contexto.IsFailure) return Result<CrearEventoResultadoDto>.Fail(contexto.Error!, contexto.ErrorCode);
+        if (!string.IsNullOrWhiteSpace(codigoGeneracionReemplazo))
+        {
+            var reemplazo = await _db.DteDocumentos.AsNoTracking().FirstOrDefaultAsync(d => d.EmpresaId == empresaId && d.CodigoGeneracion == codigoGeneracionReemplazo, ct);
+            if (reemplazo is not null)
+            {
+                var contextoReemplazo = DteFiscalContext.Validar(reemplazo.AmbienteCodigo, config);
+                if (contextoReemplazo.IsFailure) return Result<CrearEventoResultadoDto>.Fail(contextoReemplazo.Error!, contextoReemplazo.ErrorCode);
+            }
+        }
         if (doc.EstadoCodigo != DteEstadoCodigos.Procesado || string.IsNullOrEmpty(doc.SelloRecibido))
             return Result<CrearEventoResultadoDto>.Fail("Solo se puede invalidar un DTE PROCESADO con sello de recepción.", "INVALID_STATE");
         if (tipoAnulacion is 1 or 3 && string.IsNullOrEmpty(codigoGeneracionReemplazo))
@@ -286,10 +321,23 @@ public partial class DteDocumentosService
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var codEst = string.IsNullOrWhiteSpace(config.CodigoEstablecimientoMh) ? null : config.CodigoEstablecimientoMh;
         var codPv  = string.IsNullOrWhiteSpace(config.CodigoPuntoVentaMh)      ? null : config.CodigoPuntoVentaMh;
-        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
-        var version = _esquemaNuevo ? 3 : 2;   // invalidacion-schema-v3 en el corte 2026-08-25
-        var fecha = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        // invalidacion-schema-v3 exige codEstableMH/codPuntoVentaMH string de 4 chars (no-null).
+        // Sin códigos válidos el JSON viola el esquema; fallar temprano con mensaje claro.
+        if (codEst is not { Length: 4 } || codPv is not { Length: 4 })
+            return Result<CrearEventoResultadoDto>.Fail(
+                "La invalidación requiere codEstableMH y codPuntoVentaMH de 4 caracteres en la configuración DTE de la empresa.",
+                "VALIDATION");
+        if (!DteAmbientes.EsValido(config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
+        var ambiente = DteAmbientes.CodigoMh(config.AmbienteCodigo);
+        // invalidacion-schema-v3: el corte MH 2026-08-25 ya rige, igual que contingencia v4 va sin
+        // toggle. No se usa el flag global _esquemaNuevo (que controla los DTE): los eventos van a
+        // la versión vigente de MH.
+        const int version = 3;
+        var fecha = ahora.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);   // fecha/hora del EVENTO de invalidación
         var hora = ahora.ToString(@"HH\:mm\:ss");
+        // documento.fecEmi debe ser la emisión ORIGINAL del DTE invalidado, no la fecha del evento.
+        var fecEmiDoc = doc.FechaEmision.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         var tipoDocReceptor = doc.ReceptorTipoDocumento?.Trim().ToUpperInvariant() switch
         {
             "NIT" => "36", "DUI" => "13", "PASAPORTE" => "03",
@@ -297,47 +345,26 @@ public partial class DteDocumentosService
         };
         var codGenR = tipoAnulacion is 1 or 3 ? codigoGeneracionReemplazo : null;
 
-        // v3: identificacion usa fecEmi/horEmi (antes fecAnula/horAnula) + fusion; emisor sin
-        // tipoEstablecimiento/nomEstablecimiento; documento sin montoIva.
-        object identificacion = _esquemaNuevo
-            ? new { version, ambiente, codigoGeneracion = codGen, fecEmi = fecha, horEmi = hora, fusion = (string?)null }
-            : new { version, ambiente, codigoGeneracion = codGen, fecAnula = fecha, horAnula = hora };
+        // v3: identificacion usa fecEmi/horEmi del evento + fusion; emisor sin
+        // tipoEstablecimiento/nomEstablecimiento; documento sin montoIva y con la fecEmi original.
+        object identificacion = new { version, ambiente, codigoGeneracion = codGen, fecEmi = fecha, horEmi = hora, fusion = (string?)null };
 
-        object emisor = _esquemaNuevo
-            ? new
-            {
-                nit = empresa.Nit, nombre = empresa.RazonSocial,
-                codEstableMH = codEst, codEstable = codEst,
-                codPuntoVentaMH = codPv, codPuntoVenta = codPv,
-                telefono = empresa.Telefono, correo = empresa.Correo,
-            }
-            : new
-            {
-                nit = empresa.Nit, nombre = empresa.RazonSocial,
-                tipoEstablecimiento = string.IsNullOrWhiteSpace(config.TipoEstablecimientoCodigo) ? "02" : config.TipoEstablecimientoCodigo,
-                nomEstablecimiento = string.IsNullOrWhiteSpace(empresa.NombreComercial) ? "Casa Matriz" : empresa.NombreComercial,
-                codEstableMH = codEst, codEstable = codEst,
-                codPuntoVentaMH = codPv, codPuntoVenta = codPv,
-                telefono = empresa.Telefono, correo = empresa.Correo,
-            };
+        object emisor = new
+        {
+            nit = NeoSTP.Application.Clientes.ClienteValidator.StripToDigits(empresa.Nit), nombre = empresa.RazonSocial,
+            codEstableMH = codEst, codEstable = codEst,
+            codPuntoVentaMH = codPv, codPuntoVenta = codPv,
+            telefono = empresa.Telefono, correo = empresa.Correo,
+        };
 
-        object documento = _esquemaNuevo
-            ? new
-            {
-                tipoDte = doc.TipoDteCodigo, codigoGeneracion = doc.CodigoGeneracion,
-                selloRecibido = doc.SelloRecibido, numeroControl = doc.NumeroControl,
-                fecEmi = fecha, codigoGeneracionR = codGenR,
-                tipoDocumento = tipoDocReceptor, numDocumento = doc.ReceptorNumeroDocumento,
-                nombre = doc.ReceptorNombre, telefono = doc.ReceptorTelefono, correo = doc.ReceptorCorreo,
-            }
-            : new
-            {
-                tipoDte = doc.TipoDteCodigo, codigoGeneracion = doc.CodigoGeneracion,
-                selloRecibido = doc.SelloRecibido, numeroControl = doc.NumeroControl,
-                fecEmi = fecha, montoIva = (double)doc.IvaTotal, codigoGeneracionR = codGenR,
-                tipoDocumento = tipoDocReceptor, numDocumento = doc.ReceptorNumeroDocumento,
-                nombre = doc.ReceptorNombre, telefono = doc.ReceptorTelefono, correo = doc.ReceptorCorreo,
-            };
+        object documento = new
+        {
+            tipoDte = doc.TipoDteCodigo, codigoGeneracion = doc.CodigoGeneracion,
+            selloRecibido = doc.SelloRecibido, numeroControl = doc.NumeroControl,
+            fecEmi = fecEmiDoc, codigoGeneracionR = codGenR,
+            tipoDocumento = tipoDocReceptor, numDocumento = doc.ReceptorNumeroDocumento,
+            nombre = doc.ReceptorNombre, telefono = doc.ReceptorTelefono, correo = doc.ReceptorCorreo,
+        };
 
         var evento = new
         {
@@ -378,7 +405,9 @@ public partial class DteDocumentosService
         if (config?.CertificadoBlob is null) return Result<CrearEventoResultadoDto>.Fail("Certificado no cargado.", "VALIDATION");
 
         var ahora = NowSv();
-        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+        if (!DteAmbientes.EsValido(config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
+        var ambiente = DteAmbientes.CodigoMh(config.AmbienteCodigo);
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         var m = (double)monto;
 
@@ -396,7 +425,7 @@ public partial class DteDocumentosService
                 horEmi = ahora.ToString(@"HH\:mm\:ss"),
                 tipoMoneda = "USD",
             },
-            emisor = new { nit = empresa.Nit, nombre = empresa.RazonSocial },
+            emisor = new { nit = NeoSTP.Application.Clientes.ClienteValidator.StripToDigits(empresa.Nit), nombre = empresa.RazonSocial },
             cuerpoDocumento = new[]
             {
                 new
@@ -456,6 +485,8 @@ public partial class DteDocumentosService
         var orig = await _db.DteDocumentos.Include(d => d.Detalles).AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == documentoOrigenId && d.EmpresaId == empresaId, ct);
         if (orig is null) return Result<CrearEventoResultadoDto>.Fail("Documento origen no encontrado.", "DTE_NOT_FOUND");
+        var contexto = DteFiscalContext.Validar(orig.AmbienteCodigo, config);
+        if (contexto.IsFailure) return Result<CrearEventoResultadoDto>.Fail(contexto.Error!, contexto.ErrorCode);
         if (orig.EstadoCodigo != DteEstadoCodigos.Procesado)
             return Result<CrearEventoResultadoDto>.Fail("El documento origen del retorno debe estar PROCESADO.", "INVALID_STATE");
         if (orig.TipoDteCodigo is not ("01" or "11" or "14"))
@@ -464,7 +495,9 @@ public partial class DteDocumentosService
                 "INVALID_DTE_TYPE");
 
         var ahora = NowSv();
-        var ambiente = config.AmbienteCodigo == "PRODUCCION" ? "01" : "00";
+        if (!DteAmbientes.EsValido(config.AmbienteCodigo))
+            return Result<CrearEventoResultadoDto>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
+        var ambiente = DteAmbientes.CodigoMh(config.AmbienteCodigo);
         var codGen = Guid.NewGuid().ToString().ToUpperInvariant();
         // ERET ya valida el formato alfanumérico vigente, aun cuando el DTE de origen haya sido
         // aceptado durante la transición con códigos numéricos (0001/0001).
@@ -502,7 +535,7 @@ public partial class DteDocumentosService
             },
             emisor = new
             {
-                nit = empresa.Nit,
+                nit = NeoSTP.Application.Clientes.ClienteValidator.StripToDigits(empresa.Nit),
                 nombre = empresa.RazonSocial,
                 codEstableMH = codEstMh,
                 codEstable = codEstInterno,

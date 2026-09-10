@@ -5,6 +5,7 @@ using NeoSTP.Application.Notificaciones;
 using NeoSTP.Application.Notificaciones.Dtos;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Notificaciones;
+using NeoSTP.Infrastructure.Billing;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -67,12 +68,25 @@ public class AlertaGeneracionService : IAlertaGeneracionService
         // cliente reciba una alerta nueva al pasar 80 %, 90 % y 100 %, sin duplicados.
         var ahoraUtc = DateTime.UtcNow;
         var inicioMes = new DateTime(ahoraUtc.Year, ahoraUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var planDte = await _db.EmpresaPlanes.AsNoTracking()
+        var licenciasDte = await _db.EmpresaPlanes.AsNoTracking()
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
                       && ep.FechaInicio <= ahoraUtc
                       && (ep.FechaFin == null || ep.FechaFin > ahoraUtc))
-            .Select(ep => new { ep.Plan.LimiteDteMensual, ep.Plan.Nombre })
-            .FirstOrDefaultAsync(ct);
+            .Take(2).ToListAsync(ct);
+        BillingEntitlements? planDte = null;
+        if (licenciasDte.Count == 1)
+        {
+            var lectura = await BillingEntitlementReader.ReadAsync(_db, licenciasDte[0], ct);
+            if (lectura.IsSuccess) planDte = lectura.Value;
+        }
+        if (licenciasDte.Count > 0 && planDte is null)
+            await Crear($"{AlertaTipos.DteLimitePlan}:LICENSE_REVIEW", new CrearAlertaRequest
+            {
+                TipoCodigo = AlertaTipos.DteLimitePlan, Severidad = AlertaSeveridades.Critica,
+                Titulo = "Licencia requiere revisión",
+                Mensaje = "No se pudo verificar el límite de DTE de la licencia. Solicita la revisión de tu plan antes de continuar.",
+                EntidadTipo = "EmpresaPlan",
+            });
         if (planDte?.LimiteDteMensual is int maxDte && maxDte > 0)
         {
             var usadosDte = await _db.DteDocumentos.AsNoTracking()
@@ -87,8 +101,8 @@ public class AlertaGeneracionService : IAlertaGeneracionService
                     : AlertaSeveridades.Info;
                 var titulo = umbral == 100 ? "Límite mensual de DTE alcanzado" : $"Consumo de DTE al {umbral}%";
                 var mensaje = umbral == 100
-                    ? $"Ya utilizaste {usadosDte} de {maxDte} DTE del plan {planDte.Nombre}. No podrás emitir más este mes."
-                    : $"Has utilizado {usadosDte} de {maxDte} DTE del plan {planDte.Nombre}.";
+                    ? $"Ya utilizaste {usadosDte} de {maxDte} DTE del plan {planDte.PlanName}. No podrás emitir más este mes."
+                    : $"Has utilizado {usadosDte} de {maxDte} DTE del plan {planDte.PlanName}.";
 
                 await Crear($"{AlertaTipos.DteLimitePlan}:{ahoraUtc:yyyyMM}:{umbral}", new CrearAlertaRequest
                 {

@@ -13,4 +13,5 @@ public class LoginResponse
     /// enrolar el segundo factor obligatoriamente. El cliente debe redirigir a /auth/mfa/enroll.
     /// </summary>
     public bool MfaEnrollmentRequired { get; set; }
+    public bool MfaVerificationRequired { get; set; }
 }

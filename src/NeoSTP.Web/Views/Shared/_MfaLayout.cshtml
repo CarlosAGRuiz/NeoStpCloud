@@ -1,0 +1,21 @@
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · NeoSTP Cloud</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/neostp.css" asp-append-version="true" />
+</head>
+<body class="ns-app">
+    <main class="ns-auth">
+        <section class="ns-auth-card" aria-labelledby="mfa-title">
+            <p class="text-muted text-center mb-2">NeoSTP Cloud · Seguridad</p>
+            <h1 id="mfa-title" class="h4 text-center mb-4">@ViewData["Title"]</h1>
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+            @RenderBody()
+        </section>
+    </main>
+</body>
+</html>

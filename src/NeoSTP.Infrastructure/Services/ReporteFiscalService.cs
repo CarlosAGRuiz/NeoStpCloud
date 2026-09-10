@@ -9,7 +9,7 @@ using NeoSTP.Shared;
 namespace NeoSTP.Infrastructure.Services;
 
 /// <summary>
-/// NEOBI fiscal (V2-D1). Proyecta DTE PROCESADOS y facturas de compra del mes a los
+/// NEOBI fiscal (V2-D1). Proyecta DTE PROCESADOS de PRODUCCION y facturas de compra del mes a los
 /// libros IVA con <see cref="LibroIvaCalculator"/> (puro). Solo lectura; sin tablas nuevas.
 /// </summary>
 public class ReporteFiscalService : IReporteFiscalService
@@ -95,6 +95,7 @@ public class ReporteFiscalService : IReporteFiscalService
         string[] tipos = ["01", "03", "05", "06"];
         var rows = await _db.DteDocumentos.AsNoTracking()
             .Where(d => d.EmpresaId == empresaId
+                && d.AmbienteCodigo == DteAmbientes.Produccion
                 && d.EstadoCodigo == DteEstadoCodigos.Procesado // INVALIDADO/RECHAZADO quedan fuera
                 && d.FechaEmision >= desde && d.FechaEmision < hasta
                 && tipos.Contains(d.TipoDteCodigo))
