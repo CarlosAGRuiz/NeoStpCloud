@@ -11,8 +11,8 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 ## Baseline confirmado
 
 - Build Release: 0 errores y 0 advertencias.
-- Pruebas locales: 2,401 unitarias y 9 de integración aprobadas; el gate adicional de SQL Server real también fue aprobado.
-- Higiene del árbol público: 1,455 archivos rastreados aprobados por `Check-PublicTree.ps1`.
+- Pruebas locales: 2,431 unitarias y 9 de integración aprobadas; el gate adicional de SQL Server real también fue aprobado.
+- Higiene del árbol público: 1,476 archivos rastreados aprobados por `Check-PublicTree.ps1`.
 - Gitleaks sobre 205 commits de `main`: 0 hallazgos con excepciones exactas para tres fixtures publicados.
 - Cuatro ramas remotas adicionales: 0 hallazgos.
 - GitHub Secret Scanning: 0 alertas abiertas al inicio del cierre.
@@ -26,8 +26,8 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 | 0. Freeze | Alcance, baseline y gates versionados | Completada |
 | 1. Seguridad/Git | Escaneo actual e histórico, rotaciones, CI/ZAP, `main` protegida | En curso |
 | 2. Ambientes | Matriz STAGING/PROD y separación en código completadas; DNS, TLS, secretos y recursos físicos pendientes | En curso (infraestructura) |
-| 3. Base de datos | SQL Server 2022 efímero, migrations, aislamiento, concurrencia e idempotencia | En curso |
-| 4. DR | Backup físico y restauración aislada con RPO/RTO medidos | Pendiente |
+| 3. Base de datos | SQL Server 2022 efímero, migrations, aislamiento, concurrencia e idempotencia | Completada en código; CI remoto pendiente |
+| 4. DR | Backup físico y restauración aislada con RPO/RTO medidos | En curso |
 | 5. Plataforma | ProductionGuards completos, outbox, IVA, monitoreo y observabilidad | Pendiente |
 | 6. Mobile | Ambientes, análisis/tests, firma y artefactos release | Pendiente (repositorio móvil) |
 | 7. UX/Legal | Smoke por rol, DTE/comercial y limpieza legal | Pendiente |
@@ -70,6 +70,19 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 - [x] Emitir evidencia JSON saneada por gate y conservarla como artefacto de CI.
 - [x] Ejecutar localmente 3 gates y 140 checks sobre SQL Server real con datos sintéticos y limpieza verificada.
 - [ ] Ejecutar el conjunto portable sobre SQL Server 2022 en GitHub cuando existan runners disponibles.
+
+## Sprint actual: Disaster Recovery
+
+- [x] Distinguir el manifiesto lógico del backup físico recuperable.
+- [x] Automatizar FULL, DIFFERENTIAL y LOG con CHECKSUM, compresión compatible por edición y RESTORE VERIFYONLY.
+- [x] Generar SHA-256 y manifest de evidencia saneada.
+- [x] Copiar opcionalmente a segundo disco/NAS mediante publicación atómica y hash verificado.
+- [x] Automatizar un restore aislado que rechaza sobrescrituras, ejecuta DBCC CHECKDB y limpia su base sintética.
+- [x] Consolidar el procedimiento en [DISASTER-RECOVERY.md](DISASTER-RECOVERY.md).
+- [x] Ejecutar un FULL y restore drill sintéticos sobre SQL Server real: 3,236,352 bytes, una tabla recuperada y limpieza verificada.
+- [x] Recuperar un secreto sintético desde un key ring copiado y el mismo certificado: 28/28 pruebas DR/DataProtection aprobadas.
+- [ ] Ejecutar smoke de API, Web, Worker, login, tenant, inventario, PDF y DTE en MH PRUEBAS.
+- [ ] Configurar la programación y segunda ubicación definitivas; medir RPO/RTO productivos.
 
 ## Gates de salida
 

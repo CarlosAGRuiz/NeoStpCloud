@@ -432,6 +432,8 @@ y `api/v1/*` (NeoConnect público).
   accesos al portal — etiquetados por empresa).
 - **Runbook** (despliegue, backup/restore, rotación JWT/certificados, retención, checklists de
   secretos y release, incidentes comunes): [`docs/Runbook-V2.md`](docs/Runbook-V2.md).
+- **Disaster Recovery vigente** (backup SQL físico verificable, copia off-site, restore drill y
+  gates RPO/RTO): [docs/DISASTER-RECOVERY.md](docs/DISASTER-RECOVERY.md).
 - **Runbook HB-7** (storage de NeoScan, secretos por entorno, DataProtection, Gemini/FCM/Meta,
   backups, readiness y retencion fiscal): [`docs/Runbook-Storage-Secretos-Retencion.md`](docs/Runbook-Storage-Secretos-Retencion.md).
 - **Preflight HB-8**: `scripts/demo-preflight.ps1` produce decision `APTO_*`/`NO_APTO` y evidencia
@@ -456,6 +458,7 @@ y `api/v1/*` (NeoConnect público).
 | [`docs/Runbook-Storage-Secretos-Retencion.md`](docs/Runbook-Storage-Secretos-Retencion.md) | Politica HB-7 para storage, secretos, readiness y retencion |
 | [`docs/Runbook-Demo-Release.md`](docs/Runbook-Demo-Release.md) | Preflight, guion, bloqueos, evidencia y cierre de demos/releases HB-8 |
 | [`docs/Runbook-V2.md`](docs/Runbook-V2.md) | Operación: despliegue, backup, rotación, retención |
+| [docs/DISASTER-RECOVERY.md](docs/DISASTER-RECOVERY.md) | Backup físico, copia off-site, restore drill y criterios RPO/RTO |
 | [`docs/Analisis-Pruebas-Cliente-V2.md`](docs/Analisis-Pruebas-Cliente-V2.md) | Pruebas E2E en vivo del cierre V2 |
 | [`docs/Analisis-UX-Cliente.md`](docs/Analisis-UX-Cliente.md) | Recorrido UX completo: bugs encontrados y mejoras |
 | [`docs/NeoConnect-API-v1.md`](docs/NeoConnect-API-v1.md) | API pública para integradores: endpoints, webhooks y portabilidad |

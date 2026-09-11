@@ -1,5 +1,8 @@
 # Runbook — Disaster Recovery (Sprint 20)
 
+> Documento histórico del diseño inicial. El procedimiento operativo vigente está en
+> [DISASTER-RECOVERY.md](DISASTER-RECOVERY.md).
+
 Plan de recuperación ante desastres de **NeoSTP Cloud**. Cubre respaldo, restauración,
 rotación de secretos y los objetivos de recuperación. Complementa el módulo de
 **Hardening** (`/Hardening`, `Ops_BackupJobs`, cuotas e IP allowlist).
