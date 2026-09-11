@@ -29,16 +29,26 @@ using NSubstitute;
 
 // No app startup, customer connection strings, credentials or real MH calls.
 // --migration-chain applies migrations exclusively to the random synthetic database below.
-const string server = @"(localdb)\NeoStpAuthAudit_20260904";
+const string connectionVariable = "NEOSTP_SQLSERVER_TEST_CONNECTION";
+const string localDbServer = @"(localdb)\NeoStpAuthAudit_20260904";
+var configuredRoot = Environment.GetEnvironmentVariable(connectionVariable);
+var rootBuilder = string.IsNullOrWhiteSpace(configuredRoot)
+    ? new SqlConnectionStringBuilder { DataSource = localDbServer, IntegratedSecurity = true }
+    : new SqlConnectionStringBuilder(configuredRoot);
+var server = rootBuilder.DataSource;
 var suffix = Guid.NewGuid().ToString("N");
 var database = "NeoStpDteAudit_" + suffix;
-var connection = new SqlConnectionStringBuilder { DataSource = server, InitialCatalog = database,
-    IntegratedSecurity = true, TrustServerCertificate = true, ConnectTimeout = 10 }.ConnectionString;
+rootBuilder.InitialCatalog = database;
+rootBuilder.TrustServerCertificate = true;
+rootBuilder.ConnectTimeout = 10;
+var connection = rootBuilder.ConnectionString;
 NeoStpDbContext Db(params IInterceptor[] interceptors) => new(new DbContextOptionsBuilder<NeoStpDbContext>()
     .UseSqlServer(connection, sql => sql.EnableRetryOnFailure()).AddInterceptors(interceptors).Options);
+var checks = new List<string>();
 void Check(bool value, string name)
 {
     if (!value) throw new InvalidOperationException("FAIL: " + name);
+    checks.Add(name);
     Console.WriteLine("PASS: " + name);
 }
 var protector = Substitute.For<ISecretProtector>();
@@ -51,12 +61,15 @@ DteDocumentosService Service(NeoStpDbContext db) => new(db, new DteCalculator(),
     Substitute.For<IDtePdfService>(), Substitute.For<ITenantEmailSender>(),
     Substitute.For<IAuditoriaService>(), Substitute.For<IConnectWebhookDispatcher>());
 
+var completed = false;
+string[] migrations = [];
 await using var schema = Db();
 try
 {
     if (args.Contains("--migration-chain"))
     {
         await schema.Database.MigrateAsync();
+        migrations = (await schema.Database.GetAppliedMigrationsAsync()).ToArray();
         Check(!(await schema.Database.GetPendingMigrationsAsync()).Any(), "Full migration chain on empty synthetic SQL database");
     }
     else await schema.Database.EnsureCreatedAsync();
@@ -755,7 +768,8 @@ try
             "GL1E stale query transaction rolls back detail/raw/JSON together and preserves terminal evidence");
         Check((await Deliveries(doc.Id)).Count == 1, "GL1E only confirmed batch query queues one webhook; no delivery HTTP executed");
     }
-    Console.WriteLine("DTE SQL verification completed; no real Hacienda calls.");
+    completed = true;
+    Console.WriteLine($"DTE SQL verification completed: {checks.Count}/{checks.Count}; no real Hacienda calls.");
 }
 finally
 {
@@ -765,6 +779,18 @@ finally
     {
         await schema.Database.EnsureDeletedAsync();
         Console.WriteLine("Removed task-owned synthetic database: " + database);
+    }
+    var evidence = Environment.GetEnvironmentVariable("NEOSTP_DTE_SQL_EVIDENCE");
+    if (completed && !string.IsNullOrWhiteSpace(evidence))
+    {
+        var absolute = Path.GetFullPath(evidence);
+        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        await File.WriteAllTextAsync(absolute, JsonSerializer.Serialize(new {
+            generatedAtUtc = DateTime.UtcNow, syntheticServer = server, syntheticDatabase = database,
+            migrationsApplied = migrations.Length > 0, appliedMigrations = migrations, syntheticDatabaseDeleted = true,
+            passed = checks.Count, failed = 0, checks,
+            scope = "Real isolated SQL; synthetic DTE and provider substitutes only; no Hacienda calls or customer data"
+        }, new JsonSerializerOptions { WriteIndented = true }));
     }
 }
 

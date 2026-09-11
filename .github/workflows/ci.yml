@@ -54,7 +54,7 @@ jobs:
   sqlserver-schema:
     name: SQL Server 2022 migrations
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
@@ -93,12 +93,25 @@ jobs:
           --filter FullyQualifiedName~SqlServerMigrationIntegrationTests
           --verbosity normal
 
+      - name: Run SQL tenant, DTE and payment invariant gates
+        shell: pwsh
+        run: ./tools/Database/Invoke-SqlInvariantGates.ps1
+
       - name: Upload migration release artifact
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: migrations-${{ github.sha }}
           path: artifacts/migrations/ci-${{ github.sha }}/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload SQL invariant evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sql-invariants-${{ github.sha }}
+          path: artifacts/sql-invariants/**
           if-no-files-found: error
           retention-days: 30
 
