@@ -57,12 +57,13 @@ namespace NeoSTP.Infrastructure.Persistence.Migrations
                 defaultValue: "IVA_INCLUIDO");
 
             migrationBuilder.Sql(
-                "UPDATE Crm_CotizacionLineas " +
-                "SET AplicaIva = CASE WHEN VentaGravada > 0 THEN 1 ELSE 0 END;");
+                "EXEC(N'UPDATE Crm_CotizacionLineas " +
+                "SET AplicaIva = CASE WHEN VentaGravada > 0 THEN 1 ELSE 0 END;');");
 
             migrationBuilder.Sql(
-                "UPDATE Dte_DocumentoDetalles SET Clasificacion = CASE " +
-                "WHEN VentaExenta > 0 THEN 'EXENTA' WHEN VentaNoSujeta > 0 OR NoGravado = 1 THEN 'NO_SUJETA' ELSE 'GRAVADA' END;");
+                "EXEC(N'UPDATE Dte_DocumentoDetalles SET Clasificacion = CASE " +
+                "WHEN VentaExenta > 0 THEN ''EXENTA'' WHEN VentaNoSujeta > 0 OR NoGravado = 1 " +
+                "THEN ''NO_SUJETA'' ELSE ''GRAVADA'' END;');");
         }
 
         /// <inheritdoc />
