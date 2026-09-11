@@ -94,6 +94,7 @@ node_modules/
 .claude/
 outputs/
 output/
+artifacts/
 
 # Adjuntos privados compartidos en soporte; no forman parte del código.
 .codex-remote-attachments/

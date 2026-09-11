@@ -71,13 +71,20 @@ API, Web y Worker tienen migrations, seed y bootstrap deshabilitados en ambiente
     → aplicar en PRODUCTION
     → validar schema
 
-Ejemplo de generación, sin aplicarlo:
+Generación reproducible, sin conectarse a una base ni aplicar cambios:
 
-    dotnet ef migrations script --idempotent
-      --project src/NeoSTP.Infrastructure/NeoSTP.Infrastructure.csproj
-      --startup-project src/NeoSTP.Api/NeoSTP.Api.csproj
-      --context NeoStpDbContext
-      --output artifacts/migrations/NeoSTP-v1.sql
+    ./tools/Database/New-MigrationRelease.ps1 -ReleaseVersion v1.0.0-rc.1
+
+El comando restaura la versión local fijada de dotnet-ef, valida que el modelo no tenga cambios
+pendientes, compara deploy/migrations/manifest.json contra las migrations rastreadas y produce:
+
+    artifacts/migrations/v1.0.0-rc.1/
+    ├── NeoSTP.Migrations.idempotent.sql
+    └── manifest.json
+
+El manifest del artefacto fija commit, migration final y hashes SHA-256 del snapshot y del SQL.
+Debe conservarse junto con los binarios de la misma release. El SQL continúa requiriendo revisión,
+backup, ensayo en STAGING y aprobación antes de PRODUCTION.
 
 El arranque falla si el historial de migrations no coincide exactamente con el modelo publicado.
 

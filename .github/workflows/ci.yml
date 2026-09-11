@@ -82,12 +82,25 @@ jobs:
       - name: Restore
         run: dotnet restore NeoSTP.slnx
 
+      - name: Generate migration release artifact
+        shell: pwsh
+        run: ./tools/Database/New-MigrationRelease.ps1 -ReleaseVersion ci-${{ github.sha }}
+
       - name: Run SQL Server migration gates
         run: >-
           dotnet test tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj
           -c Release
           --filter FullyQualifiedName~SqlServerMigrationIntegrationTests
           --verbosity normal
+
+      - name: Upload migration release artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migrations-${{ github.sha }}
+          path: artifacts/migrations/ci-${{ github.sha }}/**
+          if-no-files-found: error
+          retention-days: 30
 
   secret-scan:
     name: Git history secret scan
