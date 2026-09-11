@@ -101,3 +101,6 @@ Los overlays dejan Worker:Enabled=false. Después del preflight y health de API/
 5. Repetir health, login, tenant y smoke fiscal.
 
 DNS, TLS, Cloudflare, monitoreo externo, backup off-site y una restauración completa siguen siendo gates de infraestructura: no pueden declararse completos únicamente con estos archivos.
+
+Para el host Windows inicial de STAGING y su instalación reproducible, ver
+[STAGING local en Windows](LOCAL-STAGING.md).

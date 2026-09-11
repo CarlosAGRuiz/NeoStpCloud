@@ -12,4 +12,8 @@
     <Project Path="tests/NeoSTP.Tests.Integration/NeoSTP.Tests.Integration.csproj" />
     <Project Path="tests/NeoSTP.Tests.Unit/NeoSTP.Tests.Unit.csproj" />
   </Folder>
+  <Folder Name="/tools/" />
+  <Folder Name="/tools/Deployment/">
+    <Project Path="tools/Deployment/NeoSTP.StagingBootstrap/NeoSTP.StagingBootstrap.csproj" />
+  </Folder>
 </Solution>

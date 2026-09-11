@@ -97,15 +97,53 @@ try {
         '--output', $sqlPath
     ) + $efArguments)
 
+    # sqlcmd does not guarantee the SET options required by filtered indexes,
+    # indexed views or indexes over computed columns. Make the release artifact
+    # self-contained so reviewed SQL behaves consistently in every environment.
+    $sessionPreamble = @'
+SET ANSI_NULLS ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET QUOTED_IDENTIFIER ON;
+SET NUMERIC_ROUNDABORT OFF;
+GO
+
+'@
+    $generatedSql = [System.IO.File]::ReadAllText($sqlPath)
+    $scriptedMigrations = @(
+        [regex]::Matches(
+            $generatedSql,
+            "VALUES \(N'(?<id>[0-9]{14}_[^']+)', N'[^']+'\);") |
+            ForEach-Object { $_.Groups['id'].Value } |
+            Sort-Object -Unique
+    )
+    $expectedMigrations = @($migrationFiles | ForEach-Object { $_.BaseName })
+    if (@(Compare-Object -ReferenceObject $expectedMigrations -DifferenceObject $scriptedMigrations).Count -gt 0) {
+        throw 'Generated SQL does not cover the migration manifest. Rebuild SchemaDesign before packaging.'
+    }
+    [System.IO.File]::WriteAllText(
+        $sqlPath,
+        $sessionPreamble + $generatedSql,
+        [System.Text.UTF8Encoding]::new($false))
+
     $sourceCommit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0) {
         throw 'Unable to resolve the source Git commit.'
     }
 
+    $sourceStatus = @(& git status --porcelain --untracked-files=normal)
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Unable to resolve the source Git status.'
+    }
+    $sourceTreeDirty = $sourceStatus.Count -gt 0
+
     $artifactManifest = [ordered]@{
         schemaVersion = 1
         releaseVersion = $ReleaseVersion
         sourceCommit = $sourceCommit
+        sourceTreeDirty = $sourceTreeDirty
         generatedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
         dbContext = $sourceManifest.dbContext
         provider = $sourceManifest.provider
