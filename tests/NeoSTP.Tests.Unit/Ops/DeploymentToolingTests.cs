@@ -46,6 +46,10 @@ public sealed class DeploymentToolingTests
         installer.Should().Contain("$appLogin = 'neostp_staging_app'");
         installer.Should().Contain("WorkerEnabled = $EnableWorker.IsPresent");
         installer.Should().Contain("LOCAL_STAGING_DIRTY_SOURCE_NOT_ALLOWED");
+        installer.Should().Contain("LOCAL_STAGING_LISTENER_RELEASE_MISMATCH");
+        installer.Should().Contain("Stop-Process -Id $_.Id -Force");
+        installer.Should().Contain("$processPath.StartsWith($releasesRoot");
+        installer.Should().Contain("LOCAL_STAGING_TASK_NOT_RUNNING");
         installer.Should().Contain("$sqlOutput = & sqlcmd @sqlcmdArgs 2>&1");
         installer.Should().NotContain("& sqlcmd @sqlcmdArgs | Out-Null");
         installer.Should().NotContain("ConnectionString = $runtimeBuilder.ConnectionString");
