@@ -663,6 +663,12 @@ public partial class DteDocumentosService : IDteDocumentosService
                 var numero = (linea.DocRelacionadoNumero ?? linea.Codigo ?? "").Trim();
                 if (DteRetencion.EsCodigoGeneracion(numero)) numero = numero.ToUpperInvariant();
                 var tipoRel = string.IsNullOrWhiteSpace(linea.DocRelacionadoTipoDte) ? "01" : linea.DocRelacionadoTipoDte.Trim();
+                var clasificacion = string.IsNullOrWhiteSpace(linea.Clasificacion)
+                    ? "GRAVADA"
+                    : linea.Clasificacion.Trim().ToUpperInvariant();
+                var precio = DtePrecioNormalizer.Normalizar(
+                    request.TipoDteCodigo, linea.PrecioUnitario, linea.MontoDescuento,
+                    linea.TipoPrecio, clasificacion, linea.NoGravado);
 
                 doc.Detalles.Add(new DteDocumentoDetalle
                 {
@@ -674,9 +680,11 @@ public partial class DteDocumentosService : IDteDocumentosService
                     UnidadMedidaCodigo = "99",
                     TipoItem = linea.TipoItem == 0 ? 1 : linea.TipoItem,
                     Cantidad = linea.Cantidad <= 0 ? 1 : linea.Cantidad,
-                    PrecioUnitario = linea.PrecioUnitario,
-                    MontoDescuento = linea.MontoDescuento,
-                    NoGravado = linea.NoGravado || string.Equals(linea.Clasificacion, "NO_SUJETA", StringComparison.OrdinalIgnoreCase),
+                    PrecioUnitario = precio.PrecioUnitario,
+                    TipoPrecio = precio.TipoPrecio,
+                    Clasificacion = clasificacion,
+                    MontoDescuento = precio.MontoDescuento,
+                    NoGravado = linea.NoGravado || clasificacion == "NO_SUJETA",
                     Observaciones = linea.Observaciones,
                     DocRelacionadoTipoDte = tipoRel,
                     DocRelacionadoFecha = linea.DocRelacionadoFecha,
@@ -713,6 +721,11 @@ public partial class DteDocumentosService : IDteDocumentosService
                 if (prod.TipoItem == "SERVICIO") tipoItem = 2;
             }
 
+            var clasificacion = string.IsNullOrWhiteSpace(linea.Clasificacion) ? "GRAVADA" : linea.Clasificacion.Trim().ToUpperInvariant();
+            var precio = DtePrecioNormalizer.Normalizar(
+                request.TipoDteCodigo, linea.PrecioUnitario, linea.MontoDescuento,
+                linea.TipoPrecio, clasificacion, linea.NoGravado);
+
             doc.Detalles.Add(new DteDocumentoDetalle
             {
                 NumeroLinea = numLinea++,
@@ -722,9 +735,11 @@ public partial class DteDocumentosService : IDteDocumentosService
                 UnidadMedidaCodigo = string.IsNullOrEmpty(unidad) ? "59" : unidad,
                 TipoItem = tipoItem,
                 Cantidad = linea.Cantidad,
-                PrecioUnitario = linea.PrecioUnitario,
-                MontoDescuento = linea.MontoDescuento,
-                NoGravado = linea.NoGravado || string.Equals(linea.Clasificacion, "NO_SUJETA", StringComparison.OrdinalIgnoreCase),
+                PrecioUnitario = precio.PrecioUnitario,
+                TipoPrecio = precio.TipoPrecio,
+                Clasificacion = clasificacion,
+                MontoDescuento = precio.MontoDescuento,
+                NoGravado = linea.NoGravado || clasificacion == "NO_SUJETA",
                 Observaciones = linea.Observaciones,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = actor,

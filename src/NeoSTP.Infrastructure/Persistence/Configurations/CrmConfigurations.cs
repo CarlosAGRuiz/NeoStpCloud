@@ -145,6 +145,8 @@ public class CotizacionCrmLineaConfiguration : IEntityTypeConfiguration<Cotizaci
 
         b.Property(x => x.Cantidad).HasPrecision(18, 4);
         b.Property(x => x.PrecioUnitario).HasPrecision(18, 4);
+        b.Property(x => x.TipoPrecio).HasMaxLength(20).IsRequired().HasDefaultValue(NeoSTP.Domain.Core.Productos.TipoPrecioCodigos.IvaIncluido);
+        b.Property(x => x.AplicaIva).IsRequired().HasDefaultValue(true);
         b.Property(x => x.PorcentajeDescuento).HasPrecision(9, 4);
         b.Property(x => x.MontoDescuento).HasPrecision(18, 4);
         b.Property(x => x.VentaNoSujeta).HasPrecision(18, 4);

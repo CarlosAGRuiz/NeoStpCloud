@@ -55,6 +55,7 @@ public class DteLineaViewModel
     public int TipoItem { get; set; } = 1;
     public decimal Cantidad { get; set; } = 1;
     public decimal PrecioUnitario { get; set; }
+    public string? TipoPrecio { get; set; }
     public decimal MontoDescuento { get; set; }
     public string Clasificacion { get; set; } = "GRAVADA";
     public bool NoGravado { get; set; }

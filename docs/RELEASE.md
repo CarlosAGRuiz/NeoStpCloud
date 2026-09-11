@@ -44,7 +44,7 @@ Una Release Candidate puede etiquetarse únicamente cuando todos los controles a
 - [ ] ADMIN puede operar todos los módulos contratados y solo esos módulos.
 - [ ] Smoke DTE completo en MH PRUEBAS sobre STAGING.
 - [ ] Smoke comercial POS, inventario, compras, CxP/CxC, cotización, cobro y NeoScan.
-- [ ] Modelo de precios con/sin IVA consistente y probado.
+- [x] Modelo de precios con/sin IVA consistente y probado.
 - [ ] Notification Outbox durable e idempotente operativa.
 
 ## Mobile

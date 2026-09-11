@@ -12,6 +12,7 @@ using NeoSTP.Application.Pos;
 using NeoSTP.Application.Pos.Dtos;
 using NeoSTP.Domain.Core.Inventario;
 using NeoSTP.Domain.Core.Dte;
+using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Domain.Core.Pos;
 using NeoSTP.Infrastructure.Persistence;
 
@@ -87,15 +88,15 @@ public class PosService : IPosService
 
         // Resolver productos referenciados.
         var idsProd = request.Lineas.Where(l => l.ProductoId is int).Select(l => l.ProductoId!.Value).Distinct().ToList();
-        var productos = new Dictionary<int, (string codigo, string nombre, decimal precio, bool iva, bool bien)>();
+        var productos = new Dictionary<int, (string codigo, string nombre, decimal precio, string tipoPrecio, bool iva, bool bien)>();
         if (idsProd.Count > 0)
         {
             var filas = await _db.Productos.AsNoTracking()
                 .Where(p => p.EmpresaId == empresaId && idsProd.Contains(p.Id))
-                .Select(p => new { p.Id, p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.AplicaIva, p.TipoItem })
+                .Select(p => new { p.Id, p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.TipoPrecio, p.AplicaIva, p.TipoItem })
                 .ToListAsync(ct);
             foreach (var p in filas)
-                productos[p.Id] = (p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.AplicaIva, p.TipoItem != "SERVICIO");
+                productos[p.Id] = (p.CodigoInterno, p.Nombre, p.PrecioUnitario, p.TipoPrecio, p.AplicaIva, p.TipoItem != "SERVICIO");
         }
 
         var venta = new VentaPos
@@ -110,10 +111,11 @@ public class PosService : IPosService
         var inputs = new List<PosCalculator.LineaInput>();
         foreach (var l in request.Lineas)
         {
-            decimal precio; bool aplicaIva; string codigo, descripcion;
+            decimal precio; bool aplicaIva; string codigo, descripcion, tipoPrecio;
             if (l.ProductoId is int pid && productos.TryGetValue(pid, out var p))
             {
                 precio = l.PrecioUnitario ?? p.precio;
+                tipoPrecio = TipoPrecioCodigos.Normalizar(l.TipoPrecio ?? p.tipoPrecio);
                 aplicaIva = l.AplicaIva ?? p.iva;
                 codigo = l.Codigo ?? p.codigo;
                 descripcion = l.Descripcion ?? p.nombre;
@@ -122,19 +124,21 @@ public class PosService : IPosService
             {
                 if (l.PrecioUnitario is not decimal pr) return Result<VentaPosDetalleDto>.Fail("Cada línea necesita producto o precio.", "VALIDATION");
                 precio = pr; aplicaIva = l.AplicaIva ?? true;
+                tipoPrecio = TipoPrecioCodigos.Normalizar(l.TipoPrecio);
                 codigo = l.Codigo ?? "—";
                 descripcion = string.IsNullOrWhiteSpace(l.Descripcion) ? "Ítem" : l.Descripcion!.Trim();
             }
             if (l.Cantidad <= 0) return Result<VentaPosDetalleDto>.Fail("Cantidad inválida.", "VALIDATION");
+            if (!TipoPrecioCodigos.EsValido(tipoPrecio)) return Result<VentaPosDetalleDto>.Fail("Tipo de precio inválido.", "VALIDATION");
 
-            var calc = PosCalculator.CalcularLinea(new PosCalculator.LineaInput(l.Cantidad, precio, l.Descuento, aplicaIva), _opts.IvaTasa);
+            var calc = PosCalculator.CalcularLinea(new PosCalculator.LineaInput(l.Cantidad, precio, l.Descuento, aplicaIva, tipoPrecio), _opts.IvaTasa);
             venta.Lineas.Add(new VentaPosLinea
             {
                 ProductoId = l.ProductoId, Codigo = codigo, Descripcion = descripcion,
-                Cantidad = l.Cantidad, PrecioUnitario = precio, Descuento = l.Descuento, AplicaIva = aplicaIva,
+                Cantidad = l.Cantidad, PrecioUnitario = precio, TipoPrecio = tipoPrecio, Descuento = l.Descuento, AplicaIva = aplicaIva,
                 IvaLinea = calc.IvaLinea, Total = calc.Total, CreatedBy = actor,
             });
-            inputs.Add(new PosCalculator.LineaInput(l.Cantidad, precio, l.Descuento, aplicaIva));
+            inputs.Add(new PosCalculator.LineaInput(l.Cantidad, precio, l.Descuento, aplicaIva, tipoPrecio));
         }
 
         var totales = PosCalculator.CalcularVenta(inputs, _opts.IvaTasa);
@@ -300,8 +304,8 @@ public class PosService : IPosService
         if (tipo == "03" && clienteId is null)
             return Result<VentaPosDetalleDto>.Fail("El CCF (03) requiere un cliente con NRC.", "VALIDATION");
 
-        // Los precios POS son IVA incluido → mapean directo a FC (01); para CCF (03) el
-        // pipeline DTE reconoce la clasificación GRAVADA y deriva el IVA contenido igual (gravada*0.13/1.13).
+        // La semántica se conserva por línea: FC recibe precio con IVA y CCF precio sin IVA.
+        // El pipeline DTE normaliza cada importe según TipoPrecio antes de recalcular.
         var dteReq = new CreateDteDocumentoRequest
         {
             VentaPosOrigenId = ventaId,
@@ -321,6 +325,7 @@ public class PosService : IPosService
                 Descripcion = l.Descripcion,
                 Cantidad = l.Cantidad,
                 PrecioUnitario = l.PrecioUnitario,
+                TipoPrecio = l.TipoPrecio,
                 MontoDescuento = l.Descuento,
                 Clasificacion = l.AplicaIva ? "GRAVADA" : "EXENTA",
             }).ToList(),
@@ -377,6 +382,7 @@ public class PosService : IPosService
         {
             Id = l.Id, ProductoId = l.ProductoId, Codigo = l.Codigo, Descripcion = l.Descripcion,
             Cantidad = l.Cantidad, PrecioUnitario = l.PrecioUnitario, Descuento = l.Descuento,
+            TipoPrecio = l.TipoPrecio,
             AplicaIva = l.AplicaIva, IvaLinea = l.IvaLinea, Total = l.Total,
         }).ToList(),
     };

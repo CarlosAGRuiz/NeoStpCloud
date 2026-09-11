@@ -19,6 +19,7 @@ public class ProductoConfiguration : IEntityTypeConfiguration<Producto>
         builder.Property(p => p.CategoriaCodigo).HasMaxLength(30);
         builder.Property(p => p.UnidadMedidaCodigo).HasMaxLength(20).IsRequired();
         builder.Property(p => p.PrecioUnitario).HasPrecision(18, 4);
+        builder.Property(p => p.TipoPrecio).HasMaxLength(20).IsRequired().HasDefaultValue(TipoPrecioCodigos.IvaIncluido);
         builder.Property(p => p.CostoUnitario).HasPrecision(18, 4);
         builder.Property(p => p.TributoCodigo).HasMaxLength(20);
         builder.Property(p => p.EstadoCodigo).HasMaxLength(30).IsRequired();

@@ -23,7 +23,7 @@ public class ProfitCalculatorTests
     {
         var docs = new[]
         {
-            Venta(TipoDteCodigos.FacturaConsumidorFinal, Procesado, 100m, 13m),
+            Venta(TipoDteCodigos.FacturaConsumidorFinal, Procesado, 113m, 13m),
             Venta(TipoDteCodigos.FacturaConsumidorFinal, "BORRADOR", 999m, 130m),
             Venta(TipoDteCodigos.FacturaConsumidorFinal, "RECHAZADO", 999m, 130m),
             Venta(TipoDteCodigos.FacturaConsumidorFinal, "INVALIDADO", 999m, 130m),

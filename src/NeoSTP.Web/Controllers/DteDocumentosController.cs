@@ -238,6 +238,7 @@ public class DteDocumentosController : Controller
                 TipoItem = l.TipoItem == 0 ? 1 : l.TipoItem,
                 Cantidad = l.Cantidad,
                 PrecioUnitario = l.PrecioUnitario,
+                TipoPrecio = l.TipoPrecio,
                 MontoDescuento = l.MontoDescuento,
                 Clasificacion = l.Clasificacion ?? "GRAVADA",
                 NoGravado = l.NoGravado,

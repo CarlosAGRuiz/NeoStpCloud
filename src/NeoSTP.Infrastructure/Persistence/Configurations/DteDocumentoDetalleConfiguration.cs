@@ -18,6 +18,8 @@ public class DteDocumentoDetalleConfiguration : IEntityTypeConfiguration<DteDocu
 
         builder.Property(d => d.Cantidad).HasPrecision(18, 4);
         builder.Property(d => d.PrecioUnitario).HasPrecision(18, 4);
+        builder.Property(d => d.TipoPrecio).HasMaxLength(20);
+        builder.Property(d => d.Clasificacion).HasMaxLength(15).IsRequired().HasDefaultValue("GRAVADA");
         builder.Property(d => d.MontoDescuento).HasPrecision(18, 4);
         builder.Property(d => d.VentaNoSujeta).HasPrecision(18, 4);
         builder.Property(d => d.VentaExenta).HasPrecision(18, 4);

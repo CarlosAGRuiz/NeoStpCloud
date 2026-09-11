@@ -6,6 +6,7 @@ using NeoSTP.Application.Dte.Dtos;
 using NeoSTP.Application.Dte.Eventos.Dtos;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Dte.Eventos;
+using NeoSTP.Domain.Core.Productos;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -58,6 +59,11 @@ public partial class DteDocumentosService
                     errors.Add($"Línea {i + 1}: el monto del documento liquidado debe ser > 0.");
                 if (l.MontoDescuento < 0)
                     errors.Add($"Línea {i + 1}: el descuento no puede ser negativo.");
+                if (!string.IsNullOrWhiteSpace(l.TipoPrecio) && !TipoPrecioCodigos.EsValido(l.TipoPrecio))
+                    errors.Add($"Línea {i + 1}: tipo de precio inválido (use IVA_INCLUIDO o IVA_EXCLUIDO).");
+                var clasificacion = (l.Clasificacion ?? "GRAVADA").Trim().ToUpperInvariant();
+                if (clasificacion is not ("GRAVADA" or "EXENTA" or "NO_SUJETA"))
+                    errors.Add($"Línea {i + 1}: clasificación inválida.");
             }
         }
         else
@@ -73,6 +79,11 @@ public partial class DteDocumentosService
                     errors.Add($"Línea {i + 1}: el precio no puede ser negativo.");
                 if (l.MontoDescuento < 0)
                     errors.Add($"Línea {i + 1}: el descuento no puede ser negativo.");
+                if (!string.IsNullOrWhiteSpace(l.TipoPrecio) && !TipoPrecioCodigos.EsValido(l.TipoPrecio))
+                    errors.Add($"Línea {i + 1}: tipo de precio inválido (use IVA_INCLUIDO o IVA_EXCLUIDO).");
+                var clasificacion = (l.Clasificacion ?? "GRAVADA").Trim().ToUpperInvariant();
+                if (clasificacion is not ("GRAVADA" or "EXENTA" or "NO_SUJETA"))
+                    errors.Add($"Línea {i + 1}: clasificación inválida.");
             }
         }
 
@@ -251,6 +262,8 @@ public partial class DteDocumentosService
                 UnidadMedidaCodigo = l.UnidadMedidaCodigo,
                 Cantidad = l.Cantidad,
                 PrecioUnitario = l.PrecioUnitario,
+                TipoPrecio = l.TipoPrecio,
+                Clasificacion = l.Clasificacion,
                 MontoDescuento = l.MontoDescuento,
                 VentaNoSujeta = l.VentaNoSujeta,
                 VentaExenta = l.VentaExenta,

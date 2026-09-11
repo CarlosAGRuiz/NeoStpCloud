@@ -192,6 +192,7 @@ public class CotizacionCrmLineaDto
     public string Descripcion { get; set; } = null!;
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    public string TipoPrecio { get; set; } = "IVA_INCLUIDO";
     public decimal MontoDescuento { get; set; }
     public decimal IvaItem { get; set; }
     public decimal TotalLinea { get; set; }
@@ -210,7 +211,7 @@ public class CrearCotizacionCrmRequest
     public List<CrearCotizacionCrmLineaRequest> Lineas { get; set; } = new();
 }
 
-/// <summary>Línea de cotización. Precios CON IVA incluido (mapean directo a FC 01 al convertir).</summary>
+/// <summary>Línea de cotización con semántica de precio explícita o heredada del producto.</summary>
 public class CrearCotizacionCrmLineaRequest
 {
     public int? ProductoId { get; set; }
@@ -219,6 +220,8 @@ public class CrearCotizacionCrmLineaRequest
     [Range(0.0001, 9_999_999)] public decimal Cantidad { get; set; } = 1;
     /// <summary>Si null y hay producto, usa el precio del producto.</summary>
     public decimal? PrecioUnitario { get; set; }
+    /// <summary>Si se omite, hereda la semántica del producto; en ítems libres usa IVA_INCLUIDO.</summary>
+    public string? TipoPrecio { get; set; }
     [Range(0, 9_999_999)] public decimal MontoDescuento { get; set; }
     public bool? AplicaIva { get; set; }
 }

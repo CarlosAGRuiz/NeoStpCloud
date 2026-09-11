@@ -24,6 +24,9 @@ public class CotizacionCrmLinea : AuditableEntity
 
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    /// <summary>Snapshot de la semántica del precio al crear la cotización.</summary>
+    public string TipoPrecio { get; set; } = TipoPrecioCodigos.IvaIncluido;
+    public bool AplicaIva { get; set; } = true;
     public decimal PorcentajeDescuento { get; set; }
     public decimal MontoDescuento { get; set; }
 

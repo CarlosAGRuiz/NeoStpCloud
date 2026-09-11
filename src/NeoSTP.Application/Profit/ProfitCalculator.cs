@@ -29,7 +29,7 @@ public sealed record ResumenVentas
     public decimal VentasExentas { get; init; }
     public decimal VentasNoSujetas { get; init; }
     public decimal IvaGenerado { get; init; }
-    /// <summary>Ventas netas = gravada + exenta + no sujeta (NC ya restada, ND sumada).</summary>
+    /// <summary>Ventas netas sin IVA = gravada + exenta + no sujeta (NC ya restada, ND sumada).</summary>
     public decimal VentaNeta { get; init; }
     public int Documentos { get; init; }
 }
@@ -72,8 +72,11 @@ public static class ProfitCalculator
         {
             if (!EsComputable(d.EstadoCodigo)) continue;
             var s = Signo(d.TipoDteCodigo);
+            var gravadaNeta = d.TipoDteCodigo == TipoDteCodigos.FacturaConsumidorFinal
+                ? d.TotalGravada - d.IvaTotal
+                : d.TotalGravada;
 
-            gravada += s * d.TotalGravada;
+            gravada += s * gravadaNeta;
             exenta += s * d.TotalExenta;
             noSujeta += s * d.TotalNoSujeto;
             iva += s * (GeneraIva(d.TipoDteCodigo) ? d.IvaTotal : 0m);

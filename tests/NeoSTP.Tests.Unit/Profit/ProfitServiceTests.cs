@@ -53,6 +53,7 @@ public class ProfitServiceTests
             DocumentoId = docId, NumeroLinea = 1, ProductoId = prodId, Codigo = $"P{prodId}",
             Descripcion = $"Prod {prodId}", Cantidad = cantidad, PrecioUnitario = venta / cantidad,
             VentaGravada = venta,
+            IvaItem = iva,
         });
     }
 
@@ -60,7 +61,7 @@ public class ProfitServiceTests
     public async Task Dashboard_ExcluyeVentasYCostosDePruebas()
     {
         await using var db = NewDb();
-        SeedVentaConCosto(db, EmpresaA, 1, 1, 1m, 100m, 60m, 13m);
+        SeedVentaConCosto(db, EmpresaA, 1, 1, 1m, 113m, 60m, 13m);
         SeedVentaConCosto(db, EmpresaA, 2, 2, 1m, 900m, 700m, 117m);
         db.DteDocumentos.Local.Single(d => d.Id == 2).AmbienteCodigo = DteAmbientes.Pruebas;
         await db.SaveChangesAsync();
@@ -76,7 +77,7 @@ public class ProfitServiceTests
     {
         var db = NewDb();
         db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "0614", RazonSocial = "Demo", EstadoCodigo = "ACTIVA" });
-        SeedVentaConCosto(db, EmpresaA, docId: 1, prodId: 1, cantidad: 10m, venta: 1000m, costoUnitario: 60m, iva: 130m);
+        SeedVentaConCosto(db, EmpresaA, docId: 1, prodId: 1, cantidad: 10m, venta: 1130m, costoUnitario: 60m, iva: 130m);
         db.ProfitGastos.Add(new Domain.Core.Profit.ProfitGasto
         {
             EmpresaId = EmpresaA, Fecha = DateOnly.FromDateTime(DateTime.UtcNow), Categoria = "ALQUILER",
@@ -104,7 +105,7 @@ public class ProfitServiceTests
     {
         var db = NewDb();
         db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "0614", RazonSocial = "Demo", EstadoCodigo = "ACTIVA" });
-        SeedVentaConCosto(db, EmpresaA, 1, 1, 5m, 500m, costoUnitario: null, iva: 65m);
+        SeedVentaConCosto(db, EmpresaA, 1, 1, 5m, 565m, costoUnitario: null, iva: 65m);
         await db.SaveChangesAsync();
 
         var dash = await NewSvc(db).GetDashboardAsync(EmpresaA, new ProfitPeriodoQuery());
@@ -120,7 +121,7 @@ public class ProfitServiceTests
         var db = NewDb();
         db.Empresas.Add(new Empresa { Id = EmpresaA, Nit = "A", RazonSocial = "A", EstadoCodigo = "ACTIVA" });
         db.Empresas.Add(new Empresa { Id = EmpresaB, Nit = "B", RazonSocial = "B", EstadoCodigo = "ACTIVA" });
-        SeedVentaConCosto(db, EmpresaA, 1, 1, 10m, 1000m, 60m, 130m);
+        SeedVentaConCosto(db, EmpresaA, 1, 1, 10m, 1130m, 60m, 130m);
         SeedVentaConCosto(db, EmpresaB, 2, 2, 99m, 9999m, 10m, 1300m);
         await db.SaveChangesAsync();
 

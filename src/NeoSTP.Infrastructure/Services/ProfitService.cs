@@ -336,11 +336,16 @@ public class ProfitService : IProfitService
                      && x.Documento.FechaEmision >= desdeDt && x.Documento.FechaEmision < hastaExclusivo)
             .Select(x => new LineaRow(
                 x.Documento.TipoDteCodigo, x.Documento.EstadoCodigo, x.Cantidad,
-                x.VentaGravada + x.VentaExenta + x.VentaNoSujeta,
+                x.VentaGravada + x.VentaExenta + x.VentaNoSujeta
+                    - (x.Documento.TipoDteCodigo == TipoDteCodigos.FacturaConsumidorFinal ? x.IvaItem : 0m),
                 x.ProductoId,
                 x.Producto != null ? x.Producto.Nombre : x.Descripcion,
                 x.Producto != null ? x.Producto.CostoUnitario : null))
             .ToListAsync(ct);
+
+    private static decimal VentaNeta(DocRow doc)
+        => doc.TotalGravada + doc.TotalExenta + doc.TotalNoSujeto
+           - (doc.TipoDteCodigo == TipoDteCodigos.FacturaConsumidorFinal ? doc.IvaTotal : 0m);
 
     private static List<ProfitProductoDto> RankProductos(List<LineaRow> lineas, int top)
         => lineas
@@ -377,7 +382,7 @@ public class ProfitService : IProfitService
                 ClienteId = g.Key,
                 Nombre = g.Select(x => x.ReceptorNombre).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? "Consumidor final",
                 Documentos = g.Count(),
-                Venta = g.Sum(x => ProfitCalculator.Signo(x.TipoDteCodigo) * (x.TotalGravada + x.TotalExenta + x.TotalNoSujeto)),
+                Venta = g.Sum(x => ProfitCalculator.Signo(x.TipoDteCodigo) * VentaNeta(x)),
             })
             .OrderByDescending(c => c.Venta)
             .Take(Math.Clamp(top, 1, 100))
@@ -396,7 +401,7 @@ public class ProfitService : IProfitService
                 SucursalId = g.Key,
                 Nombre = g.Key is int sid && nombres.TryGetValue(sid, out var n) ? n : "Sin sucursal",
                 Documentos = g.Count(),
-                Venta = g.Sum(x => ProfitCalculator.Signo(x.TipoDteCodigo) * (x.TotalGravada + x.TotalExenta + x.TotalNoSujeto)),
+                Venta = g.Sum(x => ProfitCalculator.Signo(x.TipoDteCodigo) * VentaNeta(x)),
             })
             .OrderByDescending(s => s.Venta)
             .ToList();
@@ -408,7 +413,7 @@ public class ProfitService : IProfitService
             .GroupBy(d => DateOnly.FromDateTime(d.FechaEmision))
             .ToDictionary(
                 g => g.Key,
-                g => (Venta: g.Sum(x => ProfitCalculator.Signo(x.TipoDteCodigo) * (x.TotalGravada + x.TotalExenta + x.TotalNoSujeto)), Docs: g.Count()));
+                g => (Venta: g.Sum(x => ProfitCalculator.Signo(x.TipoDteCodigo) * VentaNeta(x)), Docs: g.Count()));
 
         if (desde is null || hasta is null)
         {

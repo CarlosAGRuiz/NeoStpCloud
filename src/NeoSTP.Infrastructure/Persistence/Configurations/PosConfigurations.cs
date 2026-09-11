@@ -68,6 +68,7 @@ public class VentaPosLineaConfiguration : IEntityTypeConfiguration<VentaPosLinea
         b.Property(x => x.Descripcion).HasMaxLength(250).IsRequired();
         b.Property(x => x.Cantidad).HasPrecision(18, 4);
         b.Property(x => x.PrecioUnitario).HasPrecision(18, 2);
+        b.Property(x => x.TipoPrecio).HasMaxLength(20).IsRequired().HasDefaultValue(NeoSTP.Domain.Core.Productos.TipoPrecioCodigos.IvaIncluido);
         b.Property(x => x.Descuento).HasPrecision(18, 2);
         b.Property(x => x.IvaLinea).HasPrecision(18, 2);
         b.Property(x => x.Total).HasPrecision(18, 2);

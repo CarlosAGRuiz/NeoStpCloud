@@ -31,6 +31,9 @@ public class CreateProductoViewModel
     [Required, Range(0, double.MaxValue), Display(Name = "Precio unitario")]
     public decimal PrecioUnitario { get; set; }
 
+    [Required, Display(Name = "El precio ingresado")]
+    public string TipoPrecio { get; set; } = "IVA_INCLUIDO";
+
     [Range(0, double.MaxValue), Display(Name = "Costo unitario")]
     public decimal? CostoUnitario { get; set; }
 

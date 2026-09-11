@@ -25,6 +25,10 @@ public class DteDocumentoDetalle : AuditableEntity
 
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    /// <summary>Semántica fiscal normalizada para este DTE; null en documentos históricos.</summary>
+    public string? TipoPrecio { get; set; }
+    /// <summary>GRAVADA, EXENTA o NO_SUJETA.</summary>
+    public string Clasificacion { get; set; } = "GRAVADA";
     public decimal MontoDescuento { get; set; }
 
     public decimal VentaNoSujeta { get; set; }
