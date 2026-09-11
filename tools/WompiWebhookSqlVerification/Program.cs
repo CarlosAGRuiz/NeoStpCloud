@@ -16,11 +16,19 @@ using NeoSTP.Infrastructure.Persistence;
 
 // Isolated real SQL, fake verifier and synthetic HMAC material only. Never reads app configuration.
 // Parent owns the lifecycle of the dedicated instance; this program owns only its GUID database.
-const string server = @"(localdb)\NeoStpAuthAudit_20260904";
+const string connectionVariable = "NEOSTP_SQLSERVER_TEST_CONNECTION";
+const string localDbServer = @"(localdb)\NeoStpAuthAudit_20260904";
+var configuredRoot = Environment.GetEnvironmentVariable(connectionVariable);
+var rootBuilder = string.IsNullOrWhiteSpace(configuredRoot)
+    ? new SqlConnectionStringBuilder { DataSource = localDbServer, IntegratedSecurity = true }
+    : new SqlConnectionStringBuilder(configuredRoot);
+var server = rootBuilder.DataSource;
 var suffix = Guid.NewGuid().ToString("N");
 var database = "WompiWebhookAudit_" + suffix;
-var connection = new SqlConnectionStringBuilder { DataSource = server, InitialCatalog = database,
-    IntegratedSecurity = true, TrustServerCertificate = true, ConnectTimeout = 10 }.ConnectionString;
+rootBuilder.InitialCatalog = database;
+rootBuilder.TrustServerCertificate = true;
+rootBuilder.ConnectTimeout = 10;
+var connection = rootBuilder.ConnectionString;
 NeoStpDbContext Db(params IInterceptor[] interceptors) => new(new DbContextOptionsBuilder<NeoStpDbContext>()
     .UseSqlServer(connection, sql => sql.EnableRetryOnFailure(3)).AddInterceptors(interceptors).Options);
 const string account = "synthetic-webhook-account";

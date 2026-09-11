@@ -61,6 +61,16 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 - [ ] Ejecutar el gate con una identidad efímera que pueda crear bases, localmente o en GitHub Actions cuando existan runners.
 - [ ] Revisar el SQL generado para la Release Candidate y ensayarlo primero en STAGING.
 
+## Sprint actual: Invariantes SQL de negocio
+
+- [x] Hacer portables los verificadores SQL de DTE, aplicación de pagos y webhook Wompi.
+- [x] Ejecutarlos sobre bases efímeras GUID y eliminar únicamente las bases creadas por cada gate.
+- [x] Cubrir aislamiento de claves DTE por empresa, correlativos concurrentes y transición fiscal atómica.
+- [x] Cubrir deduplicación de webhooks, aplicación idempotente de pagos y rollback transaccional.
+- [x] Emitir evidencia JSON saneada por gate y conservarla como artefacto de CI.
+- [x] Ejecutar localmente 3 gates y 140 checks sobre SQL Server real con datos sintéticos y limpieza verificada.
+- [ ] Ejecutar el conjunto portable sobre SQL Server 2022 en GitHub cuando existan runners disponibles.
+
 ## Gates de salida
 
 La lista normativa vive en [RELEASE.md](RELEASE.md). Ninguna casilla operativa se marca basándose solo en documentación o mocks: debe existir evidencia reproducible y saneada.
