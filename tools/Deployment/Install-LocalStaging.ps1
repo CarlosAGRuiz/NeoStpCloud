@@ -26,6 +26,7 @@ if ($DataRoot.StartsWith($repoRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw 'LOCAL_STAGING_DATA_ROOT_MUST_BE_OUTSIDE_REPOSITORY'
 }
 
+$releasesRoot = [IO.Path]::GetFullPath((Join-Path $DataRoot 'releases')).TrimEnd('\', '/')
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $commit = (& git -C $repoRoot rev-parse --short=12 HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{12}$') { throw 'LOCAL_STAGING_GIT_COMMIT_UNAVAILABLE' }
@@ -259,6 +260,23 @@ if (-not $SkipTasks) {
         if ($existing) { Stop-ScheduledTask -TaskName "$taskPrefix $name" -ErrorAction SilentlyContinue }
     }
 
+    Get-Process -Name 'NeoSTP.Api', 'NeoSTP.Web', 'NeoSTP.Worker' -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $processPath = $_.Path
+            if ($processPath -and
+                $processPath.StartsWith($releasesRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+    $portReleaseDeadline = (Get-Date).AddSeconds(30)
+    while ((Get-NetTCPConnection -State Listen -LocalPort $ApiPort, $WebPort -ErrorAction SilentlyContinue) -and
+           (Get-Date) -lt $portReleaseDeadline) {
+        Start-Sleep -Milliseconds 250
+    }
+    if (Get-NetTCPConnection -State Listen -LocalPort $ApiPort, $WebPort -ErrorAction SilentlyContinue) {
+        throw 'LOCAL_STAGING_PORT_STILL_IN_USE'
+    }
     $settings = New-ScheduledTaskSettingsSet `
         -AllowStartIfOnBatteries `
         -DontStopIfGoingOnBatteries `
@@ -301,11 +319,32 @@ function Wait-Health([string]$hostName, [int]$port, [string]$path) {
     throw "LOCAL_STAGING_HEALTH_TIMEOUT: $hostName$path"
 }
 
+function Assert-ListenerRelease([int]$port) {
+    $listener = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction Stop | Select-Object -First 1
+    $process = Get-Process -Id $listener.OwningProcess -ErrorAction Stop
+    $actualPath = [IO.Path]::GetFullPath($process.Path)
+    $expectedPrefix = [IO.Path]::GetFullPath($releaseRoot).TrimEnd('\', '/') + '\'
+    if (-not $actualPath.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "LOCAL_STAGING_LISTENER_RELEASE_MISMATCH: $port"
+    }
+}
+
 if (-not $SkipTasks) {
     Wait-Health 'staging-api.neostp.com' $ApiPort '/health/live'
     Wait-Health 'staging-api.neostp.com' $ApiPort '/health/ready'
     Wait-Health 'staging.neostp.com' $WebPort '/health/live'
     Wait-Health 'staging.neostp.com' $WebPort '/health/ready'
+    Assert-ListenerRelease $ApiPort
+    Assert-ListenerRelease $WebPort
+
+    foreach ($name in 'API', 'Web') {
+        if ((Get-ScheduledTask -TaskName "NeoSTP STAGING $name").State -ne 'Running') {
+            throw "LOCAL_STAGING_TASK_NOT_RUNNING: $name"
+        }
+    }
+    if (-not $EnableWorker -and (Get-ScheduledTask -TaskName 'NeoSTP STAGING Worker').State -ne 'Disabled') {
+        throw 'LOCAL_STAGING_WORKER_NOT_DISABLED'
+    }
 
     $loginBody = @{ usernameOrEmail = $secrets.Username; password = Unprotect-Text $secrets.AdminPassword } | ConvertTo-Json
     $login = Invoke-RestMethod -Uri "http://127.0.0.1:$ApiPort/api/auth/login" -Method Post `
