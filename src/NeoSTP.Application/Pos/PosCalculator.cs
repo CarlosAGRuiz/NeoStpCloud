@@ -1,13 +1,15 @@
+using NeoSTP.Application.Productos;
+using NeoSTP.Domain.Core.Productos;
+
 namespace NeoSTP.Application.Pos;
 
 /// <summary>
-/// Reglas puras de cálculo de una venta POS (testeable sin BD). Los precios unitarios se
-/// asumen <b>IVA incluido</b> (precio de venta al público). De cada línea se extrae la porción
-/// de IVA contenida; el subtotal es el neto sin IVA.
+/// Reglas puras de cálculo de una venta POS (testeable sin BD), delegadas a la fuente
+/// única de semántica de precios e IVA.
 /// </summary>
 public static class PosCalculator
 {
-    public readonly record struct LineaInput(decimal Cantidad, decimal PrecioUnitario, decimal Descuento, bool AplicaIva);
+    public readonly record struct LineaInput(decimal Cantidad, decimal PrecioUnitario, decimal Descuento, bool AplicaIva, string TipoPrecio = TipoPrecioCodigos.IvaIncluido);
     public readonly record struct LineaCalculo(decimal Total, decimal IvaLinea, decimal Subtotal);
     public readonly record struct VentaTotales(decimal Subtotal, decimal IvaTotal, decimal TotalDescuento, decimal Total);
 
@@ -15,11 +17,9 @@ public static class PosCalculator
 
     public static LineaCalculo CalcularLinea(LineaInput l, decimal ivaTasa)
     {
-        var bruto = l.PrecioUnitario * l.Cantidad;
-        var total = R(bruto - l.Descuento);
-        if (total < 0) total = 0m;
-        var iva = l.AplicaIva && ivaTasa > 0 ? R(total - total / (1 + ivaTasa)) : 0m;
-        return new LineaCalculo(total, iva, R(total - iva));
+        var c = PrecioIvaCalculator.CalcularLinea(
+            new(l.Cantidad, l.PrecioUnitario, l.Descuento, l.AplicaIva, l.TipoPrecio), ivaTasa);
+        return new LineaCalculo(c.Total, c.Iva, c.Subtotal);
     }
 
     public static VentaTotales CalcularVenta(IEnumerable<LineaInput> lineas, decimal ivaTasa)
@@ -27,9 +27,10 @@ public static class PosCalculator
         decimal subtotal = 0, iva = 0, descuento = 0, total = 0;
         foreach (var l in lineas)
         {
-            var c = CalcularLinea(l, ivaTasa);
-            subtotal += c.Subtotal; iva += c.IvaLinea; total += c.Total;
-            descuento += l.Descuento > 0 ? R(l.Descuento) : 0m;
+            var calculo = PrecioIvaCalculator.CalcularLinea(
+                new(l.Cantidad, l.PrecioUnitario, l.Descuento, l.AplicaIva, l.TipoPrecio), ivaTasa);
+            subtotal += calculo.Subtotal; iva += calculo.Iva; total += calculo.Total;
+            descuento += calculo.DescuentoTotal;
         }
         return new VentaTotales(R(subtotal), R(iva), R(descuento), R(total));
     }

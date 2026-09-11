@@ -16,6 +16,7 @@ public class ProductoDto
     public bool ControlaLote { get; set; }
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
+    public string TipoPrecio { get; set; } = "IVA_INCLUIDO";
     public decimal? CostoUnitario { get; set; }
     public bool AplicaIva { get; set; }
     public string? TributoCodigo { get; set; }
@@ -36,6 +37,7 @@ public class CreateProductoRequest
     public bool ControlaLote { get; set; }
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal PrecioUnitario { get; set; }
+    public string TipoPrecio { get; set; } = "IVA_INCLUIDO";
     public decimal? CostoUnitario { get; set; }
     public bool AplicaIva { get; set; } = true;
     public string? TributoCodigo { get; set; }
@@ -67,6 +69,7 @@ public class ProductoPreciosDto
 {
     public int ProductoId { get; set; }
     public decimal PrecioBase { get; set; }
+    public string TipoPrecio { get; set; } = "IVA_INCLUIDO";
     public List<PrecioEscalaDto> Escalas { get; set; } = [];
     public List<UnidadAlternativaDto> Unidades { get; set; } = [];
 }

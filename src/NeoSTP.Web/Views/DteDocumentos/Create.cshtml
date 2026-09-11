@@ -285,12 +285,12 @@
                                         <option value="">—</option>
                                         @foreach (var p in productos)
                                         {
-                                            <option value="@p.Id" data-desc="@p.Nombre" data-precio="@p.PrecioUnitario" data-unidad="@p.UnidadMedidaCodigo">@p.CodigoInterno - @p.Nombre</option>
+                                            <option value="@p.Id" data-desc="@p.Nombre" data-precio="@p.PrecioUnitario" data-tipo-precio="@p.TipoPrecio" data-unidad="@p.UnidadMedidaCodigo">@p.CodigoInterno - @p.Nombre</option>
                                         }
                                     </select></td>
                                     <td><input name="Lineas[@i].Descripcion" value="@l.Descripcion" class="form-control form-control-sm desc-input" /></td>
                                     <td><input name="Lineas[@i].Cantidad" value="@l.Cantidad" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end cant-input" /></td>
-                                    <td><input name="Lineas[@i].PrecioUnitario" value="@l.PrecioUnitario" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end precio-input" /></td>
+                                    <td><input name="Lineas[@i].PrecioUnitario" value="@l.PrecioUnitario" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end precio-input" /><input name="Lineas[@i].TipoPrecio" value="@l.TipoPrecio" type="hidden" class="tipo-precio-input" /></td>
                                     <td><input name="Lineas[@i].MontoDescuento" value="@l.MontoDescuento" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end desc-monto-input" /></td>
                                     <td><select name="Lineas[@i].Clasificacion" class="form-select form-select-sm">
                                         <option value="GRAVADA">Gravada</option>
@@ -363,12 +363,12 @@
             <option value="">—</option>
             @foreach (var p in productos)
             {
-                <option value="@p.Id" data-desc="@p.Nombre" data-precio="@p.PrecioUnitario" data-unidad="@p.UnidadMedidaCodigo">@p.CodigoInterno - @p.Nombre</option>
+                <option value="@p.Id" data-desc="@p.Nombre" data-precio="@p.PrecioUnitario" data-tipo-precio="@p.TipoPrecio" data-unidad="@p.UnidadMedidaCodigo">@p.CodigoInterno - @p.Nombre</option>
             }
         </select></td>
         <td><input name="Lineas[__IDX__].Descripcion" class="form-control form-control-sm desc-input" /></td>
         <td><input name="Lineas[__IDX__].Cantidad" value="1" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end cant-input" /></td>
-        <td><input name="Lineas[__IDX__].PrecioUnitario" value="0" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end precio-input" /></td>
+        <td><input name="Lineas[__IDX__].PrecioUnitario" value="0" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end precio-input" /><input name="Lineas[__IDX__].TipoPrecio" type="hidden" class="tipo-precio-input" /></td>
         <td><input name="Lineas[__IDX__].MontoDescuento" value="0" type="number" step="0.0001" min="0" class="form-control form-control-sm text-end desc-monto-input" /></td>
         <td><select name="Lineas[__IDX__].Clasificacion" class="form-select form-select-sm">
             <option value="GRAVADA">Gravada</option>
@@ -494,6 +494,7 @@
                 const row = e.target.closest('.linea-row');
                 row.querySelector('.desc-input').value = opt.dataset.desc;
                 row.querySelector('.precio-input').value = opt.dataset.precio || 0;
+                row.querySelector('.tipo-precio-input').value = opt.dataset.tipoPrecio || '';
                 recalc();
             }
         }

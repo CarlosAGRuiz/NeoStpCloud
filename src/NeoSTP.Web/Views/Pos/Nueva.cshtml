@@ -99,13 +99,16 @@
         tb.querySelectorAll('tr[data-row]').forEach(r => r.remove());
         let subtotal = 0, iva = 0, total = 0;
         cart.forEach((l, i) => {
-            const lineaTotal = Math.max(0, l.precio * l.cantidad - (l.descuento || 0));
-            const lineaIva = l.aplicaIva ? lineaTotal - lineaTotal / (1 + IVA) : 0;
-            subtotal += lineaTotal - lineaIva; iva += lineaIva; total += lineaTotal;
+            const capturado = Math.max(0, l.precio * l.cantidad - (l.descuento || 0));
+            const excluido = l.aplicaIva && l.tipoPrecio === 'IVA_EXCLUIDO';
+            const lineaSubtotal = l.aplicaIva ? (excluido ? capturado : capturado / (1 + IVA)) : capturado;
+            const lineaIva = l.aplicaIva ? (excluido ? capturado * IVA : capturado - lineaSubtotal) : 0;
+            const lineaTotal = lineaSubtotal + lineaIva;
+            subtotal += lineaSubtotal; iva += lineaIva; total += lineaTotal;
             const tr = document.createElement('tr');
             tr.setAttribute('data-row', i);
             tr.innerHTML = `
-                <td>${l.descripcion}<div class="small text-muted ns-mono">${l.codigo || ''}</div></td>
+                <td>${l.descripcion}<div class="small text-muted ns-mono">${l.codigo || ''} · ${l.tipoPrecio === 'IVA_EXCLUIDO' ? '+ IVA' : 'IVA incl.'}</div></td>
                 <td class="text-center"><input type="number" min="0.01" step="1" value="${l.cantidad}" class="form-control form-control-sm ns-mono text-center" onchange="setCant(${i}, this.value)"></td>
                 <td class="text-end"><input type="number" min="0" step="0.01" value="${fmt(l.precio)}" class="form-control form-control-sm ns-mono text-end" onchange="setPrecio(${i}, this.value)"></td>
                 <td class="text-end ns-mono">${fmt(lineaTotal)}</td>
@@ -123,13 +126,13 @@
     function agregar(p) {
         const ex = cart.find(x => x.productoId === p.id && p.id);
         if (ex) { ex.cantidad += 1; aplicarEscala(ex); }
-        else cart.push({ productoId: p.id || null, codigo: p.codigo, descripcion: p.nombre, cantidad: 1, precio: p.precio, precioBase: p.precio, escalas: p.escalas || [], descuento: 0, aplicaIva: p.iva });
+        else cart.push({ productoId: p.id || null, codigo: p.codigo, descripcion: p.nombre, cantidad: 1, precio: p.precio, precioBase: p.precio, tipoPrecio: p.tipoPrecio || 'IVA_INCLUIDO', escalas: p.escalas || [], descuento: 0, aplicaIva: p.iva });
         render();
     }
     function agregarManual() {
         const desc = prompt('Descripción del ítem:'); if (!desc) return;
         const precio = parseFloat(prompt('Precio (IVA incl.):', '0')) || 0;
-        cart.push({ productoId: null, codigo: '—', descripcion: desc, cantidad: 1, precio: precio, descuento: 0, aplicaIva: true });
+        cart.push({ productoId: null, codigo: '—', descripcion: desc, cantidad: 1, precio: precio, tipoPrecio: 'IVA_INCLUIDO', descuento: 0, aplicaIva: true });
         render();
     }
     function setCant(i, v) { cart[i].cantidad = Math.max(0.0001, parseFloat(v) || 1); aplicarEscala(cart[i]); render(); }
@@ -180,7 +183,7 @@
         if (cart.length === 0) { e.preventDefault(); return; }
         document.getElementById('lineasJson').value = JSON.stringify(cart.map(l => ({
             productoId: l.productoId, codigo: l.codigo, descripcion: l.descripcion,
-            cantidad: l.cantidad, precioUnitario: l.precio, descuento: l.descuento || 0, aplicaIva: l.aplicaIva
+            cantidad: l.cantidad, precioUnitario: l.precio, tipoPrecio: l.tipoPrecio, descuento: l.descuento || 0, aplicaIva: l.aplicaIva
         })));
     });
 </script>

@@ -411,7 +411,7 @@ etiqueta`. Para "crear cliente rápido" basta `tipoDocumentoCodigo + numeroDocum
 
 Mismo patrón CRUD que clientes: `GET /api/productos` (lista paginada), `GET /{id}`, `POST`, `PUT /{id}`,
 `PATCH /{id}/inactivar` (`Productos.Ver/Crear/Editar`). `ProductoDto`: `id, codigoInterno, codigoBarra,
-nombre, descripcion, tipoItem (BIEN/SERVICIO), esServicio, unidadMedidaCodigo, precioUnitario, costoUnitario,
+nombre, descripcion, tipoItem (BIEN/SERVICIO), esServicio, unidadMedidaCodigo, precioUnitario, tipoPrecio (IVA_INCLUIDO/IVA_EXCLUIDO), costoUnitario,
 aplicaIva, tributoCodigo, estadoCodigo`. El `codigoBarra` habilita el escaneo→buscar producto.
 
 ### 8.5 Búsquedas rápidas y cascadas — `/api/lookups`

@@ -76,7 +76,7 @@
                         </td>
                         <td><span class="badge @tipoBadge">@p.TipoItem</span></td>
                         <td><small>@p.UnidadMedidaCodigo</small></td>
-                        <td class="text-end">@p.PrecioUnitario.ToString("N4")</td>
+                        <td class="text-end">@p.PrecioUnitario.ToString("N4")<br /><small class="text-muted">@(p.TipoPrecio == "IVA_EXCLUIDO" ? "+ IVA" : "IVA incluido")</small></td>
                         <td>@if (p.AplicaIva) { <span class="material-symbols-outlined align-middle text-success" style="font-size:18px">check</span> } else { <text>—</text> }</td>
                         <td><span class="@badge">@p.EstadoCodigo</span></td>
                         <td class="text-end">

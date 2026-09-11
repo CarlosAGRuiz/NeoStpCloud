@@ -3,7 +3,7 @@
   "dbContext": "NeoStpDbContext",
   "provider": "Microsoft.EntityFrameworkCore.SqlServer",
   "firstMigration": "20260526214715_InitialCreate",
-  "currentMigration": "20260911171700_P1_NotificationOutbox",
-  "migrationCount": 93,
-  "modelSnapshotSha256": "807b139a4b118973880af2377b677e48f4510e6bd7d5b218932a702dec2cb7c9"
+  "currentMigration": "20260911184623_P2_PriceVatSemantics",
+  "migrationCount": 94,
+  "modelSnapshotSha256": "879458d14ffa2f7f5c5fb082171b7c0be6d4168d38435141df15e648fe5cd024"
 }

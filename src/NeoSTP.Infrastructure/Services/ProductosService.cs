@@ -109,6 +109,7 @@ public class ProductosService : IProductosService
             TipoItem = tipo,
             UnidadMedidaCodigo = request.UnidadMedidaCodigo.Trim().ToUpperInvariant(),
             PrecioUnitario = request.PrecioUnitario,
+            TipoPrecio = TipoPrecioCodigos.Normalizar(request.TipoPrecio),
             CostoUnitario = request.CostoUnitario,
             AplicaIva = request.AplicaIva,
             TributoCodigo = request.TributoCodigo,
@@ -139,6 +140,7 @@ public class ProductosService : IProductosService
         producto.TipoItem = request.TipoItem.Trim().ToUpperInvariant();
         producto.UnidadMedidaCodigo = request.UnidadMedidaCodigo.Trim().ToUpperInvariant();
         producto.PrecioUnitario = request.PrecioUnitario;
+        producto.TipoPrecio = TipoPrecioCodigos.Normalizar(request.TipoPrecio);
         producto.CostoUnitario = request.CostoUnitario;
         producto.AplicaIva = request.AplicaIva;
         producto.TributoCodigo = request.TributoCodigo;
@@ -206,6 +208,7 @@ public class ProductosService : IProductosService
                 TipoItem = row.Get("tipo") ?? row.Get("tipoitem") ?? "BIEN",
                 UnidadMedidaCodigo = row.Get("unidadmedida") ?? row.Get("unidadmedidacodigo") ?? "59",
                 PrecioUnitario = precio,
+                TipoPrecio = row.Get("tipoprecio") ?? TipoPrecioCodigos.IvaIncluido,
                 CostoUnitario = costo,
                 AplicaIva = ParseBool(row.Get("aplicaiva")) ?? true,
                 TributoCodigo = row.Get("tributo") ?? row.Get("tributocodigo"),
@@ -287,6 +290,7 @@ public class ProductosService : IProductosService
         return Result<ProductoPreciosDto>.Ok(new ProductoPreciosDto
         {
             ProductoId = productoId, PrecioBase = producto.PrecioUnitario,
+            TipoPrecio = producto.TipoPrecio,
             Escalas = escalas, Unidades = unidades,
         });
     }
@@ -398,6 +402,7 @@ public class ProductosService : IProductosService
         TipoItem = req.TipoItem.Trim().ToUpperInvariant(),
         UnidadMedidaCodigo = req.UnidadMedidaCodigo.Trim().ToUpperInvariant(),
         PrecioUnitario = req.PrecioUnitario,
+        TipoPrecio = TipoPrecioCodigos.Normalizar(req.TipoPrecio),
         CostoUnitario = req.CostoUnitario,
         AplicaIva = req.AplicaIva,
         TributoCodigo = req.TributoCodigo,
@@ -415,6 +420,7 @@ public class ProductosService : IProductosService
         p.TipoItem = req.TipoItem.Trim().ToUpperInvariant();
         p.UnidadMedidaCodigo = req.UnidadMedidaCodigo.Trim().ToUpperInvariant();
         p.PrecioUnitario = req.PrecioUnitario;
+        p.TipoPrecio = TipoPrecioCodigos.Normalizar(req.TipoPrecio);
         p.CostoUnitario = req.CostoUnitario;
         p.AplicaIva = req.AplicaIva;
         p.TributoCodigo = req.TributoCodigo;
@@ -440,6 +446,8 @@ public class ProductosService : IProductosService
         if (string.IsNullOrWhiteSpace(r.Nombre)) errors.Add("Nombre es obligatorio.");
         if (string.IsNullOrWhiteSpace(r.UnidadMedidaCodigo)) errors.Add("Unidad de medida es obligatoria.");
         if (r.PrecioUnitario < 0) errors.Add("El precio no puede ser negativo.");
+        if (!TipoPrecioCodigos.EsValido(r.TipoPrecio))
+            errors.Add("Tipo de precio inválido. Use IVA_INCLUIDO o IVA_EXCLUIDO.");
         if (r.CostoUnitario is decimal c && c < 0) errors.Add("El costo no puede ser negativo.");
         var tipo = (r.TipoItem ?? "").Trim().ToUpperInvariant();
         if (!TiposValidos.Contains(tipo))
@@ -457,6 +465,7 @@ public class ProductosService : IProductosService
         ControlaLote = p.ControlaLote,
         UnidadMedidaCodigo = p.UnidadMedidaCodigo,
         PrecioUnitario = p.PrecioUnitario, CostoUnitario = p.CostoUnitario,
+        TipoPrecio = p.TipoPrecio,
         AplicaIva = p.AplicaIva, TributoCodigo = p.TributoCodigo,
         EstadoCodigo = p.EstadoCodigo, CreatedAt = p.CreatedAt,
     };

@@ -64,10 +64,17 @@ public class DteCalculator : IDteCalculator
                 continue;
             }
 
-            if (l.NoGravado)
+            if (l.NoGravado || string.Equals(l.Clasificacion, "NO_SUJETA", StringComparison.OrdinalIgnoreCase))
             {
                 l.VentaNoSujeta = neto;
                 totalNoSujeta += neto;
+                continue;
+            }
+
+            if (string.Equals(l.Clasificacion, "EXENTA", StringComparison.OrdinalIgnoreCase))
+            {
+                l.VentaExenta = neto;
+                totalExenta += neto;
                 continue;
             }
 

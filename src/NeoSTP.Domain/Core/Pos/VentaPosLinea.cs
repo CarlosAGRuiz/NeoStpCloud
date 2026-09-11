@@ -13,13 +13,15 @@ public class VentaPosLinea : AuditableEntity
     public string Descripcion { get; set; } = null!;
 
     public decimal Cantidad { get; set; }
-    /// <summary>Precio unitario (IVA incluido para ítems gravados, como precio de venta al público).</summary>
+    /// <summary>Precio unitario capturado.</summary>
     public decimal PrecioUnitario { get; set; }
+    /// <summary>Snapshot de la semántica del precio al registrar la venta.</summary>
+    public string TipoPrecio { get; set; } = NeoSTP.Domain.Core.Productos.TipoPrecioCodigos.IvaIncluido;
     public decimal Descuento { get; set; }
     public bool AplicaIva { get; set; } = true;
 
-    /// <summary>Porción de IVA contenida en el total de la línea.</summary>
+    /// <summary>IVA contenido o agregado, según <see cref="TipoPrecio"/>.</summary>
     public decimal IvaLinea { get; set; }
-    /// <summary>Total de la línea (precio × cantidad − descuento), IVA incluido.</summary>
+    /// <summary>Total pagable de la línea, IVA incluido.</summary>
     public decimal Total { get; set; }
 }

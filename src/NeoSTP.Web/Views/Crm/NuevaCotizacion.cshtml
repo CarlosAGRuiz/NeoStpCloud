@@ -44,7 +44,7 @@
             </div></div>
 
             <div class="card"><div class="card-body">
-                <h2 class="h6 mb-3">Líneas <span class="text-muted small fw-normal">(precios con IVA incluido)</span></h2>
+                <h2 class="h6 mb-3">Líneas <span class="text-muted small fw-normal">(cada precio indica si incluye o suma IVA)</span></h2>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle">
                         <thead><tr><th style="min-width:220px">Producto / descripción</th><th>Cantidad</th><th>Precio</th><th>Desc. $</th><th></th></tr></thead>
@@ -57,13 +57,19 @@
                                             <option value="">— Ítem libre —</option>
                                             @foreach (var p in productos)
                                             {
-                                                <option value="@p.Id" data-precio="@p.PrecioUnitario.ToString(CultureInfo.InvariantCulture)" selected="@(Model.Lineas[i].ProductoId == p.Id)">@p.CodigoInterno · @p.Nombre</option>
+                                                <option value="@p.Id" data-precio="@p.PrecioUnitario.ToString(CultureInfo.InvariantCulture)" data-tipo-precio="@p.TipoPrecio" selected="@(Model.Lineas[i].ProductoId == p.Id)">@p.CodigoInterno · @p.Nombre</option>
                                             }
                                         </select>
                                         <input name="Lineas[@i].Descripcion" value="@Model.Lineas[i].Descripcion" class="form-control form-control-sm mt-1 cot-desc" placeholder="Descripción (si es ítem libre)" />
                                     </td>
                                     <td><input name="Lineas[@i].Cantidad" value="@Model.Lineas[i].Cantidad" type="number" step="0.01" min="0.01" class="form-control form-control-sm ns-mono cot-cant" /></td>
-                                    <td><input name="Lineas[@i].PrecioUnitario" value="@Model.Lineas[i].PrecioUnitario" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-precio" placeholder="del producto" /></td>
+                                    <td>
+                                        <input name="Lineas[@i].PrecioUnitario" value="@Model.Lineas[i].PrecioUnitario" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-precio" placeholder="del producto" />
+                                        <select name="Lineas[@i].TipoPrecio" class="form-select form-select-sm mt-1 cot-tipo-precio" aria-label="Semántica del precio">
+                                            <option value="IVA_INCLUIDO" selected="@(Model.Lineas[i].TipoPrecio != "IVA_EXCLUIDO")">IVA incl.</option>
+                                            <option value="IVA_EXCLUIDO" selected="@(Model.Lineas[i].TipoPrecio == "IVA_EXCLUIDO")">+ IVA</option>
+                                        </select>
+                                    </td>
                                     <td><input name="Lineas[@i].MontoDescuento" value="@Model.Lineas[i].MontoDescuento" type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-desc-monto" /></td>
                                     <td><button type="button" class="btn btn-outline-danger btn-sm cot-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
                                 </tr>
@@ -93,13 +99,19 @@
                 <option value="">— Ítem libre —</option>
                 @foreach (var p in productos)
                 {
-                    <option value="@p.Id" data-precio="@p.PrecioUnitario.ToString(CultureInfo.InvariantCulture)">@p.CodigoInterno · @p.Nombre</option>
+                    <option value="@p.Id" data-precio="@p.PrecioUnitario.ToString(CultureInfo.InvariantCulture)" data-tipo-precio="@p.TipoPrecio">@p.CodigoInterno · @p.Nombre</option>
                 }
             </select>
             <input class="form-control form-control-sm mt-1 cot-desc" placeholder="Descripción (si es ítem libre)" />
         </td>
         <td><input type="number" step="0.01" min="0.01" value="1" class="form-control form-control-sm ns-mono cot-cant" /></td>
-        <td><input type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-precio" placeholder="del producto" /></td>
+        <td>
+            <input type="number" step="0.01" min="0" class="form-control form-control-sm ns-mono cot-precio" placeholder="del producto" />
+            <select class="form-select form-select-sm mt-1 cot-tipo-precio" aria-label="Semántica del precio">
+                <option value="IVA_INCLUIDO">IVA incl.</option>
+                <option value="IVA_EXCLUIDO">+ IVA</option>
+            </select>
+        </td>
         <td><input type="number" step="0.01" min="0" value="0" class="form-control form-control-sm ns-mono cot-desc-monto" /></td>
         <td><button type="button" class="btn btn-outline-danger btn-sm cot-del"><span class="material-symbols-outlined" style="font-size:18px">close</span></button></td>
     </tr>
@@ -116,6 +128,7 @@
                 tr.querySelector('.cot-desc').name = 'Lineas[' + i + '].Descripcion';
                 tr.querySelector('.cot-cant').name = 'Lineas[' + i + '].Cantidad';
                 tr.querySelector('.cot-precio').name = 'Lineas[' + i + '].PrecioUnitario';
+                tr.querySelector('.cot-tipo-precio').name = 'Lineas[' + i + '].TipoPrecio';
                 tr.querySelector('.cot-desc-monto').name = 'Lineas[' + i + '].MontoDescuento';
             });
         }
@@ -131,16 +144,22 @@
                     precio = parseFloat(opt ? opt.getAttribute('data-precio') : '') || 0;
                 }
                 var desc = parseFloat(tr.querySelector('.cot-desc-monto').value) || 0;
-                total += Math.max(cant * precio - desc, 0);
+                var capturado = Math.max(cant * precio - desc, 0);
+                var tipoPrecio = tr.querySelector('.cot-tipo-precio').value;
+                total += tipoPrecio === 'IVA_EXCLUIDO' ? capturado * 1.13 : capturado;
             });
             document.getElementById('cotTotal').textContent = '$ ' + total.toFixed(2);
         }
         function wire(tr) {
             tr.querySelector('.cot-del').addEventListener('click', function () { tr.remove(); reindex(); recalc(); });
-            ['.cot-cant', '.cot-precio', '.cot-desc-monto'].forEach(function (s) {
+            ['.cot-cant', '.cot-precio', '.cot-tipo-precio', '.cot-desc-monto'].forEach(function (s) {
                 tr.querySelector(s).addEventListener('input', recalc);
             });
-            tr.querySelector('.cot-prod').addEventListener('change', recalc);
+            tr.querySelector('.cot-prod').addEventListener('change', function () {
+                var opt = this.selectedOptions[0];
+                if (opt && opt.dataset.tipoPrecio) tr.querySelector('.cot-tipo-precio').value = opt.dataset.tipoPrecio;
+                recalc();
+            });
         }
         document.getElementById('cotAdd').addEventListener('click', function () {
             var tr = tpl.content.cloneNode(true).querySelector('tr');

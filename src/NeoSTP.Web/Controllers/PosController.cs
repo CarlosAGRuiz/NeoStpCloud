@@ -78,7 +78,7 @@ public class PosController : Controller
                 escalas.TryGetValue(p.Id, out var e) ? e : Array.Empty<NeoSTP.Application.Productos.Dtos.PrecioEscalaDto>();
             return new
             {
-                id = p.Id, codigo = p.CodigoInterno, nombre = p.Nombre, precio = p.PrecioUnitario, iva = p.AplicaIva,
+                id = p.Id, codigo = p.CodigoInterno, nombre = p.Nombre, precio = p.PrecioUnitario, tipoPrecio = p.TipoPrecio, iva = p.AplicaIva,
                 escalas = esc.Select(x => new { min = x.CantidadMinima, precio = x.PrecioUnitario }).ToArray(),
             };
         });

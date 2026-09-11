@@ -38,6 +38,7 @@ public class VentaPosLineaDto
     public string Descripcion { get; set; } = null!;
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    public string TipoPrecio { get; set; } = "IVA_INCLUIDO";
     public decimal Descuento { get; set; }
     public bool AplicaIva { get; set; }
     public decimal IvaLinea { get; set; }
@@ -77,6 +78,8 @@ public class CrearVentaLineaRequest
     public string? Descripcion { get; set; }
     [Range(0.0001, 999999)] public decimal Cantidad { get; set; } = 1m;
     public decimal? PrecioUnitario { get; set; }
+    /// <summary>Si se omite, hereda la semántica del producto; en ítems libres usa IVA_INCLUIDO.</summary>
+    public string? TipoPrecio { get; set; }
     public decimal Descuento { get; set; }
     public bool? AplicaIva { get; set; }
 }

@@ -6,7 +6,9 @@ using NeoSTP.Application.Crm;
 using NeoSTP.Application.Crm.Dtos;
 using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Dtos;
+using NeoSTP.Application.Productos;
 using NeoSTP.Domain.Core.Crm;
+using NeoSTP.Domain.Core.Productos;
 using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Services;
@@ -502,11 +504,11 @@ public class CrmService : ICrmService
             if (precio is not decimal pu || pu < 0)
                 return Result<CotizacionCrmDetalleDto>.Fail($"Línea {n}: precio requerido.", "VALIDATION");
             var aplicaIva = l.AplicaIva ?? prod?.AplicaIva ?? true;
-
-            // Precios CON IVA incluido (igual que POS/FC). IvaItem = informativo (contenido).
-            var neto = Math.Round(l.Cantidad * pu - l.MontoDescuento, 2, MidpointRounding.AwayFromZero);
-            if (neto < 0) neto = 0;
-            var iva = aplicaIva ? Math.Round(neto * DteCalculator.IvaTasa / (1m + DteCalculator.IvaTasa), 2, MidpointRounding.AwayFromZero) : 0m;
+            var tipoPrecio = TipoPrecioCodigos.Normalizar(l.TipoPrecio ?? prod?.TipoPrecio);
+            if (!TipoPrecioCodigos.EsValido(tipoPrecio))
+                return Result<CotizacionCrmDetalleDto>.Fail($"Línea {n}: tipo de precio inválido.", "VALIDATION");
+            var calculo = PrecioIvaCalculator.CalcularLinea(
+                new(l.Cantidad, pu, l.MontoDescuento, aplicaIva, tipoPrecio), DteCalculator.IvaTasa);
 
             cot.Lineas.Add(new CotizacionCrmLinea
             {
@@ -519,11 +521,13 @@ public class CrmService : ICrmService
                 UnidadMedidaCodigo = prod?.UnidadMedidaCodigo ?? "59",
                 Cantidad = l.Cantidad,
                 PrecioUnitario = pu,
+                TipoPrecio = tipoPrecio,
+                AplicaIva = aplicaIva,
                 MontoDescuento = l.MontoDescuento,
-                VentaGravada = aplicaIva ? neto : 0m,
-                VentaExenta = aplicaIva ? 0m : neto,
-                IvaItem = iva,
-                TotalLinea = neto,
+                VentaGravada = aplicaIva ? calculo.Subtotal : 0m,
+                VentaExenta = aplicaIva ? 0m : calculo.Total,
+                IvaItem = calculo.Iva,
+                TotalLinea = calculo.Total,
                 CreatedBy = actor,
             });
         }
@@ -531,7 +535,8 @@ public class CrmService : ICrmService
         cot.Total = Math.Round(cot.Lineas.Sum(x => x.TotalLinea), 2, MidpointRounding.AwayFromZero);
         cot.IvaTotal = Math.Round(cot.Lineas.Sum(x => x.IvaItem), 2, MidpointRounding.AwayFromZero);
         cot.SubTotal = Math.Round(cot.Total - cot.IvaTotal, 2, MidpointRounding.AwayFromZero);
-        cot.DescuentoTotal = Math.Round(cot.Lineas.Sum(x => x.MontoDescuento), 2, MidpointRounding.AwayFromZero);
+        cot.DescuentoTotal = Math.Round(cot.Lineas.Sum(x => PrecioIvaCalculator.CalcularLinea(
+            new(x.Cantidad, x.PrecioUnitario, x.MontoDescuento, x.AplicaIva, x.TipoPrecio), DteCalculator.IvaTasa).DescuentoTotal), 2, MidpointRounding.AwayFromZero);
 
         _db.CotizacionesCrm.Add(cot);
         await _db.SaveChangesAsync(ct);
@@ -573,8 +578,8 @@ public class CrmService : ICrmService
         if (tipo == "03" && clienteId is null)
             return Result<CotizacionCrmDetalleDto>.Fail("El CCF (03) requiere un cliente con NRC.", "VALIDATION");
 
-        // Los precios de la cotización son IVA incluido → mapean directo a FC (01);
-        // para CCF (03) el pipeline DTE deriva el IVA de la clasificación GRAVADA.
+        // La semántica capturada en la cotización se conserva por línea y el pipeline
+        // DTE normaliza el importe al formato requerido por FC o CCF.
         var dteReq = new CreateDteDocumentoRequest
         {
             TipoDteCodigo = tipo,
@@ -591,8 +596,9 @@ public class CrmService : ICrmService
                 TipoItem = l.TipoItem,
                 Cantidad = l.Cantidad,
                 PrecioUnitario = l.PrecioUnitario,
+                TipoPrecio = l.TipoPrecio,
                 MontoDescuento = l.MontoDescuento,
-                Clasificacion = l.VentaGravada > 0 ? "GRAVADA" : "EXENTA",
+                Clasificacion = l.AplicaIva ? "GRAVADA" : "EXENTA",
             }).ToList(),
         };
 
@@ -644,8 +650,9 @@ public class CrmService : ICrmService
         {
             Id = l.Id, NumeroLinea = l.NumeroLinea, ProductoId = l.ProductoId, Codigo = l.Codigo,
             Descripcion = l.Descripcion, Cantidad = l.Cantidad, PrecioUnitario = l.PrecioUnitario,
+            TipoPrecio = l.TipoPrecio,
             MontoDescuento = l.MontoDescuento, IvaItem = l.IvaItem, TotalLinea = l.TotalLinea,
-            AplicaIva = l.VentaGravada > 0,
+            AplicaIva = l.AplicaIva,
         }).ToList(),
     };
 

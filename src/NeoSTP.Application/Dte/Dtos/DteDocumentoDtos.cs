@@ -116,6 +116,8 @@ public class DteDocumentoDetalleDto
     public string UnidadMedidaCodigo { get; set; } = "59";
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    public string? TipoPrecio { get; set; }
+    public string Clasificacion { get; set; } = "GRAVADA";
     public decimal MontoDescuento { get; set; }
     public decimal VentaNoSujeta { get; set; }
     public decimal VentaExenta { get; set; }
@@ -216,6 +218,10 @@ public class CreateDteDocumentoLineaRequest
     public int TipoItem { get; set; } = 1;
     public decimal Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
+    /// <summary>
+    /// Semántica del importe recibido. Null conserva el contrato histórico dictado por el tipo DTE.
+    /// </summary>
+    public string? TipoPrecio { get; set; }
     public decimal MontoDescuento { get; set; }
     /// <summary>EXENTA, NO_SUJETA o GRAVADA (default).</summary>
     public string Clasificacion { get; set; } = "GRAVADA";

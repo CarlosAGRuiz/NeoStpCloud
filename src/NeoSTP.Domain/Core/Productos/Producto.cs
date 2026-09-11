@@ -35,6 +35,8 @@ public class Producto : AuditableEntity
     public string UnidadMedidaCodigo { get; set; } = "59";
 
     public decimal PrecioUnitario { get; set; }
+    /// <summary>Indica si <see cref="PrecioUnitario"/> contiene IVA o si debe sumarse.</summary>
+    public string TipoPrecio { get; set; } = TipoPrecioCodigos.IvaIncluido;
     public decimal? CostoUnitario { get; set; }
 
     public bool AplicaIva { get; set; } = true;
