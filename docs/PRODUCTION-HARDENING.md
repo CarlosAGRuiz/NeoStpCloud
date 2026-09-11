@@ -25,7 +25,7 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 |---|---|---|
 | 0. Freeze | Alcance, baseline y gates versionados | Completada |
 | 1. Seguridad/Git | Escaneo actual e histórico, rotaciones, CI/ZAP, `main` protegida | En curso |
-| 2. Ambientes | Matriz STAGING/PROD, configuración, DNS, TLS, secretos, storage y DataProtection separados | Pendiente |
+| 2. Ambientes | Matriz STAGING/PROD y separación en código completadas; DNS, TLS, secretos y recursos físicos pendientes | En curso (infraestructura) |
 | 3. Base de datos | SQL Server 2022 efímero, migrations, aislamiento, concurrencia e idempotencia | En curso |
 | 4. DR | Backup físico y restauración aislada con RPO/RTO medidos | Pendiente |
 | 5. Plataforma | ProductionGuards completos, outbox, IVA, monitoreo y observabilidad | Pendiente |
@@ -50,6 +50,16 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 - [ ] Ejecutar CI, SQL Server integration, Gitleaks y ZAP en runners de GitHub.
 - [ ] Revisar manualmente las referencias locales privadas antes de mover o publicar cualquier contenido.
 - [ ] Rotar e invalidar cualquier credencial si la revisión manual confirma que estuvo activa; no registrar valores aquí.
+
+## Sprint actual: Pipeline de migrations
+
+- [x] Fijar `dotnet-ef` como herramienta local reproducible.
+- [x] Versionar manifest de migrations y hash del model snapshot.
+- [x] Generar SQL idempotente y manifest de artefacto sin cargar secretos ni abrir conexiones.
+- [x] Rechazar cambios de modelo sin migration.
+- [x] Agregar el gate que verifica en SQL Server real que el script crea una base vacía y puede reaplicarse sin cambios.
+- [ ] Ejecutar el gate con una identidad efímera que pueda crear bases, localmente o en GitHub Actions cuando existan runners.
+- [ ] Revisar el SQL generado para la Release Candidate y ensayarlo primero en STAGING.
 
 ## Gates de salida
 

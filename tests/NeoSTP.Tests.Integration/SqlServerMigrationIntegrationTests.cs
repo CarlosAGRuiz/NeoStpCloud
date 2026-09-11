@@ -1,7 +1,10 @@
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using NeoSTP.Infrastructure.Persistence;
+using System.Text.RegularExpressions;
 
 namespace NeoSTP.Tests.Integration;
 
@@ -68,6 +71,45 @@ public sealed class SqlServerMigrationIntegrationTests
         }
     }
 
+    [SqlServerFact]
+    public async Task Idempotent_release_script_can_build_an_empty_database_and_be_reapplied()
+    {
+        var rootConnection = Environment.GetEnvironmentVariable(ConnectionVariable)!;
+        var databaseName = $"NeoSTP_CI_Script_{Guid.NewGuid():N}";
+        var builder = new SqlConnectionStringBuilder(rootConnection)
+        {
+            InitialCatalog = databaseName,
+            ConnectTimeout = 5,
+        };
+
+        var options = new DbContextOptionsBuilder<NeoStpDbContext>()
+            .UseSqlServer(builder.ConnectionString, sql => sql.EnableRetryOnFailure())
+            .Options;
+
+        await using var db = new NeoStpDbContext(options);
+        try
+        {
+            await CreateDatabaseWithStartupRetryAsync(rootConnection, databaseName);
+
+            var migrator = db.GetService<IMigrator>();
+            var script = migrator.GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
+            script.Should().NotBeNullOrWhiteSpace();
+
+            await ExecuteSqlScriptAsync(builder.ConnectionString, script);
+            await ExecuteSqlScriptAsync(builder.ConnectionString, script);
+
+            var known = db.Database.GetMigrations().ToArray();
+            var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
+            applied.Should().Equal(known);
+            (await db.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+        }
+        finally
+        {
+            await db.Database.EnsureDeletedAsync();
+            SqlConnection.ClearAllPools();
+        }
+    }
+
     private static async Task MigrateWithStartupRetryAsync(NeoStpDbContext db)
     {
         const int attempts = 12;
@@ -83,6 +125,52 @@ public sealed class SqlServerMigrationIntegrationTests
                 SqlConnection.ClearAllPools();
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
+        }
+    }
+
+    private static async Task CreateDatabaseWithStartupRetryAsync(string rootConnection, string databaseName)
+    {
+        var rootBuilder = new SqlConnectionStringBuilder(rootConnection)
+        {
+            InitialCatalog = "master",
+            ConnectTimeout = 5,
+        };
+
+        const int attempts = 12;
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(rootBuilder.ConnectionString);
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = $"CREATE DATABASE [{databaseName.Replace("]", "]]", StringComparison.Ordinal)}]";
+                await command.ExecuteNonQueryAsync();
+                return;
+            }
+            catch (SqlException) when (attempt < attempts)
+            {
+                SqlConnection.ClearAllPools();
+                await Task.Delay(TimeSpan.FromSeconds(5));
+            }
+        }
+    }
+
+    private static async Task ExecuteSqlScriptAsync(string connectionString, string script)
+    {
+        var batches = Regex.Split(
+            script,
+            @"^\s*GO\s*(?:--.*)?$",
+            RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        foreach (var batch in batches.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = batch;
+            command.CommandTimeout = 120;
+            await command.ExecuteNonQueryAsync();
         }
     }
 
