@@ -3,7 +3,7 @@
   "dbContext": "NeoStpDbContext",
   "provider": "Microsoft.EntityFrameworkCore.SqlServer",
   "firstMigration": "20260526214715_InitialCreate",
-  "currentMigration": "20260906152921_CLI23_CalendarBillingAndCompanyModuleGrants",
-  "migrationCount": 92,
-  "modelSnapshotSha256": "84cd7dc870b2255796c48cf6c3040c17d392c5a2b413e50cf7b9709cc269fa45"
+  "currentMigration": "20260911171700_P1_NotificationOutbox",
+  "migrationCount": 93,
+  "modelSnapshotSha256": "807b139a4b118973880af2377b677e48f4510e6bd7d5b218932a702dec2cb7c9"
 }

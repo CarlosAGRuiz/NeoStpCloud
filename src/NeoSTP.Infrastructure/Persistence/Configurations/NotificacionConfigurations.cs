@@ -55,3 +55,29 @@ public class PreferenciaNotificacionConfiguration : IEntityTypeConfiguration<Pre
         b.HasIndex(x => new { x.EmpresaId, x.UsuarioId }).IsUnique();
     }
 }
+
+public sealed class NotificationOutboxMessageConfiguration : IEntityTypeConfiguration<NotificationOutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<NotificationOutboxMessage> b)
+    {
+        b.ToTable("Notif_Outbox");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Tipo).HasMaxLength(60).IsRequired();
+        b.Property(x => x.Canal).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Destinatario).HasMaxLength(320);
+        b.Property(x => x.Payload).HasColumnType("nvarchar(max)").IsRequired();
+        b.Property(x => x.ClaveIdempotencia).HasMaxLength(200).IsRequired();
+        b.Property(x => x.Estado).HasMaxLength(20).IsRequired();
+        b.Property(x => x.ErrorUltimo).HasMaxLength(500);
+        b.Property(x => x.LeaseId).HasMaxLength(64);
+        b.Property(x => x.CreatedBy).HasMaxLength(100);
+        b.Property(x => x.UpdatedBy).HasMaxLength(100);
+        b.Property(x => x.RowVersion).IsRowVersion();
+
+        b.HasIndex(x => new { x.EmpresaId, x.ClaveIdempotencia }).IsUnique();
+        b.HasIndex(x => new { x.Estado, x.DisponibleDesde, x.LeaseExpiresAt });
+        b.HasIndex(x => new { x.EmpresaId, x.CreatedAt });
+        b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

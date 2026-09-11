@@ -43,6 +43,7 @@ WorkerStartupPolicy.ConfigureJobs(builder.Services, builder.Configuration, build
     services.AddHostedService<BackupWorker>();
     services.AddHostedService<ConnectWebhookDeliveryWorker>();
     services.AddHostedService<BillingProviderOperationWorker>();
+    services.AddHostedService<NotificationOutboxWorker>();
     services.AddHostedService<AlertaGeneracionWorker>();
     services.AddHostedService<RecordatorioCobroWorker>();
     services.AddHostedService<LimpiezaAuditoriaWorker>();
