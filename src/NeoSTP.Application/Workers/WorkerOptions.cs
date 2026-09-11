@@ -13,6 +13,7 @@ public class WorkerOptions
     public ContingenciaLoteOptions ContingenciaLote { get; set; } = new();
     public WebhookDeliveryOptions WebhookDelivery { get; set; } = new();
     public BillingProviderOperationOptions BillingProviderOperations { get; set; } = new();
+    public NotificationOutboxOptions NotificationOutbox { get; set; } = new();
     public GeneracionAlertasOptions GeneracionAlertas { get; set; } = new();
     public RecordatoriosCobroOptions RecordatoriosCobro { get; set; } = new();
     public LimpiezaAuditoriaOptions LimpiezaAuditoria { get; set; } = new();
@@ -96,4 +97,22 @@ public class BillingProviderOperationOptions
 
     /// <summary>Intervalo entre búsquedas de operaciones pendientes. Default: 15 segundos.</summary>
     public int IntervaloSegundos { get; set; } = 15;
+}
+
+public class NotificationOutboxOptions
+{
+    /// <summary>Activa el dispatcher durable de notificaciones.</summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Intervalo entre búsquedas de mensajes pendientes. Default: 5 segundos.</summary>
+    public int IntervaloSegundos { get; set; } = 5;
+
+    /// <summary>Máximo de mensajes considerados por ciclo.</summary>
+    public int LoteMaximo { get; set; } = 50;
+
+    /// <summary>Tiempo máximo reservado a una instancia antes de permitir recuperación.</summary>
+    public int LeaseSegundos { get; set; } = 120;
+
+    /// <summary>Días de auditoría conservados para mensajes enviados.</summary>
+    public int RetencionDias { get; set; } = 90;
 }

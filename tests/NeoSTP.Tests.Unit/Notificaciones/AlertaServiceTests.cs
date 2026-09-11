@@ -1,11 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NeoSTP.Application.Cobranza;
 using NeoSTP.Application.Cobranza.Dtos;
 using NeoSTP.Application.Common;
 using NeoSTP.Application.Notificaciones;
 using NeoSTP.Application.Notificaciones.Dtos;
+using NeoSTP.Application.Workers;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Notificaciones;
@@ -36,18 +38,21 @@ public class AlertaServiceTests
         return db;
     }
 
-    private static (AlertaService svc, IPushSender push) NewSvc(NeoStpDbContext db)
+    private static (AlertaService svc, INotificationOutbox outbox) NewSvc(NeoStpDbContext db)
     {
-        var push = Substitute.For<IPushSender>();
-        push.EnviarAsync(Arg.Any<PushMessage>(), Arg.Any<CancellationToken>())
-            .Returns(new PushResult { Success = true, Enviados = 1 });
-        return (new AlertaService(db, push, NullLogger<AlertaService>.Instance), push);
+        var outbox = new NotificationOutboxService(db);
+        return (new AlertaService(db, outbox, NullLogger<AlertaService>.Instance), outbox);
     }
 
     private static CrearAlertaRequest Req(int? entidadId = 1) => new()
     {
-        EmpresaId = EmpresaA, TipoCodigo = AlertaTipos.DteRechazado, Severidad = AlertaSeveridades.Critica,
-        Titulo = "DTE rechazado", Mensaje = "Revisa", EntidadTipo = "DteDocumento", EntidadId = entidadId,
+        EmpresaId = EmpresaA,
+        TipoCodigo = AlertaTipos.DteRechazado,
+        Severidad = AlertaSeveridades.Critica,
+        Titulo = "DTE rechazado",
+        Mensaje = "Revisa",
+        EntidadTipo = "DteDocumento",
+        EntidadId = entidadId,
     };
 
     [Fact]
@@ -64,7 +69,7 @@ public class AlertaServiceTests
     }
 
     [Fact]
-    public async Task Crear_EnviaPushASoloDispositivosActivos()
+    public async Task Crear_PersistePushEnOutboxSinCopiarTokens()
     {
         var db = NewDb();
         db.DispositivosNotificacion.Add(new DispositivoNotificacion { EmpresaId = EmpresaA, UsuarioId = Usuario, Token = "t1", Activo = true });
@@ -74,11 +79,16 @@ public class AlertaServiceTests
 
         await svc.CrearAsync(Req());
 
-        await push.Received(1).EnviarAsync(Arg.Is<PushMessage>(m => m.Tokens.Count == 1 && m.Tokens.Contains("t1")), Arg.Any<CancellationToken>());
+        var message = await db.NotificationOutbox.SingleAsync();
+        message.Estado.Should().Be(NotificationOutboxEstados.Pending);
+        message.Canal.Should().Be(NotificationOutboxCanales.Push);
+        message.ClaveIdempotencia.Should().Be($"ALERTA:{EmpresaA}:1:PUSH");
+        message.Payload.Should().Contain("AlertaId");
+        message.Payload.Should().NotContain("t1");
     }
 
     [Fact]
-    public async Task Crear_DesactivaTokensReportadosComoInvalidos()
+    public async Task Processor_EnviaSoloActivosYDesactivaTokensInvalidos()
     {
         var db = NewDb();
         db.DispositivosNotificacion.Add(new DispositivoNotificacion { EmpresaId = EmpresaA, UsuarioId = Usuario, Token = "ok", Activo = true });
@@ -88,12 +98,20 @@ public class AlertaServiceTests
         var push = Substitute.For<IPushSender>();
         push.EnviarAsync(Arg.Any<PushMessage>(), Arg.Any<CancellationToken>())
             .Returns(new PushResult { Success = true, Enviados = 1, InvalidTokens = new[] { "bad" } });
-        var svc = new AlertaService(db, push, NullLogger<AlertaService>.Instance);
+        var (svc, _) = NewSvc(db);
 
         await svc.CrearAsync(Req());
+        var processor = new NotificationOutboxProcessor(
+            db, push, Options.Create(new WorkerOptions()),
+            NullLogger<NotificationOutboxProcessor>.Instance);
+        (await processor.ProcessPendingAsync()).Should().Be(1);
 
+        await push.Received(1).EnviarAsync(
+            Arg.Is<PushMessage>(m => m.Tokens.Count == 2 && m.Tokens.Contains("ok") && m.Tokens.Contains("bad")),
+            Arg.Any<CancellationToken>());
         (await db.DispositivosNotificacion.FirstAsync(d => d.Token == "bad")).Activo.Should().BeFalse();
         (await db.DispositivosNotificacion.FirstAsync(d => d.Token == "ok")).Activo.Should().BeTrue();
+        (await db.NotificationOutbox.SingleAsync()).Estado.Should().Be(NotificationOutboxEstados.Sent);
     }
 
     [Fact]
@@ -142,8 +160,12 @@ public class AlertaServiceTests
         var db = NewDb();
         db.DteDocumentos.Add(new DteDocumento
         {
-            Id = 1, EmpresaId = EmpresaA, TipoDteCodigo = "01", EstadoCodigo = DteEstadoCodigos.Rechazado,
-            NumeroControl = "DTE-01-0001", CodigoGeneracion = Guid.NewGuid().ToString(),
+            Id = 1,
+            EmpresaId = EmpresaA,
+            TipoDteCodigo = "01",
+            EstadoCodigo = DteEstadoCodigos.Rechazado,
+            NumeroControl = "DTE-01-0001",
+            CodigoGeneracion = Guid.NewGuid().ToString(),
         });
         await db.SaveChangesAsync();
         var (alertaSvc, _) = NewSvc(db);

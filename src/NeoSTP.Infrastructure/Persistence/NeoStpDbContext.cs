@@ -155,6 +155,7 @@ public class NeoStpDbContext : DbContext
     public DbSet<Alerta> Alertas => Set<Alerta>();
     public DbSet<DispositivoNotificacion> DispositivosNotificacion => Set<DispositivoNotificacion>();
     public DbSet<PreferenciaNotificacion> PreferenciasNotificacion => Set<PreferenciaNotificacion>();
+    public DbSet<NotificationOutboxMessage> NotificationOutbox => Set<NotificationOutboxMessage>();
 
     // RRHH / Nómina (NEORRHH — V2)
     public DbSet<Empleado> Empleados => Set<Empleado>();

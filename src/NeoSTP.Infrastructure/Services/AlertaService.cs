@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NeoSTP.Application.Common;
@@ -9,19 +10,19 @@ using NeoSTP.Infrastructure.Persistence;
 namespace NeoSTP.Infrastructure.Services;
 
 /// <summary>
-/// Centro de alertas + dispositivos (FCM) + preferencias. Crear una alerta (upsert por Clave)
-/// dispara push best-effort a los dispositivos activos del destinatario. Aislado por EmpresaId.
+/// Centro de alertas + dispositivos (FCM) + preferencias. Crear una alerta persiste
+/// su push en el outbox durable dentro de la misma transacción. Aislado por EmpresaId.
 /// </summary>
 public class AlertaService : IAlertaService
 {
     private readonly NeoStpDbContext _db;
-    private readonly IPushSender _push;
+    private readonly INotificationOutbox _outbox;
     private readonly ILogger<AlertaService> _logger;
 
-    public AlertaService(NeoStpDbContext db, IPushSender push, ILogger<AlertaService> logger)
+    public AlertaService(NeoStpDbContext db, INotificationOutbox outbox, ILogger<AlertaService> logger)
     {
         _db = db;
-        _push = push;
+        _outbox = outbox;
         _logger = logger;
     }
 
@@ -106,6 +107,25 @@ public class AlertaService : IAlertaService
             ? $"{request.TipoCodigo}:{request.EntidadId?.ToString() ?? "-"}"
             : request.Clave.Trim();
 
+        if (!_db.Database.IsRelational())
+            return await CrearCoreAsync(request, clave, ct);
+
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+            var result = await CrearCoreAsync(request, clave, ct);
+            await transaction.CommitAsync(ct);
+            return result;
+        });
+    }
+
+    private async Task<Result<AlertaDto>> CrearCoreAsync(
+        CrearAlertaRequest request,
+        string clave,
+        CancellationToken ct)
+    {
+
         // Dedupe: si existe una alerta NO resuelta con la misma clave, devolverla sin duplicar ni re-notificar.
         var existente = await _db.Alertas
             .FirstOrDefaultAsync(a => a.EmpresaId == request.EmpresaId && a.Clave == clave
@@ -129,59 +149,18 @@ public class AlertaService : IAlertaService
         _db.Alertas.Add(alerta);
         await _db.SaveChangesAsync(ct);
 
-        await EnviarPushAsync(alerta, ct);
+        var outboxId = await _outbox.EnqueueAsync(new NotificationOutboxRequest(
+            alerta.EmpresaId,
+            NotificationOutboxTipos.AlertaCreada,
+            NotificationOutboxCanales.Push,
+            alerta.UsuarioId?.ToString(),
+            JsonSerializer.Serialize(new AlertaPushOutboxPayload(alerta.EmpresaId, alerta.Id)),
+            $"ALERTA:{alerta.EmpresaId}:{alerta.Id}:PUSH"), ct);
+
+        _logger.LogDebug(
+            "Alerta {AlertaId} comprometida con notification outbox {OutboxId}",
+            alerta.Id, outboxId);
         return Result<AlertaDto>.Ok(ToDto(alerta));
-    }
-
-    private async Task EnviarPushAsync(Alerta alerta, CancellationToken ct)
-    {
-        try
-        {
-            var tokensQuery = _db.DispositivosNotificacion.AsNoTracking()
-                .Where(d => d.EmpresaId == alerta.EmpresaId && d.Activo);
-            if (alerta.UsuarioId is int uid)
-                tokensQuery = tokensQuery.Where(d => d.UsuarioId == uid);
-
-            var tokens = await tokensQuery.Select(d => d.Token).ToListAsync(ct);
-            if (tokens.Count == 0) return;
-
-            var result = await _push.EnviarAsync(new PushMessage
-            {
-                Tokens = tokens,
-                Titulo = alerta.Titulo,
-                Cuerpo = alerta.Mensaje,
-                Data = new Dictionary<string, string>
-                {
-                    ["tipo"] = alerta.TipoCodigo,
-                    ["alertaId"] = alerta.Id.ToString(),
-                    ["entidadTipo"] = alerta.EntidadTipo ?? string.Empty,
-                    ["entidadId"] = alerta.EntidadId?.ToString() ?? string.Empty,
-                },
-            }, ct);
-
-            await DesactivarTokensInvalidosAsync(result.InvalidTokens, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "AlertaService: error enviando push para alerta {Id}", alerta.Id);
-        }
-    }
-
-    /// <summary>Desactiva los tokens que el proveedor reportó como inválidos/no registrados.</summary>
-    private async Task DesactivarTokensInvalidosAsync(IReadOnlyList<string> invalidos, CancellationToken ct)
-    {
-        if (invalidos is null || invalidos.Count == 0) return;
-        var dispositivos = await _db.DispositivosNotificacion
-            .Where(d => invalidos.Contains(d.Token) && d.Activo)
-            .ToListAsync(ct);
-        if (dispositivos.Count == 0) return;
-        foreach (var d in dispositivos)
-        {
-            d.Activo = false;
-            d.UpdatedAt = DateTime.UtcNow;
-        }
-        await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("AlertaService: {N} token(s) push desactivados por inválidos.", dispositivos.Count);
     }
 
     // ─── Dispositivos ───────────────────────────────────────────────────────────
@@ -206,8 +185,12 @@ public class AlertaService : IAlertaService
         {
             _db.DispositivosNotificacion.Add(new DispositivoNotificacion
             {
-                EmpresaId = empresaId, UsuarioId = usuarioId, Token = token,
-                Plataforma = NormPlataforma(request.Plataforma), Activo = true, UltimoUsoAt = DateTime.UtcNow,
+                EmpresaId = empresaId,
+                UsuarioId = usuarioId,
+                Token = token,
+                Plataforma = NormPlataforma(request.Plataforma),
+                Activo = true,
+                UltimoUsoAt = DateTime.UtcNow,
             });
         }
         await _db.SaveChangesAsync(ct);
@@ -259,8 +242,15 @@ public class AlertaService : IAlertaService
 
     private static AlertaDto ToDto(Alerta a) => new()
     {
-        Id = a.Id, TipoCodigo = a.TipoCodigo, Severidad = a.Severidad, Titulo = a.Titulo, Mensaje = a.Mensaje,
-        EntidadTipo = a.EntidadTipo, EntidadId = a.EntidadId, EstadoCodigo = a.EstadoCodigo,
-        CreatedAt = a.CreatedAt, ResueltaAt = a.ResueltaAt,
+        Id = a.Id,
+        TipoCodigo = a.TipoCodigo,
+        Severidad = a.Severidad,
+        Titulo = a.Titulo,
+        Mensaje = a.Mensaje,
+        EntidadTipo = a.EntidadTipo,
+        EntidadId = a.EntidadId,
+        EstadoCodigo = a.EstadoCodigo,
+        CreatedAt = a.CreatedAt,
+        ResueltaAt = a.ResueltaAt,
     };
 }

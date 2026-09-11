@@ -331,6 +331,8 @@ public static class DependencyInjection
         // Alertas y notificaciones push (B-4): centro de alertas + generación + push pluggable
         services.AddScoped<IAlertaService, AlertaService>();
         services.AddScoped<IAlertaGeneracionService, AlertaGeneracionService>();
+        services.AddScoped<INotificationOutbox, NotificationOutboxService>();
+        services.AddScoped<INotificationOutboxProcessor, NotificationOutboxProcessor>();
         // Toggle del proveedor de push (Push:Provider). Mock por defecto; Fcm real (M2.2).
         var pushProvider = configuration["Push:Provider"];
         if (string.Equals(pushProvider, "Fcm", StringComparison.OrdinalIgnoreCase))

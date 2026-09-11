@@ -113,7 +113,7 @@ public class MobileApiContractOperationalTests
         var archivo = await scan.GetArchivoAsync(empresaId, scans.Value.Items[0].Id);
         archivo!.Contenido.Should().NotBeEmpty();
 
-        var alertas = new AlertaService(db, Substitute.For<IPushSender>(), NullLogger<AlertaService>.Instance);
+        var alertas = new AlertaService(db, new NotificationOutboxService(db), NullLogger<AlertaService>.Instance);
         var resumenAlertas = await alertas.ResumenAsync(empresaId, adminUserId);
         resumenAlertas.Pendientes.Should().Be(1);
         var historico = await alertas.ListarAsync(empresaId, adminUserId, new AlertaQuery { EstadoCodigo = AlertaEstados.Resuelta });

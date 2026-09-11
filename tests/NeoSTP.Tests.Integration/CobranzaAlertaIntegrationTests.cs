@@ -100,7 +100,7 @@ public class CobranzaAlertaIntegrationTests
         await db.SaveChangesAsync();
 
         var cobranza = new CobranzaService(db, Substitute.For<IAuditoriaService>());
-        var alertas = new AlertaService(db, Substitute.For<IPushSender>(), NullLogger<AlertaService>.Instance);
+        var alertas = new AlertaService(db, new NotificationOutboxService(db), NullLogger<AlertaService>.Instance);
         var generacion = new AlertaGeneracionService(db, alertas, cobranza);
 
         var creadas = await generacion.GenerarAsync(Empresa);

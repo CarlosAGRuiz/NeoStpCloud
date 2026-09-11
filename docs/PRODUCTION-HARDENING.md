@@ -11,7 +11,7 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 ## Baseline confirmado
 
 - Build Release: 0 errores y 0 advertencias.
-- Pruebas locales: 2,431 unitarias y 9 de integración aprobadas; el gate adicional de SQL Server real también fue aprobado.
+- Pruebas locales: 2,435 unitarias y 9 de integración aprobadas; los gates adicionales de SQL Server real también fueron aprobados.
 - Higiene del árbol público: 1,476 archivos rastreados aprobados por `Check-PublicTree.ps1`.
 - Gitleaks sobre 205 commits de `main`: 0 hallazgos con excepciones exactas para tres fixtures publicados.
 - Cuatro ramas remotas adicionales: 0 hallazgos.
@@ -28,7 +28,7 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 | 2. Ambientes | Matriz STAGING/PROD y separación en código completadas; DNS, TLS, secretos y recursos físicos pendientes | En curso (infraestructura) |
 | 3. Base de datos | SQL Server 2022 efímero, migrations, aislamiento, concurrencia e idempotencia | Completada en código; CI remoto pendiente |
 | 4. DR | Backup físico y restauración aislada con RPO/RTO medidos | En curso |
-| 5. Plataforma | ProductionGuards completos, outbox, IVA, monitoreo y observabilidad | Pendiente |
+| 5. Plataforma | ProductionGuards completos, outbox, IVA, monitoreo y observabilidad | En curso (outbox push completado en código) |
 | 6. Mobile | Ambientes, análisis/tests, firma y artefactos release | Pendiente (repositorio móvil) |
 | 7. UX/Legal | Smoke por rol, DTE/comercial y limpieza legal | Pendiente |
 | 8. RC | `v1.0.0-rc.1` y ejecución de todos los gates | Pendiente |
@@ -68,8 +68,19 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 - [x] Cubrir aislamiento de claves DTE por empresa, correlativos concurrentes y transición fiscal atómica.
 - [x] Cubrir deduplicación de webhooks, aplicación idempotente de pagos y rollback transaccional.
 - [x] Emitir evidencia JSON saneada por gate y conservarla como artefacto de CI.
-- [x] Ejecutar localmente 3 gates y 140 checks sobre SQL Server real con datos sintéticos y limpieza verificada.
+- [x] Ejecutar localmente 4 gates y 147 checks sobre SQL Server real con datos sintéticos y limpieza verificada.
 - [ ] Ejecutar el conjunto portable sobre SQL Server 2022 en GitHub cuando existan runners disponibles.
+
+## Sprint actual: Notification Outbox
+
+- [x] Persistir intenciones por empresa con clave idempotente única y payload sin credenciales ni tokens de dispositivo.
+- [x] Confirmar `Alerta + Outbox` en una sola transacción y eliminar el envío push directo del request.
+- [x] Procesar con claim atómico, lease recuperable y estados `PENDING`, `PROCESSING`, `SENT`, `FAILED` y `DEAD`.
+- [x] Aplicar backoff de 1 minuto, 5 minutos, 15 minutos, 1 hora y 6 horas antes de agotar seis intentos.
+- [x] Conservar auditoría de enviados durante 90 días y retener `DEAD` para conciliación manual.
+- [x] Verificar en SQL Server real idempotencia concurrente, índice multiempresa, exclusión entre workers y rollback transaccional (7 checks).
+- [ ] Migrar al outbox el correo DTE procesado, recordatorios de cobro, correo billing y webhooks generales.
+- [ ] Ejecutar en STAGING con providers reales y observar reintentos, `DEAD`, latencia y limpieza antes de marcar el gate operativo.
 
 ## Sprint actual: Disaster Recovery
 
