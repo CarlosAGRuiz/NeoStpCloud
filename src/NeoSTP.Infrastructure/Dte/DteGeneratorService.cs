@@ -539,7 +539,7 @@ public class DteGeneratorService : IDteGeneratorService
         codActividad = e.CodigoActividad,
         descActividad = e.ActividadEconomica,
         nombreComercial = e.NombreComercial,
-        tipoEstablecimiento = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo,
+        tipoEstablecimiento = DteTiposEstablecimiento.ForEmission(config?.TipoEstablecimientoCodigo),
         direccion = new
         {
             departamento = e.Departamento,
@@ -1210,7 +1210,7 @@ public class DteGeneratorService : IDteGeneratorService
             codActividad = e.CodigoActividad,
             descActividad = e.ActividadEconomica,
             nombreComercial = e.NombreComercial,
-            tipoEstablecimiento = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo,
+            tipoEstablecimiento = DteTiposEstablecimiento.ForEmission(config?.TipoEstablecimientoCodigo),
             direccion = new
             {
                 departamento = e.Departamento,
@@ -1449,7 +1449,7 @@ public class DteGeneratorService : IDteGeneratorService
                 codActividad = d.ReceptorCodigoActividad,
                 descActividad = d.ReceptorActividadEconomica,
                 nombreComercial = NullSiVacio(d.ReceptorNombre),
-                tipoEstablecimiento = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo,
+                tipoEstablecimiento = DteTiposEstablecimiento.ForEmission(config?.TipoEstablecimientoCodigo),
                 direccion = new
                 {
                     departamento = d.ReceptorDepartamentoCodigo ?? "06",
@@ -1543,7 +1543,7 @@ public class DteGeneratorService : IDteGeneratorService
     private static object BuildEmisor(DteDocumento d, Empresa e, DteConfiguracion? config)
     {
         // tipoEstablecimiento por defecto 02 (Casa Matriz) si la config no lo trae.
-        var tipoEst = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo;
+        var tipoEst = DteTiposEstablecimiento.ForEmission(config?.TipoEstablecimientoCodigo);
         var codEst  = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh)    ? null  : config!.CodigoEstablecimientoMh;
         var codPv   = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)         ? null  : config!.CodigoPuntoVentaMh;
 
@@ -1573,7 +1573,7 @@ public class DteGeneratorService : IDteGeneratorService
 
     private static object BuildEmisorCcf(DteDocumento d, Empresa e, DteConfiguracion? config)
     {
-        var tipoEst = string.IsNullOrWhiteSpace(config?.TipoEstablecimientoCodigo) ? "02" : config!.TipoEstablecimientoCodigo;
+        var tipoEst = DteTiposEstablecimiento.ForEmission(config?.TipoEstablecimientoCodigo);
         var codEst  = string.IsNullOrWhiteSpace(config?.CodigoEstablecimientoMh)    ? null  : config!.CodigoEstablecimientoMh;
         var codPv   = string.IsNullOrWhiteSpace(config?.CodigoPuntoVentaMh)         ? null  : config!.CodigoPuntoVentaMh;
 

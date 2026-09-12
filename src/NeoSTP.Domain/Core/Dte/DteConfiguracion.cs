@@ -27,7 +27,7 @@ public class DteConfiguracion : AuditableEntity
     public string? PasswordMhCifrado { get; set; }
 
     // ----- Datos del establecimiento emisor por defecto -----
-    /// <summary>Catálogo TIPO_ESTABLECIMIENTO: CASA_MATRIZ, SUCURSAL, BODEGA…</summary>
+    /// <summary>Código oficial MH CAT-009: 01, 02, 04, 07 o 20.</summary>
     public string? TipoEstablecimientoCodigo { get; set; }
     public string? CodigoEstablecimientoMh { get; set; }
     public string? CodigoPuntoVentaMh { get; set; }

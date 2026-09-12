@@ -147,8 +147,8 @@ internal static partial class SeedData
         items.Add(Item(id++, 8, "GRAN_CONTRIBUYENTE", "Gran Contribuyente",   3));
 
         // TIPO_ESTABLECIMIENTO (9)
-        items.Add(Item(id++, 9, "CASA_MATRIZ",   "Casa Matriz",   1, metadata: "{\"codigoMH\":\"01\"}"));
-        items.Add(Item(id++, 9, "SUCURSAL",      "Sucursal",      2, metadata: "{\"codigoMH\":\"02\"}"));
+        items.Add(Item(id++, 9, "CASA_MATRIZ",   "Casa Matriz",   1, metadata: "{\"codigoMH\":\"02\"}"));
+        items.Add(Item(id++, 9, "SUCURSAL",      "Sucursal",      2, metadata: "{\"codigoMH\":\"01\"}"));
         items.Add(Item(id++, 9, "BODEGA",        "Bodega",        3, metadata: "{\"codigoMH\":\"04\"}"));
         items.Add(Item(id++, 9, "PATIO",         "Patio o Predio",4, metadata: "{\"codigoMH\":\"07\"}"));
         items.Add(Item(id++, 9, "OFICINA",       "Oficina",       5));

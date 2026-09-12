@@ -44,6 +44,11 @@ public class DteConfiguracionService : IDteConfiguracionService
         if (!AmbientesValidos.Contains(ambiente))
             return Result<DteConfiguracionDto>.Fail($"Ambiente inválido: {request.AmbienteCodigo}. Debe ser PRUEBAS o PRODUCCION.", "VALIDATION");
 
+        if (!DteTiposEstablecimiento.TryNormalize(request.TipoEstablecimientoCodigo, out var tipoEstablecimientoMh))
+            return Result<DteConfiguracionDto>.Fail(
+                $"Tipo de establecimiento inválido: {request.TipoEstablecimientoCodigo}. Debe usar un código oficial MH CAT-009.",
+                "VALIDATION");
+
         var empresaExiste = await _db.Empresas.AnyAsync(e => e.Id == empresaId, ct);
         if (!empresaExiste)
             return Result<DteConfiguracionDto>.Fail("Empresa no encontrada.", "EMPRESA_NOT_FOUND");
@@ -73,7 +78,7 @@ public class DteConfiguracionService : IDteConfiguracionService
             config.TokenMhExpiraAt = null;
         }
 
-        config.TipoEstablecimientoCodigo = request.TipoEstablecimientoCodigo;
+        config.TipoEstablecimientoCodigo = tipoEstablecimientoMh;
         config.CodigoEstablecimientoMh = request.CodigoEstablecimientoMh?.Trim();
         config.CodigoPuntoVentaMh = request.CodigoPuntoVentaMh?.Trim();
 
