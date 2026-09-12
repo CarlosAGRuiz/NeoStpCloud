@@ -4,6 +4,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using NeoSTP.Infrastructure.Diagnostics;
 using NSubstitute;
+using System.Text.Json;
 
 namespace NeoSTP.Tests.Unit.Ops;
 
@@ -52,6 +53,100 @@ public sealed class HostConfigurationTests
         secretsConfiguration.AddInMemoryCollection(new Dictionary<string, string?> { ["Setting"] = "synthetic-user-secret" });
         HostConfiguration.AddLocalDevelopmentSettings(secretsConfiguration, files.Environment("Development"));
         secretsConfiguration["Setting"].Should().Be("synthetic-user-secret");
+    }
+
+    [Fact]
+    public void Production_external_config_overrides_base_but_not_operator_sources()
+    {
+        using var files = new ExternalConfigFiles("{\"Setting\":\"external\",\"ExternalOnly\":\"present\"}");
+        using var configuration = files.Configuration();
+        configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Setting"] = "operator" });
+
+        HostConfiguration.AddExternalDeploymentSettings(
+            configuration, files.Environment("Production"), files.ExternalPath);
+
+        configuration["ExternalOnly"].Should().Be("present");
+        configuration["Setting"].Should().Be("operator");
+    }
+
+    [Fact]
+    public void External_config_must_be_below_the_environment_config_directory()
+    {
+        using var files = new ExternalConfigFiles("{\"Setting\":\"external\"}");
+        var outside = files.WriteOutside("{\"Setting\":\"outside\"}");
+        using var configuration = files.Configuration();
+
+        var action = () => HostConfiguration.AddExternalDeploymentSettings(
+            configuration, files.Environment("Production"), outside);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("EXTERNAL_DEPLOYMENT_CONFIG_INVALID:*");
+    }
+
+    [Fact]
+    public void Development_rejects_external_deployment_config()
+    {
+        using var files = new ExternalConfigFiles("{\"Setting\":\"external\"}");
+        using var configuration = files.Configuration();
+
+        var action = () => HostConfiguration.AddExternalDeploymentSettings(
+            configuration, files.Environment("Development"), files.ExternalPath);
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("EXTERNAL_DEPLOYMENT_CONFIG_INVALID:*");
+    }
+
+    private sealed class ExternalConfigFiles : IDisposable
+    {
+        private readonly string root =
+            Path.Combine(Path.GetTempPath(), "NeoSTP-ExternalHostConfiguration-" + Guid.NewGuid().ToString("N"));
+        private readonly string contentRoot;
+        private readonly PhysicalFileProvider provider;
+
+        public ExternalConfigFiles(string external)
+        {
+            contentRoot = Path.Combine(root, "content");
+            DataRoot = Path.Combine(root, "PRODUCTION");
+            ExternalPath = Path.Combine(DataRoot, "config", "runtime.json");
+            Directory.CreateDirectory(contentRoot);
+            Directory.CreateDirectory(Path.GetDirectoryName(ExternalPath)!);
+            File.WriteAllText(Path.Combine(contentRoot, "appsettings.json"),
+                JsonSerializer.Serialize(new { Setting = "base", Deployment = new { DataRoot } }));
+            File.WriteAllText(ExternalPath, external);
+            provider = new PhysicalFileProvider(contentRoot);
+        }
+
+        public string DataRoot { get; }
+        public string ExternalPath { get; }
+
+        public ConfigurationManager Configuration()
+        {
+            var configuration = new ConfigurationManager();
+            configuration.AddJsonFile(provider, "appsettings.json", false, false);
+            return configuration;
+        }
+
+        public IHostEnvironment Environment(string name)
+        {
+            var environment = Substitute.For<IHostEnvironment>();
+            environment.EnvironmentName.Returns(name);
+            environment.ContentRootPath.Returns(contentRoot);
+            environment.ContentRootFileProvider.Returns(provider);
+            return environment;
+        }
+
+        public string WriteOutside(string json)
+        {
+            var path = Path.Combine(root, "outside.json");
+            File.WriteAllText(path, json);
+            return path;
+        }
+
+        public void Dispose()
+        {
+            provider.Dispose();
+            Directory.Delete(root, true);
+        }
     }
 
     private sealed class ConfigFiles : IDisposable
