@@ -14,7 +14,7 @@ instalación de producción.
 | Web interna | `http://127.0.0.1:5131` |
 | API pública esperada | `https://staging-api.neostp.com` |
 | Web pública esperada | `https://staging.neostp.com` |
-| Persistencia de procesos | tareas `NeoSTP STAGING API/Web/Worker` al iniciar sesión |
+| Persistencia de procesos | tareas `NeoSTP STAGING API/Web/Worker/Tunnel` al iniciar sesión |
 | Worker | desactivado hasta aprobar preflight y providers |
 
 Los puertos internos permanecen en loopback. Cloudflare Tunnel debe terminar TLS y enrutar
@@ -42,18 +42,25 @@ guardan cifradas con DPAPI para el usuario Windows actual. Para obtener un objet
 $stagingCredential = ./tools/Deployment/Get-LocalStagingCredential.ps1
 ```
 
-## Cloudflare Tunnel pendiente
+## Cloudflare Tunnel
 
-En el túnel ya instalado en esta máquina, crear exactamente estas rutas públicas:
+El túnel de STAGING es independiente del túnel productivo administrado remotamente. Para
+crearlo o actualizarlo, publicar DNS, registrar su tarea y comprobar health público:
+
+```powershell
+./tools/Deployment/Configure-LocalStagingTunnel.ps1
+```
+
+El script crea exactamente estas rutas públicas:
 
 ```text
 staging.neostp.com      -> http://127.0.0.1:5131
 staging-api.neostp.com  -> http://127.0.0.1:5158
 ```
 
-Después se deben verificar DNS, TLS, `/health/live`, `/health/ready`, login y selección de
-empresa desde otra red. No modificar las rutas existentes de `app.neostp.com` ni
-`api.neostp.com`.
+La configuración termina con una regla `http_status:404`, guarda la credencial del túnel
+bajo la raíz protegida de STAGING y no modifica las rutas existentes de `app.neostp.com`
+ni `api.neostp.com`. Después se debe completar login y selección de empresa desde otra red.
 
 ## Activación del Worker
 

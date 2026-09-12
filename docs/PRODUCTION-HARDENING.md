@@ -25,7 +25,7 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 |---|---|---|
 | 0. Freeze | Alcance, baseline y gates versionados | Completada |
 | 1. Seguridad/Git | Escaneo actual e histórico, rotaciones, CI/ZAP, `main` protegida | En curso |
-| 2. Ambientes | STAGING local separado y operativo para API/Web; publicación Cloudflare y servicio no interactivo pendientes | En curso (infraestructura) |
+| 2. Ambientes | STAGING local y publicación Cloudflare operativos; servicio no interactivo pendiente | En curso (infraestructura) |
 | 3. Base de datos | SQL Server 2022 efímero, migrations, aislamiento, concurrencia e idempotencia | Completada en código; CI remoto pendiente |
 | 4. DR | Backup físico y restauración aislada con RPO/RTO medidos | En curso |
 | 5. Plataforma | ProductionGuards completos, outbox, IVA, monitoreo y observabilidad | En curso (outbox y semántica precio/IVA completados en código) |
@@ -92,7 +92,7 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 - [x] Persistir y respetar `GRAVADA`, `EXENTA` y `NO_SUJETA` en el cálculo DTE.
 - [x] Mostrar en Productos, POS y Cotizaciones si el precio incluye IVA o si se suma.
 - [x] Alinear NeoProfit a venta neta sin IVA para Factura y CCF.
-- [x] Verificar build, 2,442 pruebas unitarias, 9 de integración y 140 checks SQL Server reales.
+- [x] Verificar build, 2,446 pruebas unitarias, 9 de integración y 140 checks SQL Server reales.
 
 ## Sprint actual: STAGING local
 
@@ -100,7 +100,8 @@ La base estable es `main`. Después de activar su protección, todo incremento p
 - [x] Aislar datos, secretos DPAPI, certificado Data Protection y login SQL de mínimo privilegio bajo `%LOCALAPPDATA%\NeoSTP\STAGING`.
 - [x] Publicar API y Web en loopback, registrar tareas locales y validar `/health/live`, `/health/ready` y login del administrador de STAGING.
 - [x] Mantener el Worker desactivado hasta configurar y validar providers externos.
-- [ ] Publicar ingress, DNS y TLS de `staging.neostp.com` y `staging-api.neostp.com`; ejecutar smoke desde una red externa.
+- [x] Publicar ingress, DNS y TLS de `staging.neostp.com` y `staging-api.neostp.com`; ambos health checks responden `200` a través de Cloudflare.
+- [ ] Ejecutar login y selección de empresa desde una red externa.
 - [ ] Migrar las tareas del usuario a servicios con identidad no interactiva antes de la Release Candidate.
 - [ ] Activar el Worker y ejecutar smoke controlado de outbox/providers sin destinatarios productivos.
 
