@@ -21,7 +21,8 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 builder.Services.AddWindowsService(options => options.ServiceName = "NeoSTP.Web");
 
 HostConfiguration.AddLocalDevelopmentSettings(builder.Configuration, builder.Environment);
-HostConfiguration.AddExternalDeploymentSettings(builder.Configuration, builder.Environment);
+HostConfiguration.AddExternalDeploymentSettings(
+    builder.Configuration, builder.Environment, HostConfiguration.GetExternalDeploymentPath(args));
 builder.Services.Configure<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>(
     builder.Configuration.GetSection("HttpsRedirection"));
 

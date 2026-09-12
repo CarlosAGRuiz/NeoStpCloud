@@ -15,7 +15,8 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 builder.Services.AddWindowsService(options => options.ServiceName = "NeoSTP.Worker");
 
 HostConfiguration.AddLocalDevelopmentSettings(builder.Configuration, builder.Environment);
-HostConfiguration.AddExternalDeploymentSettings(builder.Configuration, builder.Environment);
+HostConfiguration.AddExternalDeploymentSettings(
+    builder.Configuration, builder.Environment, HostConfiguration.GetExternalDeploymentPath(args));
 
 // ── Logging ───────────────────────────────────────────────────────
 builder.Services.AddSerilog((services, configuration) => configuration

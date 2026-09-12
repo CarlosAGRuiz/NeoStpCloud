@@ -84,6 +84,28 @@ public sealed class HostConfigurationTests
     }
 
     [Fact]
+    public void Raw_external_config_argument_supports_equals_form()
+    {
+        const string path = @"C:\ProgramData\NeoSTP\Production\config\runtime.json";
+
+        var resolved = HostConfiguration.GetExternalDeploymentPath(
+            [$"--{HostConfiguration.ExternalConfigConfigurationKey}={path}"]);
+
+        resolved.Should().Be(path);
+    }
+
+    [Fact]
+    public void Raw_external_config_argument_supports_separate_value_form()
+    {
+        const string path = @"C:\ProgramData\NeoSTP\Production\config\runtime.json";
+
+        var resolved = HostConfiguration.GetExternalDeploymentPath(
+            [$"--{HostConfiguration.ExternalConfigConfigurationKey}", path]);
+
+        resolved.Should().Be(path);
+    }
+
+    [Fact]
     public void External_config_must_be_below_the_environment_config_directory()
     {
         using var files = new ExternalConfigFiles("{\"Setting\":\"external\"}");
