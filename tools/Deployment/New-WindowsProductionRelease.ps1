@@ -97,7 +97,14 @@ try {
     }
     $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $temporaryRoot 'release.manifest.json') -Encoding utf8NoBOM
     New-Item -ItemType Directory -Force -Path $releasesRoot | Out-Null
-    Move-Item -LiteralPath $temporaryRoot -Destination $finalRoot
+    if (Test-Path -LiteralPath $finalRoot) { throw 'PRODUCTION_RELEASE_CONCURRENT_PROMOTION' }
+    try {
+        [IO.Directory]::Move($temporaryRoot, $finalRoot)
+    }
+    catch [IO.IOException] {
+        if (Test-Path -LiteralPath $finalRoot) { throw 'PRODUCTION_RELEASE_CONCURRENT_PROMOTION' }
+        throw
+    }
     [pscustomobject]@{
         Status = 'PREPARED'; ReleaseVersion = $ReleaseVersion; Commit = $commit; ReleaseRoot = $finalRoot
         Applications = 3; MigrationCount = $migrationManifest.migrationCount; CurrentMigration = $migrationManifest.currentMigration
