@@ -7,16 +7,22 @@ using NeoSTP.Worker;
 using NeoSTP.Worker.Jobs;
 using Serilog;
 
+var externalDeploymentPath = HostConfiguration.GetExternalDeploymentPath(args);
+var useDeploymentContentRoot = WindowsServiceHelpers.IsWindowsService()
+    || HostConfiguration.IsDeployedEnvironment(
+        args,
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"));
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 {
     Args = args,
-    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null
+    ContentRootPath = useDeploymentContentRoot ? AppContext.BaseDirectory : null
 });
 builder.Services.AddWindowsService(options => options.ServiceName = "NeoSTP.Worker");
 
 HostConfiguration.AddLocalDevelopmentSettings(builder.Configuration, builder.Environment);
 HostConfiguration.AddExternalDeploymentSettings(
-    builder.Configuration, builder.Environment, HostConfiguration.GetExternalDeploymentPath(args));
+    builder.Configuration, builder.Environment, externalDeploymentPath);
 
 // ── Logging ───────────────────────────────────────────────────────
 builder.Services.AddSerilog((services, configuration) => configuration

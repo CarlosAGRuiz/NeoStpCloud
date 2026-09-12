@@ -13,16 +13,22 @@ using NeoSTP.Web.Auth;
 using Serilog;
 using System.Net;
 
+var externalDeploymentPath = HostConfiguration.GetExternalDeploymentPath(args);
+var useDeploymentContentRoot = WindowsServiceHelpers.IsWindowsService()
+    || HostConfiguration.IsDeployedEnvironment(
+        args,
+        Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+        Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"));
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    ContentRootPath = WindowsServiceHelpers.IsWindowsService() ? AppContext.BaseDirectory : null
+    ContentRootPath = useDeploymentContentRoot ? AppContext.BaseDirectory : null
 });
 builder.Services.AddWindowsService(options => options.ServiceName = "NeoSTP.Web");
 
 HostConfiguration.AddLocalDevelopmentSettings(builder.Configuration, builder.Environment);
 HostConfiguration.AddExternalDeploymentSettings(
-    builder.Configuration, builder.Environment, HostConfiguration.GetExternalDeploymentPath(args));
+    builder.Configuration, builder.Environment, externalDeploymentPath);
 builder.Services.Configure<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>(
     builder.Configuration.GetSection("HttpsRedirection"));
 
