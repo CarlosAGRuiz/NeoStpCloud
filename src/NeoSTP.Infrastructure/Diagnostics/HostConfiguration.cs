@@ -13,6 +13,29 @@ public static class HostConfiguration
     private const string ExternalConfigFailure =
         "EXTERNAL_DEPLOYMENT_CONFIG_INVALID: configure an existing JSON file below the environment data-root config directory.";
 
+    public static string? GetExternalDeploymentPath(string[] args)
+    {
+        var option = $"--{ExternalConfigConfigurationKey}";
+        var prefix = option + "=";
+        string? resolved = null;
+
+        for (var index = 0; index < args.Length; index++)
+        {
+            var argument = args[index];
+            if (argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                resolved = argument[prefix.Length..];
+                continue;
+            }
+
+            if (string.Equals(argument, option, StringComparison.OrdinalIgnoreCase)
+                && index + 1 < args.Length)
+                resolved = args[++index];
+        }
+
+        return resolved;
+    }
+
     public static void AddExternalDeploymentSettings(
         ConfigurationManager configuration,
         IHostEnvironment environment,
