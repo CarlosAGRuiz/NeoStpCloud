@@ -74,6 +74,26 @@ public sealed class DeploymentToolingTests
         tunnel.Should().NotContain("TunnelName = 'neostp-local'");
     }
 
+    [Fact]
+    public void ProductionRelease_IsCleanImmutableAndVerifiableBeforeCutover()
+    {
+        var generator = File.ReadAllText(RepoFile("tools", "Deployment", "New-WindowsProductionRelease.ps1"));
+        var verifier = File.ReadAllText(RepoFile("tools", "Deployment", "Test-WindowsProductionRelease.ps1"));
+
+        generator.Should().Contain("PRODUCTION_RELEASE_DIRTY_SOURCE_NOT_ALLOWED");
+        generator.Should().Contain("appsettings.Local*.json");
+        generator.Should().Contain("PRODUCTION_RELEASE_FORBIDDEN_ARTIFACT_FOUND");
+        generator.Should().Contain("release.manifest.json");
+        generator.Should().Contain("NeoSTP.Worker");
+        generator.Should().Contain("Move-Item -LiteralPath $temporaryRoot -Destination $finalRoot");
+
+        verifier.Should().Contain("PRODUCTION_RELEASE_MUST_BE_OUTSIDE_REPOSITORY");
+        verifier.Should().Contain("PRODUCTION_RELEASE_MIGRATION_HASH_MISMATCH");
+        verifier.Should().Contain("PRODUCTION_DATABASE_NAME_INVALID");
+        verifier.Should().Contain("$builder.InitialCatalog = $Database");
+        verifier.Should().Contain("PRODUCTION_DATABASE_MIGRATIONS_MISMATCH");
+    }
+
     private static string RepoFile(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
