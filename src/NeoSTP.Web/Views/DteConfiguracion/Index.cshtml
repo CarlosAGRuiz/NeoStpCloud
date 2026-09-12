@@ -2,7 +2,7 @@
 @{
     ViewData["Title"] = "Configuración DTE";
     var ambientes = (ViewBag.Ambientes as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
-    var tiposEst = (ViewBag.TiposEstablecimiento as IEnumerable<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>) ?? Array.Empty<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
+    var tiposEst = (ViewBag.TiposEstablecimiento as IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>) ?? Array.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>();
 }
 
 @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
@@ -45,7 +45,7 @@
                                 <option value="">—</option>
                                 @foreach (var t in tiposEst)
                                 {
-                                    <option value="@t.Codigo" selected="@(t.Codigo == Model.TipoEstablecimientoCodigo)">@t.Valor</option>
+                                    <option value="@t.Value" selected="@(t.Value == Model.TipoEstablecimientoCodigo)">@t.Text</option>
                                 }
                             </select>
                         </div>

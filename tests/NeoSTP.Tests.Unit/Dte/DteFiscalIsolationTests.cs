@@ -317,4 +317,24 @@ public class DteFiscalIsolationTests
         doc.CodigoGeneracion = Guid.NewGuid().ToString();
         DteFiscalContext.CoincideJws(payload, doc.AmbienteCodigo, doc).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Contingencia_TipoEstablecimientoInvalidoNoFirmaNiAutentica()
+    {
+        await using var db = Db();
+        var doc = Documento();
+        var config = await Seed(db, doc, DteAmbientes.Pruebas);
+        config.TipoEstablecimientoCodigo = "OFICINA";
+        await db.SaveChangesAsync();
+
+        var signer = Substitute.For<IDteSignerService>();
+        var auth = Substitute.For<IHaciendaAuthClient>();
+        var result = await Service(db, signer, auth).TransmitirEventoContingenciaAsync(
+            10, [doc.Id], 1, null, "Test", "13", "00000000-0", "test");
+
+        result.ErrorCode.Should().Be("DTE_TIPO_ESTABLECIMIENTO_INVALIDO");
+        signer.ReceivedCalls().Should().BeEmpty();
+        auth.ReceivedCalls().Should().BeEmpty();
+        (await db.DteEventos.CountAsync()).Should().Be(0);
+    }
 }

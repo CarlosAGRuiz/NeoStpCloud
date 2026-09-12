@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Catalogos;
 using NeoSTP.Application.Dte;
@@ -179,6 +180,15 @@ public class DteConfiguracionController : Controller
                ?? new List<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
 
         ViewBag.Ambientes = await Items("AMBIENTE_DTE");
-        ViewBag.TiposEstablecimiento = await Items("TIPO_ESTABLECIMIENTO");
+        var tiposEstablecimiento = new List<SelectListItem>();
+        foreach (var item in await Items("TIPO_ESTABLECIMIENTO"))
+        {
+            if (DteTiposEstablecimiento.TryNormalize(item.Codigo, out var codigoMh) && codigoMh is not null)
+            {
+                tiposEstablecimiento.Add(new SelectListItem(item.Valor, codigoMh));
+            }
+        }
+
+        ViewBag.TiposEstablecimiento = tiposEstablecimiento;
     }
 }
