@@ -23,6 +23,11 @@ public sealed class DeploymentEnvironmentConfigurationTests
 
         config["Deployment:EnvironmentId"].Should().Be(expectedId);
         config["Deployment:DataRoot"].Should().EndWith($"/{environment}");
+        if (environment == "Production")
+            config["Deployment:ExternalConfigFile"].Should()
+                .Be($"{config["Deployment:DataRoot"]}/config/runtime.json");
+        else
+            config["Deployment:ExternalConfigFile"].Should().BeNull();
         new SqlConnectionStringBuilder(config.GetConnectionString("NeoStpDb"))
             .InitialCatalog.Should().Be(expectedDatabase);
         config["DataProtection:KeyRingPath"].Should().StartWith(config["Deployment:DataRoot"]!);
