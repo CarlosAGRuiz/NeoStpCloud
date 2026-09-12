@@ -27,6 +27,38 @@ function Invoke-Checked {
     }
 }
 
+function Get-NormalizedTextSha256 {
+    param(
+        [Parameter(Mandatory)] [string]$Path
+    )
+
+    $rawBytes = [System.IO.File]::ReadAllBytes($Path)
+    $utf8Bom = [byte[]](0xEF, 0xBB, 0xBF)
+    $hasUtf8Bom =
+        $rawBytes.Length -ge $utf8Bom.Length -and
+        $rawBytes[0] -eq $utf8Bom[0] -and
+        $rawBytes[1] -eq $utf8Bom[1] -and
+        $rawBytes[2] -eq $utf8Bom[2]
+    $contentOffset = if ($hasUtf8Bom) { $utf8Bom.Length } else { 0 }
+    $utf8 = [System.Text.UTF8Encoding]::new($false, $true)
+    $text = $utf8.GetString($rawBytes, $contentOffset, $rawBytes.Length - $contentOffset)
+    $normalizedText = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+    $contentBytes = $utf8.GetBytes($normalizedText)
+    $normalizedBytes = if ($hasUtf8Bom) {
+        [byte[]]($utf8Bom + $contentBytes)
+    } else {
+        $contentBytes
+    }
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return (($sha256.ComputeHash($normalizedBytes) | ForEach-Object { $_.ToString('x2') }) -join '')
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
 Push-Location $repoRoot
 try {
     $migrationFiles = @(
@@ -45,7 +77,9 @@ try {
     $sourceManifest = Get-Content -Raw -LiteralPath $sourceManifestPath | ConvertFrom-Json
     $firstMigration = $migrationFiles[0].BaseName
     $currentMigration = $migrationFiles[-1].BaseName
-    $snapshotSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $snapshotPath).Hash.ToLowerInvariant()
+    # Git may check out text as CRLF on Windows and LF on Linux. Hash a canonical
+    # representation while preserving the tracked UTF-8 BOM so the manifest is portable.
+    $snapshotSha256 = Get-NormalizedTextSha256 -Path $snapshotPath
 
     $manifestErrors = @()
     if ($sourceManifest.firstMigration -ne $firstMigration) {

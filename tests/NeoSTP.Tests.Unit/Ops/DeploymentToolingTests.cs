@@ -24,6 +24,9 @@ public sealed class DeploymentToolingTests
         script.Should().Contain("Compare-Object -ReferenceObject $expectedMigrations");
         script.Should().Contain("Generated SQL does not cover the migration manifest");
         script.Should().Contain("sourceTreeDirty = $sourceTreeDirty");
+        script.Should().Contain("Get-NormalizedTextSha256 -Path $snapshotPath");
+        script.Should().Contain("$text.Replace(\"`r`n\", \"`n\").Replace(\"`r\", \"`n\")");
+        script.Should().Contain("[byte[]]($utf8Bom + $contentBytes)");
     }
 
     [Fact]
