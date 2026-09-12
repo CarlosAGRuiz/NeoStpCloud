@@ -50,11 +50,28 @@ public sealed class DeploymentToolingTests
         installer.Should().Contain("Stop-Process -Id $_.Id -Force");
         installer.Should().Contain("$processPath.StartsWith($releasesRoot");
         installer.Should().Contain("LOCAL_STAGING_TASK_NOT_RUNNING");
+        installer.Should().Contain("CloudflareIngressConfigured = $cloudflareIngressConfigured");
+        installer.Should().NotContain("CloudflareIngressPending = $true");
         installer.Should().Contain("$sqlOutput = & sqlcmd @sqlcmdArgs 2>&1");
         installer.Should().NotContain("& sqlcmd @sqlcmdArgs | Out-Null");
         installer.Should().NotContain("ConnectionString = $runtimeBuilder.ConnectionString");
         launcher.Should().Contain("Unprotect-Text $secrets.DatabasePassword");
         launcher.Should().Contain("$deployment.WorkerEnabled");
+    }
+
+    [Fact]
+    public void LocalStagingTunnel_IsSeparatedFromProductionAndHasClosedFallback()
+    {
+        var tunnel = File.ReadAllText(RepoFile("tools", "Deployment", "Configure-LocalStagingTunnel.ps1"));
+
+        tunnel.Should().Contain("$TunnelName = 'neostp-staging-local'");
+        tunnel.Should().Contain("service: http://127.0.0.1:$WebPort");
+        tunnel.Should().Contain("service: http://127.0.0.1:$ApiPort");
+        tunnel.Should().Contain("service: http_status:404");
+        tunnel.Should().Contain("route dns --overwrite-dns $tunnelId $hostname");
+        tunnel.Should().Contain("CommandLine.Contains($configPath");
+        tunnel.Should().Contain("--resolve \"${hostname}:443:$address\"");
+        tunnel.Should().NotContain("TunnelName = 'neostp-local'");
     }
 
     private static string RepoFile(params string[] parts)

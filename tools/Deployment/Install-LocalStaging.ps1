@@ -353,6 +353,9 @@ if (-not $SkipTasks) {
     if ([string]::IsNullOrWhiteSpace($login.data.accessToken)) { throw 'LOCAL_STAGING_LOGIN_SMOKE_FAILED' }
 }
 
+$cloudflareTask = Get-ScheduledTask -TaskName 'NeoSTP STAGING Tunnel' -ErrorAction SilentlyContinue
+$cloudflareIngressConfigured = $null -ne $cloudflareTask -and $cloudflareTask.State -eq 'Running'
+
 [pscustomobject]@{
     Environment = 'STAGING'
     Commit = $commit
@@ -365,5 +368,5 @@ if (-not $SkipTasks) {
     ApiAndWebHealthy = -not $SkipTasks
     LoginSmoke = -not $SkipTasks
     WorkerEnabled = $EnableWorker.IsPresent
-    CloudflareIngressPending = $true
+    CloudflareIngressConfigured = $cloudflareIngressConfigured
 } | Format-List
