@@ -9,6 +9,7 @@ namespace NeoSTP.Infrastructure.Diagnostics;
 public static class HostConfiguration
 {
     public const string ExternalConfigEnvironmentVariable = "NEOSTP_EXTERNAL_CONFIG_FILE";
+    public const string ExternalConfigConfigurationKey = "Deployment:ExternalConfigFile";
     private const string ExternalConfigFailure =
         "EXTERNAL_DEPLOYMENT_CONFIG_INVALID: configure an existing JSON file below the environment data-root config directory.";
 
@@ -18,6 +19,7 @@ public static class HostConfiguration
         string? externalPath = null)
     {
         externalPath ??= Environment.GetEnvironmentVariable(ExternalConfigEnvironmentVariable);
+        externalPath ??= configuration[ExternalConfigConfigurationKey];
         if (string.IsNullOrWhiteSpace(externalPath)) return;
 
         try

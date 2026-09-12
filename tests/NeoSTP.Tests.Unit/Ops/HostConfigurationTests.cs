@@ -70,6 +70,20 @@ public sealed class HostConfigurationTests
     }
 
     [Fact]
+    public void Production_external_config_can_be_selected_by_operator_configuration()
+    {
+        using var files = new ExternalConfigFiles("{\"ExternalOnly\":\"present\"}");
+        using var configuration = files.Configuration();
+        configuration.AddCommandLine(
+            [$"--{HostConfiguration.ExternalConfigConfigurationKey}={files.ExternalPath}"]);
+
+        HostConfiguration.AddExternalDeploymentSettings(
+            configuration, files.Environment("Production"));
+
+        configuration["ExternalOnly"].Should().Be("present");
+    }
+
+    [Fact]
     public void External_config_must_be_below_the_environment_config_directory()
     {
         using var files = new ExternalConfigFiles("{\"Setting\":\"external\"}");
