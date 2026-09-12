@@ -14,8 +14,22 @@ public static class HostConfiguration
         "EXTERNAL_DEPLOYMENT_CONFIG_INVALID: configure an existing JSON file below the environment data-root config directory.";
 
     public static string? GetExternalDeploymentPath(string[] args)
+        => GetCommandLineValue(args, $"--{ExternalConfigConfigurationKey}");
+
+    public static bool IsDeployedEnvironment(
+        string[] args,
+        string? aspNetCoreEnvironment,
+        string? dotNetEnvironment)
     {
-        var option = $"--{ExternalConfigConfigurationKey}";
+        var environment = GetCommandLineValue(args, "--environment")
+            ?? dotNetEnvironment
+            ?? aspNetCoreEnvironment;
+        return string.Equals(environment, Environments.Production, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(environment, Environments.Staging, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetCommandLineValue(string[] args, string option)
+    {
         var prefix = option + "=";
         string? resolved = null;
 

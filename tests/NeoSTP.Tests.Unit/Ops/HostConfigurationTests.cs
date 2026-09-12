@@ -105,6 +105,27 @@ public sealed class HostConfigurationTests
         resolved.Should().Be(path);
     }
 
+    [Theory]
+    [InlineData("Production", null, null, true)]
+    [InlineData("Staging", null, null, true)]
+    [InlineData(null, "Production", null, true)]
+    [InlineData(null, null, "Staging", true)]
+    [InlineData("Development", "Production", "Production", false)]
+    [InlineData(null, "Production", "Development", false)]
+    public void Deployed_environment_is_detected_before_host_bootstrap(
+        string? commandLineEnvironment,
+        string? aspNetCoreEnvironment,
+        string? dotNetEnvironment,
+        bool expected)
+    {
+        var args = commandLineEnvironment is null
+            ? Array.Empty<string>()
+            : new[] { "--environment", commandLineEnvironment };
+
+        HostConfiguration.IsDeployedEnvironment(args, aspNetCoreEnvironment, dotNetEnvironment)
+            .Should().Be(expected);
+    }
+
     [Fact]
     public void External_config_must_be_below_the_environment_config_directory()
     {
