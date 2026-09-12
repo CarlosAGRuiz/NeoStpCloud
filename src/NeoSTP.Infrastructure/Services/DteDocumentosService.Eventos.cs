@@ -54,11 +54,17 @@ public partial class DteDocumentosService
         if (!DteAmbientes.EsValido(config.AmbienteCodigo))
             return Result<CrearEventoResultadoDto>.Fail("Ambiente fiscal inválido.", "DTE_AMBIENTE_INVALIDO");
         var ambiente = DteAmbientes.CodigoMh(config.AmbienteCodigo);
-        // tipoEstablecimiento debe ser código MH de CAT-009 (p. ej. "01"). La empresa puede tener
-        // guardado el código interno ("CASA_MATRIZ"); se resuelve igual que en el saneador del emisor.
-        var tipoEstablecimientoMh = await MapCodigoMhAsync(
-            NeoSTP.Domain.Common.CatalogCodes.TipoEstablecimiento, config.TipoEstablecimientoCodigo, empresaId, ct);
-        if (string.IsNullOrWhiteSpace(tipoEstablecimientoMh)) tipoEstablecimientoMh = "02";
+        // Normaliza tanto códigos MH como valores internos heredados y falla antes de firmar
+        // si el valor no pertenece al catálogo oficial CAT-009.
+        string tipoEstablecimientoMh;
+        try
+        {
+            tipoEstablecimientoMh = DteTiposEstablecimiento.ForEmission(config.TipoEstablecimientoCodigo);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result<CrearEventoResultadoDto>.Fail(ex.Message, "DTE_TIPO_ESTABLECIMIENTO_INVALIDO");
+        }
 
         var evento = new
         {
