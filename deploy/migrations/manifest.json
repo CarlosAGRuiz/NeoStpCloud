@@ -5,5 +5,5 @@
   "firstMigration": "20260526214715_InitialCreate",
   "currentMigration": "20260912202119_P3_FixTipoEstablecimientoCat009",
   "migrationCount": 95,
-  "modelSnapshotSha256": "ccf0ee47f592be8c31d6b2c1eaef208fbcb688a38e440094a048436c9b394d26"
+  "modelSnapshotSha256": "28e53155e2f4d26ab92d20982b5a1c6d9baf88bf5638be248d0f75f26193771d"
 }
