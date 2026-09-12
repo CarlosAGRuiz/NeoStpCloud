@@ -37,6 +37,18 @@ Usar la sintaxis de configuración de ASP.NET Core:
     DataProtection__CertificateThumbprint=<secret-store>
     Jwt__Key=<secret-store>                       # API y Web
 
+En Windows, cuando no existe un secret store administrado, los valores sensibles pueden residir
+en un JSON externo compartido por los servicios:
+
+    NEOSTP_EXTERNAL_CONFIG_FILE=C:\ProgramData\NeoSTP\PRODUCTION\config\runtime.json
+
+El archivo debe estar bajo el directorio config del data root del ambiente, fuera del release y del
+repositorio, sin enlaces o reparse points. Protegerlo con ACL para Administrators, SYSTEM y las
+identidades NeoSTP; usar cifrado de volumen y excluirlo de logs, backups públicos y control de
+versiones. Las variables de entorno y argumentos del operador conservan mayor prioridad. Desarrollo
+no admite este mecanismo.
+
+
 Si una capacidad opcional no está contratada, conservar su provider como Disabled. Al activarla, inyectar el provider y todas sus opciones en la misma operación:
 
     Email__Provider=Smtp
