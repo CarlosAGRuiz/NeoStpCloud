@@ -88,6 +88,32 @@ backup, ensayo en STAGING y aprobación antes de PRODUCTION.
 
 El arranque falla si el historial de migrations no coincide exactamente con el modelo publicado.
 
+## Release inmutable para Windows
+
+En el host Windows de producción, generar API, Web, Worker y SQL desde un árbol Git limpio y el
+mismo commit:
+
+    ./tools/Deployment/New-WindowsProductionRelease.ps1 -ReleaseVersion v1.0.0-rc.1
+
+El comando publica bajo C:\ProgramData\NeoSTP\PRODUCTION\releases, excluye configuración local,
+logs, respaldos y material criptográfico, y crea release.manifest.json con hashes de binarios y SQL.
+Nunca sobrescribe un release existente.
+
+Antes del corte, validar la integridad del paquete sin tocar la base:
+
+    ./tools/Deployment/Test-WindowsProductionRelease.ps1 `
+        -ReleaseRoot C:\ProgramData\NeoSTP\PRODUCTION\releases\v1.0.0-rc.1-<commit> `
+        -SkipDatabase
+
+Después de restaurar o crear NeoSTP_Production y aplicar el SQL revisado, repetir sin
+-SkipDatabase. La conexión administrativa se obtiene fuera del repositorio desde
+%LOCALAPPDATA%\NeoSTP\PRODUCTION\sql-admin.json; el archivo debe contener únicamente una
+propiedad connectionString y ACL restringida al operador.
+
+No se debe apuntar el paquete nuevo a NeoSTP_Cloud ni ejecutar servicios con
+--environment Development. API, Web y Worker deben usar ASPNETCORE_ENVIRONMENT=Production,
+la misma versión y el key ring productivo existente.
+
 ## Activación del Worker
 
 Los overlays dejan Worker:Enabled=false. Después del preflight y health de API/Web, el operador cambia Worker__Enabled=true, reinicia el servicio y verifica ejecución, errores y latencia de jobs.
