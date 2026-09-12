@@ -85,7 +85,9 @@ public sealed class DeploymentToolingTests
         generator.Should().Contain("PRODUCTION_RELEASE_FORBIDDEN_ARTIFACT_FOUND");
         generator.Should().Contain("release.manifest.json");
         generator.Should().Contain("NeoSTP.Worker");
-        generator.Should().Contain("Move-Item -LiteralPath $temporaryRoot -Destination $finalRoot");
+        generator.Should().Contain("[IO.Directory]::Move($temporaryRoot, $finalRoot)");
+        generator.Should().Contain("PRODUCTION_RELEASE_CONCURRENT_PROMOTION");
+        generator.Should().NotContain("Move-Item -LiteralPath $temporaryRoot -Destination $finalRoot");
 
         verifier.Should().Contain("PRODUCTION_RELEASE_MUST_BE_OUTSIDE_REPOSITORY");
         verifier.Should().Contain("PRODUCTION_RELEASE_MIGRATION_HASH_MISMATCH");
