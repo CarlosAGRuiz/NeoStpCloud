@@ -12,11 +12,11 @@ public interface ISecretProtector
     string? UnprotectOrNull(string? ciphertext);
 
     /// <summary>Protege material binario sensible ligado a un propósito contextual/tenant.</summary>
-    byte[] ProtectBytes(byte[] plaintext, string discriminator);
+    byte[] ProtectBytes(byte[] plaintext, string discriminator)\n        => throw new NotSupportedException("Protección binaria no configurada.");
 
     /// <summary>Descifra un envelope binario para el mismo propósito contextual/tenant.</summary>
-    byte[] UnprotectBytes(byte[] ciphertext, string discriminator);
+    byte[] UnprotectBytes(byte[] ciphertext, string discriminator)\n        => throw new NotSupportedException("Protección binaria no configurada.");
 
     /// <summary>Indica si el valor tiene un envelope binario NeoSTP reconocido.</summary>
-    bool IsProtectedBytes(byte[] value);
+    bool IsProtectedBytes(byte[] value) => false;
 }
