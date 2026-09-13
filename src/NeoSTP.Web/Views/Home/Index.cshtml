@@ -19,6 +19,8 @@
     var mesNombre = periodo.ToString("MMMM yyyy");
     var anterior = periodo.AddMonths(-1);
     var siguiente = periodo.AddMonths(1);
+    var desdePeriodo = periodo.ToString("yyyy-MM-dd");
+    var hastaPeriodo = periodo.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd");
     var puedeAvanzar = siguiente <= new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
     // Sparkline real a partir de la tendencia diaria (sin datos inventados).
     var sparkVals = dto.TendenciaDiaria.Select(x => (double)x.Cantidad).ToList();
@@ -134,7 +136,9 @@
         </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-        <a asp-controller="DteDocumentos" asp-action="Index" asp-route-EstadoCodigo="RECHAZADO" class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
+        <a asp-controller="DteDocumentos" asp-action="Index" asp-route-EstadoCodigo="RECHAZADO"
+           asp-route-Desde="@desdePeriodo" asp-route-Hasta="@hastaPeriodo"
+           class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
             <div class="ns-kpi-top">
                 <span class="ns-kpi-chip @(dto.Rechazados > 0 ? "ns-kpi-chip--rejected" : "")"><span class="material-symbols-outlined">warning</span></span>
             </div>
@@ -264,7 +268,11 @@
                     <div class="mb-3">
                         <span class="ns-badge" style="background:rgba(19,27,46,.08);color:var(--ns-primary);font-size:13px">@dto.PlanNombre</span>
                     </div>
-                    @if (dto.LimiteDteMensual is > 0)
+                    @if (!dto.EsPeriodoActual)
+                    {
+                        <p class="text-muted mb-0"><i>El consumo de cuota se muestra únicamente para el mes actual.</i></p>
+                    }
+                    else if (dto.LimiteDteMensual is > 0)
                     {
                         <p class="text-muted mb-1">Uso DTE mensual</p>
                         <div class="progress mb-1" style="height: 12px;">

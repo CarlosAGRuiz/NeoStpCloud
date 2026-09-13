@@ -130,7 +130,9 @@ public class DashboardService : IDashboardService
             Contingencias = contingencias,
             Pendientes = pendientes,
             PlanNombre = terminos?.PlanName,
-            LimiteDteMensual = terminos is null ? 0 : terminos.LimiteDteMensual,
+            // La cuota pertenece al plan vigente hoy. En períodos históricos no se mezcla
+            // ese límite con consumo pasado porque el plan pudo haber cambiado.
+            LimiteDteMensual = esPeriodoActual && terminos is not null ? terminos.LimiteDteMensual : 0,
             PorEstado = porEstado,
             PorTipo = porTipo,
             TendenciaDiaria = tendencia,

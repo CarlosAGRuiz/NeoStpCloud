@@ -174,6 +174,17 @@ public class DashboardServiceTests
             MakeDoc(1, DteEstadoCodigos.Procesado, fechaAnterior, 250m),
             MakeDoc(1, DteEstadoCodigos.Rechazado, fechaAnterior, 50m),
             MakeDoc(1, DteEstadoCodigos.Procesado, actual, 900m));
+        db.Empresas.Add(MakeEmpresa(1));
+        db.Planes.Add(new Plan
+        {
+            Id = 1, Codigo = "ACTUAL", Nombre = "Plan actual", PrecioMensual = 20m,
+            LimiteDteMensual = 100,
+        });
+        db.EmpresaPlanes.Add(new EmpresaPlan
+        {
+            EmpresaId = 1, PlanId = 1, EstadoCodigo = EstadoCodes.Activo,
+            FechaInicio = actual.AddDays(-1), FechaFin = null,
+        });
         await db.SaveChangesAsync();
 
         var result = await new DashboardService(db)
@@ -186,6 +197,8 @@ public class DashboardServiceTests
         result.Procesados.Should().Be(1);
         result.Rechazados.Should().Be(1);
         result.TotalPagarMes.Should().Be(250m);
+        result.PlanNombre.Should().Be("Plan actual");
+        result.LimiteDteMensual.Should().Be(0, "la cuota vigente no debe mezclarse con un período histórico");
         result.TendenciaDiaria.Should().HaveCount(DateTime.DaysInMonth(anterior.Year, anterior.Month));
     }
 
