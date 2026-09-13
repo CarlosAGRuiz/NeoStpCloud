@@ -54,6 +54,9 @@ void Check(bool value, string name)
 var protector = Substitute.For<ISecretProtector>();
 protector.Protect(Arg.Any<string>()).Returns(x => (string)x[0]);
 protector.Unprotect(Arg.Any<string>()).Returns(x => (string)x[0]);
+protector.ProtectBytes(Arg.Any<byte[]>(), Arg.Any<string>()).Returns(x => ((byte[])x[0]).ToArray());
+protector.UnprotectBytes(Arg.Any<byte[]>(), Arg.Any<string>()).Returns(x => ((byte[])x[0]).ToArray());
+protector.IsProtectedBytes(Arg.Any<byte[]>()).Returns(true);
 DteDocumentosService Service(NeoStpDbContext db) => new(db, new DteCalculator(),
     Substitute.For<IDteGeneratorService>(), Substitute.For<IDteSignerService>(),
     Substitute.For<IHaciendaReceptionClient>(), Substitute.For<IHaciendaContingenciaClient>(),
