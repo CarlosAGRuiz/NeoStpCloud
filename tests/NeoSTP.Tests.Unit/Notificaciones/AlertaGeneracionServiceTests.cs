@@ -23,6 +23,11 @@ public class AlertaGeneracionServiceTests
 {
     private const int Empresa = 70;
 
+    private sealed class FixedClock(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
     private static NeoStpDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<NeoStpDbContext>()
@@ -33,13 +38,14 @@ public class AlertaGeneracionServiceTests
         return db;
     }
 
-    private static (AlertaGeneracionService svc, IAlertaService alertas) NewSvc(NeoStpDbContext db)
+    private static (AlertaGeneracionService svc, IAlertaService alertas) NewSvc(
+        NeoStpDbContext db, TimeProvider? clock = null)
     {
         var alertas = Substitute.For<IAlertaService>();
         var cobranza = Substitute.For<ICobranzaService>();
         cobranza.GetPendientesAsync(Arg.Any<int>(), Arg.Any<CobranzaQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result<PagedResult<CobroPendienteDto>>.Ok(PagedResult<CobroPendienteDto>.Create(new List<CobroPendienteDto>(), 0, 1, 50)));
-        return (new AlertaGeneracionService(db, alertas, cobranza), alertas);
+        return (new AlertaGeneracionService(db, alertas, cobranza, clock), alertas);
     }
 
     private static void SeedExistencia(NeoStpDbContext db, decimal cantidad, decimal stockMinimo)
@@ -137,5 +143,42 @@ public class AlertaGeneracionServiceTests
                 && r.Severidad == severidad
                 && r.Clave!.EndsWith($":{umbral}")),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AlertaDte_UsaMesCivilDeElSalvadorYClaveLocal()
+    {
+        var db = NewDb();
+        var clock = new FixedClock(new DateTimeOffset(2026, 10, 1, 3, 0, 0, TimeSpan.Zero));
+        var (svc, alertas) = NewSvc(db, clock);
+        db.Planes.Add(new Plan
+        {
+            Id = 9, Codigo = "STARTER", Nombre = "Starter", PrecioMensual = 15m,
+            LimiteDteMensual = 10, Activo = true,
+        });
+        db.EmpresaPlanes.Add(new EmpresaPlan
+        {
+            EmpresaId = Empresa, PlanId = 9, EstadoCodigo = "ACTIVO",
+            FechaInicio = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        });
+        db.DteDocumentos.AddRange(Enumerable.Range(1, 8).Select(i =>
+            Dte(i, new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc))));
+        db.DteDocumentos.Add(Dte(20, new DateTime(2026, 9, 1, 5, 59, 59, DateTimeKind.Utc)));
+        await db.SaveChangesAsync();
+
+        await svc.GenerarAsync(Empresa);
+
+        await alertas.Received(1).CrearAsync(
+            Arg.Is<CrearAlertaRequest>(r => r.TipoCodigo == AlertaTipos.DteLimitePlan
+                && r.Severidad == AlertaSeveridades.Info
+                && r.Clave == $"{AlertaTipos.DteLimitePlan}:202609:80"),
+            Arg.Any<CancellationToken>());
+
+        DteDocumento Dte(int id, DateTime createdAt) => new()
+        {
+            Id = id, EmpresaId = Empresa, TipoDteCodigo = "01", NumeroControl = $"DTE-{id}",
+            CodigoGeneracion = Guid.NewGuid().ToString(), EstadoCodigo = "BORRADOR",
+            AmbienteCodigo = "PRUEBAS", CreatedAt = createdAt,
+        };
     }
 }

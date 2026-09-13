@@ -17,11 +17,13 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
 
     private readonly NeoStpDbContext _db;
     private readonly IAuditoriaService _auditoria;
+    private readonly TimeProvider _clock;
 
-    public EmpresasService(NeoStpDbContext db, IAuditoriaService auditoria)
+    public EmpresasService(NeoStpDbContext db, IAuditoriaService auditoria, TimeProvider? clock = null)
     {
         _db = db;
         _auditoria = auditoria;
+        _clock = clock ?? TimeProvider.System;
     }
 
     public async Task<Result<PagedResult<EmpresaDto>>> GetListAsync(int? scopeEmpresaId, PagedQuery query, CancellationToken ct = default)
@@ -339,7 +341,7 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
             .FirstOrDefaultAsync(e => e.Id == empresaId, ct);
         if (empresa is null) return null;
 
-        var ahora = DateTime.UtcNow;
+        var ahora = _clock.GetUtcNow().UtcDateTime;
         var licenciasVigentes = await _db.EmpresaPlanes.AsNoTracking()
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
                 && ep.FechaInicio <= ahora && (ep.FechaFin == null || ep.FechaFin > ahora))
@@ -384,11 +386,12 @@ public class EmpresasService : IEmpresasService, ILicenciaResolver
         var usuarios = await _db.Usuarios.CountAsync(u => u.EmpresaId == empresaId, ct);
         var sucursales = await _db.Sucursales.CountAsync(s => s.EmpresaId == empresaId, ct);
         var pv = await _db.PuntosVenta.CountAsync(p => p.Sucursal.EmpresaId == empresaId, ct);
-        var inicioMes = new DateTime(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var hoy = ElSalvadorTime.Today(_clock);
+        var (inicioMes, finMes) = ElSalvadorTime.UtcMonth(hoy.Year, hoy.Month);
         // Consumo COMERCIAL del mes: excluye la certificación de campañas coherentes, igual que el
         // guard de licencia. Sin esto, las pruebas de certificación llenaban el cupo por error.
         var dteMensual = await NeoSTP.Infrastructure.Dte.Certificacion
-            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, ct);
+            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, finMes, ct);
 
         return new LicenciaDto
         {

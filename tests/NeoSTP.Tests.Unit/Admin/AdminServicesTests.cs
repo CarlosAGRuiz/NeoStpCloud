@@ -5,6 +5,7 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Empresas.Dtos;
 using NeoSTP.Application.Roles.Dtos;
 using NeoSTP.Application.Usuarios.Dtos;
+using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Licenciamiento;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
@@ -21,6 +22,11 @@ namespace NeoSTP.Tests.Unit.Admin;
 public class AdminServicesTests
 {
     private const int Empresa = 95;
+
+    private sealed class FixedClock(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
 
     private static NeoStpDbContext NewDb()
     {
@@ -248,5 +254,40 @@ public class AdminServicesTests
         var scoped = await svc.GetListAsync(Empresa, new PagedQuery());
 
         scoped.Value!.Items.Should().OnlyContain(e => e.Id == Empresa);
+    }
+
+    [Fact]
+    public async Task Empresa_LicenciaCuentaMesCivilDeElSalvadorConAmbosLimites()
+    {
+        var db = NewDb();
+        var clock = new FixedClock(new DateTimeOffset(2026, 10, 1, 3, 0, 0, TimeSpan.Zero));
+        db.Planes.Add(new Plan
+        {
+            Id = 400, Codigo = "DTE", Nombre = "DTE", PrecioMensual = 1m,
+            LimiteDteMensual = 10, Activo = true,
+        });
+        db.EmpresaPlanes.Add(new EmpresaPlan
+        {
+            EmpresaId = Empresa, PlanId = 400, EstadoCodigo = "ACTIVO",
+            FechaInicio = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+        });
+        db.DteDocumentos.AddRange(
+            Dte(1, new DateTime(2026, 9, 1, 5, 59, 59, DateTimeKind.Utc)),
+            Dte(2, new DateTime(2026, 9, 1, 6, 0, 0, DateTimeKind.Utc)),
+            Dte(3, new DateTime(2026, 10, 1, 5, 59, 59, DateTimeKind.Utc)),
+            Dte(4, new DateTime(2026, 10, 1, 6, 0, 0, DateTimeKind.Utc)));
+        await db.SaveChangesAsync();
+
+        var result = await new EmpresasService(
+            db, Substitute.For<IAuditoriaService>(), clock).GetLicenciaAsync(Empresa);
+
+        result.Value!.DteMensualUsados.Should().Be(2);
+
+        DteDocumento Dte(int id, DateTime createdAt) => new()
+        {
+            Id = id, EmpresaId = Empresa, TipoDteCodigo = "01", NumeroControl = $"DTE-{id}",
+            CodigoGeneracion = Guid.NewGuid().ToString(), EstadoCodigo = "BORRADOR",
+            AmbienteCodigo = "PRUEBAS", CreatedAt = createdAt,
+        };
     }
 }

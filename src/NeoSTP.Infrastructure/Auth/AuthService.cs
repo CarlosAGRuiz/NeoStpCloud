@@ -124,7 +124,7 @@ public class AuthService : IAuthService
         var resolved = await ResolveUserInfoAsync(usuario, usuario.EmpresaId, ct);
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
-        var purpose = RbacSecurity.IsMfaRequiredUser(usuario) && !usuario.MfaHabilitado
+        var purpose = await RbacSecurity.IsMfaRequiredUserAsync(_db, usuario, ct) && !usuario.MfaHabilitado
             ? SessionClaims.MfaEnroll : SessionClaims.Full;
         var response = await IssueSessionAsync(usuario, resolved.Value!, purpose, context, ct);
         if (response.IsFailure) return response;
@@ -189,7 +189,9 @@ public class AuthService : IAuthService
         var resolved = await ResolveUserInfoAsync(usuario, empresaId, ct);
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
-        var response = await IssueSessionAsync(usuario, resolved.Value!, SessionClaims.Full, context, ct);
+        var purpose = await RbacSecurity.IsMfaRequiredUserAsync(_db, usuario, ct) && !usuario.MfaHabilitado
+            ? SessionClaims.MfaEnroll : SessionClaims.Full;
+        var response = await IssueSessionAsync(usuario, resolved.Value!, purpose, context, ct);
         if (response.IsFailure) return response;
         await AuditAsync(context, usuario, "CAMBIAR_EMPRESA", "OK", $"Empresa activa → {empresaId}");
         return response;
@@ -252,7 +254,8 @@ public class AuthService : IAuthService
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
         var purpose = usuario.MfaHabilitado ? SessionClaims.MfaVerify
-            : RbacSecurity.IsMfaRequiredUser(usuario) ? SessionClaims.MfaEnroll : SessionClaims.Full;
+            : await RbacSecurity.IsMfaRequiredUserAsync(_db, usuario, ct)
+                ? SessionClaims.MfaEnroll : SessionClaims.Full;
         if (purpose == SessionClaims.Full)
         {
             usuario.IntentosFallidos = 0;

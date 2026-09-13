@@ -2,6 +2,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dte.Abstractions;
+using NeoSTP.Domain.Common;
+using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
@@ -190,6 +192,34 @@ public class MfaServiceTests
         user.TipoUsuarioCodigo = "ADMIN";
         await db.SaveChangesAsync();
 
+        var enrollment = await svc.IniciarEnrolamientoAsync(1);
+        var firstCode = _totp.GenerarCodigo(enrollment.Value!.Secret, DateTimeOffset.UtcNow);
+        await svc.ConfirmarEnrolamientoAsync(1, firstCode);
+        var currentCode = _totp.GenerarCodigo(enrollment.Value.Secret, DateTimeOffset.UtcNow);
+
+        var result = await svc.DeshabilitarAsync(1, currentCode);
+
+        result.ErrorCode.Should().Be("MFA_REQUIRED_FOR_ADMIN");
+        (await db.Usuarios.AsNoTracking().SingleAsync()).MfaHabilitado.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AdministrativeMembership_CannotDisableMfa()
+    {
+        var (svc, db) = Build();
+        db.Empresas.Add(new Empresa
+        {
+            Id = 10, Nit = "06140000000001", RazonSocial = "Cliente", EstadoCodigo = EmpresaEstados.Activa,
+        });
+        db.Roles.Add(new Rol
+        {
+            Id = 10, Codigo = "ADMIN", Nombre = "Admin empresa", EsSistema = true, Activo = true,
+        });
+        db.UsuarioEmpresas.Add(new UsuarioEmpresa
+        {
+            UsuarioId = 1, EmpresaId = 10, RolId = 10, EstadoCodigo = EstadoCodes.Activo,
+        });
+        await db.SaveChangesAsync();
         var enrollment = await svc.IniciarEnrolamientoAsync(1);
         var firstCode = _totp.GenerarCodigo(enrollment.Value!.Secret, DateTimeOffset.UtcNow);
         await svc.ConfirmarEnrolamientoAsync(1, firstCode);

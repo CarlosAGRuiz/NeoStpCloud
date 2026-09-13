@@ -429,6 +429,47 @@ public class AuthSessionRegressionTests
     }
 
     [Fact]
+    public async Task AdministrativeMembershipWithoutMfa_OnlyReceivesEnrollmentSession()
+    {
+        using var f = new Fixture();
+        f.User.TipoUsuarioCodigo = "OPERADOR";
+        f.User.MfaHabilitado = false;
+        f.User.MfaSecretoCifrado = null;
+        f.Db.Roles.Local.Single(r => r.Id == 1).Codigo = "OPERADOR";
+        f.MemberRole.Codigo = "ADMIN";
+        f.MemberRole.EsSistema = true;
+        f.MemberRole.EmpresaId = null;
+        await f.Db.SaveChangesAsync();
+
+        var result = (await f.Login(mfa: null)).Value!;
+
+        result.MfaEnrollmentRequired.Should().BeTrue();
+        result.User.SessionPurpose.Should().Be(SessionClaims.MfaEnroll);
+        result.User.Roles.Should().BeEmpty();
+        result.RefreshToken.Should().BeEmpty();
+        (await new AuthSessionService(f.Db).ValidateAsync(result.User.SessionId)).IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PromotionToAdministrativeMembership_InvalidatesExistingNonMfaSession()
+    {
+        using var f = new Fixture();
+        f.User.TipoUsuarioCodigo = "OPERADOR";
+        f.User.MfaHabilitado = false;
+        f.User.MfaSecretoCifrado = null;
+        f.Db.Roles.Local.Single(r => r.Id == 1).Codigo = "OPERADOR";
+        await f.Db.SaveChangesAsync();
+        var session = (await f.Login(mfa: null)).Value!.User.SessionId;
+
+        f.MemberRole.Codigo = "ADMIN";
+        f.MemberRole.EsSistema = true;
+        f.MemberRole.EmpresaId = null;
+        await f.Db.SaveChangesAsync();
+
+        (await new AuthSessionService(f.Db).ValidateAsync(session)).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SsoWithMfa_RequiresOneUseChallenge_AndDoesNotResetFailuresUntilVerified()
     {
         using var f = new Fixture();
