@@ -144,6 +144,7 @@ public sealed class DteCertificateProtectionMigrator
         }
 
         assign(encrypted);
+        CryptographicOperations.ZeroMemory(stored);
         return 1;
     }
 
