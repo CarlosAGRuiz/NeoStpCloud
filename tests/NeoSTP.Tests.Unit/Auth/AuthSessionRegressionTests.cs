@@ -406,6 +406,8 @@ public class AuthSessionRegressionTests
         using var f = new Fixture();
         f.User.EmpresaId = null;
         f.User.TipoUsuarioCodigo = "SUPERADMIN";
+        f.User.MfaHabilitado = false;
+        f.User.MfaSecretoCifrado = null;
         var role = f.Db.Roles.Add(new Rol { Codigo = "SUPERADMIN", Nombre = "Global", EsSistema = true, Activo = true }).Entity;
         f.User.Roles.Add(new UsuarioRol { Rol = role });
         await f.Db.SaveChangesAsync();
