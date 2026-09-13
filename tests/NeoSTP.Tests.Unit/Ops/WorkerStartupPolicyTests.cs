@@ -80,6 +80,40 @@ public sealed class WorkerStartupPolicyTests
         production.Should().Throw<InvalidOperationException>().WithMessage("DATABASE_STARTUP_WRITES_FORBIDDEN:*");
     }
 
+
+    [Theory]
+    [InlineData("Production", "true", null, false)]
+    [InlineData("Staging", "true", null, false)]
+    [InlineData("Production", "true", "false", false)]
+    [InlineData("Production", "true", "true", true)]
+    [InlineData("Production", "false", "true", false)]
+    [InlineData("Development", null, null, true)]
+    [InlineData("Development", null, "false", false)]
+    public void Deployed_jobs_require_master_and_individual_activation(
+        string environment, string? master, string? job, bool expected)
+    {
+        var configuration = Configuration(
+            ("Worker:Enabled", master),
+            ("Worker:NotificationOutbox:Enabled", job));
+
+        WorkerStartupPolicy.IsJobEnabled(
+            configuration, Environment(environment), "NotificationOutbox").Should().Be(expected);
+    }
+
+    [Fact]
+    public void Malformed_individual_activation_is_rejected_without_echoing_its_value()
+    {
+        var configuration = Configuration(
+            ("Worker:Enabled", "true"),
+            ("Worker:NotificationOutbox:Enabled", "synthetic-sensitive-setting"));
+
+        var action = () => WorkerStartupPolicy.IsJobEnabled(
+            configuration, Environment("Production"), "NotificationOutbox");
+
+        action.Should().Throw<InvalidOperationException>()
+            .WithMessage("WORKER_STARTUP_CONFIGURATION_INVALID: Worker:NotificationOutbox:Enabled must be true or false.");
+    }
+
     private static IConfiguration Configuration(params (string Key, string? Value)[] flags)
         => new ConfigurationBuilder().AddInMemoryCollection(flags.Select(x => new KeyValuePair<string, string?>(x.Key, x.Value))).Build();
     private static IHostEnvironment Environment(string name)
