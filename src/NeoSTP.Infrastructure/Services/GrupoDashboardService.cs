@@ -26,19 +26,24 @@ public sealed class GrupoDashboardService : IGrupoDashboardService
     ];
 
     private readonly NeoStpDbContext _db;
+    private readonly TimeProvider _clock;
 
-    public GrupoDashboardService(NeoStpDbContext db) => _db = db;
+    public GrupoDashboardService(NeoStpDbContext db, TimeProvider? clock = null)
+    {
+        _db = db;
+        _clock = clock ?? TimeProvider.System;
+    }
 
     public async Task<Result<GrupoDashboardDto>> GetAsync(
         int userId, int? anio = null, int? mes = null, CancellationToken ct = default)
     {
-        var hoy = DateTime.UtcNow.Date;
+        var hoy = ElSalvadorTime.Today(_clock);
         var year = anio ?? hoy.Year;
         var month = mes ?? hoy.Month;
         if (year is < 2000 or > 2999 || month is < 1 or > 12)
             return Result<GrupoDashboardDto>.Fail("Período inválido.", "VALIDATION");
 
-        var desde = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var desde = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified);
         var hasta = desde.AddMonths(1);
 
         // ── Alcance: empresa principal + membresías activas (E1) ──────────────
