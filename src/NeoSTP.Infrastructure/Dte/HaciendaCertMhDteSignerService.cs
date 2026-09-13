@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
 using NeoSTP.Application.Dte.Abstractions;
 
@@ -40,7 +39,7 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
 
         try
         {
-            var (rsa, spkiBytes) = CargarCertificado(certificadoBlob);
+            var (rsa, spkiBytes) = DteCertificateInspector.LoadHaciendaXml(certificadoBlob);
             using (rsa)
             {
                 // JWS compacto: header.payload.signature (RFC 7515).
@@ -79,51 +78,6 @@ public class HaciendaCertMhDteSignerService : IDteSignerService
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Parsea el XML CertificadoMH y devuelve el RSA (con clave privada) y los bytes
-    /// del SubjectPublicKeyInfo DER (para auto-verificación de la firma).
-    /// </summary>
-    private static (RSA rsa, byte[] spkiBytes) CargarCertificado(byte[] blob)
-    {
-        var xml = XDocument.Parse(Encoding.UTF8.GetString(blob));
-        var root = xml.Root ?? throw new InvalidOperationException("XML vacío.");
-
-        // Buscar los nodos con o sin namespace
-        static string? GetText(XElement parent, string localName)
-        {
-            // Primero sin namespace, luego con cualquier namespace
-            return parent.Element(localName)?.Value
-                ?? parent.Elements().FirstOrDefault(e => e.Name.LocalName == localName)?.Value;
-        }
-
-        static XElement? GetChild(XElement parent, string localName)
-            => parent.Element(localName)
-            ?? parent.Elements().FirstOrDefault(e => e.Name.LocalName == localName);
-
-        var privateKeyNode = GetChild(root, "privateKey")
-            ?? throw new InvalidOperationException("Nodo <privateKey> no encontrado en CertificadoMH.");
-        var publicKeyNode  = GetChild(root, "publicKey")
-            ?? throw new InvalidOperationException("Nodo <publicKey> no encontrado en CertificadoMH.");
-
-        var pkcs8B64 = GetText(privateKeyNode, "encodied")
-            ?? throw new InvalidOperationException("Nodo <encodied> de privateKey no encontrado.");
-        var spkiB64  = GetText(publicKeyNode, "encodied")
-            ?? throw new InvalidOperationException("Nodo <encodied> de publicKey no encontrado.");
-
-        // Base64 puede tener saltos de línea del XML
-        var pkcs8Bytes = Convert.FromBase64String(LimpiarB64(pkcs8B64));
-        var spkiBytes  = Convert.FromBase64String(LimpiarB64(spkiB64));
-
-        // Cargar clave privada PKCS#8 DER
-        var rsa = RSA.Create();
-        rsa.ImportPkcs8PrivateKey(pkcs8Bytes, out _);
-
-        return (rsa, spkiBytes);
-    }
-
-    private static string LimpiarB64(string s) =>
-        s.Replace("\n", "").Replace("\r", "").Replace(" ", "").Replace("\t", "").Trim();
 
     private static string B64U(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
