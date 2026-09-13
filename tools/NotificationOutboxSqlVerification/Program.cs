@@ -39,8 +39,8 @@ try
 {
     await schema.Database.MigrateAsync();
     var migrations = (await schema.Database.GetAppliedMigrationsAsync()).ToArray();
-    Check(migrations[^1] == "20260911171700_P1_NotificationOutbox",
-        "Real migration chain reaches notification outbox migration");
+    Check(migrations.Contains("20260911171700_P1_NotificationOutbox", StringComparer.Ordinal),
+        "Real migration chain contains notification outbox migration");
     Check(!await schema.NotificationOutbox.AnyAsync(),
         "Migration creates an empty outbox without synthetic data leakage");
 

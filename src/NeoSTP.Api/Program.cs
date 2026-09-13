@@ -1,5 +1,8 @@
 using Microsoft.Extensions.Hosting.WindowsServices;
 using System.Text;
+using System.Text.Json;
+using NeoSTP.Infrastructure.Dte;
+using NeoSTP.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -117,6 +120,32 @@ NeoSTP.Infrastructure.Diagnostics.ProductionGuards.ValidarProvidersDeProduccion(
 
 // Production validates the deployed schema; migrations and seed are a separate deployment operation.
 await DatabaseStartup.InitializeAsync(app.Services, app.Configuration, app.Environment);
+
+var certificateCommands = new[]
+{
+    "--inspect-dte-certificates",
+    "--migrate-dte-certificates",
+    "--verify-dte-certificates",
+}.Where(command => args.Contains(command, StringComparer.OrdinalIgnoreCase)).ToArray();
+if (certificateCommands.Length > 1)
+    throw new InvalidOperationException("DTE_CERTIFICATE_COMMAND_CONFLICT");
+if (certificateCommands.Length == 1)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var migrator = new DteCertificateProtectionMigrator(
+        scope.ServiceProvider.GetRequiredService<NeoStpDbContext>(),
+        scope.ServiceProvider.GetRequiredService<NeoSTP.Application.Dte.Abstractions.ISecretProtector>(),
+        scope.ServiceProvider.GetRequiredService<ILogger<DteCertificateProtectionMigrator>>());
+    var report = certificateCommands[0] switch
+    {
+        "--migrate-dte-certificates" => await migrator.MigrateAsync(),
+        "--verify-dte-certificates" => await migrator.InspectAsync(requireAllProtected: true),
+        _ => await migrator.InspectAsync(requireAllProtected: false),
+    };
+    Console.WriteLine(JsonSerializer.Serialize(report));
+    Log.CloseAndFlush();
+    return;
+}
 
 app.UseSerilogRequestLogging();
 

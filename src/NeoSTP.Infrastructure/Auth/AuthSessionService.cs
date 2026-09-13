@@ -41,10 +41,12 @@ public sealed class AuthSessionService(NeoStpDbContext db) : IAuthSessionService
         if (user.EstadoCodigo != EstadoCodes.Activo || user.BloqueadoHasta > DateTime.UtcNow
             || session.CredentialFingerprint != Credentials(user, session.Purpose))
             return Invalid();
+        var mfaRequired = !user.MfaHabilitado
+            && await RbacSecurity.IsMfaRequiredUserAsync(db, user, ct);
         if (session.Purpose switch
             {
-                SessionClaims.Full => RbacSecurity.IsPlatformUser(user) && !user.MfaHabilitado,
-                SessionClaims.MfaEnroll => user.MfaHabilitado || !RbacSecurity.IsPlatformUser(user),
+                SessionClaims.Full => mfaRequired,
+                SessionClaims.MfaEnroll => user.MfaHabilitado || !mfaRequired,
                 SessionClaims.MfaVerify => !user.MfaHabilitado,
                 _ => true
             })

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Application.Dashboard;
 using NeoSTP.Application.Dashboard.Dtos;
+using NeoSTP.Application.Common;
 using NeoSTP.Domain.Common;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Infrastructure.Billing;
@@ -15,8 +16,13 @@ namespace NeoSTP.Infrastructure.Services;
 public class DashboardService : IDashboardService
 {
     private readonly NeoStpDbContext _db;
+    private readonly TimeProvider _clock;
 
-    public DashboardService(NeoStpDbContext db) => _db = db;
+    public DashboardService(NeoStpDbContext db, TimeProvider? clock = null)
+    {
+        _db = db;
+        _clock = clock ?? TimeProvider.System;
+    }
 
     // ─────────────────────────────────────────────────────────────
     //  Dashboard empresa
@@ -25,8 +31,9 @@ public class DashboardService : IDashboardService
     public async Task<DashboardEmpresaDto> GetDashboardEmpresaAsync(
         int empresaId, int? anio = null, int? mes = null, CancellationToken ct = default)
     {
-        var hoy = DateTime.UtcNow.Date;
+        var hoy = ElSalvadorTime.Today(_clock);
         var (inicioMes, finMes) = ResolvePeriodo(anio, mes, hoy);
+        var (inicioMesUtc, finMesUtc) = ElSalvadorTime.UtcMonth(inicioMes.Year, inicioMes.Month);
         var esPeriodoActual = inicioMes.Year == hoy.Year && inicioMes.Month == hoy.Month;
 
         var base_ = _db.DteDocumentos.AsNoTracking().Where(d => d.EmpresaId == empresaId);
@@ -37,7 +44,7 @@ public class DashboardService : IDashboardService
         var dteMes = await periodo.CountAsync(ct);
         // Consumo comercial del mes: misma base que el guard de licencia (excluye certificación).
         var dteMesComercial = await NeoSTP.Infrastructure.Dte.Certificacion
-            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, finMes, ct);
+            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMesUtc, finMesUtc, ct);
 
         var totalPagarMes = await periodo
             .Where(d => d.EstadoCodigo == DteEstadoCodigos.Procesado)
@@ -103,7 +110,7 @@ public class DashboardService : IDashboardService
         }
 
         // ── Plan activo de la empresa ─────────────────────────────
-        var ahora = DateTime.UtcNow;
+        var ahora = _clock.GetUtcNow().UtcDateTime;
         var licencias = await _db.EmpresaPlanes
             .AsNoTracking()
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == EstadoCodes.Activo
@@ -146,7 +153,7 @@ public class DashboardService : IDashboardService
     public async Task<DashboardSuperAdminDto> GetDashboardSuperAdminAsync(
         int? anio = null, int? mes = null, CancellationToken ct = default)
     {
-        var hoy = DateTime.UtcNow.Date;
+        var hoy = ElSalvadorTime.Today(_clock);
         var (inicioMes, finMes) = ResolvePeriodo(anio, mes, hoy);
         var en30Dias = hoy.AddDays(30);
 
@@ -253,7 +260,7 @@ public class DashboardService : IDashboardService
     {
         var year = anio is >= 2000 and <= 2100 ? anio.Value : hoy.Year;
         var month = mes is >= 1 and <= 12 ? mes.Value : hoy.Month;
-        var inicio = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var inicio = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified);
         return (inicio, inicio.AddMonths(1));
     }
 

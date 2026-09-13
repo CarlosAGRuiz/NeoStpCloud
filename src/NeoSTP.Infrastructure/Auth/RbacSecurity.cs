@@ -1,5 +1,8 @@
+using Microsoft.EntityFrameworkCore;
+using NeoSTP.Domain.Common;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Domain.Core.Seguridad;
+using NeoSTP.Infrastructure.Persistence;
 
 namespace NeoSTP.Infrastructure.Auth;
 
@@ -14,6 +17,31 @@ internal static class RbacSecurity
         user.EmpresaId is null && user.TipoUsuarioCodigo == "SUPERADMIN"
         && user.Roles.Any(r => r.Rol.Activo && r.Rol.EmpresaId is null
             && r.Rol.EsSistema && IsReservedRole(r.Rol.Codigo));
+
+    public static bool IsMfaRequiredUser(Usuario user) =>
+        IsPlatformUser(user) || IsTenantAdministrator(user);
+
+    public static async Task<bool> IsMfaRequiredUserAsync(
+        NeoStpDbContext db, Usuario user, CancellationToken ct = default)
+    {
+        if (IsMfaRequiredUser(user)) return true;
+
+        return await db.UsuarioEmpresas.AsNoTracking().AnyAsync(m =>
+            m.UsuarioId == user.Id
+            && m.EstadoCodigo == EstadoCodes.Activo
+            && m.Empresa.EstadoCodigo == EmpresaEstados.Activa
+            && m.Rol.Activo
+            && (m.Rol.EmpresaId == null || m.Rol.EmpresaId == m.EmpresaId)
+            && (m.Rol.Codigo == "ADMIN" || m.Rol.Codigo == "ADMIN_EMPRESA"), ct);
+    }
+
+    private static bool IsTenantAdministrator(Usuario user) =>
+        user.EmpresaId is not null
+        && (string.Equals(user.TipoUsuarioCodigo, "ADMIN", StringComparison.OrdinalIgnoreCase)
+            || user.Roles.Any(r => r.Rol.Activo
+                && (r.Rol.EmpresaId is null || r.Rol.EmpresaId == user.EmpresaId)
+                && (string.Equals(r.Rol.Codigo, "ADMIN", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(r.Rol.Codigo, "ADMIN_EMPRESA", StringComparison.OrdinalIgnoreCase))));
 
     public static bool IsReservedRole(string? code) =>
         string.Equals(code?.Trim(), "SUPERADMIN", StringComparison.OrdinalIgnoreCase);

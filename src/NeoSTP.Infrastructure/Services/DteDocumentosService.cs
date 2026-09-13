@@ -62,11 +62,13 @@ public partial class DteDocumentosService : IDteDocumentosService
     private readonly NeoSTP.Application.Lookups.ILookupService? _lookup;
     private readonly IHaciendaConsultaDteClient? _consultaDte;
     private readonly Microsoft.Extensions.Logging.ILogger<DteDocumentosService>? _logger;
+    private readonly TimeProvider _clock;
 
     // Corte de esquemas MH 2026-08-25: cuando Dte:EsquemaNuevo=true los eventos usan las
     // versiones nuevas (invalidación v3). Contingencia ya migró a v4 sin toggle porque apitest
     // la exige desde ya. Default false = versiones que apitest aún acepta hoy.
     private readonly bool _esquemaNuevo;
+    private readonly bool _allowLegacyCertificatePlaintext;
     private readonly DteSchemaPolicy _schemaPolicy;
 
     public DteDocumentosService(
@@ -88,7 +90,8 @@ public partial class DteDocumentosService : IDteDocumentosService
         NeoSTP.Application.Lookups.ILookupService? lookup = null,
         Microsoft.Extensions.Configuration.IConfiguration? configuration = null,
         IHaciendaConsultaDteClient? consultaDte = null,
-        Microsoft.Extensions.Logging.ILogger<DteDocumentosService>? logger = null)
+        Microsoft.Extensions.Logging.ILogger<DteDocumentosService>? logger = null,
+        TimeProvider? clock = null)
     {
         _schemaPolicy = new DteSchemaPolicy(configuration);
         _metrics = metrics;
@@ -96,6 +99,9 @@ public partial class DteDocumentosService : IDteDocumentosService
         _lookup = lookup;
         _esquemaNuevo = configuration is not null
             && Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue<bool>(configuration, "Dte:EsquemaNuevo");
+        var legacyCertificateSetting = configuration?[DteCertificateProtectionOptions.SectionName + ":AllowLegacyPlaintext"];
+        _allowLegacyCertificatePlaintext = bool.TryParse(legacyCertificateSetting, out var allowLegacyCertificatePlaintext)
+            && allowLegacyCertificatePlaintext;
         _db = db;
         _calculator = calculator;
         _generator = generator;
@@ -111,27 +117,14 @@ public partial class DteDocumentosService : IDteDocumentosService
         _webhookDispatcher = webhookDispatcher;
         _consultaDte = consultaDte;
         _logger = logger;
-    }
-
-    private static readonly TimeZoneInfo SvTimeZone = ResolveSvTimeZone();
-
-    private static TimeZoneInfo ResolveSvTimeZone()
-    {
-        foreach (var id in new[] { "America/El_Salvador", "Central America Standard Time" })
-        {
-            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
-            catch (TimeZoneNotFoundException) { }
-            catch (InvalidTimeZoneException) { }
-        }
-        return TimeZoneInfo.CreateCustomTimeZone("SV-UTC-6", TimeSpan.FromHours(-6), "El Salvador", "El Salvador");
+        _clock = clock ?? TimeProvider.System;
     }
 
     /// <summary>
     /// Fecha/hora actual de El Salvador (UTC-6, sin horario de verano). MH valida contra su reloj
-    /// local: usar <c>DateTime.UtcNow</c> hace que los DTE emitidos de noche (UTC-6) lleven la fecha
-    /// del día siguiente, y rompe la coherencia fInicio&lt;=fFin del evento de contingencia.
+    /// local: usar UTC directo adelanta la fecha fiscal desde las 18:00 locales.
     /// </summary>
-    private static DateTime NowSv() => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, SvTimeZone);
+    private DateTime NowSv() => ElSalvadorTime.Now(_clock);
 
     /// <summary>
     /// Traduce los códigos territoriales internos del receptor (p. ej. "SAN_SALVADOR",
@@ -470,6 +463,7 @@ public partial class DteDocumentosService : IDteDocumentosService
         // Ej: DTE-01-M001P001-000000000000001  (NO es codEstable(4)+codPuntoVenta(4) como se creía).
         var bloqueEstab = BuildBloqueEstablecimiento(config);
 
+        var ahoraSv = NowSv();
         var doc = new DteDocumento
         {
             EmpresaId = empresaId,
@@ -493,8 +487,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             },
             AmbienteCodigo = ambiente,
             CodigoGeneracion = Guid.NewGuid().ToString().ToUpperInvariant(),
-            FechaEmision = NowSv().Date,
-            HoraEmision = NowSv().TimeOfDay,
+            FechaEmision = ahoraSv.Date,
+            HoraEmision = ahoraSv.TimeOfDay,
             TipoMonedaCodigo = string.IsNullOrEmpty(request.TipoMonedaCodigo) ? "USD" : request.TipoMonedaCodigo,
             CondicionOperacionCodigo = request.CondicionOperacionCodigo,
             FormaPagoCodigo = request.FormaPagoCodigo,
@@ -1025,7 +1019,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             }
         }
 
-        var firma = await _signer.FirmarAsync(doc.Json!.JsonDte, config.CertificadoBlob, certPassword, ct);
+        var firma = await FirmarConCertificadoProtegidoAsync(
+            empresaId, doc.Json!.JsonDte, config, certPassword, ct);
         if (!firma.Success)
         {
             await Audit(empresaId, actor, "FIRMAR", "FAIL", $"{firma.Mensaje}: {firma.Detalle}", doc.Id);

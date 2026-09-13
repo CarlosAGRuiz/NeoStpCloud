@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Application.Auth.Abstractions;
@@ -97,9 +98,10 @@ public class DteConfiguracionService : IDteConfiguracionService
         }
 
         if (creando) _db.DteConfiguracion.Add(config);
+        AddDurableAudit(empresaId, actor, creando ? "CREATE" : "UPDATE",
+            $"Configuracion DTE {(creando ? "creada" : "actualizada")} (ambiente={ambiente})",
+            creando ? null : config.Id);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, creando ? "CREATE" : "UPDATE", "OK",
-            $"Configuracion DTE {(creando ? "creada" : "actualizada")} (ambiente={ambiente})", config.Id);
 
         return Result<DteConfiguracionDto>.Ok(MapToDto(config));
     }
@@ -119,16 +121,33 @@ public class DteConfiguracionService : IDteConfiguracionService
         if (bytes.Length == 0 || bytes.Length > 5 * 1024 * 1024)
             return Result<DteConfiguracionDto>.Fail("El certificado debe pesar entre 1 byte y 5 MB.", "VALIDATION");
 
+        if (!DteCertificateInspector.TryInspect(bytes, request.Password, out var inspection, out var inspectionError))
+        {
+            CryptographicOperations.ZeroMemory(bytes);
+            return Result<DteConfiguracionDto>.Fail(inspectionError!, "CERTIFICADO_INVALIDO");
+        }
+
+        byte[] protectedCertificate;
+        try
+        {
+            protectedCertificate = _protector.ProtectBytes(
+                bytes, DteCertificateProtectionMigrator.Context(empresaId));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(bytes);
+        }
+
         var config = await Load(empresaId, ct, track: true)
             ?? new DteConfiguracion { EmpresaId = empresaId, CreatedAt = DateTime.UtcNow, CreatedBy = actor };
         var creando = config.Id == 0;
         if (!creando) await SnapshotAsync(config, "ANTES_CERTIFICADO", actor, ct);
 
-        config.CertificadoBlob = bytes;
-        config.CertificadoNombre = string.IsNullOrWhiteSpace(request.Nombre) ? "certificado.pfx" : request.Nombre.Trim();
-        config.CertificadoEmitido = request.Emitido;
-        config.CertificadoVence = request.Vence;
-        config.CertificadoHuella = ComputeSha1(bytes);
+        config.CertificadoBlob = protectedCertificate;
+        config.CertificadoNombre = string.IsNullOrWhiteSpace(request.Nombre) ? "certificado.crt" : request.Nombre.Trim();
+        config.CertificadoEmitido = inspection!.IssuedAt ?? request.Emitido;
+        config.CertificadoVence = inspection.ExpiresAt ?? request.Vence;
+        config.CertificadoHuella = inspection.Fingerprint;
         config.PasswordCertificadoCifrado = string.IsNullOrEmpty(request.Password)
             ? null
             : _protector.Protect(request.Password);
@@ -136,9 +155,10 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.UpdatedBy = actor;
 
         if (creando) _db.DteConfiguracion.Add(config);
+        AddDurableAudit(empresaId, actor, "UPLOAD_CERT",
+            $"Certificado {config.CertificadoNombre} validado, cifrado y cargado (formato={inspection.Format}, huella={config.CertificadoHuella})",
+            creando ? null : config.Id);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "UPLOAD_CERT", "OK",
-            $"Certificado {config.CertificadoNombre} cargado ({bytes.Length} bytes, huella={config.CertificadoHuella})", config.Id);
 
         return Result<DteConfiguracionDto>.Ok(MapToDto(config));
     }
@@ -157,8 +177,8 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.PasswordCertificadoCifrado = null;
         config.UpdatedAt = DateTime.UtcNow;
         config.UpdatedBy = actor;
+        AddDurableAudit(empresaId, actor, "DELETE_CERT", "Certificado eliminado", config.Id);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "DELETE_CERT", "OK", "Certificado eliminado", config.Id);
         return Result.Ok();
     }
 
@@ -252,7 +272,13 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.TipoEstablecimientoCodigo = version.TipoEstablecimientoCodigo;
         config.CodigoEstablecimientoMh = version.CodigoEstablecimientoMh;
         config.CodigoPuntoVentaMh = version.CodigoPuntoVentaMh;
-        config.CertificadoBlob = version.CertificadoBlob?.ToArray();
+        config.CertificadoBlob = version.CertificadoBlob is null
+            ? null
+            : _protector.IsProtectedBytes(version.CertificadoBlob)
+                ? version.CertificadoBlob.ToArray()
+                : _protector.ProtectBytes(
+                    version.CertificadoBlob,
+                    DteCertificateProtectionMigrator.Context(empresaId));
         config.CertificadoNombre = version.CertificadoNombre;
         config.CertificadoHuella = version.CertificadoHuella;
         config.CertificadoEmitido = version.CertificadoEmitido;
@@ -266,9 +292,9 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.UpdatedAt = DateTime.UtcNow;
         config.UpdatedBy = actor;
 
-        await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "RECUPERAR_VERSION", "OK",
+        AddDurableAudit(empresaId, actor, "RECUPERAR_VERSION",
             $"Configuración DTE recuperada desde versión {version.Id}; token MH invalidado.", config.Id);
+        await _db.SaveChangesAsync(ct);
         return Result<DteConfiguracionDto>.Ok(MapToDto(config));
     }
 
@@ -312,12 +338,6 @@ public class DteConfiguracionService : IDteConfiguracionService
         });
     }
 
-    private static string ComputeSha1(byte[] bytes)
-    {
-        var hash = System.Security.Cryptography.SHA1.HashData(bytes);
-        return Convert.ToHexString(hash).ToLowerInvariant();
-    }
-
     private static DteConfiguracionDto MapToDto(DteConfiguracion c) => new()
     {
         EmpresaId = c.EmpresaId,
@@ -341,6 +361,23 @@ public class DteConfiguracionService : IDteConfiguracionService
         CreatedAt = c.CreatedAt,
         UpdatedAt = c.UpdatedAt,
     };
+
+    private void AddDurableAudit(
+        int empresaId, string? actor, string accion, string detalle, int? entidadId)
+    {
+        _db.Auditoria.Add(new NeoSTP.Domain.Core.Auditoria.Auditoria
+        {
+            EmpresaId = empresaId,
+            Username = actor,
+            Modulo = AuditModule,
+            Accion = accion,
+            Entidad = "DteConfiguracion",
+            EntidadId = entidadId?.ToString(),
+            Resultado = "OK",
+            Detalle = detalle,
+            CreatedAt = DateTime.UtcNow,
+        });
+    }
 
     private Task Audit(int empresaId, string? actor, string accion, string resultado, string? detalle, int entidadId)
         => _auditoria.RegistrarAsync(new AuditoriaEvent

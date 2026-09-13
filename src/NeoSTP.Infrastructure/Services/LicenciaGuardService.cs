@@ -15,15 +15,17 @@ public class LicenciaGuardService : ILicenciaGuardService
     private static readonly TimeSpan EstadoTtl = TimeSpan.FromSeconds(60);
 
     private readonly NeoStpDbContext _db;
+    private readonly TimeProvider _clock;
 
-    public LicenciaGuardService(NeoStpDbContext db)
+    public LicenciaGuardService(NeoStpDbContext db, TimeProvider? clock = null)
     {
         _db = db;
+        _clock = clock ?? TimeProvider.System;
     }
 
     public async Task<Result> ValidarLimiteAsync(int empresaId, RecursoLimitado recurso, CancellationToken ct = default)
     {
-        var ahora = DateTime.UtcNow;
+        var ahora = _clock.GetUtcNow().UtcDateTime;
         var licencias = await _db.EmpresaPlanes.AsNoTracking()
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
                       && ep.FechaInicio <= ahora
@@ -77,14 +79,16 @@ public class LicenciaGuardService : ILicenciaGuardService
 
     private Task<int> ContarDtesDelMesAsync(int empresaId, CancellationToken ct)
     {
-        var hoy = DateTime.UtcNow;
-        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        return NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, ct);
+        var hoy = ElSalvadorTime.Today(_clock);
+        var (inicioMesUtc, finMesUtc) = ElSalvadorTime.UtcMonth(hoy.Year, hoy.Month);
+        return NeoSTP.Infrastructure.Dte.Certificacion.CertificationCampaignAccess.CountCommercialDocumentsAsync(
+            _db, empresaId, inicioMesUtc, finMesUtc, ct);
     }
 
     public async Task<bool> EmpresaOperativaAsync(int empresaId, CancellationToken ct = default)
     {
-        if (EstadoCache.TryGetValue(empresaId, out var cached) && cached.Expira > DateTime.UtcNow)
+        var ahora = _clock.GetUtcNow().UtcDateTime;
+        if (EstadoCache.TryGetValue(empresaId, out var cached) && cached.Expira > ahora)
             return cached.Operativa;
 
         var estado = await _db.Empresas.AsNoTracking()
@@ -92,7 +96,7 @@ public class LicenciaGuardService : ILicenciaGuardService
             .Select(e => e.EstadoCodigo)
             .FirstOrDefaultAsync(ct);
         var operativa = estado == NeoSTP.Domain.Common.EmpresaEstados.Activa;
-        EstadoCache[empresaId] = (operativa, DateTime.UtcNow.Add(EstadoTtl));
+        EstadoCache[empresaId] = (operativa, ahora.Add(EstadoTtl));
         return operativa;
     }
 

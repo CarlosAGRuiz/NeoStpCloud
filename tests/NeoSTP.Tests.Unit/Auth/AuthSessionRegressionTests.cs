@@ -44,6 +44,7 @@ public class AuthSessionRegressionTests
             {
                 Id = 1, EmpresaId = 101, Username = "tester", Email = "tester@example.test",
                 NombreCompleto = "Tester", PasswordHash = "hash", TipoUsuarioCodigo = "ADMIN", EstadoCodigo = EstadoCodes.Activo,
+                MfaHabilitado = true, MfaSecretoCifrado = "synthetic-test-secret",
                 Roles = new List<UsuarioRol> { new() { Rol = homeRole } }
             });
             Db.UsuarioEmpresas.Add(new UsuarioEmpresa { UsuarioId = 1, EmpresaId = 202, RolId = 2, EstadoCodigo = EstadoCodes.Activo });
@@ -62,7 +63,7 @@ public class AuthSessionRegressionTests
                 Microsoft.Extensions.Options.Options.Create(new SecurityOptions()),
                 NullLogger<AuthService>.Instance, actor);
 
-        public Task<Result<LoginResponse>> Login(string password = "valid", string? mfa = null) =>
+        public Task<Result<LoginResponse>> Login(string password = "valid", string? mfa = "123456") =>
             Service().LoginAsync(new LoginRequest { UsernameOrEmail = "tester", Password = password, MfaCode = mfa }, new AuthContext());
 
         public async Task<AuthContext> Context() => new() { SessionId = (await Login()).Value!.User.SessionId };
@@ -161,7 +162,7 @@ public class AuthSessionRegressionTests
         f.User.IntentosFallidos = 3;
         await f.Db.SaveChangesAsync();
 
-        (await f.Login()).ErrorCode.Should().Be("AUTH_MFA_REQUIRED");
+        (await f.Login(mfa: "")).ErrorCode.Should().Be("AUTH_MFA_REQUIRED");
         f.User.IntentosFallidos.Should().Be(3);
         f.Jwt.DidNotReceive().CreateAccessToken(Arg.Any<UserInfo>());
     }
@@ -405,6 +406,8 @@ public class AuthSessionRegressionTests
         using var f = new Fixture();
         f.User.EmpresaId = null;
         f.User.TipoUsuarioCodigo = "SUPERADMIN";
+        f.User.MfaHabilitado = false;
+        f.User.MfaSecretoCifrado = null;
         var role = f.Db.Roles.Add(new Rol { Codigo = "SUPERADMIN", Nombre = "Global", EsSistema = true, Activo = true }).Entity;
         f.User.Roles.Add(new UsuarioRol { Rol = role });
         await f.Db.SaveChangesAsync();
@@ -423,6 +426,47 @@ public class AuthSessionRegressionTests
             .ErrorCode.Should().Be("AUTH_SESSION_INVALID");
         (await f.Service().VerifyMfaChallengeAsync("123456", new AuthContext { SessionId = result.User.SessionId }))
             .ErrorCode.Should().Be("AUTH_SESSION_INVALID");
+    }
+
+    [Fact]
+    public async Task AdministrativeMembershipWithoutMfa_OnlyReceivesEnrollmentSession()
+    {
+        using var f = new Fixture();
+        f.User.TipoUsuarioCodigo = "OPERADOR";
+        f.User.MfaHabilitado = false;
+        f.User.MfaSecretoCifrado = null;
+        f.Db.Roles.Local.Single(r => r.Id == 1).Codigo = "OPERADOR";
+        f.MemberRole.Codigo = "ADMIN";
+        f.MemberRole.EsSistema = true;
+        f.MemberRole.EmpresaId = null;
+        await f.Db.SaveChangesAsync();
+
+        var result = (await f.Login(mfa: null)).Value!;
+
+        result.MfaEnrollmentRequired.Should().BeTrue();
+        result.User.SessionPurpose.Should().Be(SessionClaims.MfaEnroll);
+        result.User.Roles.Should().BeEmpty();
+        result.RefreshToken.Should().BeEmpty();
+        (await new AuthSessionService(f.Db).ValidateAsync(result.User.SessionId)).IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PromotionToAdministrativeMembership_InvalidatesExistingNonMfaSession()
+    {
+        using var f = new Fixture();
+        f.User.TipoUsuarioCodigo = "OPERADOR";
+        f.User.MfaHabilitado = false;
+        f.User.MfaSecretoCifrado = null;
+        f.Db.Roles.Local.Single(r => r.Id == 1).Codigo = "OPERADOR";
+        await f.Db.SaveChangesAsync();
+        var session = (await f.Login(mfa: null)).Value!.User.SessionId;
+
+        f.MemberRole.Codigo = "ADMIN";
+        f.MemberRole.EsSistema = true;
+        f.MemberRole.EmpresaId = null;
+        await f.Db.SaveChangesAsync();
+
+        (await new AuthSessionService(f.Db).ValidateAsync(session)).IsFailure.Should().BeTrue();
     }
 
     [Fact]

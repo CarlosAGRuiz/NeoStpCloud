@@ -64,4 +64,52 @@ public class DataProtectionSecretProtectorTests
         var act = () => p.Unprotect(tampered);
         act.Should().Throw<System.Security.Cryptography.CryptographicException>();
     }
+
+    [Fact]
+    public void ProtectBytes_Then_UnprotectBytes_RoundTrips_And_IsNonDeterministic()
+    {
+        var p = BuildProtector();
+        var secret = new byte[] { 1, 2, 3, 4, 5 };
+
+        var first = p.ProtectBytes(secret, "Empresa:1");
+        var second = p.ProtectBytes(secret, "Empresa:1");
+
+        p.IsProtectedBytes(first).Should().BeTrue();
+        first.Should().NotEqual(secret);
+        first.Should().NotEqual(second);
+        p.UnprotectBytes(first, "Empresa:1").Should().Equal(secret);
+        p.UnprotectBytes(second, "Empresa:1").Should().Equal(secret);
+    }
+
+    [Fact]
+    public void UnprotectBytes_WithDifferentTenant_Throws()
+    {
+        var p = BuildProtector();
+        var cipher = p.ProtectBytes(new byte[] { 10, 20, 30 }, "Empresa:1");
+
+        var act = () => p.UnprotectBytes(cipher, "Empresa:2");
+
+        act.Should().Throw<System.Security.Cryptography.CryptographicException>();
+    }
+
+    [Fact]
+    public void UnprotectBytes_WhenTampered_Throws()
+    {
+        var p = BuildProtector();
+        var cipher = p.ProtectBytes(new byte[] { 10, 20, 30 }, "Empresa:1");
+        cipher[^1] ^= 0x01;
+
+        var act = () => p.UnprotectBytes(cipher, "Empresa:1");
+
+        act.Should().Throw<System.Security.Cryptography.CryptographicException>();
+    }
+
+    [Fact]
+    public void IsProtectedBytes_RejectsPlaintext()
+    {
+        var p = BuildProtector();
+
+        p.IsProtectedBytes(new byte[] { 1, 2, 3 }).Should().BeFalse();
+    }
+
 }

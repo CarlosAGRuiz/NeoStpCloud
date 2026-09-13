@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NeoSTP.Api.Authorization;
+using NeoSTP.Api.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Dashboard;
 using NeoSTP.Shared;
@@ -33,13 +34,12 @@ public class DashboardController : ApiControllerBase
     public async Task<IActionResult> GetEmpresa(
         [FromQuery] int? empresaId, [FromQuery] int? anio, [FromQuery] int? mes, CancellationToken ct)
     {
-        var eid = _currentUser.EmpresaId ?? empresaId;
-        if (eid is null)
-            return BadRequest(ApiResponse.Fail(
-                "No se pudo determinar la empresa. Si eres SuperAdmin, envía ?empresaId=.",
-                new[] { "AUTH_NO_TENANT" }, HttpContext.TraceIdentifier));
+        var tenant = ApiTenantResolver.Resolve(_currentUser, empresaId);
+        if (!tenant.Success)
+            return StatusCode(tenant.StatusCode, ApiResponse.Fail(
+                tenant.Message, new[] { tenant.ErrorCode }, HttpContext.TraceIdentifier));
 
-        var dto = await _dashboard.GetDashboardEmpresaAsync(eid.Value, anio, mes, ct);
+        var dto = await _dashboard.GetDashboardEmpresaAsync(tenant.EmpresaId!.Value, anio, mes, ct);
         return Ok(ApiResponse<Application.Dashboard.Dtos.DashboardEmpresaDto>.Ok(dto, HttpContext.TraceIdentifier));
     }
 

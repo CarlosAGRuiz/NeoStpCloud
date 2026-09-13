@@ -36,6 +36,8 @@ public class LimpiezaAuditoriaOptions
 
 public class GeneracionAlertasOptions
 {
+    public bool Enabled { get; set; }
+
     /// <summary>Intervalo entre ejecuciones del job (minutos). Default: 60.</summary>
     public int IntervaloMinutos { get; set; } = 60;
 }
@@ -53,6 +55,8 @@ public class RecordatoriosCobroOptions
 
 public class RetransmisionContingenciaOptions
 {
+    public bool Enabled { get; set; }
+
     /// <summary>Intervalo entre ejecuciones del job (minutos). Default: 5.</summary>
     public int IntervaloMinutos { get; set; } = 5;
 
@@ -68,6 +72,8 @@ public class RetransmisionContingenciaOptions
 
 public class LimpiezaTokensOptions
 {
+    public bool Enabled { get; set; }
+
     /// <summary>Intervalo entre ejecuciones del job (horas). Default: 24.</summary>
     public int IntervaloHoras { get; set; } = 24;
 
@@ -80,12 +86,16 @@ public class LimpiezaTokensOptions
 
 public class ContingenciaLoteOptions
 {
+    public bool Enabled { get; set; }
+
     /// <summary>Intervalo entre ejecuciones del job (minutos). Default: 10.</summary>
     public int IntervaloMinutos { get; set; } = 10;
 }
 
 public class WebhookDeliveryOptions
 {
+    public bool Enabled { get; set; }
+
     /// <summary>Intervalo entre ejecuciones del job (segundos). Default: 30.</summary>
     public int IntervaloSegundos { get; set; } = 30;
 }

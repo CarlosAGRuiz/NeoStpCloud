@@ -212,6 +212,8 @@ public class AccountController : Controller
         }
 
         await SignInCookieAsync(result.Value!.User, persistent: false);
+        if (result.Value.MfaEnrollmentRequired)
+            return RedirectToMfa(SessionClaims.MfaEnroll);
         TempData["Success"] = $"Ahora operas en otra empresa.";
         return Redirect("/");
     }

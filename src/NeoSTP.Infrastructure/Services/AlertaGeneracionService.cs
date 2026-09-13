@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NeoSTP.Application.Common;
 using NeoSTP.Application.Cobranza;
 using NeoSTP.Application.Cobranza.Dtos;
 using NeoSTP.Application.Notificaciones;
@@ -23,12 +24,15 @@ public class AlertaGeneracionService : IAlertaGeneracionService
     private readonly NeoStpDbContext _db;
     private readonly IAlertaService _alertas;
     private readonly ICobranzaService _cobranza;
+    private readonly TimeProvider _clock;
 
-    public AlertaGeneracionService(NeoStpDbContext db, IAlertaService alertas, ICobranzaService cobranza)
+    public AlertaGeneracionService(
+        NeoStpDbContext db, IAlertaService alertas, ICobranzaService cobranza, TimeProvider? clock = null)
     {
         _db = db;
         _alertas = alertas;
         _cobranza = cobranza;
+        _clock = clock ?? TimeProvider.System;
     }
 
     public async Task<int> GenerarAsync(int empresaId, CancellationToken ct = default)
@@ -66,8 +70,9 @@ public class AlertaGeneracionService : IAlertaGeneracionService
 
         // 1b) Consumo mensual de DTE del plan. La clave incluye mes y umbral para que el
         // cliente reciba una alerta nueva al pasar 80 %, 90 % y 100 %, sin duplicados.
-        var ahoraUtc = DateTime.UtcNow;
-        var inicioMes = new DateTime(ahoraUtc.Year, ahoraUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var ahoraUtc = _clock.GetUtcNow().UtcDateTime;
+        var hoy = ElSalvadorTime.Today(_clock);
+        var (inicioMes, finMes) = ElSalvadorTime.UtcMonth(hoy.Year, hoy.Month);
         var licenciasDte = await _db.EmpresaPlanes.AsNoTracking()
             .Where(ep => ep.EmpresaId == empresaId && ep.EstadoCodigo == "ACTIVO"
                       && ep.FechaInicio <= ahoraUtc
@@ -89,8 +94,9 @@ public class AlertaGeneracionService : IAlertaGeneracionService
             });
         if (planDte?.LimiteDteMensual is int maxDte && maxDte > 0)
         {
-            var usadosDte = await _db.DteDocumentos.AsNoTracking()
-                .CountAsync(d => d.EmpresaId == empresaId && d.CreatedAt >= inicioMes, ct);
+            var usadosDte = await NeoSTP.Infrastructure.Dte.Certificacion
+                .CertificationCampaignAccess.CountCommercialDocumentsAsync(
+                    _db, empresaId, inicioMes, finMes, ct);
             var porcentaje = usadosDte * 100m / maxDte;
             var umbral = porcentaje >= 100m ? 100 : porcentaje >= 90m ? 90 : porcentaje >= 80m ? 80 : 0;
 
@@ -104,7 +110,7 @@ public class AlertaGeneracionService : IAlertaGeneracionService
                     ? $"Ya utilizaste {usadosDte} de {maxDte} DTE del plan {planDte.PlanName}. No podrás emitir más este mes."
                     : $"Has utilizado {usadosDte} de {maxDte} DTE del plan {planDte.PlanName}.";
 
-                await Crear($"{AlertaTipos.DteLimitePlan}:{ahoraUtc:yyyyMM}:{umbral}", new CrearAlertaRequest
+                await Crear($"{AlertaTipos.DteLimitePlan}:{hoy:yyyyMM}:{umbral}", new CrearAlertaRequest
                 {
                     TipoCodigo = AlertaTipos.DteLimitePlan,
                     Severidad = severidad,

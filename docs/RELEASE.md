@@ -2,6 +2,8 @@
 
 Una Release Candidate puede etiquetarse únicamente cuando todos los controles aplicables estén aprobados con evidencia saneada y recuperable.
 
+Runbook específico RC9: [PRODUCTION-HARDENING-RC9.md](PRODUCTION-HARDENING-RC9.md).
+
 ## Código y seguridad
 
 - [ ] Build Release sin errores ni advertencias.
@@ -24,6 +26,7 @@ Una Release Candidate puede etiquetarse únicamente cuando todos los controles a
 ## Ambientes y datos
 
 - [ ] STAGING y PROD usan bases, secretos, DataProtection, storage, logs y backups independientes.
+- [ ] Certificados DTE activos e históricos convertidos; `Legacy=0` y restore con key ring verificado.
 - [ ] Migrations aplicadas primero en STAGING, sin ejecución automática en PROD.
 - [ ] Backup físico y copia off-site verificados.
 - [ ] Restore completo realizado en un entorno aislado.
@@ -33,6 +36,7 @@ Una Release Candidate puede etiquetarse únicamente cuando todos los controles a
 ## Operación
 
 - [ ] API, Web, Worker, SQL Server y cloudflared arrancan sin login interactivo.
+- [ ] Worker validado job por job; la bandera maestra sola no activa trabajos en STAGING/PROD.
 - [ ] `/health/live` y `/health/ready` vigilados externamente.
 - [ ] Alertas de caída, dependencias, worker, backups, disco y TLS probadas.
 - [ ] Rollback reproducible y ensayado.
