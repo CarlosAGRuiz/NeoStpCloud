@@ -54,9 +54,25 @@ public partial class DteDocumentosService
                 "No se pudo abrir el certificado fiscal protegido. Verifique el key ring de Data Protection.");
         }
 
+        var resolvedPassword = certificatePassword;
+        if (resolvedPassword is null && !string.IsNullOrEmpty(config.PasswordCertificadoCifrado))
+        {
+            try
+            {
+                resolvedPassword = _protector.Unprotect(config.PasswordCertificadoCifrado);
+            }
+            catch (CryptographicException)
+            {
+                CryptographicOperations.ZeroMemory(plaintext);
+                return CertificateFailure(
+                    "CERTIFICADO_PASSWORD_DESCIFRADO_FALLO",
+                    "No se pudo descifrar la contraseña del certificado fiscal.");
+            }
+        }
+
         try
         {
-            return await _signer.FirmarAsync(json, plaintext, certificatePassword, ct);
+            return await _signer.FirmarAsync(json, plaintext, resolvedPassword, ct);
         }
         finally
         {
