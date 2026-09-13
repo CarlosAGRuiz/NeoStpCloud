@@ -79,7 +79,6 @@ internal static class DteCertificateInspector
             return (rsa, spki);
         }
         catch
-        catch
         {
             rsa.Dispose();
             throw;
