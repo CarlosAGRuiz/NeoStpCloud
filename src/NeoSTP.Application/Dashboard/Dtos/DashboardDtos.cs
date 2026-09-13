@@ -7,6 +7,10 @@ namespace NeoSTP.Application.Dashboard.Dtos;
 /// <summary>KPIs y tendencias del dashboard por empresa para el mes en curso.</summary>
 public class DashboardEmpresaDto
 {
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+    public bool EsPeriodoActual { get; set; }
+
     // ── KPIs del mes ──────────────────────────────
     public int DteHoy { get; set; }
 
@@ -78,6 +82,9 @@ public class DteDiarioDto
 /// <summary>Métricas globales para el panel de SuperAdmin.</summary>
 public class DashboardSuperAdminDto
 {
+    public int Anio { get; set; }
+    public int Mes { get; set; }
+
     // ── KPIs globales ──────────────────────────────
     public int EmpresasActivas { get; set; }
     public int EmpresasTotal { get; set; }

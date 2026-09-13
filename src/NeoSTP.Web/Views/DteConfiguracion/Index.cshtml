@@ -76,10 +76,11 @@
 
                     <div class="d-flex gap-2 mt-4">
                         <button type="submit" class="btn btn-primary">Guardar</button>
-                        <form asp-action="ProbarConexion" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-outline-success d-inline-flex align-items-center gap-1" formaction="@Url.Action("ProbarConexion")"><span class="material-symbols-outlined" style="font-size:18px">bolt</span> Probar conexión</button>
-                        </form>
+                        <button type="submit" formmethod="post" formnovalidate
+                                class="btn btn-outline-success d-inline-flex align-items-center gap-1"
+                                formaction="@Url.Action("ProbarConexion")">
+                            <span class="material-symbols-outlined" style="font-size:18px">bolt</span> Probar conexión
+                        </button>
                     </div>
                 </form>
             </div>
@@ -93,6 +94,37 @@
                 <br /><small>@Model.UltimaPruebaDetalle</small>
             </div>
         }
+
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-header ns-card-head">
+                <span class="material-symbols-outlined">history</span><strong>Recuperar configuración</strong>
+            </div>
+            <div class="card-body">
+                @if (Model.Versiones.Count == 0)
+                {
+                    <p class="text-muted mb-0">Aún no hay una versión anterior. Se guardará automáticamente antes del próximo cambio.</p>
+                }
+                else
+                {
+                    <form asp-action="RecuperarConfiguracion" method="post"
+                          onsubmit="return confirm('¿Recuperar esta configuración? Se guardará primero una copia del estado actual y deberás probar de nuevo la conexión.');">
+                        <label for="versionId" class="form-label">Versión anterior</label>
+                        <select id="versionId" name="versionId" class="form-select mb-3" required>
+                            @foreach (var version in Model.Versiones)
+                            {
+                                var certificado = version.TieneCertificado ? version.CertificadoNombre ?? "certificado" : "sin certificado";
+                                <option value="@version.Id">
+                                    @version.CreatedAt.ToString("yyyy-MM-dd HH:mm") · @version.AmbienteCodigo · @version.UsuarioMh · @certificado
+                                </option>
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-outline-warning d-inline-flex align-items-center gap-1">
+                            <span class="material-symbols-outlined" style="font-size:18px">restore</span> Recuperar configuración
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
     </div>
 
     <!-- Bloque certificado -->

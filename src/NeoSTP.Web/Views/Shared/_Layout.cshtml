@@ -570,6 +570,13 @@ else
                             <li><hr class="dropdown-divider" /></li>
                             <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Cambiar contraseña</a></li>
                             <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2"
+                                   asp-controller="Mfa" asp-action="Enrollment">
+                                    <span class="material-symbols-outlined" style="font-size:18px">security</span>
+                                    Configurar MFA
+                                </a>
+                            </li>
+                            <li>
                                 <span class="dropdown-item-text small text-muted">@L["Idioma"]</span>
                                 <form asp-controller="Home" asp-action="CambiarIdioma" method="post" class="px-3 py-1 d-flex gap-2">
                                     @Html.AntiForgeryToken()

@@ -14,10 +14,15 @@ internal static class CertificationCampaignAccess
     private static readonly string[] Types = ["01", "03", "11", "14"];
 
     internal static async Task<int> CountCommercialDocumentsAsync(NeoStpDbContext db, int tenant, DateTime monthStart, CancellationToken ct)
+        => await CountCommercialDocumentsAsync(db, tenant, monthStart, null, ct);
+
+    internal static async Task<int> CountCommercialDocumentsAsync(NeoStpDbContext db, int tenant, DateTime monthStart,
+        DateTime? monthEnd, CancellationToken ct)
     {
-        var evidence = await CoherentAsync(db, tenant, monthStart, null, ct);
+        var evidence = await CoherentAsync(db, tenant, monthStart, monthEnd, null, ct);
         var excludedIds = evidence.Select(c => c.DteDocumentoId).ToArray();
         return await db.DteDocumentos.CountAsync(d => d.EmpresaId == tenant && d.CreatedAt >= monthStart
+            && (!monthEnd.HasValue || d.CreatedAt < monthEnd.Value)
             && !excludedIds.Contains(d.Id), ct);
     }
 
@@ -28,7 +33,7 @@ internal static class CertificationCampaignAccess
             .AnyAsync(c => c.DteDocumentoId == document.Id, ct);
         if (document.IdempotencyScope != "CERT" && !hasConsumption) return Result.Ok();
         if (document.EmpresaId != tenant || document.Id <= 0) return Fail("CERT_CAMPAIGN_FORBIDDEN");
-        var evidence = await CoherentAsync(db, tenant, null, document.Id, ct);
+        var evidence = await CoherentAsync(db, tenant, null, null, document.Id, ct);
         if (evidence.Count != 1) return Fail("CERT_CAMPAIGN_FORBIDDEN");
         var claim = evidence[0];
         // Compare the pending aggregate as well: changing scope, type or hashes cannot borrow an older valid row.
@@ -56,11 +61,12 @@ internal static class CertificationCampaignAccess
     }
 
     private static async Task<List<CertificationCampaignConsumption>> CoherentAsync(NeoStpDbContext db, int tenant,
-        DateTime? monthStart, int? documentId, CancellationToken ct)
+        DateTime? monthStart, DateTime? monthEnd, int? documentId, CancellationToken ct)
     {
         var query = db.CertificationCampaignConsumptions.AsNoTracking()
             .Where(c => c.EmpresaId == tenant && c.Document.EmpresaId == tenant);
         if (monthStart.HasValue) query = query.Where(c => c.Document.CreatedAt >= monthStart.Value);
+        if (monthEnd.HasValue) query = query.Where(c => c.Document.CreatedAt < monthEnd.Value);
         if (documentId.HasValue) query = query.Where(c => c.DteDocumentoId == documentId.Value);
         var claims = await query.Include(c => c.Document)
             .Include(c => c.TypeBudget).ThenInclude(b => b.Campaign).ThenInclude(c => c.Empresa).ToListAsync(ct);

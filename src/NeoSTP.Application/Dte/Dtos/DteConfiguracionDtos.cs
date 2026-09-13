@@ -61,3 +61,18 @@ public class ProbarConexionResultadoDto
     public string? Detalle { get; set; }
     public DateTime ProbadoAt { get; set; } = DateTime.UtcNow;
 }
+
+public sealed class DteConfiguracionVersionDto
+{
+    public int Id { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+    public string Motivo { get; set; } = string.Empty;
+    public string AmbienteCodigo { get; set; } = string.Empty;
+    public string? UsuarioMh { get; set; }
+    public string? TipoEstablecimientoCodigo { get; set; }
+    public string? CodigoEstablecimientoMh { get; set; }
+    public string? CodigoPuntoVentaMh { get; set; }
+    public bool TieneCertificado { get; set; }
+    public string? CertificadoNombre { get; set; }
+}

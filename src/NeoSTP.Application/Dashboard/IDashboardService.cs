@@ -7,9 +7,9 @@ namespace NeoSTP.Application.Dashboard;
 /// </summary>
 public interface IDashboardService
 {
-    /// <summary>Devuelve los KPIs del mes en curso para una empresa específica.</summary>
-    Task<DashboardEmpresaDto> GetDashboardEmpresaAsync(int empresaId, CancellationToken ct = default);
+    /// <summary>Devuelve los KPIs de un mes para una empresa específica. Por defecto usa el mes actual.</summary>
+    Task<DashboardEmpresaDto> GetDashboardEmpresaAsync(int empresaId, int? anio = null, int? mes = null, CancellationToken ct = default);
 
     /// <summary>Devuelve las métricas globales para el panel de SuperAdmin.</summary>
-    Task<DashboardSuperAdminDto> GetDashboardSuperAdminAsync(CancellationToken ct = default);
+    Task<DashboardSuperAdminDto> GetDashboardSuperAdminAsync(int? anio = null, int? mes = null, CancellationToken ct = default);
 }

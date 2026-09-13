@@ -13,6 +13,7 @@ namespace NeoSTP.Infrastructure.Services;
 public class DteConfiguracionService : IDteConfiguracionService
 {
     private const string AuditModule = "DTE_CONFIG";
+    private const int MaxVersionesPorEmpresa = 10;
     private static readonly string[] AmbientesValidos = { "PRUEBAS", "PRODUCCION" };
 
     private readonly NeoStpDbContext _db;
@@ -61,6 +62,7 @@ public class DteConfiguracionService : IDteConfiguracionService
             CreatedAt = DateTime.UtcNow,
             CreatedBy = actor,
         };
+        if (!creando) await SnapshotAsync(config, "ANTES_GUARDAR", actor, ct);
 
         var ambienteCambio = config.AmbienteCodigo != ambiente;
         var usuario = string.IsNullOrWhiteSpace(request.UsuarioMh) ? null : request.UsuarioMh.Trim();
@@ -120,6 +122,7 @@ public class DteConfiguracionService : IDteConfiguracionService
         var config = await Load(empresaId, ct, track: true)
             ?? new DteConfiguracion { EmpresaId = empresaId, CreatedAt = DateTime.UtcNow, CreatedBy = actor };
         var creando = config.Id == 0;
+        if (!creando) await SnapshotAsync(config, "ANTES_CERTIFICADO", actor, ct);
 
         config.CertificadoBlob = bytes;
         config.CertificadoNombre = string.IsNullOrWhiteSpace(request.Nombre) ? "certificado.pfx" : request.Nombre.Trim();
@@ -145,6 +148,7 @@ public class DteConfiguracionService : IDteConfiguracionService
         var config = await Load(empresaId, ct, track: true);
         if (config is null) return Result.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
 
+        await SnapshotAsync(config, "ANTES_ELIMINAR_CERT", actor, ct);
         config.CertificadoBlob = null;
         config.CertificadoNombre = null;
         config.CertificadoHuella = null;
@@ -203,6 +207,71 @@ public class DteConfiguracionService : IDteConfiguracionService
         });
     }
 
+    public async Task<Result<IReadOnlyList<DteConfiguracionVersionDto>>> GetVersionesAsync(
+        int empresaId, CancellationToken ct = default)
+    {
+        var versiones = await _db.DteConfiguracionVersiones.AsNoTracking()
+            .Where(x => x.EmpresaId == empresaId)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Take(MaxVersionesPorEmpresa)
+            .Select(x => new DteConfiguracionVersionDto
+            {
+                Id = x.Id,
+                CreatedAt = x.CreatedAt,
+                CreatedBy = x.CreatedBy,
+                Motivo = x.Motivo,
+                AmbienteCodigo = x.AmbienteCodigo,
+                UsuarioMh = x.UsuarioMh,
+                TipoEstablecimientoCodigo = x.TipoEstablecimientoCodigo,
+                CodigoEstablecimientoMh = x.CodigoEstablecimientoMh,
+                CodigoPuntoVentaMh = x.CodigoPuntoVentaMh,
+                TieneCertificado = x.CertificadoBlob != null,
+                CertificadoNombre = x.CertificadoNombre,
+            })
+            .ToListAsync(ct);
+        return Result<IReadOnlyList<DteConfiguracionVersionDto>>.Ok(versiones);
+    }
+
+    public async Task<Result<DteConfiguracionDto>> RecuperarVersionAsync(
+        int empresaId, int versionId, string? actor, CancellationToken ct = default)
+    {
+        var config = await Load(empresaId, ct, track: true);
+        if (config is null)
+            return Result<DteConfiguracionDto>.Fail("Configuración DTE no encontrada.", "CONFIG_NOT_FOUND");
+
+        var version = await _db.DteConfiguracionVersiones.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == versionId && x.EmpresaId == empresaId, ct);
+        if (version is null)
+            return Result<DteConfiguracionDto>.Fail("La versión no existe para esta empresa.", "VERSION_NOT_FOUND");
+
+        await SnapshotAsync(config, "ANTES_RECUPERAR", actor, ct);
+        config.AmbienteCodigo = version.AmbienteCodigo;
+        config.TiposDteAutorizadosCsv = version.TiposDteAutorizadosCsv;
+        config.UsuarioMh = version.UsuarioMh;
+        config.PasswordMhCifrado = version.PasswordMhCifrado;
+        config.TipoEstablecimientoCodigo = version.TipoEstablecimientoCodigo;
+        config.CodigoEstablecimientoMh = version.CodigoEstablecimientoMh;
+        config.CodigoPuntoVentaMh = version.CodigoPuntoVentaMh;
+        config.CertificadoBlob = version.CertificadoBlob?.ToArray();
+        config.CertificadoNombre = version.CertificadoNombre;
+        config.CertificadoHuella = version.CertificadoHuella;
+        config.CertificadoEmitido = version.CertificadoEmitido;
+        config.CertificadoVence = version.CertificadoVence;
+        config.PasswordCertificadoCifrado = version.PasswordCertificadoCifrado;
+        config.TokenMhCifrado = null;
+        config.TokenMhExpiraAt = null;
+        config.UltimaPruebaAt = null;
+        config.UltimaPruebaResultado = null;
+        config.UltimaPruebaDetalle = null;
+        config.UpdatedAt = DateTime.UtcNow;
+        config.UpdatedBy = actor;
+
+        await _db.SaveChangesAsync(ct);
+        await Audit(empresaId, actor, "RECUPERAR_VERSION", "OK",
+            $"Configuración DTE recuperada desde versión {version.Id}; token MH invalidado.", config.Id);
+        return Result<DteConfiguracionDto>.Ok(MapToDto(config));
+    }
+
     // -- helpers -------------------------------------------------------
 
     private async Task<DteConfiguracion?> Load(int empresaId, CancellationToken ct, bool track)
@@ -210,6 +279,37 @@ public class DteConfiguracionService : IDteConfiguracionService
         var q = _db.DteConfiguracion.AsQueryable();
         if (!track) q = q.AsNoTracking();
         return await q.FirstOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+    }
+
+    private async Task SnapshotAsync(DteConfiguracion config, string motivo, string? actor, CancellationToken ct)
+    {
+        var obsoletas = await _db.DteConfiguracionVersiones
+            .Where(x => x.EmpresaId == config.EmpresaId)
+            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
+            .Skip(MaxVersionesPorEmpresa - 1)
+            .ToListAsync(ct);
+        _db.DteConfiguracionVersiones.RemoveRange(obsoletas);
+        _db.DteConfiguracionVersiones.Add(new DteConfiguracionVersion
+        {
+            EmpresaId = config.EmpresaId,
+            ConfiguracionId = config.Id,
+            Motivo = motivo,
+            AmbienteCodigo = config.AmbienteCodigo,
+            TiposDteAutorizadosCsv = config.TiposDteAutorizadosCsv,
+            UsuarioMh = config.UsuarioMh,
+            PasswordMhCifrado = config.PasswordMhCifrado,
+            TipoEstablecimientoCodigo = config.TipoEstablecimientoCodigo,
+            CodigoEstablecimientoMh = config.CodigoEstablecimientoMh,
+            CodigoPuntoVentaMh = config.CodigoPuntoVentaMh,
+            CertificadoBlob = config.CertificadoBlob?.ToArray(),
+            CertificadoNombre = config.CertificadoNombre,
+            CertificadoHuella = config.CertificadoHuella,
+            CertificadoEmitido = config.CertificadoEmitido,
+            CertificadoVence = config.CertificadoVence,
+            PasswordCertificadoCifrado = config.PasswordCertificadoCifrado,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = actor,
+        });
     }
 
     private static string ComputeSha1(byte[] bytes)
