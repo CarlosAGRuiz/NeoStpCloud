@@ -180,4 +180,25 @@ public class MfaServiceTests
 
         (await svc.VerificarCodigoLoginAsync(1, "123456")).ErrorCode.Should().Be("MFA_CONFIGURATION_INVALID");
     }
+
+    [Fact]
+    public async Task TenantAdministrator_CannotDisableMfa()
+    {
+        var (svc, db) = Build();
+        var user = await db.Usuarios.SingleAsync();
+        user.EmpresaId = 10;
+        user.TipoUsuarioCodigo = "ADMIN";
+        await db.SaveChangesAsync();
+
+        var enrollment = await svc.IniciarEnrolamientoAsync(1);
+        var firstCode = _totp.GenerarCodigo(enrollment.Value!.Secret, DateTimeOffset.UtcNow);
+        await svc.ConfirmarEnrolamientoAsync(1, firstCode);
+        var currentCode = _totp.GenerarCodigo(enrollment.Value.Secret, DateTimeOffset.UtcNow);
+
+        var result = await svc.DeshabilitarAsync(1, currentCode);
+
+        result.ErrorCode.Should().Be("MFA_REQUIRED_FOR_ADMIN");
+        (await db.Usuarios.AsNoTracking().SingleAsync()).MfaHabilitado.Should().BeTrue();
+    }
+
 }
