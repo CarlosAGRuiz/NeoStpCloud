@@ -21,6 +21,9 @@ public class MfaServiceTests
     {
         public string Protect(string p) => p;
         public string Unprotect(string c) => c;
+        public byte[] ProtectBytes(byte[] plaintext, string discriminator) => plaintext.ToArray();
+        public byte[] UnprotectBytes(byte[] protectedPayload, string discriminator) => protectedPayload.ToArray();
+        public bool IsProtectedBytes(byte[] payload) => false;
         public string? ProtectOrNull(string? p) => p;
         public string? UnprotectOrNull(string? c) => c;
     }
