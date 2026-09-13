@@ -2,14 +2,14 @@ using NeoSTP.Application.Auth.Abstractions;
 
 namespace NeoSTP.Api.Auth;
 
-internal readonly record struct ApiTenantResolution(
+public readonly record struct ApiTenantResolution(
     bool Success,
     int? EmpresaId,
     int StatusCode,
     string ErrorCode,
     string Message);
 
-internal static class ApiTenantResolver
+public static class ApiTenantResolver
 {
     public static ApiTenantResolution Resolve(ICurrentUser currentUser, int? requestedEmpresaId)
     {
