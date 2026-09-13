@@ -92,27 +92,38 @@ public sealed class DteCertificateProtectionMigrator
         if (!_db.Database.IsRelational())
             throw new InvalidOperationException("DTE_CERTIFICATE_MIGRATION_REQUIRES_RELATIONAL_DATABASE");
 
-        await using var transaction = await _db.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable, ct);
-        await _db.Database.ExecuteSqlRawAsync(LockSql, ct);
+        var strategy = _db.Database.CreateExecutionStrategy();
+        var converted = await strategy.ExecuteAsync(async () =>
+        {
+            // Each retry must start clean so an interrupted attempt cannot leak
+            // mutated certificate buffers into the next transactional attempt.
+            _db.ChangeTracker.Clear();
 
-        var active = await _db.DteConfiguracion
-            .Where(x => x.CertificadoBlob != null)
-            .OrderBy(x => x.EmpresaId)
-            .ToListAsync(ct);
-        var history = await _db.DteConfiguracionVersiones
-            .Where(x => x.CertificadoBlob != null)
-            .OrderBy(x => x.EmpresaId).ThenBy(x => x.Id)
-            .ToListAsync(ct);
+            await using var transaction = await _db.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable, ct);
+            await _db.Database.ExecuteSqlRawAsync(LockSql, ct);
 
-        var converted = 0;
-        foreach (var row in active)
-            converted += ProtectIfLegacy(row.EmpresaId, row.CertificadoBlob!, x => row.CertificadoBlob = x);
-        foreach (var row in history)
-            converted += ProtectIfLegacy(row.EmpresaId, row.CertificadoBlob!, x => row.CertificadoBlob = x);
+            var active = await _db.DteConfiguracion
+                .Where(x => x.CertificadoBlob != null)
+                .OrderBy(x => x.EmpresaId)
+                .ToListAsync(ct);
+            var history = await _db.DteConfiguracionVersiones
+                .Where(x => x.CertificadoBlob != null)
+                .OrderBy(x => x.EmpresaId).ThenBy(x => x.Id)
+                .ToListAsync(ct);
 
-        await _db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+            var attemptConverted = 0;
+            foreach (var row in active)
+                attemptConverted += ProtectIfLegacy(
+                    row.EmpresaId, row.CertificadoBlob!, x => row.CertificadoBlob = x);
+            foreach (var row in history)
+                attemptConverted += ProtectIfLegacy(
+                    row.EmpresaId, row.CertificadoBlob!, x => row.CertificadoBlob = x);
+
+            await _db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return attemptConverted;
+        });
         _db.ChangeTracker.Clear();
 
         var report = await InspectAsync(requireAllProtected: true, ct);
