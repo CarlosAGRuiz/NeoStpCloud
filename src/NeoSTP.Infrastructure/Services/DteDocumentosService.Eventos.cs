@@ -114,7 +114,7 @@ public partial class DteDocumentosService
 
         if (!DteFiscalContext.CoincideJson(json, config.AmbienteCodigo))
             return Result<CrearEventoResultadoDto>.Fail("El evento no corresponde al ambiente fiscal configurado.", "DTE_PAYLOAD_INCOMPATIBLE");
-        var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
+        var firma = await FirmarConCertificadoProtegidoAsync(empresaId, json, config, null, ct);
         if (!firma.Success)
         {
             var idErr = await PersistirEventoAsync(empresaId, TipoEventoCodigos.Contingencia, codGen, 4, config.AmbienteCodigo,
@@ -164,7 +164,7 @@ public partial class DteDocumentosService
     {
         if (!DteFiscalContext.CoincideJson(json, config.AmbienteCodigo))
             return Result<CrearEventoResultadoDto>.Fail("El evento no corresponde al ambiente fiscal configurado.", "DTE_PAYLOAD_INCOMPATIBLE");
-        var firma = await _signer.FirmarAsync(json, config.CertificadoBlob, null, ct);
+        var firma = await FirmarConCertificadoProtegidoAsync(empresaId, json, config, null, ct);
         if (!firma.Success)
         {
             await PersistirEventoAsync(empresaId, tipoEvento, codigoGeneracion, version, config.AmbienteCodigo,
