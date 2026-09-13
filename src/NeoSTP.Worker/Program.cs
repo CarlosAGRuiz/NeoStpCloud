@@ -41,24 +41,36 @@ builder.Services.Configure<NeoSTP.Application.Ops.BackupOptions>(
     builder.Configuration.GetSection(NeoSTP.Application.Ops.BackupOptions.SectionName));
 
 // ── Hosted services ───────────────────────────────────────────────
-// Production workers require explicit activation after operational acceptance.
-WorkerStartupPolicy.ConfigureJobs(builder.Services, builder.Configuration, builder.Environment, services =>
-{
-    services.AddHostedService<Worker>();
-    services.AddHostedService<RetransmisionContingenciaWorker>();
-    services.AddHostedService<LimpiezaTokensWorker>();
-    services.AddHostedService<ContingenciaLoteWorker>();
-    services.AddHostedService<BackupWorker>();
-    services.AddHostedService<ConnectWebhookDeliveryWorker>();
-    services.AddHostedService<BillingProviderOperationWorker>();
-    services.AddHostedService<NotificationOutboxWorker>();
-    services.AddHostedService<AlertaGeneracionWorker>();
-    services.AddHostedService<RecordatorioCobroWorker>();
-    services.AddHostedService<LimpiezaAuditoriaWorker>();
+// Staging/Production require Worker:Enabled=true plus each Worker:<Job>:Enabled=true.
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "RetransmisionContingencia", services => services.AddHostedService<RetransmisionContingenciaWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "LimpiezaTokens", services => services.AddHostedService<LimpiezaTokensWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "ContingenciaLote", services => services.AddHostedService<ContingenciaLoteWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "WebhookDelivery", services => services.AddHostedService<ConnectWebhookDeliveryWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "BillingProviderOperations", services => services.AddHostedService<BillingProviderOperationWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "NotificationOutbox", services => services.AddHostedService<NotificationOutboxWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "GeneracionAlertas", services => services.AddHostedService<AlertaGeneracionWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "RecordatoriosCobro", services => services.AddHostedService<RecordatorioCobroWorker>());
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "LimpiezaAuditoria", services => services.AddHostedService<LimpiezaAuditoriaWorker>());
 
-    // ── Cola de trabajo en proceso (M4.4): descarga de tareas pesadas ─
-    services.AddBackgroundTaskQueue();
-});
+// Backup retains its dedicated hardening switch and also requires the master switch.
+if (WorkerStartupPolicy.IsJobEnabled(builder.Configuration, builder.Environment, "Backup")
+    && builder.Configuration.GetValue<bool>("Hardening:Backup:WorkerEnabled"))
+{
+    builder.Services.AddHostedService<BackupWorker>();
+}
+
+// In-process task execution is independently activated in deployed environments.
+WorkerStartupPolicy.ConfigureJob(builder.Services, builder.Configuration, builder.Environment,
+    "BackgroundTasks", services => services.AddBackgroundTaskQueue());
 
 var host = builder.Build();
 
