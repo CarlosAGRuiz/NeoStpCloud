@@ -124,7 +124,7 @@ public class AuthService : IAuthService
         var resolved = await ResolveUserInfoAsync(usuario, usuario.EmpresaId, ct);
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
-        var purpose = RbacSecurity.IsPlatformUser(usuario) && !usuario.MfaHabilitado
+        var purpose = RbacSecurity.IsMfaRequiredUser(usuario) && !usuario.MfaHabilitado
             ? SessionClaims.MfaEnroll : SessionClaims.Full;
         var response = await IssueSessionAsync(usuario, resolved.Value!, purpose, context, ct);
         if (response.IsFailure) return response;
@@ -252,7 +252,7 @@ public class AuthService : IAuthService
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
         var purpose = usuario.MfaHabilitado ? SessionClaims.MfaVerify
-            : RbacSecurity.IsPlatformUser(usuario) ? SessionClaims.MfaEnroll : SessionClaims.Full;
+            : RbacSecurity.IsMfaRequiredUser(usuario) ? SessionClaims.MfaEnroll : SessionClaims.Full;
         if (purpose == SessionClaims.Full)
         {
             usuario.IntentosFallidos = 0;
