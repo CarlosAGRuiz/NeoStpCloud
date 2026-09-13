@@ -38,7 +38,7 @@ public class UsuarioEmpresaTests
         db.Usuarios.Add(new Usuario
         {
             Id = 10, EmpresaId = EmpresaContador, Username = "contador", Email = "conta@despacho.com",
-            PasswordHash = "h", NombreCompleto = "Con Tador", TipoUsuarioCodigo = "ADMIN", EstadoCodigo = "ACTIVO",
+            PasswordHash = "h", NombreCompleto = "Con Tador", TipoUsuarioCodigo = "CONTADOR", EstadoCodigo = "ACTIVO",
         });
         db.SaveChanges();
         return db;
