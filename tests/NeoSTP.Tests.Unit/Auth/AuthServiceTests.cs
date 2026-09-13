@@ -6,6 +6,7 @@ using NeoSTP.Application.Auth;
 using NeoSTP.Application.Auth.Abstractions;
 using NeoSTP.Application.Auth.Dtos;
 using NeoSTP.Domain.Common;
+using NeoSTP.Domain.Core.Empresas;
 using NeoSTP.Domain.Core.Seguridad;
 using NeoSTP.Infrastructure.Auth;
 using NeoSTP.Infrastructure.Persistence;
@@ -200,4 +201,30 @@ public class AuthServiceTests
         t.RevokedAt.Should().NotBeNull();
         t.RevokedReason.Should().Be("Logout");
     }
+
+    [Fact]
+    public async Task LoginAsync_TenantAdministratorWithoutMfa_GetsEnrollmentOnlySession()
+    {
+        var (svc, db, _, _) = BuildService();
+        db.Empresas.Add(new Empresa
+        {
+            Id = 10,
+            Nit = "06140909261018",
+            RazonSocial = "Empresa de prueba",
+            EstadoCodigo = EmpresaEstados.Activa,
+        });
+        var user = await db.Usuarios.SingleAsync();
+        user.EmpresaId = 10;
+        user.TipoUsuarioCodigo = "ADMIN";
+        await db.SaveChangesAsync();
+
+        var result = await svc.LoginAsync(
+            new LoginRequest { UsernameOrEmail = "tester", Password = SeededPassword },
+            new AuthContext());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.MfaEnrollmentRequired.Should().BeTrue();
+        result.Value.MfaVerificationRequired.Should().BeFalse();
+    }
+
 }
