@@ -15,6 +15,17 @@ internal static class RbacSecurity
         && user.Roles.Any(r => r.Rol.Activo && r.Rol.EmpresaId is null
             && r.Rol.EsSistema && IsReservedRole(r.Rol.Codigo));
 
+    public static bool IsMfaRequiredUser(Usuario user) =>
+        IsPlatformUser(user) || IsTenantAdministrator(user);
+
+    private static bool IsTenantAdministrator(Usuario user) =>
+        user.EmpresaId is not null
+        && (string.Equals(user.TipoUsuarioCodigo, "ADMIN", StringComparison.OrdinalIgnoreCase)
+            || user.Roles.Any(r => r.Rol.Activo
+                && (r.Rol.EmpresaId is null || r.Rol.EmpresaId == user.EmpresaId)
+                && (string.Equals(r.Rol.Codigo, "ADMIN", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(r.Rol.Codigo, "ADMIN_EMPRESA", StringComparison.OrdinalIgnoreCase))));
+
     public static bool IsReservedRole(string? code) =>
         string.Equals(code?.Trim(), "SUPERADMIN", StringComparison.OrdinalIgnoreCase);
 
