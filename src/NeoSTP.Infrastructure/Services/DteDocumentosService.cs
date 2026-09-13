@@ -67,6 +67,7 @@ public partial class DteDocumentosService : IDteDocumentosService
     // versiones nuevas (invalidación v3). Contingencia ya migró a v4 sin toggle porque apitest
     // la exige desde ya. Default false = versiones que apitest aún acepta hoy.
     private readonly bool _esquemaNuevo;
+    private readonly bool _allowLegacyCertificatePlaintext;
     private readonly DteSchemaPolicy _schemaPolicy;
 
     public DteDocumentosService(
@@ -96,6 +97,9 @@ public partial class DteDocumentosService : IDteDocumentosService
         _lookup = lookup;
         _esquemaNuevo = configuration is not null
             && Microsoft.Extensions.Configuration.ConfigurationBinder.GetValue<bool>(configuration, "Dte:EsquemaNuevo");
+        var legacyCertificateSetting = configuration?[DteCertificateProtectionOptions.SectionName + ":AllowLegacyPlaintext"];
+        _allowLegacyCertificatePlaintext = bool.TryParse(legacyCertificateSetting, out var allowLegacyCertificatePlaintext)
+            && allowLegacyCertificatePlaintext;
         _db = db;
         _calculator = calculator;
         _generator = generator;
@@ -1025,7 +1029,8 @@ public partial class DteDocumentosService : IDteDocumentosService
             }
         }
 
-        var firma = await _signer.FirmarAsync(doc.Json!.JsonDte, config.CertificadoBlob, certPassword, ct);
+        var firma = await FirmarConCertificadoProtegidoAsync(
+            empresaId, doc.Json!.JsonDte, config, certPassword, ct);
         if (!firma.Success)
         {
             await Audit(empresaId, actor, "FIRMAR", "FAIL", $"{firma.Mensaje}: {firma.Detalle}", doc.Id);
