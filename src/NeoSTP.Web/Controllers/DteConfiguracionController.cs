@@ -38,7 +38,9 @@ public class DteConfiguracionController : Controller
 
         var result = await _service.GetAsync(eid, ct);
         await LoadCatalogosAsync(ct);
-        return View(ToViewModel(result.Value!));
+        var model = ToViewModel(result.Value!);
+        await LoadVersionesAsync(eid, model, ct);
+        return View(model);
     }
 
     [HttpPost("")]
@@ -50,6 +52,7 @@ public class DteConfiguracionController : Controller
         if (!ModelState.IsValid)
         {
             await LoadCatalogosAsync(ct);
+            await LoadVersionesAsync(eid, model, ct);
             return View(nameof(Index), model);
         }
 
@@ -68,6 +71,7 @@ public class DteConfiguracionController : Controller
             ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
             foreach (var e in result.ValidationErrors) ModelState.AddModelError(string.Empty, e);
             await LoadCatalogosAsync(ct);
+            await LoadVersionesAsync(eid, model, ct);
             return View(nameof(Index), model);
         }
 
@@ -141,6 +145,19 @@ public class DteConfiguracionController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost("recuperar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecuperarConfiguracion(int versionId, CancellationToken ct)
+    {
+        if (!Has("DTE.Configurar")) return Forbid();
+        if (RequireEmpresa() is not int eid) return Forbid();
+        var result = await _service.RecuperarVersionAsync(eid, versionId, _currentUser.Username, ct);
+        TempData[result.IsSuccess ? "Success" : "Error"] = result.IsSuccess
+            ? "Configuración recuperada. Prueba nuevamente la conexión con Hacienda antes de emitir."
+            : result.Error;
+        return RedirectToAction(nameof(Index));
+    }
+
     private static DteConfiguracionViewModel ToViewModel(DteConfiguracionDto d) => new()
     {
         AmbienteCodigo = d.AmbienteCodigo,
@@ -190,5 +207,11 @@ public class DteConfiguracionController : Controller
         }
 
         ViewBag.TiposEstablecimiento = tiposEstablecimiento;
+    }
+
+    private async Task LoadVersionesAsync(int empresaId, DteConfiguracionViewModel model, CancellationToken ct)
+    {
+        model.Versiones = (await _service.GetVersionesAsync(empresaId, ct)).Value
+            ?? Array.Empty<DteConfiguracionVersionDto>();
     }
 }

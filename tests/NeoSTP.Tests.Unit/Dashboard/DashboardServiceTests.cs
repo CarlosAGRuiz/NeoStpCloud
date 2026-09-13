@@ -55,9 +55,9 @@ public class DashboardServiceTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GetDashboardEmpresa_SinDocumentos_DevuelveCerosYTendencia30Dias()
+    public async Task GetDashboardEmpresa_SinDocumentos_DevuelveCerosYTendenciaDelMes()
     {
-        await using var db = BuildContext(nameof(GetDashboardEmpresa_SinDocumentos_DevuelveCerosYTendencia30Dias));
+        await using var db = BuildContext(nameof(GetDashboardEmpresa_SinDocumentos_DevuelveCerosYTendenciaDelMes));
         var svc = new DashboardService(db);
 
         var result = await svc.GetDashboardEmpresaAsync(1);
@@ -67,7 +67,7 @@ public class DashboardServiceTests
         result.TotalPagarMes.Should().Be(0m);
         result.Pendientes.Should().Be(0);
         result.Procesados.Should().Be(0);
-        result.TendenciaDiaria.Should().HaveCount(30);
+        result.TendenciaDiaria.Should().HaveCount(DateTime.UtcNow.Day);
         result.TendenciaDiaria.All(x => x.Cantidad == 0).Should().BeTrue();
     }
 
@@ -145,9 +145,9 @@ public class DashboardServiceTests
     }
 
     [Fact]
-    public async Task GetDashboardEmpresa_TendenciaDiaria_TieneLongitud30()
+    public async Task GetDashboardEmpresa_TendenciaDiaria_CubreElMesHastaHoy()
     {
-        await using var db = BuildContext(nameof(GetDashboardEmpresa_TendenciaDiaria_TieneLongitud30));
+        await using var db = BuildContext(nameof(GetDashboardEmpresa_TendenciaDiaria_CubreElMesHastaHoy));
         var hoy = DateTime.UtcNow.Date;
 
         // Docs en días distintos dentro de los últimos 30 días
@@ -158,8 +158,48 @@ public class DashboardServiceTests
         var svc = new DashboardService(db);
         var result = await svc.GetDashboardEmpresaAsync(1);
 
-        result.TendenciaDiaria.Should().HaveCount(30);
+        result.TendenciaDiaria.Should().HaveCount(hoy.Day);
         result.TendenciaDiaria.Select(x => x.Fecha).Should().BeInAscendingOrder();
+    }
+
+    [Fact]
+    public async Task GetDashboardEmpresa_PeriodoAnterior_FiltraKpisEstadosYTendencia()
+    {
+        await using var db = BuildContext(nameof(GetDashboardEmpresa_PeriodoAnterior_FiltraKpisEstadosYTendencia));
+        var actual = DateTime.UtcNow.Date;
+        var anterior = actual.AddMonths(-1);
+        var fechaAnterior = new DateTime(anterior.Year, anterior.Month, 10, 0, 0, 0, DateTimeKind.Utc);
+
+        db.DteDocumentos.AddRange(
+            MakeDoc(1, DteEstadoCodigos.Procesado, fechaAnterior, 250m),
+            MakeDoc(1, DteEstadoCodigos.Rechazado, fechaAnterior, 50m),
+            MakeDoc(1, DteEstadoCodigos.Procesado, actual, 900m));
+        db.Empresas.Add(MakeEmpresa(1));
+        db.Planes.Add(new Plan
+        {
+            Id = 1, Codigo = "ACTUAL", Nombre = "Plan actual", PrecioMensual = 20m,
+            LimiteDteMensual = 100,
+        });
+        db.EmpresaPlanes.Add(new EmpresaPlan
+        {
+            EmpresaId = 1, PlanId = 1, EstadoCodigo = EstadoCodes.Activo,
+            FechaInicio = actual.AddDays(-1), FechaFin = null,
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new DashboardService(db)
+            .GetDashboardEmpresaAsync(1, anterior.Year, anterior.Month);
+
+        result.Anio.Should().Be(anterior.Year);
+        result.Mes.Should().Be(anterior.Month);
+        result.EsPeriodoActual.Should().BeFalse();
+        result.DteMes.Should().Be(2);
+        result.Procesados.Should().Be(1);
+        result.Rechazados.Should().Be(1);
+        result.TotalPagarMes.Should().Be(250m);
+        result.PlanNombre.Should().Be("Plan actual");
+        result.LimiteDteMensual.Should().Be(0, "la cuota vigente no debe mezclarse con un período histórico");
+        result.TendenciaDiaria.Should().HaveCount(DateTime.DaysInMonth(anterior.Year, anterior.Month));
     }
 
     [Fact]

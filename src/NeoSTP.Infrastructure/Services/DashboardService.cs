@@ -22,39 +22,40 @@ public class DashboardService : IDashboardService
     //  Dashboard empresa
     // ─────────────────────────────────────────────────────────────
 
-    public async Task<DashboardEmpresaDto> GetDashboardEmpresaAsync(int empresaId, CancellationToken ct = default)
+    public async Task<DashboardEmpresaDto> GetDashboardEmpresaAsync(
+        int empresaId, int? anio = null, int? mes = null, CancellationToken ct = default)
     {
         var hoy = DateTime.UtcNow.Date;
-        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var inicio30 = hoy.AddDays(-29);
+        var (inicioMes, finMes) = ResolvePeriodo(anio, mes, hoy);
+        var esPeriodoActual = inicioMes.Year == hoy.Year && inicioMes.Month == hoy.Month;
 
         var base_ = _db.DteDocumentos.AsNoTracking().Where(d => d.EmpresaId == empresaId);
+        var periodo = base_.Where(d => d.FechaEmision >= inicioMes && d.FechaEmision < finMes);
 
         // ── KPIs simples ──────────────────────────────────────────
-        var dteHoy = await base_.CountAsync(d => d.FechaEmision == hoy, ct);
-        var dteMes = await base_.CountAsync(d => d.FechaEmision >= inicioMes, ct);
+        var dteHoy = esPeriodoActual ? await base_.CountAsync(d => d.FechaEmision == hoy, ct) : 0;
+        var dteMes = await periodo.CountAsync(ct);
         // Consumo comercial del mes: misma base que el guard de licencia (excluye certificación).
         var dteMesComercial = await NeoSTP.Infrastructure.Dte.Certificacion
-            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, ct);
+            .CertificationCampaignAccess.CountCommercialDocumentsAsync(_db, empresaId, inicioMes, finMes, ct);
 
-        var totalPagarMes = await base_
-            .Where(d => d.FechaEmision >= inicioMes && d.EstadoCodigo == DteEstadoCodigos.Procesado)
+        var totalPagarMes = await periodo
+            .Where(d => d.EstadoCodigo == DteEstadoCodigos.Procesado)
             .SumAsync(d => (decimal?)d.TotalPagar, ct) ?? 0m;
 
-        var procesados = await base_.CountAsync(d => d.EstadoCodigo == DteEstadoCodigos.Procesado, ct);
-        var rechazados = await base_.CountAsync(d => d.EstadoCodigo == DteEstadoCodigos.Rechazado, ct);
-        var contingencias = await base_.CountAsync(d => d.EstadoCodigo == DteEstadoCodigos.Contingencia, ct);
+        var procesados = await periodo.CountAsync(d => d.EstadoCodigo == DteEstadoCodigos.Procesado, ct);
+        var rechazados = await periodo.CountAsync(d => d.EstadoCodigo == DteEstadoCodigos.Rechazado, ct);
+        var contingencias = await periodo.CountAsync(d => d.EstadoCodigo == DteEstadoCodigos.Contingencia, ct);
 
         var estadosPendientes = new[]
         {
             DteEstadoCodigos.Borrador, DteEstadoCodigos.Generado,
             DteEstadoCodigos.Validado, DteEstadoCodigos.Firmado, DteEstadoCodigos.Enviado,
         };
-        var pendientes = await base_.CountAsync(d => estadosPendientes.Contains(d.EstadoCodigo), ct);
+        var pendientes = await periodo.CountAsync(d => estadosPendientes.Contains(d.EstadoCodigo), ct);
 
         // ── Por estado (mes actual) ───────────────────────────────
-        var porEstado = await base_
-            .Where(d => d.FechaEmision >= inicioMes)
+        var porEstado = await periodo
             .GroupBy(d => d.EstadoCodigo)
             .Select(g => new DteEstadoResumenDto
             {
@@ -66,8 +67,7 @@ public class DashboardService : IDashboardService
             .ToListAsync(ct);
 
         // ── Por tipo (mes actual) ─────────────────────────────────
-        var porTipoRaw = await base_
-            .Where(d => d.FechaEmision >= inicioMes)
+        var porTipoRaw = await periodo
             .GroupBy(d => d.TipoDteCodigo)
             .Select(g => new { TipoCodigo = g.Key, Cantidad = g.Count(), TotalPagar = g.Sum(d => d.TotalPagar) })
             .OrderByDescending(x => x.Cantidad)
@@ -81,17 +81,17 @@ public class DashboardService : IDashboardService
             TotalPagar = x.TotalPagar,
         }).ToList();
 
-        // ── Tendencia diaria (últimos 30 días) ────────────────────
-        var tendenciaRaw = await base_
-            .Where(d => d.FechaEmision >= inicio30)
+        // ── Tendencia diaria del período seleccionado ─────────────
+        var tendenciaRaw = await periodo
             .GroupBy(d => d.FechaEmision)
             .Select(g => new { Fecha = g.Key, Cantidad = g.Count(), TotalPagar = g.Sum(d => d.TotalPagar) })
             .OrderBy(x => x.Fecha)
             .ToListAsync(ct);
 
         // Rellenar días sin documentos con 0
-        var tendencia = new List<DteDiarioDto>(30);
-        for (var d = inicio30; d <= hoy; d = d.AddDays(1))
+        var ultimoDia = esPeriodoActual ? hoy : finMes.AddDays(-1);
+        var tendencia = new List<DteDiarioDto>(ultimoDia.Day);
+        for (var d = inicioMes; d <= ultimoDia; d = d.AddDays(1))
         {
             var raw = tendenciaRaw.FirstOrDefault(x => x.Fecha.Date == d);
             tendencia.Add(new DteDiarioDto
@@ -118,6 +118,9 @@ public class DashboardService : IDashboardService
 
         return new DashboardEmpresaDto
         {
+            Anio = inicioMes.Year,
+            Mes = inicioMes.Month,
+            EsPeriodoActual = esPeriodoActual,
             DteHoy = dteHoy,
             DteMes = dteMes,
             DteMesComercial = dteMesComercial,
@@ -127,7 +130,9 @@ public class DashboardService : IDashboardService
             Contingencias = contingencias,
             Pendientes = pendientes,
             PlanNombre = terminos?.PlanName,
-            LimiteDteMensual = terminos is null ? 0 : terminos.LimiteDteMensual,
+            // La cuota pertenece al plan vigente hoy. En períodos históricos no se mezcla
+            // ese límite con consumo pasado porque el plan pudo haber cambiado.
+            LimiteDteMensual = esPeriodoActual && terminos is not null ? terminos.LimiteDteMensual : 0,
             PorEstado = porEstado,
             PorTipo = porTipo,
             TendenciaDiaria = tendencia,
@@ -138,10 +143,11 @@ public class DashboardService : IDashboardService
     //  Dashboard SuperAdmin
     // ─────────────────────────────────────────────────────────────
 
-    public async Task<DashboardSuperAdminDto> GetDashboardSuperAdminAsync(CancellationToken ct = default)
+    public async Task<DashboardSuperAdminDto> GetDashboardSuperAdminAsync(
+        int? anio = null, int? mes = null, CancellationToken ct = default)
     {
         var hoy = DateTime.UtcNow.Date;
-        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var (inicioMes, finMes) = ResolvePeriodo(anio, mes, hoy);
         var en30Dias = hoy.AddDays(30);
 
         // ── KPIs globales ─────────────────────────────────────────
@@ -154,15 +160,16 @@ public class DashboardService : IDashboardService
             .CountAsync(u => u.EstadoCodigo == EstadoCodes.Activo, ct);
 
         var dteTotalMes = await _db.DteDocumentos
-            .CountAsync(d => d.FechaEmision >= inicioMes, ct);
+            .CountAsync(d => d.FechaEmision >= inicioMes && d.FechaEmision < finMes, ct);
 
         var facturacionTotalMes = await _db.DteDocumentos
-            .Where(d => d.FechaEmision >= inicioMes && d.EstadoCodigo == DteEstadoCodigos.Procesado)
+            .Where(d => d.FechaEmision >= inicioMes && d.FechaEmision < finMes
+                && d.EstadoCodigo == DteEstadoCodigos.Procesado)
             .SumAsync(d => (decimal?)d.TotalPagar, ct) ?? 0m;
 
         // ── Top 10 empresas por DTE del mes ───────────────────────
         var topRaw = await _db.DteDocumentos
-            .Where(d => d.FechaEmision >= inicioMes)
+            .Where(d => d.FechaEmision >= inicioMes && d.FechaEmision < finMes)
             .GroupBy(d => d.EmpresaId)
             .Select(g => new { EmpresaId = g.Key, DteCount = g.Count(), TotalPagar = g.Sum(d => d.TotalPagar) })
             .OrderByDescending(x => x.DteCount)
@@ -225,6 +232,8 @@ public class DashboardService : IDashboardService
 
         return new DashboardSuperAdminDto
         {
+            Anio = inicioMes.Year,
+            Mes = inicioMes.Month,
             EmpresasActivas = empresasActivas,
             EmpresasTotal = empresasTotal,
             UsuariosActivos = usuariosActivos,
@@ -239,6 +248,14 @@ public class DashboardService : IDashboardService
     // ─────────────────────────────────────────────────────────────
     //  Helpers
     // ─────────────────────────────────────────────────────────────
+
+    private static (DateTime Inicio, DateTime Fin) ResolvePeriodo(int? anio, int? mes, DateTime hoy)
+    {
+        var year = anio is >= 2000 and <= 2100 ? anio.Value : hoy.Year;
+        var month = mes is >= 1 and <= 12 ? mes.Value : hoy.Month;
+        var inicio = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        return (inicio, inicio.AddMonths(1));
+    }
 
     private static string ResolveTipoNombre(string codigo) => codigo switch
     {

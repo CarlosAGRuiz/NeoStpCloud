@@ -3,7 +3,8 @@
 @{
     ViewData["Title"] = "Panel SuperAdmin";
     var dto = Model.SuperAdminDashboard!;
-    var mesNombre = DateTime.UtcNow.ToString("MMMM yyyy");
+    var periodo = new DateTime(dto.Anio, dto.Mes, 1);
+    var mesNombre = periodo.ToString("MMMM yyyy");
 }
 
 @* ── Encabezado ─────────────────────────────────────────────── *@
@@ -13,6 +14,17 @@
         <h1 class="ns-page-title">Panel SuperAdmin</h1>
     </div>
     <div class="ns-page-actions">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <select name="mes" class="form-select form-select-sm" aria-label="Mes">
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <option value="@m" selected="@(m == dto.Mes)">@(new DateTime(2000, m, 1).ToString("MMMM"))</option>
+                }
+            </select>
+            <input name="anio" type="number" class="form-control form-control-sm" style="width:6rem"
+                   min="2000" max="2100" value="@dto.Anio" aria-label="Año" />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Aplicar</button>
+        </form>
         <a asp-controller="Empresas" asp-action="Index" class="btn btn-outline-secondary btn-sm">Empresas</a>
         <a asp-controller="Planes" asp-action="Index" class="btn btn-outline-secondary btn-sm">Planes</a>
     </div>
@@ -38,14 +50,14 @@
     <div class="col-sm-6 col-lg">
         <div class="card h-100"><div class="card-body ns-kpi">
             <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">description</span></span></div>
-            <p class="ns-kpi-label">DTE emitidos (mes)</p>
+            <p class="ns-kpi-label">DTE — @mesNombre</p>
             <h2 class="ns-kpi-value">@dto.DteTotalMes</h2>
         </div></div>
     </div>
     <div class="col-sm-6 col-lg">
         <div class="card h-100"><div class="card-body ns-kpi">
             <div class="ns-kpi-top"><span class="ns-kpi-chip ns-kpi-chip--contingency"><span class="material-symbols-outlined">payments</span></span></div>
-            <p class="ns-kpi-label">Facturado procesado (mes)</p>
+            <p class="ns-kpi-label">Facturado — @mesNombre</p>
             <h2 class="ns-kpi-value ns-mono" style="color:var(--ns-processed)">$@dto.FacturacionTotalMes.ToString("N2")</h2>
         </div></div>
     </div>
@@ -159,7 +171,7 @@
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white border-0">
-                <strong>Top 10 empresas por DTE emitido (mes actual)</strong>
+                <strong>Top 10 empresas por DTE — @mesNombre</strong>
             </div>
             @if (dto.TopEmpresasDteMes.Any())
             {
@@ -182,7 +194,7 @@
             }
             else
             {
-                <div class="card-body text-muted">Sin actividad DTE este mes.</div>
+                <div class="card-body text-muted">Sin actividad DTE en este período.</div>
             }
         </div>
     </div>

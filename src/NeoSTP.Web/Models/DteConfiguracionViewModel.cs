@@ -36,6 +36,8 @@ public class DteConfiguracionViewModel
     public string? UltimaPruebaDetalle { get; set; }
 
     public bool EsCompleto { get; set; }
+    public IReadOnlyList<NeoSTP.Application.Dte.Dtos.DteConfiguracionVersionDto> Versiones { get; set; }
+        = Array.Empty<NeoSTP.Application.Dte.Dtos.DteConfiguracionVersionDto>();
 }
 
 public class UploadCertificadoViewModel

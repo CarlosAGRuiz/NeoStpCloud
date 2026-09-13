@@ -10,4 +10,6 @@ public interface IDteConfiguracionService
     Task<Result<DteConfiguracionDto>> UploadCertificadoAsync(int empresaId, UploadCertificadoRequest request, string? actor, CancellationToken ct = default);
     Task<Result> EliminarCertificadoAsync(int empresaId, string? actor, CancellationToken ct = default);
     Task<Result<ProbarConexionResultadoDto>> ProbarConexionAsync(int empresaId, string? actor, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<DteConfiguracionVersionDto>>> GetVersionesAsync(int empresaId, CancellationToken ct = default);
+    Task<Result<DteConfiguracionDto>> RecuperarVersionAsync(int empresaId, int versionId, string? actor, CancellationToken ct = default);
 }

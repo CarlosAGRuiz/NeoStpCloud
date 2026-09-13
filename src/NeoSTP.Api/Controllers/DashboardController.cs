@@ -28,9 +28,10 @@ public class DashboardController : ApiControllerBase
         _currentUser = currentUser;
     }
 
-    /// <summary>KPIs del mes en curso para una empresa.</summary>
+    /// <summary>KPIs de una empresa para el mes indicado; por defecto usa el mes en curso.</summary>
     [HttpGet("empresa")]
-    public async Task<IActionResult> GetEmpresa([FromQuery] int? empresaId, CancellationToken ct)
+    public async Task<IActionResult> GetEmpresa(
+        [FromQuery] int? empresaId, [FromQuery] int? anio, [FromQuery] int? mes, CancellationToken ct)
     {
         var eid = _currentUser.EmpresaId ?? empresaId;
         if (eid is null)
@@ -38,7 +39,7 @@ public class DashboardController : ApiControllerBase
                 "No se pudo determinar la empresa. Si eres SuperAdmin, envía ?empresaId=.",
                 new[] { "AUTH_NO_TENANT" }, HttpContext.TraceIdentifier));
 
-        var dto = await _dashboard.GetDashboardEmpresaAsync(eid.Value, ct);
+        var dto = await _dashboard.GetDashboardEmpresaAsync(eid.Value, anio, mes, ct);
         return Ok(ApiResponse<Application.Dashboard.Dtos.DashboardEmpresaDto>.Ok(dto, HttpContext.TraceIdentifier));
     }
 
@@ -57,13 +58,14 @@ public class DashboardController : ApiControllerBase
 
     /// <summary>Métricas globales (solo SuperAdmin).</summary>
     [HttpGet("superadmin")]
-    public async Task<IActionResult> GetSuperAdmin(CancellationToken ct)
+    public async Task<IActionResult> GetSuperAdmin(
+        [FromQuery] int? anio, [FromQuery] int? mes, CancellationToken ct)
     {
         if (_currentUser.TipoUsuarioCodigo != "SUPERADMIN")
             return StatusCode(StatusCodes.Status403Forbidden,
                 ApiResponse.Fail("Solo el SuperAdmin puede acceder a este endpoint.", new[] { "FORBIDDEN" }, HttpContext.TraceIdentifier));
 
-        var dto = await _dashboard.GetDashboardSuperAdminAsync(ct);
+        var dto = await _dashboard.GetDashboardSuperAdminAsync(anio, mes, ct);
         return Ok(ApiResponse<Application.Dashboard.Dtos.DashboardSuperAdminDto>.Ok(dto, HttpContext.TraceIdentifier));
     }
 }

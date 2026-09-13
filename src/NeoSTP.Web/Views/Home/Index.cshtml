@@ -4,7 +4,6 @@
 @{
     ViewData["Title"] = "Dashboard";
     var dto = Model.EmpresaDashboard;
-    var mesNombre = DateTime.UtcNow.ToString("MMMM yyyy");
 }
 
 @if (dto is null)
@@ -16,6 +15,13 @@
 }
 
 @{
+    var periodo = new DateTime(dto.Anio, dto.Mes, 1);
+    var mesNombre = periodo.ToString("MMMM yyyy");
+    var anterior = periodo.AddMonths(-1);
+    var siguiente = periodo.AddMonths(1);
+    var desdePeriodo = periodo.ToString("yyyy-MM-dd");
+    var hastaPeriodo = periodo.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd");
+    var puedeAvanzar = siguiente <= new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
     // Sparkline real a partir de la tendencia diaria (sin datos inventados).
     var sparkVals = dto.TendenciaDiaria.Select(x => (double)x.Cantidad).ToList();
     string sparkPath = "";
@@ -35,6 +41,29 @@
         <h1 class="ns-page-title">Centro de Control DTE</h1>
     </div>
     <div class="ns-page-actions">
+        <form method="get" class="d-flex align-items-center gap-2">
+            <label for="dashboard-periodo" class="visually-hidden">Período</label>
+            <select id="dashboard-periodo-mes" name="mes" class="form-select form-select-sm" aria-label="Mes">
+                @for (var m = 1; m <= 12; m++)
+                {
+                    <option value="@m" selected="@(m == dto.Mes)">@(new DateTime(2000, m, 1).ToString("MMMM"))</option>
+                }
+            </select>
+            <input name="anio" type="number" class="form-control form-control-sm" style="width:6rem"
+                   min="2000" max="2100" value="@dto.Anio" aria-label="Año" />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Aplicar</button>
+        </form>
+        <a asp-action="Index" asp-route-anio="@anterior.Year" asp-route-mes="@anterior.Month"
+           class="btn btn-outline-secondary btn-sm" title="Mes anterior" aria-label="Mes anterior">
+            <span class="material-symbols-outlined align-middle" style="font-size:18px">chevron_left</span>
+        </a>
+        @if (puedeAvanzar)
+        {
+            <a asp-action="Index" asp-route-anio="@siguiente.Year" asp-route-mes="@siguiente.Month"
+               class="btn btn-outline-secondary btn-sm" title="Mes siguiente" aria-label="Mes siguiente">
+                <span class="material-symbols-outlined align-middle" style="font-size:18px">chevron_right</span>
+            </a>
+        }
         <a asp-controller="DteDocumentos" asp-action="Create" asp-route-tipo="01" class="btn btn-primary btn-sm">
             <span class="material-symbols-outlined align-middle" style="font-size:18px">add</span> Factura
         </a>
@@ -68,8 +97,8 @@
             <div class="ns-kpi-top">
                 <span class="ns-kpi-chip"><span class="material-symbols-outlined">receipt_long</span></span>
             </div>
-            <p class="ns-kpi-label">DTE emitidos hoy</p>
-            <h2 class="ns-kpi-value">@dto.DteHoy</h2>
+            <p class="ns-kpi-label">@(dto.EsPeriodoActual ? "DTE emitidos hoy" : "Período consultado")</p>
+            <h2 class="ns-kpi-value">@(dto.EsPeriodoActual ? dto.DteHoy : dto.DteMes)</h2>
         </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
@@ -77,7 +106,7 @@
             <div class="ns-kpi-top">
                 <span class="ns-kpi-chip ns-kpi-chip--violet"><span class="material-symbols-outlined">insights</span></span>
             </div>
-            <p class="ns-kpi-label">DTE este mes</p>
+            <p class="ns-kpi-label">DTE en @mesNombre</p>
             <h2 class="ns-kpi-value">@dto.DteMes</h2>
             @if (dto.LimiteDteMensual is > 0)
             {
@@ -94,7 +123,7 @@
             <div class="ns-kpi-top">
                 <span class="ns-kpi-chip ns-kpi-chip--processed"><span class="material-symbols-outlined">payments</span></span>
             </div>
-            <p class="ns-kpi-label">Facturado mes (procesado)</p>
+            <p class="ns-kpi-label">Facturado en el período</p>
             <h2 class="ns-kpi-value ns-mono" style="color:var(--ns-processed)">$@dto.TotalPagarMes.ToString("N2")</h2>
             @if (!string.IsNullOrEmpty(sparkPath))
             {
@@ -107,7 +136,9 @@
         </div></div>
     </div>
     <div class="col-sm-6 col-lg-3">
-        <a asp-controller="DteDocumentos" asp-action="Index" asp-route-EstadoCodigo="RECHAZADO" class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
+        <a asp-controller="DteDocumentos" asp-action="Index" asp-route-EstadoCodigo="RECHAZADO"
+           asp-route-Desde="@desdePeriodo" asp-route-Hasta="@hastaPeriodo"
+           class="card h-100 text-decoration-none text-reset"><div class="card-body ns-kpi">
             <div class="ns-kpi-top">
                 <span class="ns-kpi-chip @(dto.Rechazados > 0 ? "ns-kpi-chip--rejected" : "")"><span class="material-symbols-outlined">warning</span></span>
             </div>
@@ -163,7 +194,7 @@
     <div class="col-lg-8">
         <div class="card h-100">
             <div class="card-header">
-                <strong>Emisión diaria — últimos 30 días</strong>
+                <strong>Emisión diaria — @mesNombre</strong>
             </div>
             <div class="card-body">
                 <canvas id="chartTendencia" height="90"></canvas>
@@ -173,7 +204,7 @@
     <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-header">
-                <strong>Estados este mes</strong>
+                <strong>Estados — @mesNombre</strong>
             </div>
             <div class="card-body d-flex align-items-center justify-content-center">
                 @if (dto.PorEstado.Any())
@@ -182,7 +213,7 @@
                 }
                 else
                 {
-                    <p class="text-muted">Sin documentos este mes.</p>
+                    <p class="text-muted">Sin documentos en este período.</p>
                 }
             </div>
         </div>
@@ -194,7 +225,7 @@
     <div class="col-lg-7">
         <div class="card">
             <div class="card-header">
-                <strong>Por tipo de DTE — mes actual</strong>
+                <strong>Por tipo de DTE — @mesNombre</strong>
             </div>
             @if (dto.PorTipo.Any())
             {
@@ -222,7 +253,7 @@
             }
             else
             {
-                <div class="card-body text-muted">Sin documentos emitidos este mes.</div>
+                <div class="card-body text-muted">Sin documentos emitidos en este período.</div>
             }
         </div>
     </div>
@@ -237,7 +268,11 @@
                     <div class="mb-3">
                         <span class="ns-badge" style="background:rgba(19,27,46,.08);color:var(--ns-primary);font-size:13px">@dto.PlanNombre</span>
                     </div>
-                    @if (dto.LimiteDteMensual is > 0)
+                    @if (!dto.EsPeriodoActual)
+                    {
+                        <p class="text-muted mb-0"><i>El consumo de cuota se muestra únicamente para el mes actual.</i></p>
+                    }
+                    else if (dto.LimiteDteMensual is > 0)
                     {
                         <p class="text-muted mb-1">Uso DTE mensual</p>
                         <div class="progress mb-1" style="height: 12px;">
@@ -246,7 +281,7 @@
                                 @dto.PorcentajeUsoDte%
                             </div>
                         </div>
-                        <small class="text-muted">@dto.DteMes de @dto.LimiteDteMensual DTE usados</small>
+                        <small class="text-muted">@dto.DteMesComercial de @dto.LimiteDteMensual DTE comerciales</small>
                     }
                     else
                     {

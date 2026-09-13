@@ -41,7 +41,7 @@ public class HomeController : Controller
         _alertas = alertas;
     }
 
-    public async Task<IActionResult> Index(CancellationToken ct)
+    public async Task<IActionResult> Index(int? anio, int? mes, CancellationToken ct)
     {
         var isSuperAdmin = _currentUser.TipoUsuarioCodigo == "SUPERADMIN";
         var empresaId = _empresaContext.CurrentEmpresaId;
@@ -49,7 +49,7 @@ public class HomeController : Controller
         // SuperAdmin sin empresa en contexto → panel global
         if (isSuperAdmin && empresaId is null)
         {
-            var saDto = await _dashboard.GetDashboardSuperAdminAsync(ct);
+            var saDto = await _dashboard.GetDashboardSuperAdminAsync(anio, mes, ct);
             var saVm = new DashboardViewModel
             {
                 Username = _currentUser.Username ?? "SuperAdmin",
@@ -66,7 +66,7 @@ public class HomeController : Controller
             return View(new DashboardViewModel { Username = _currentUser.Username ?? "" });
         }
 
-        var dto = await _dashboard.GetDashboardEmpresaAsync(empresaId.Value, ct);
+        var dto = await _dashboard.GetDashboardEmpresaAsync(empresaId.Value, anio, mes, ct);
 
         // Obtener nombre de la empresa para el título
         string? empNombre = _empresaContext.SupportEmpresaNombre;
