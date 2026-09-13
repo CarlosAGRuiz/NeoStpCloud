@@ -50,6 +50,9 @@ public class DteFiscalIsolationTests
         var p = Substitute.For<ISecretProtector>();
         p.Protect(Arg.Any<string>()).Returns(x => (string)x[0]);
         p.Unprotect(Arg.Any<string>()).Returns(x => (string)x[0]);
+        p.ProtectBytes(Arg.Any<byte[]>(), Arg.Any<string>()).Returns(x => ((byte[])x[0]).ToArray());
+        p.UnprotectBytes(Arg.Any<byte[]>(), Arg.Any<string>()).Returns(x => ((byte[])x[0]).ToArray());
+        p.IsProtectedBytes(Arg.Any<byte[]>()).Returns(true);
         return p;
     }
 
