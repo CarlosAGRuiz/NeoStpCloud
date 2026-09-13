@@ -37,7 +37,7 @@ public class DteConfiguracionController : Controller
         if (RequireEmpresa() is not int eid) return RedirectToSoporte();
 
         var result = await _service.GetAsync(eid, ct);
-        await LoadCatalogosAsync(ct);
+        await LoadCatalogosAsync(eid, ct);
         var model = ToViewModel(result.Value!);
         await LoadVersionesAsync(eid, model, ct);
         return View(model);
@@ -51,7 +51,7 @@ public class DteConfiguracionController : Controller
         if (RequireEmpresa() is not int eid) return Forbid();
         if (!ModelState.IsValid)
         {
-            await LoadCatalogosAsync(ct);
+            await LoadCatalogosAsync(eid, ct);
             await LoadVersionesAsync(eid, model, ct);
             return View(nameof(Index), model);
         }
@@ -70,7 +70,7 @@ public class DteConfiguracionController : Controller
         {
             ModelState.AddModelError(string.Empty, result.Error ?? "Error.");
             foreach (var e in result.ValidationErrors) ModelState.AddModelError(string.Empty, e);
-            await LoadCatalogosAsync(ct);
+            await LoadCatalogosAsync(eid, ct);
             await LoadVersionesAsync(eid, model, ct);
             return View(nameof(Index), model);
         }
@@ -189,9 +189,8 @@ public class DteConfiguracionController : Controller
         return RedirectToAction("Index", "Home");
     }
 
-    private async Task LoadCatalogosAsync(CancellationToken ct)
+    private async Task LoadCatalogosAsync(int empresaId, CancellationToken ct)
     {
-        var empresaId = _currentUser.EmpresaId;
         async Task<IReadOnlyList<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>> Items(string code)
             => (await _catalogos.GetItemsAsync(code, empresaId, ct: ct)).Value
                ?? new List<NeoSTP.Application.Catalogos.Dtos.CatalogoItemDto>();
