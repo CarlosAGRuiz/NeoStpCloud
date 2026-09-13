@@ -89,8 +89,8 @@ public class MfaService : IMfaService
             .FirstOrDefaultAsync(x => x.Id == userId, ct);
         if (u is null)
             return Result.Fail("Usuario no encontrado.", "AUTH_USER_NOT_FOUND");
-        if (RbacSecurity.IsPlatformUser(u))
-            return Result.Fail("El segundo factor es obligatorio para la administración de la plataforma.", "MFA_REQUIRED_FOR_PLATFORM");
+        if (RbacSecurity.IsMfaRequiredUser(u))
+            return Result.Fail("El segundo factor es obligatorio para usuarios administradores.", "MFA_REQUIRED_FOR_ADMIN");
         if (!u.MfaHabilitado || string.IsNullOrWhiteSpace(u.MfaSecretoCifrado))
             return Result.Fail("MFA no está habilitado.", "MFA_NOT_ENABLED");
 
