@@ -44,6 +44,7 @@ public class AuthSessionRegressionTests
             {
                 Id = 1, EmpresaId = 101, Username = "tester", Email = "tester@example.test",
                 NombreCompleto = "Tester", PasswordHash = "hash", TipoUsuarioCodigo = "ADMIN", EstadoCodigo = EstadoCodes.Activo,
+                MfaHabilitado = true, MfaSecretoCifrado = "synthetic-test-secret",
                 Roles = new List<UsuarioRol> { new() { Rol = homeRole } }
             });
             Db.UsuarioEmpresas.Add(new UsuarioEmpresa { UsuarioId = 1, EmpresaId = 202, RolId = 2, EstadoCodigo = EstadoCodes.Activo });
@@ -62,7 +63,7 @@ public class AuthSessionRegressionTests
                 Microsoft.Extensions.Options.Options.Create(new SecurityOptions()),
                 NullLogger<AuthService>.Instance, actor);
 
-        public Task<Result<LoginResponse>> Login(string password = "valid", string? mfa = null) =>
+        public Task<Result<LoginResponse>> Login(string password = "valid", string? mfa = "123456") =>
             Service().LoginAsync(new LoginRequest { UsernameOrEmail = "tester", Password = password, MfaCode = mfa }, new AuthContext());
 
         public async Task<AuthContext> Context() => new() { SessionId = (await Login()).Value!.User.SessionId };
@@ -161,7 +162,7 @@ public class AuthSessionRegressionTests
         f.User.IntentosFallidos = 3;
         await f.Db.SaveChangesAsync();
 
-        (await f.Login()).ErrorCode.Should().Be("AUTH_MFA_REQUIRED");
+        (await f.Login(mfa: "")).ErrorCode.Should().Be("AUTH_MFA_REQUIRED");
         f.User.IntentosFallidos.Should().Be(3);
         f.Jwt.DidNotReceive().CreateAccessToken(Arg.Any<UserInfo>());
     }
