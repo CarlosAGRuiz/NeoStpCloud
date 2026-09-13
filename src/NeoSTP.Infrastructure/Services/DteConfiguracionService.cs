@@ -98,9 +98,10 @@ public class DteConfiguracionService : IDteConfiguracionService
         }
 
         if (creando) _db.DteConfiguracion.Add(config);
+        AddDurableAudit(empresaId, actor, creando ? "CREATE" : "UPDATE",
+            $"Configuracion DTE {(creando ? "creada" : "actualizada")} (ambiente={ambiente})",
+            creando ? null : config.Id);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, creando ? "CREATE" : "UPDATE", "OK",
-            $"Configuracion DTE {(creando ? "creada" : "actualizada")} (ambiente={ambiente})", config.Id);
 
         return Result<DteConfiguracionDto>.Ok(MapToDto(config));
     }
@@ -154,9 +155,10 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.UpdatedBy = actor;
 
         if (creando) _db.DteConfiguracion.Add(config);
+        AddDurableAudit(empresaId, actor, "UPLOAD_CERT",
+            $"Certificado {config.CertificadoNombre} validado, cifrado y cargado (formato={inspection.Format}, huella={config.CertificadoHuella})",
+            creando ? null : config.Id);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "UPLOAD_CERT", "OK",
-            $"Certificado {config.CertificadoNombre} validado, cifrado y cargado (formato={inspection.Format}, huella={config.CertificadoHuella})", config.Id);
 
         return Result<DteConfiguracionDto>.Ok(MapToDto(config));
     }
@@ -175,8 +177,8 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.PasswordCertificadoCifrado = null;
         config.UpdatedAt = DateTime.UtcNow;
         config.UpdatedBy = actor;
+        AddDurableAudit(empresaId, actor, "DELETE_CERT", "Certificado eliminado", config.Id);
         await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "DELETE_CERT", "OK", "Certificado eliminado", config.Id);
         return Result.Ok();
     }
 
@@ -290,9 +292,9 @@ public class DteConfiguracionService : IDteConfiguracionService
         config.UpdatedAt = DateTime.UtcNow;
         config.UpdatedBy = actor;
 
-        await _db.SaveChangesAsync(ct);
-        await Audit(empresaId, actor, "RECUPERAR_VERSION", "OK",
+        AddDurableAudit(empresaId, actor, "RECUPERAR_VERSION",
             $"Configuración DTE recuperada desde versión {version.Id}; token MH invalidado.", config.Id);
+        await _db.SaveChangesAsync(ct);
         return Result<DteConfiguracionDto>.Ok(MapToDto(config));
     }
 
@@ -359,6 +361,23 @@ public class DteConfiguracionService : IDteConfiguracionService
         CreatedAt = c.CreatedAt,
         UpdatedAt = c.UpdatedAt,
     };
+
+    private void AddDurableAudit(
+        int empresaId, string? actor, string accion, string detalle, int? entidadId)
+    {
+        _db.Auditoria.Add(new NeoSTP.Domain.Core.Auditoria.Auditoria
+        {
+            EmpresaId = empresaId,
+            Username = actor,
+            Modulo = AuditModule,
+            Accion = accion,
+            Entidad = "DteConfiguracion",
+            EntidadId = entidadId?.ToString(),
+            Resultado = "OK",
+            Detalle = detalle,
+            CreatedAt = DateTime.UtcNow,
+        });
+    }
 
     private Task Audit(int empresaId, string? actor, string accion, string resultado, string? detalle, int entidadId)
         => _auditoria.RegistrarAsync(new AuditoriaEvent
