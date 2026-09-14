@@ -1,5 +1,15 @@
 # NeoSTP.Api
 
+## Próximo trabajo — App/API Comercial v1 (14 de septiembre de 2026)
+
+El siguiente incremento estabiliza el contrato que consume la app móvil y no reabre el hardening ya cerrado. Incluye MFA opcional administrable desde la app, tipos DTE efectivos por empresa/plan y correo durable después de la aceptación fiscal.
+
+La copia del emisor dejará de depender del CC actual: el receptor conservará exactamente su correo actual y el emisor recibirá una segunda entrega independiente. Cada finalidad tendrá idempotencia, estado, intentos, error sanitizado y reenvío controlado. La aceptación fiscal seguirá siendo independiente del resultado SMTP.
+
+Los tipos DTE se resolverán en servidor a partir de la empresa activa, plan vigente, módulos y permisos. `TiposDteAutorizadosCsv` ya representa la autorización fiscal actual y se encapsulará detrás de un servicio compartido; todas las rutas de emisión deberán rechazar un tipo no autorizado aunque el cliente manipule el request.
+
+Plan, contratos propuestos, seguridad y pruebas: [Plan App/API Comercial v1](../../docs/PLAN-APP-API-COMERCIAL-V1.md).
+
 ## Estado actualizado — 10 de septiembre de 2026
 
 - El ambiente fiscal y la política de esquema se resuelven por empresa. Separar pruebas de producción sin cambiar el interruptor global ni reutilizar datos productivos en ensayos.
