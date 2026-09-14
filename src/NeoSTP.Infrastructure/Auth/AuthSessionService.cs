@@ -41,12 +41,12 @@ public sealed class AuthSessionService(NeoStpDbContext db) : IAuthSessionService
         if (user.EstadoCodigo != EstadoCodes.Activo || user.BloqueadoHasta > DateTime.UtcNow
             || session.CredentialFingerprint != Credentials(user, session.Purpose))
             return Invalid();
-        var mfaRequired = !user.MfaHabilitado
-            && await RbacSecurity.IsMfaRequiredUserAsync(db, user, ct);
         if (session.Purpose switch
             {
-                SessionClaims.Full => mfaRequired,
-                SessionClaims.MfaEnroll => user.MfaHabilitado || !mfaRequired,
+                SessionClaims.Full => false,
+                // Enrollment-only sessions were issued by the former mandatory-MFA policy.
+                // Reject them so the user signs in again and receives a normal session.
+                SessionClaims.MfaEnroll => true,
                 SessionClaims.MfaVerify => !user.MfaHabilitado,
                 _ => true
             })
@@ -97,7 +97,7 @@ public sealed class AuthSessionService(NeoStpDbContext db) : IAuthSessionService
     private static string Credentials(Usuario user, string purpose) => Hash(new
     {
         user.SecurityStamp, user.PasswordHash, user.MfaHabilitado,
-        Secret = purpose == SessionClaims.MfaEnroll ? null : user.MfaSecretoCifrado,
+        Secret = user.MfaHabilitado ? user.MfaSecretoCifrado : null,
         user.SsoProveedor, user.SsoIssuer, user.SsoSubject
     });
     private static string Authorization(UserInfo user) => Hash(new

@@ -52,7 +52,6 @@ public class PersistedSessionTests
 
     [Theory]
     [InlineData(SessionClaims.Full)]
-    [InlineData(SessionClaims.MfaEnroll)]
     [InlineData(SessionClaims.MfaVerify)]
     public async Task ValidPersistedSession_AcceptsExactClaims(string purpose)
     {
@@ -115,14 +114,9 @@ public class PersistedSessionTests
     }
 
     [Fact]
-    public async Task Enrollment_StartDoesNotInvalidateChallenge_ButConfirmationDoes()
+    public async Task LegacyEnrollmentSession_IsRejected()
     {
         using var f = new Fixture(SessionClaims.MfaEnroll);
-        f.User.MfaSecretoCifrado = "test-only-new-secret";
-        await f.Db.SaveChangesAsync();
-        (await new AuthSessionService(f.Db).ValidatePrincipalAsync(f.Principal())).IsSuccess.Should().BeTrue();
-        f.User.MfaHabilitado = true;
-        await f.Db.SaveChangesAsync();
         (await new AuthSessionService(f.Db).ValidatePrincipalAsync(f.Principal())).IsFailure.Should().BeTrue();
     }
 }

@@ -401,7 +401,7 @@ public class AuthSessionRegressionTests
     }
 
     [Fact]
-    public async Task PlatformWithoutMfa_OnlyReceivesShortEnrollmentSession()
+    public async Task PlatformWithoutMfa_ReceivesFullSession()
     {
         using var f = new Fixture();
         f.User.EmpresaId = null;
@@ -412,24 +412,18 @@ public class AuthSessionRegressionTests
         f.User.Roles.Add(new UsuarioRol { Rol = role });
         await f.Db.SaveChangesAsync();
         var result = (await f.Login()).Value!;
-        result.MfaEnrollmentRequired.Should().BeTrue();
+        result.MfaEnrollmentRequired.Should().BeFalse();
         result.MfaVerificationRequired.Should().BeFalse();
-        result.User.SessionPurpose.Should().Be(SessionClaims.MfaEnroll);
-        result.User.Roles.Should().BeEmpty();
-        result.User.Permisos.Should().BeEmpty();
-        result.User.TipoUsuarioCodigo.Should().Be("OPERADOR");
-        result.RefreshToken.Should().BeEmpty();
-        f.Db.RefreshTokens.Should().BeEmpty();
-        result.User.SessionExpiresAt.Should().BeBefore(DateTime.UtcNow.AddMinutes(11));
+        result.User.SessionPurpose.Should().Be(SessionClaims.Full);
+        result.User.Roles.Should().Contain("SUPERADMIN");
+        result.User.TipoUsuarioCodigo.Should().Be("SUPERADMIN");
+        result.RefreshToken.Should().NotBeEmpty();
+        f.Db.RefreshTokens.Should().ContainSingle();
         (await new AuthSessionService(f.Db).ValidateAsync(result.User.SessionId)).IsSuccess.Should().BeTrue();
-        (await f.Service().CambiarEmpresaAsync(1, 202, new AuthContext { SessionId = result.User.SessionId }))
-            .ErrorCode.Should().Be("AUTH_SESSION_INVALID");
-        (await f.Service().VerifyMfaChallengeAsync("123456", new AuthContext { SessionId = result.User.SessionId }))
-            .ErrorCode.Should().Be("AUTH_SESSION_INVALID");
     }
 
     [Fact]
-    public async Task AdministrativeMembershipWithoutMfa_OnlyReceivesEnrollmentSession()
+    public async Task AdministrativeMembershipWithoutMfa_ReceivesFullSession()
     {
         using var f = new Fixture();
         f.User.TipoUsuarioCodigo = "OPERADOR";
@@ -443,15 +437,15 @@ public class AuthSessionRegressionTests
 
         var result = (await f.Login(mfa: null)).Value!;
 
-        result.MfaEnrollmentRequired.Should().BeTrue();
-        result.User.SessionPurpose.Should().Be(SessionClaims.MfaEnroll);
-        result.User.Roles.Should().BeEmpty();
-        result.RefreshToken.Should().BeEmpty();
+        result.MfaEnrollmentRequired.Should().BeFalse();
+        result.User.SessionPurpose.Should().Be(SessionClaims.Full);
+        result.User.Roles.Should().Contain("OPERADOR");
+        result.RefreshToken.Should().NotBeEmpty();
         (await new AuthSessionService(f.Db).ValidateAsync(result.User.SessionId)).IsSuccess.Should().BeTrue();
     }
 
     [Fact]
-    public async Task PromotionToAdministrativeMembership_InvalidatesExistingNonMfaSession()
+    public async Task PromotionToAdministrativeMembership_DoesNotInvalidateExistingNonMfaSession()
     {
         using var f = new Fixture();
         f.User.TipoUsuarioCodigo = "OPERADOR";
@@ -466,7 +460,7 @@ public class AuthSessionRegressionTests
         f.MemberRole.EmpresaId = null;
         await f.Db.SaveChangesAsync();
 
-        (await new AuthSessionService(f.Db).ValidateAsync(session)).IsFailure.Should().BeTrue();
+        (await new AuthSessionService(f.Db).ValidateAsync(session)).IsSuccess.Should().BeTrue();
     }
 
     [Fact]

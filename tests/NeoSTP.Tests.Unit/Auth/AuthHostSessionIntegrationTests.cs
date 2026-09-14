@@ -277,21 +277,15 @@ public class AuthHostSessionIntegrationTests
         (await f.Send(HttpMethod.Get, "/fixture/private")).StatusCode.Should().Be(web ? HttpStatusCode.Redirect : HttpStatusCode.Unauthorized);
     }
 
-    [Theory]
-    [InlineData("/api/auth/me", "GET")]
-    [InlineData("/api/auth/empresas", "GET")]
-    [InlineData("/api/auth/change-password", "POST")]
-    [InlineData("/api/auth/cambiar-empresa", "POST")]
-    [InlineData("/api/auth/mfa/disable", "POST")]
-    [InlineData("/fixture/private", "POST")]
-    [InlineData("/api/auth/refresh", "POST")]
-    public async Task EnrollmentJwtCannotReachBusinessOrRefresh(string path, string method)
+    [Fact]
+    public async Task PlatformWithoutMfaReceivesFullSessionAndCanReachBusiness()
     {
         using var f = new Fixture(platform: true);
         var login = await f.ApiLogin();
-        login.User.SessionPurpose.Should().Be(SessionClaims.MfaEnroll);
-        login.RefreshToken.Should().BeEmpty();
-        (await f.Send(new HttpMethod(method), path, method == "POST" ? new { } : null)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        login.User.SessionPurpose.Should().Be(SessionClaims.Full);
+        login.MfaEnrollmentRequired.Should().BeFalse();
+        login.RefreshToken.Should().NotBeEmpty();
+        (await f.Send(HttpMethod.Post, "/fixture/private")).StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -313,11 +307,14 @@ public class AuthHostSessionIntegrationTests
         var me = await f.Send(HttpMethod.Get, "/api/auth/me");
         me.StatusCode.Should().Be(HttpStatusCode.OK);
         (await me.Content.ReadFromJsonAsync<ApiResponse<UserInfo>>())!.Data!.SessionId.Should().Be(complete.User.SessionId);
-        (await f.Send(HttpMethod.Post, "/api/auth/mfa/disable", new { code = "123456" })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await f.Send(HttpMethod.Post, "/api/auth/mfa/disable", new { code = "123456" })).StatusCode.Should().Be(HttpStatusCode.OK);
+        f.Token = null;
+        var withoutMfa = await f.ApiLogin();
+        withoutMfa.MfaVerificationRequired.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ApiRestrictedSessionCanLogoutWithNoBodyOrRefreshToken()
+    public async Task ApiFullSessionCanLogoutWithNoBodyOrRefreshToken()
     {
         using var f = new Fixture(platform: true);
         await f.ApiLogin();
@@ -359,14 +356,13 @@ public class AuthHostSessionIntegrationTests
     }
 
     [Fact]
-    public async Task WebEnrollment_UsesRestrictedCookie_Antiforgery_AndShowsRecoveryOnlyOnce()
+    public async Task WebEnrollment_IsOptional_UsesAntiforgery_AndShowsRecoveryOnlyOnce()
     {
         using var f = new Fixture(web: true, platform: true);
         var login = await f.WebLogin(remember: true);
-        login.Headers.Location!.OriginalString.Should().Be("/Account/MfaEnrollment");
-        login.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("fixture-auth=")).Should().NotContain("expires=");
-        (await f.Send(HttpMethod.Get, "/fixture/public")).Headers.Location!.OriginalString.Should().Be("/Account/MfaEnrollment");
-        (await f.Send(HttpMethod.Get, "/fixture/static.css")).StatusCode.Should().Be(HttpStatusCode.OK);
+        login.Headers.Location!.OriginalString.Should().Be("/");
+        login.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("fixture-auth=")).Should().Contain("expires=");
+        (await f.Send(HttpMethod.Get, "/fixture/private")).StatusCode.Should().Be(HttpStatusCode.OK);
         var landing = await f.Send(HttpMethod.Get, "/Account/MfaEnrollment");
         (await landing.Content.ReadAsStringAsync()).Should().NotContain("TESTONLYBASE32SECRET");
         (await f.Send(HttpMethod.Post, "/Account/MfaBegin", form: new(), antiForgery: false)).StatusCode.Should().Be(HttpStatusCode.BadRequest);

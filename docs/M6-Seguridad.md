@@ -41,7 +41,7 @@ Sección `Security` en `appsettings.json` (valores por defecto seguros):
   código `PWD_WEAK` con la lista de requisitos faltantes.
 - **Bloqueo:** `AuthService` bloquea la cuenta tras `MaxFailedAttempts` intentos fallidos
   consecutivos por `LockoutMinutes`. Configurable; `MaxFailedAttempts=0` lo desactiva.
-- **MFA (TOTP):** disponible para cualquier usuario (`MfaService`); obligatorio para SuperAdmin.
+- **MFA (TOTP):** disponible y opcional para cualquier usuario; cuando está activo se exige en cada autenticación.
 
 ## Pendiente (mayor alcance)
 

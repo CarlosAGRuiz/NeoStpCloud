@@ -24,7 +24,7 @@ public class Usuario : AuditableEntity
     public int IntentosFallidos { get; set; }
     public DateTime? BloqueadoHasta { get; set; }
 
-    // MFA (TOTP) — Sprint 20 Hardening. Obligatorio para SuperAdmin.
+    // MFA (TOTP) — Sprint 20 Hardening. Función de seguridad opcional por usuario.
     /// <summary>Indica si el usuario tiene activado el segundo factor (TOTP).</summary>
     public bool MfaHabilitado { get; set; }
 

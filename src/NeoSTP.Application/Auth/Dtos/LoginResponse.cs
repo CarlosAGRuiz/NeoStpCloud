@@ -9,8 +9,8 @@ public class LoginResponse
     public UserInfo User { get; set; } = null!;
 
     /// <summary>
-    /// True cuando el usuario (SuperAdmin) inició sesión sin MFA habilitado y debe
-    /// enrolar el segundo factor obligatoriamente. El cliente debe redirigir a /auth/mfa/enroll.
+    /// Campo conservado por compatibilidad con clientes anteriores. La política actual
+    /// no fuerza el enrolamiento: MFA es una función de seguridad opcional por usuario.
     /// </summary>
     public bool MfaEnrollmentRequired { get; set; }
     public bool MfaVerificationRequired { get; set; }

@@ -12,7 +12,7 @@ la evidencia de staging ni la aprobación go/no-go.
 - Resolución central de tenant para endpoints API de dashboard/datos.
 - Catálogos DTE de soporte cargados para la empresa seleccionada.
 - Calendario fiscal/comercial basado en El Salvador; timestamps técnicos siguen en UTC.
-- MFA obligatorio para SUPERADMIN y ADMIN de empresa.
+- MFA obligatorio para SUPERADMIN y ADMIN de empresa en RC9 (política sustituida por MFA opcional en RC11).
 - Auditoría de mutaciones DTE confirmada en la misma transacción de base de datos.
 - Worker con doble compuerta: bandera maestra y bandera individual por job.
 
