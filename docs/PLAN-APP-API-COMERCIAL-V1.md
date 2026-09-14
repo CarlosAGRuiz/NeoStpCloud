@@ -10,7 +10,7 @@ Este plan amplía la app y la API. No reabre el hardening, la certificación fis
 
 1. MFA es una función de seguridad opcional para todos los usuarios. Si el usuario la activa, debe completar el segundo factor al iniciar sesión.
 2. La API es la autoridad para permisos, módulos y tipos DTE. Ocultar opciones en la app no sustituye la validación del servidor.
-3. Los tipos DTE visibles y emitibles dependen de la empresa activa y de su plan vigente. Por ejemplo, NeoSTP puede tener 13 tipos autorizados y otra empresa solamente 4.
+3. Los tipos DTE visibles y emitibles dependen de la empresa activa y de su plan vigente. El requisito comercial es que NeoSTP pueda contratar 13 tipos y otra empresa solamente 4, pero el backend actual reconoce 11 DTE. APP-2 debe completar explícitamente los tipos faltantes antes de autorizar 13; los cuatro eventos fiscales certificados no se contarán como tipos DTE.
 4. Al procesarse un DTE se producen dos entregas de correo independientes:
    - receptor: conserva exactamente la plantilla y adjuntos actuales;
    - emisor: recibe un correo nuevo de copia, dirigido únicamente a su correo configurado.
@@ -63,7 +63,7 @@ La empresa activa siempre determina el resultado. Cambiar de empresa recalcula e
 - Devolver código MH, nombre, versión/esquema aplicable, capacidades y motivo no sensible cuando un tipo no esté disponible.
 - Incluir los tipos disponibles, módulos, permisos y banderas móviles en un contrato de arranque (`bootstrap`) para reducir llamadas y evitar menús inconsistentes.
 - Validar la autorización efectiva en todos los endpoints de creación, emisión, POS a DTE, CRM a DTE y NeoConnect; nunca confiar en el tipo enviado por la app.
-- Usar la configuración existente `TiposDteAutorizadosCsv` como transición y normalizarla detrás de un servicio de dominio/aplicación. Evaluar una tabla relacional solamente si la administración y auditoría futuras justifican la migración.
+- Usar la configuración existente `TiposDteAutorizadosCsv` como transición y normalizarla detrás de un servicio de dominio/aplicación. El inventario inicial debe reconciliar los 11 DTE que hoy reconoce `DteTypeAuthorization.Supported` con los 13 requeridos por NeoSTP; cualquier tipo nuevo exige esquema, generación, firma, transmisión, PDF, correo, permisos y pruebas antes de agregarse al conjunto soportado. Evaluar una tabla relacional solamente si la administración y auditoría futuras justifican la migración.
 - Conservar documentos históricos cuando el plan cambie. Un downgrade impide nuevas emisiones del tipo retirado, pero no oculta ni modifica DTE anteriores.
 - Auditar cambios de tipos autorizados indicando empresa, actor, plan, valores anterior/nuevo y fecha.
 
@@ -77,7 +77,7 @@ La empresa activa siempre determina el resultado. Cambiar de empresa recalcula e
 #### Criterios de aceptación
 
 - La empresa configurada con 4 tipos ve y puede emitir solo esos 4.
-- NeoSTP configurada con 13 tipos ve y puede emitir esos 13.
+- La fase inicial demuestra aislamiento con subconjuntos válidos de los 11 DTE actuales. La aceptación final de NeoSTP con 13 exige implementar y validar previamente los dos tipos faltantes; configurar códigos desconocidos nunca habilita ni oculta silenciosamente todo el catálogo.
 - Manipular manualmente el request para enviar un tipo no incluido devuelve `403` con código estable y no reserva correlativo ni crea DTE.
 - Cambiar de empresa actualiza el catálogo y no filtra nombres, planes ni documentos entre tenants.
 
@@ -85,14 +85,16 @@ La empresa activa siempre determina el resultado. Cambiar de empresa recalcula e
 
 #### Flujo
 
-Después de persistir `PROCESADO` con sello, incluido el caso de conciliación:
+En la misma transacción de base de datos que confirma `PROCESADO` con sello, incluido el caso de conciliación:
 
-1. Crear durablemente un grupo de notificación ligado a `EmpresaId` y `DteDocumentoId`.
-2. Crear entrega `RECEPTOR` si el DTE tiene correo receptor válido.
-3. Crear entrega `EMISOR` si la empresa tiene correo de copia configurado.
+1. Confirmar la transición fiscal y crear durablemente un grupo de notificación ligado a `EmpresaId` y `DteDocumentoId` como una sola unidad atómica.
+2. Crear en esa misma transacción la entrega `RECEPTOR` si el DTE tiene correo receptor válido.
+3. Crear en esa misma transacción la entrega `EMISOR` si la empresa tiene correo de copia configurado.
 4. El Worker reclama cada entrega con lease/idempotencia, genera PDF y JSON desde el DTE persistido y realiza el envío correspondiente.
 5. Guardar estado, intentos, proveedor, fecha de aceptación, error sanitizado y próxima ejecución.
 6. Reintentar fallos transitorios con backoff; llevar fallos definitivos a revisión manual.
+
+Como defensa adicional, un reconciliador idempotente detectará DTE procesados sin grupo completo y creará únicamente las entregas faltantes. Esto cubre datos históricos y cualquier transición producida por un camino heredado, sin duplicar correos ya reclamados o enviados.
 
 #### Contenido
 
