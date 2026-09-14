@@ -1,5 +1,13 @@
 # NeoSTP.Web
 
+## Próximo trabajo — App/API Comercial v1 (14 de septiembre de 2026)
+
+La Web mostrará por separado el estado de entrega del correo al receptor y de la copia al emisor. Después de `PROCESADO`, el receptor conservará exactamente la plantilla y adjuntos actuales; el emisor recibirá otro correo independiente. No se usará CC ni BCC. Los fallos no revertirán el estado fiscal y podrán reintentarse por destino con permiso, antiforgery, idempotencia y auditoría.
+
+La selección de tipo DTE también se alimentará del catálogo efectivo calculado por servidor para la empresa activa. Una empresa verá únicamente los tipos incluidos en su plan, sin afectar el acceso a sus documentos históricos. MFA continuará siendo opcional y la app móvil utilizará el mismo ciclo seguro de enrolamiento, confirmación, desafío y desactivación.
+
+Alcance completo y criterios de aceptación: [Plan App/API Comercial v1](../../docs/PLAN-APP-API-COMERCIAL-V1.md).
+
 ## Estado actualizado — 10 de septiembre de 2026
 
 - La insignia del encabezado consulta el ambiente fiscal de la empresa activa; no se elige producción en cada factura ni se deriva del entorno de alojamiento ASP.NET. Mantener empresas de prueba separadas de las productivas.
