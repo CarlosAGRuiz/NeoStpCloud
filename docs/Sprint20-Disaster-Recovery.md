@@ -83,4 +83,4 @@ Copiar los `.bak/.trn` y la carpeta de llaves DataProtection a almacenamiento **
 
 - **Rate limiting** (`Core_ApiQuotas`): definir cuotas por empresa/plan/módulo desde `/Hardening`.
 - **IP allowlist** (`Core_AdminIpAllowlist`): restringir el acceso SuperAdmin por IP/CIDR.
-- **MFA SuperAdmin**: obligatorio (login marca `MfaEnrollmentRequired` hasta enrolar).
+- **MFA/TOTP**: función opcional por usuario; una vez activada, el acceso exige el segundo factor.

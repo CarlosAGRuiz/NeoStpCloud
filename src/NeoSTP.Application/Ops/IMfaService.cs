@@ -18,7 +18,8 @@ public sealed record MfaConfirmDto
 
 /// <summary>
 /// Gestión del segundo factor (TOTP) por usuario. El secreto se almacena cifrado;
-/// los códigos de recuperación se guardan hasheados. Obligatorio para SuperAdmin.
+/// los códigos de recuperación se guardan hasheados. Es opcional por usuario;
+/// una vez habilitado, se exige para autenticar y para deshabilitarlo.
 /// </summary>
 public interface IMfaService
 {

@@ -203,7 +203,7 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_TenantAdministratorWithoutMfa_GetsEnrollmentOnlySession()
+    public async Task LoginAsync_TenantAdministratorWithoutMfa_GetsFullSession()
     {
         var (svc, db, _, _) = BuildService();
         db.Empresas.Add(new Empresa
@@ -223,8 +223,10 @@ public class AuthServiceTests
             new AuthContext());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.MfaEnrollmentRequired.Should().BeTrue();
+        result.Value!.MfaEnrollmentRequired.Should().BeFalse();
         result.Value.MfaVerificationRequired.Should().BeFalse();
+        result.Value.User.SessionPurpose.Should().Be(SessionClaims.Full);
+        result.Value.RefreshToken.Should().NotBeEmpty();
     }
 
 }

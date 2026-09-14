@@ -124,8 +124,7 @@ public class AuthService : IAuthService
         var resolved = await ResolveUserInfoAsync(usuario, usuario.EmpresaId, ct);
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
-        var purpose = await RbacSecurity.IsMfaRequiredUserAsync(_db, usuario, ct) && !usuario.MfaHabilitado
-            ? SessionClaims.MfaEnroll : SessionClaims.Full;
+        var purpose = SessionClaims.Full;
         var response = await IssueSessionAsync(usuario, resolved.Value!, purpose, context, ct);
         if (response.IsFailure) return response;
         await AuditAsync(context, usuario, "LOGIN", "OK", "Login exitoso");
@@ -189,8 +188,7 @@ public class AuthService : IAuthService
         var resolved = await ResolveUserInfoAsync(usuario, empresaId, ct);
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
-        var purpose = await RbacSecurity.IsMfaRequiredUserAsync(_db, usuario, ct) && !usuario.MfaHabilitado
-            ? SessionClaims.MfaEnroll : SessionClaims.Full;
+        var purpose = SessionClaims.Full;
         var response = await IssueSessionAsync(usuario, resolved.Value!, purpose, context, ct);
         if (response.IsFailure) return response;
         await AuditAsync(context, usuario, "CAMBIAR_EMPRESA", "OK", $"Empresa activa → {empresaId}");
@@ -253,9 +251,9 @@ public class AuthService : IAuthService
         var resolved = await ResolveUserInfoAsync(usuario, usuario.EmpresaId, ct);
         if (resolved.IsFailure)
             return Result<LoginResponse>.Fail(resolved.Error!, resolved.ErrorCode);
-        var purpose = usuario.MfaHabilitado ? SessionClaims.MfaVerify
-            : await RbacSecurity.IsMfaRequiredUserAsync(_db, usuario, ct)
-                ? SessionClaims.MfaEnroll : SessionClaims.Full;
+        var purpose = usuario.MfaHabilitado
+            ? SessionClaims.MfaVerify
+            : SessionClaims.Full;
         if (purpose == SessionClaims.Full)
         {
             usuario.IntentosFallidos = 0;

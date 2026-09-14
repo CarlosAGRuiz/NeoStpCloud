@@ -7,7 +7,6 @@ using NeoSTP.Application.Common;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Application.Ops;
 using NeoSTP.Infrastructure.Persistence;
-using NeoSTP.Infrastructure.Auth;
 
 namespace NeoSTP.Infrastructure.Services;
 
@@ -85,12 +84,9 @@ public class MfaService : IMfaService
 
     public async Task<Result> DeshabilitarAsync(int userId, string code, AuthContext? ctx = null, CancellationToken ct = default)
     {
-        var u = await _db.Usuarios.Include(x => x.Roles).ThenInclude(x => x.Rol)
-            .FirstOrDefaultAsync(x => x.Id == userId, ct);
+        var u = await _db.Usuarios.FirstOrDefaultAsync(x => x.Id == userId, ct);
         if (u is null)
             return Result.Fail("Usuario no encontrado.", "AUTH_USER_NOT_FOUND");
-        if (await RbacSecurity.IsMfaRequiredUserAsync(_db, u, ct))
-            return Result.Fail("El segundo factor es obligatorio para usuarios administradores.", "MFA_REQUIRED_FOR_ADMIN");
         if (!u.MfaHabilitado || string.IsNullOrWhiteSpace(u.MfaSecretoCifrado))
             return Result.Fail("MFA no está habilitado.", "MFA_NOT_ENABLED");
 

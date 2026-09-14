@@ -184,7 +184,7 @@ public class MfaServiceTests
     }
 
     [Fact]
-    public async Task TenantAdministrator_CannotDisableMfa()
+    public async Task TenantAdministrator_CanDisableMfaWithValidCode()
     {
         var (svc, db) = Build();
         var user = await db.Usuarios.SingleAsync();
@@ -199,12 +199,12 @@ public class MfaServiceTests
 
         var result = await svc.DeshabilitarAsync(1, currentCode);
 
-        result.ErrorCode.Should().Be("MFA_REQUIRED_FOR_ADMIN");
-        (await db.Usuarios.AsNoTracking().SingleAsync()).MfaHabilitado.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
+        (await db.Usuarios.AsNoTracking().SingleAsync()).MfaHabilitado.Should().BeFalse();
     }
 
     [Fact]
-    public async Task AdministrativeMembership_CannotDisableMfa()
+    public async Task AdministrativeMembership_CanDisableMfaWithValidCode()
     {
         var (svc, db) = Build();
         db.Empresas.Add(new Empresa
@@ -227,8 +227,8 @@ public class MfaServiceTests
 
         var result = await svc.DeshabilitarAsync(1, currentCode);
 
-        result.ErrorCode.Should().Be("MFA_REQUIRED_FOR_ADMIN");
-        (await db.Usuarios.AsNoTracking().SingleAsync()).MfaHabilitado.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
+        (await db.Usuarios.AsNoTracking().SingleAsync()).MfaHabilitado.Should().BeFalse();
     }
 
 }

@@ -235,18 +235,19 @@ son sintéticas; no se verificaron proveedores OIDC reales, Android ni concurren
   Cambios de autorización/credenciales invalidan la renovación. Logout revoca la sesión padre; no solo el refresh.
 - POST /api/auth/logout admite cuerpo vacío, {} o {"refreshToken":"..."}; usa la sesión autenticada.
   Un token ajeno en el cuerpo no revoca otra sesión. Las API keys conservan su ciclo independiente.
-- Un administrador global legítimo sin MFA recibe mfaEnrollmentRequired=true, propósito MFA_ENROLL,
-  sin empresa, roles, permisos ni refresh. Solo puede iniciar/confirmar MFA o cerrar sesión.
+- MFA es opcional para todos los roles. Un usuario sin MFA recibe una sesión FULL normal;
+  `mfaEnrollmentRequired` se conserva por compatibilidad pero el servidor actual lo devuelve en false.
+- Si MFA está activo, el login local exige el código antes de emitir sesión completa.
 - SSO con MFA habilitado recibe mfaVerificationRequired=true y propósito MFA_VERIFY. POST
   /api/auth/mfa/verify con {"code":"..."} consume ese desafío y devuelve un nuevo LoginResponse completo.
-- Ambos desafíos vencen en 10 minutos. No permiten operaciones de negocio ni renovación; HTTP 403
-  explica qué paso falta. Un desafío consumido, revocado o vencido deja de autenticar (401).
+- El desafío MFA_VERIFY vence en 10 minutos y no permite operaciones de negocio ni renovación.
+  Una sesión histórica MFA_ENROLL, o un desafío consumido, revocado o vencido, deja de autenticar (401).
 - Tras confirmar enrolamiento, guardar recoveryCodes del único resultado no-store y volver al login
-  con contraseña + MFA. La sesión anterior queda inválida. El administrador global no puede deshabilitar MFA.
+  con contraseña + MFA. La sesión anterior queda inválida. Cualquier usuario puede deshabilitar MFA con un código vigente.
 - El cierre de sesión y cambios de contraseña/MFA invalidan las credenciales previas. El acceso en
   curso no se cancela retrospectivamente: la comprobación ocurre al autenticar la siguiente solicitud.
 
-El consumidor Android debe manejar los indicadores/desafíos y limpiar sus credenciales al recibir 401.
+El consumidor Android debe manejar el desafío de verificación y limpiar sus credenciales al recibir 401.
 No se modificó ni publicó la app en este incremento. La vinculación automática SSO por correo (SEC-02)
 sigue pendiente; MFA no la convierte en segura por sí sola.
 
