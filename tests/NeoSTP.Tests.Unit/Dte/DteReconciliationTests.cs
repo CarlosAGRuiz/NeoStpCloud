@@ -12,6 +12,7 @@ using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Domain.Core.Connect;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
@@ -21,10 +22,8 @@ namespace NeoSTP.Tests.Unit.Dte;
 
 public class DteReconciliationTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ConfirmationEmailsOnceWithIssuerCopyAndMailFailureDoesNotUndoAcceptance(bool smtpFails)
+    [Fact]
+    public async Task ConfirmationQueuesReceiverAndIssuerOnceWithoutUndoingFiscalAcceptance()
     {
         await using var db = DteFiscalIsolationTests.Db();
         var doc = await Seed(db);
@@ -37,16 +36,22 @@ public class DteReconciliationTests
         query.ConsultarAsync(Arg.Any<HaciendaConsultaDteRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => Confirmed(call.Arg<HaciendaConsultaDteRequest>()));
         var email = Substitute.For<ITenantEmailSender>();
-        email.EnviarAsync(10, Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>()).Returns(_ =>
-            smtpFails ? throw new IOException("Synthetic SMTP failure") : new EmailSendResult { Success=true });
         var service = Service(db, query, Substitute.For<IHaciendaReceptionClient>(), emailOverride: email);
+
         (await service.ConciliarHaciendaAsync(10, doc.Id, "test")).IsSuccess.Should().BeTrue();
         (await service.ConciliarHaciendaAsync(10, doc.Id, "test")).IsSuccess.Should().BeTrue();
+
         doc.EstadoCodigo.Should().Be(DteEstadoCodigos.Procesado);
         doc.SelloRecibido.Should().Be("SELLO-CONSULTA");
-        await email.Received(1).EnviarAsync(10, Arg.Is<EmailMessage>(m => m.To == "receiver@example.invalid"
-            && m.Cc == "issuer@example.invalid" && m.Attachments.Count == 2), Arg.Any<CancellationToken>());
-        await email.DidNotReceive().EnviarAsync(99, Arg.Any<EmailMessage>(), Arg.Any<CancellationToken>());
+        var rows = await db.NotificationOutbox
+            .Where(x => x.EmpresaId == 10 && x.Tipo == NotificationOutboxTipos.DteCorreo)
+            .OrderBy(x => x.Finalidad)
+            .ToListAsync();
+        rows.Should().HaveCount(2);
+        rows.Select(x => x.Finalidad).Should().BeEquivalentTo(DteCorreoFinalidades.Emisor, DteCorreoFinalidades.Receptor);
+        rows.Select(x => x.Destinatario).Should().BeEquivalentTo("issuer@example.invalid", "receiver@example.invalid");
+        rows.Select(x => x.ClaveIdempotencia).Should().OnlyHaveUniqueItems();
+        email.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

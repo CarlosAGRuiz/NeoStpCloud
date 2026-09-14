@@ -17,12 +17,18 @@ public class DteController : ApiControllerBase
     private readonly IDteDocumentosService _service;
     private readonly IConnectDteService _connectDte;
     private readonly ICurrentUser _currentUser;
+    private readonly IDteCorreoEntregaService? _correoEntregas;
 
-    public DteController(IDteDocumentosService service, IConnectDteService connectDte, ICurrentUser currentUser)
+    public DteController(
+        IDteDocumentosService service,
+        IConnectDteService connectDte,
+        ICurrentUser currentUser,
+        IDteCorreoEntregaService? correoEntregas = null)
     {
         _service = service;
         _connectDte = connectDte;
         _currentUser = currentUser;
+        _correoEntregas = correoEntregas;
     }
 
     // ---- listado y detalle ----
@@ -278,6 +284,44 @@ public class DteController : ApiControllerBase
         return Respond(await _service.ReenviarPorCorreoAsync(eid, id, body?.Destinatario, _currentUser.Username, ct));
     }
 
+    /// <summary>Consulta el estado independiente del correo al receptor y de la copia al emisor.</summary>
+    [HttpGet("documentos/{id:int}/correos")]
+    [RequirePermiso("DTE.Consultar")]
+    public async Task<IActionResult> Correos(int id, [FromQuery] int? empresaId, CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        if (_correoEntregas is null)
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "El seguimiento de correos DTE no está disponible.");
+
+        return Respond(await _correoEntregas.GetEstadoAsync(eid, id, ct));
+    }
+
+    /// <summary>Encola nuevamente el correo al receptor, al emisor o a ambos destinos.</summary>
+    [HttpPost("documentos/{id:int}/correos/reenviar")]
+    [RequirePermiso("DTE.Reenviar")]
+    public async Task<IActionResult> ReencolarCorreo(
+        int id,
+        [FromQuery] int? empresaId,
+        [FromBody] ReencolarCorreoRequest body,
+        CancellationToken ct)
+    {
+        if (Resolve(empresaId) is not int eid) return BadRequest(NoTenant());
+        if (_correoEntregas is null)
+            return Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "El seguimiento de correos DTE no está disponible.");
+
+        return Respond(await _correoEntregas.ReencolarAsync(
+            eid,
+            id,
+            body?.Finalidad ?? string.Empty,
+            body?.IdempotencyKey ?? string.Empty,
+            _currentUser.Username,
+            ct));
+    }
+
     // ---- helpers ----
 
     private async Task<IActionResult> CrearConTipo(CreateDteDocumentoRequest req, string tipoForzado, int? empresaId, CancellationToken ct)
@@ -312,6 +356,12 @@ public class DteController : ApiControllerBase
     public class ReenviarRequest
     {
         public string? Destinatario { get; set; }
+    }
+
+    public class ReencolarCorreoRequest
+    {
+        public string Finalidad { get; set; } = DteCorreoFinalidades.Ambos;
+        public string IdempotencyKey { get; set; } = string.Empty;
     }
 
     public class EventoContingenciaRequest

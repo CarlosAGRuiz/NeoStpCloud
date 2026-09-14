@@ -17,6 +17,10 @@ public sealed class NotificationOutboxMessage : AuditableEntity
     public string? Destinatario { get; set; }
     public string Payload { get; set; } = string.Empty;
     public string ClaveIdempotencia { get; set; } = string.Empty;
+    public string? EntidadTipo { get; set; }
+    public int? EntidadId { get; set; }
+    public string? Finalidad { get; set; }
+    public string? ProveedorMessageId { get; set; }
 
     public string Estado { get; set; } = NotificationOutboxEstados.Pending;
     public int Intentos { get; set; }
@@ -50,4 +54,5 @@ public static class NotificationOutboxCanales
 public static class NotificationOutboxTipos
 {
     public const string AlertaCreada = "ALERTA_CREADA";
+    public const string DteCorreo = "DTE_CORREO";
 }

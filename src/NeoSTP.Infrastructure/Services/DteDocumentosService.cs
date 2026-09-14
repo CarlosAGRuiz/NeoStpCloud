@@ -1165,9 +1165,9 @@ public partial class DteDocumentosService : IDteDocumentosService
 
         if (nuevoEstado != DteEstadoCodigos.Procesado)
             RegistrarRespuestaNoProcesada(doc, resp.CodigoMsg, resp.DescripcionMsg);
+        else
+            await ProgramarCorreosAutomaticosAsync(doc, actor, ct);
         await _db.SaveChangesAsync(ct);
-        if (nuevoEstado == DteEstadoCodigos.Procesado)
-            await EnviarCorreoAutomaticoAsync(empresaId, doc.Id, actor);
 
         await Audit(empresaId, actor, "ENVIAR",
             resp.Success && nuevoEstado == DteEstadoCodigos.Procesado ? "OK" : "FAIL",
@@ -1285,7 +1285,6 @@ public partial class DteDocumentosService : IDteDocumentosService
         var message = new EmailMessage
         {
             To = to,
-            Cc = CopiaCorreoEmisor(to, doc.Empresa?.Correo),
             Subject = subject,
             HtmlBody = body,
         };

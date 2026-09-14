@@ -333,6 +333,8 @@ public static class DependencyInjection
         services.AddScoped<IAlertaGeneracionService, AlertaGeneracionService>();
         services.AddScoped<INotificationOutbox, NotificationOutboxService>();
         services.AddScoped<INotificationOutboxProcessor, NotificationOutboxProcessor>();
+        services.AddScoped<IDteCorreoEntregaService, DteCorreoEntregaService>();
+        services.AddScoped<IDteCorreoOutboxDispatcher, DteCorreoOutboxDispatcher>();
         // Toggle del proveedor de push (Push:Provider). Mock por defecto; Fcm real (M2.2).
         var pushProvider = configuration["Push:Provider"];
         if (string.Equals(pushProvider, "Fcm", StringComparison.OrdinalIgnoreCase))

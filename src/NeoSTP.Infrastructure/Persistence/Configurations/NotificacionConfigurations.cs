@@ -67,6 +67,9 @@ public sealed class NotificationOutboxMessageConfiguration : IEntityTypeConfigur
         b.Property(x => x.Destinatario).HasMaxLength(320);
         b.Property(x => x.Payload).HasColumnType("nvarchar(max)").IsRequired();
         b.Property(x => x.ClaveIdempotencia).HasMaxLength(200).IsRequired();
+        b.Property(x => x.EntidadTipo).HasMaxLength(40);
+        b.Property(x => x.Finalidad).HasMaxLength(30);
+        b.Property(x => x.ProveedorMessageId).HasMaxLength(200);
         b.Property(x => x.Estado).HasMaxLength(20).IsRequired();
         b.Property(x => x.ErrorUltimo).HasMaxLength(500);
         b.Property(x => x.LeaseId).HasMaxLength(64);
@@ -77,6 +80,7 @@ public sealed class NotificationOutboxMessageConfiguration : IEntityTypeConfigur
         b.HasIndex(x => new { x.EmpresaId, x.ClaveIdempotencia }).IsUnique();
         b.HasIndex(x => new { x.Estado, x.DisponibleDesde, x.LeaseExpiresAt });
         b.HasIndex(x => new { x.EmpresaId, x.CreatedAt });
+        b.HasIndex(x => new { x.EmpresaId, x.EntidadTipo, x.EntidadId, x.Finalidad, x.CreatedAt });
         b.HasOne(x => x.Empresa).WithMany().HasForeignKey(x => x.EmpresaId)
             .OnDelete(DeleteBehavior.Restrict);
     }

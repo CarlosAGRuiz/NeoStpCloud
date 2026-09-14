@@ -61,6 +61,8 @@ public class MobileApiContractCoverageTests
     public void MaestrosCobrosAlertasMobileEndpoints_MantienenContrato()
     {
         AssertMethod<ClientesController>(nameof(ClientesController.List), "GET", null, "Clientes.Ver");
+        AssertMethod<DteController>(nameof(DteController.Correos), "GET", "documentos/{id:int}/correos", "DTE.Consultar");
+        AssertMethod<DteController>(nameof(DteController.ReencolarCorreo), "POST", "documentos/{id:int}/correos/reenviar", "DTE.Reenviar");
         AssertMethod<ClientesController>(nameof(ClientesController.Get), "GET", "{id:int}", "Clientes.Ver");
         AssertMethod<ClientesController>(nameof(ClientesController.Create), "POST", null, "Clientes.Crear");
         AssertMethod<ClientesController>(nameof(ClientesController.Update), "PUT", "{id:int}", "Clientes.Editar");
