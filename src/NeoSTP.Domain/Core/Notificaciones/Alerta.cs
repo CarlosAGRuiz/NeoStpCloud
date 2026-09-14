@@ -49,6 +49,7 @@ public static class AlertaTipos
     public const string ActividadCrmVencida = "ACTIVIDAD_CRM_VENCIDA";
     public const string LotePorVencer = "LOTE_POR_VENCER";
     public const string OcPorAprobar = "OC_POR_APROBAR";
+    public const string DteCorreoEstado = "DTE_CORREO_ESTADO";
 }
 
 public static class AlertaSeveridades

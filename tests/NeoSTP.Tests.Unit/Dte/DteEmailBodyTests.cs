@@ -7,6 +7,7 @@ using NeoSTP.Application.Dte;
 using NeoSTP.Application.Dte.Abstractions;
 using NeoSTP.Domain.Core.Dte;
 using NeoSTP.Domain.Core.Empresas;
+using NeoSTP.Domain.Core.Notificaciones;
 using NeoSTP.Infrastructure.Dte;
 using NeoSTP.Infrastructure.Persistence;
 using NeoSTP.Infrastructure.Services;
@@ -21,14 +22,6 @@ namespace NeoSTP.Tests.Unit.Dte;
 /// </summary>
 public class DteEmailBodyTests
 {
-    [Theory]
-    [InlineData("receiver@example.invalid", "issuer@example.invalid", "issuer@example.invalid")]
-    [InlineData("ISSUER@example.invalid", "issuer@example.invalid", null)]
-    [InlineData("receiver@example.invalid;issuer@example.invalid", "issuer@example.invalid", null)]
-    [InlineData("receiver@example.invalid", "", null)]
-    [InlineData("receiver@example.invalid", "invalid address", null)]
-    public void CopyUsesOnlyValidIssuerEmailAndAvoidsDuplicateRecipient(string to, string issuer, string? expected)
-        => DteDocumentosService.CopiaCorreoEmisor(to, issuer).Should().Be(expected);
 
     [Theory]
     [InlineData("BORRADOR", "SEAL", 10)]
@@ -49,6 +42,37 @@ public class DteEmailBodyTests
             Substitute.For<IHaciendaAuthClient>(),DteFiscalIsolationTests.Protector(),Substitute.For<IDtePdfService>(),email,
             Substitute.For<IAuditoriaService>(),Substitute.For<IConnectWebhookDispatcher>());
         await service.EnviarCorreoAutomaticoAsync(tenant,20,"test");
+        email.ReceivedCalls().Should().BeEmpty();
+        (await db.NotificationOutbox.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AutomaticEmailQueuesIndependentReceiverAndIssuerMessagesWithoutSendingInline()
+    {
+        await using var db = new NeoStpDbContext(new DbContextOptionsBuilder<NeoStpDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var doc = Sample();
+        doc.Id = 20; doc.EmpresaId = 10; doc.Empresa.Id = 10;
+        doc.Empresa.Nit = "00000000000000";
+        doc.Empresa.Correo = "issuer@example.invalid";
+        doc.ReceptorCorreo = "receiver@example.invalid";
+        db.DteDocumentos.Add(doc); await db.SaveChangesAsync();
+
+        var email = Substitute.For<ITenantEmailSender>();
+        var service = new DteDocumentosService(db, new DteCalculator(), Substitute.For<IDteGeneratorService>(),
+            Substitute.For<IDteSignerService>(), Substitute.For<IHaciendaReceptionClient>(),
+            Substitute.For<IHaciendaContingenciaClient>(), Substitute.For<IHaciendaEventoClient>(),
+            Substitute.For<IHaciendaAuthClient>(), DteFiscalIsolationTests.Protector(), Substitute.For<IDtePdfService>(), email,
+            Substitute.For<IAuditoriaService>(), Substitute.For<IConnectWebhookDispatcher>());
+        await service.EnviarCorreoAutomaticoAsync(10, 20, "test");
+
+        var rows = await db.NotificationOutbox
+            .Where(x => x.Tipo == NotificationOutboxTipos.DteCorreo)
+            .ToListAsync();
+
+        rows.Should().HaveCount(2);
+        rows.Select(x => x.Finalidad).Should().BeEquivalentTo(DteCorreoFinalidades.Receptor, DteCorreoFinalidades.Emisor);
+        rows.Select(x => x.Destinatario).Should().BeEquivalentTo("receiver@example.invalid", "issuer@example.invalid");
         email.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -140,5 +164,7 @@ public class DteEmailBodyTests
         captured!.InlineImages.Should().BeEmpty();
         captured.HtmlBody.Should().NotContain("cid:logo");
         captured.Attachments.Should().HaveCount(2);
+        captured.Cc.Should().BeNull();
+        captured.Bcc.Should().BeNull();
     }
 }

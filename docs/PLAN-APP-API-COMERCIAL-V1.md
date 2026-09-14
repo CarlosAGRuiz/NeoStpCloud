@@ -83,6 +83,8 @@ La empresa activa siempre determina el resultado. Cambiar de empresa recalcula e
 
 ### APP-3 — Correo automático del DTE con dos entregas
 
+> Estado del incremento: backend/API implementado en `feat/api-dte-email-outbox`; Flutter y vistas Web quedan fuera de este PR.
+
 #### Flujo
 
 En la misma transacción de base de datos que confirma `PROCESADO` con sello, incluido el caso de conciliación:
@@ -94,7 +96,7 @@ En la misma transacción de base de datos que confirma `PROCESADO` con sello, in
 5. Guardar estado, intentos, proveedor, fecha de aceptación, error sanitizado y próxima ejecución.
 6. Reintentar fallos transitorios con backoff; llevar fallos definitivos a revisión manual.
 
-Como defensa adicional, un reconciliador idempotente detectará DTE procesados sin grupo completo y creará únicamente las entregas faltantes. Esto cubre datos históricos y cualquier transición producida por un camino heredado, sin duplicar correos ya reclamados o enviados.
+Las transiciones normales y la conciliación fiscal usan el mismo punto de creación atómica. No se ejecuta un backfill automático sobre DTE históricos, porque podría reenviar facturas antiguas sin una decisión del operador; esos casos se recuperan con el reencolado manual idempotente por finalidad.
 
 #### Contenido
 
@@ -102,12 +104,12 @@ Como defensa adicional, un reconciliador idempotente detectará DTE procesados s
 - `EMISOR`: correo separado con asunto identificable como copia del DTE, resumen mínimo y los mismos adjuntos fiscales. Su destinatario es exclusivamente el correo configurado del emisor.
 - Si receptor y emisor tienen la misma dirección, se mantienen las dos entregas porque representan finalidades y estados distintos.
 
-#### API y Web
+#### Backend/API en este incremento
 
-- Exponer estado resumido en el detalle del DTE: receptor y emisor por separado.
+- Exponer estado resumido mediante `GET /api/dte/documentos/{id}/correos`: receptor y emisor por separado.
 - Estados iniciales: `NO_APLICA`, `PENDIENTE`, `ENVIANDO`, `ENVIADO`, `REINTENTANDO`, `FALLIDO`.
-- Permitir reenvío manual por destino (`RECEPTOR`, `EMISOR` o ambos) con permiso `DTE.Emitir`, antiforgery en Web, idempotencia y auditoría.
-- Generar alerta interna cuando una entrega quede `FALLIDO` y resolverla al enviarse correctamente.
+- Permitir reenvío manual por destino (`RECEPTOR`, `EMISOR` o ambos) mediante `POST /api/dte/documentos/{id}/correos/reenviar`, permiso `DTE.Reenviar` e idempotencia.
+- Generar o actualizar una alerta interna independiente por finalidad al enviarse, reintentarse o agotar intentos.
 - No mostrar direcciones completas salvo a usuarios autorizados de la misma empresa; en listados usar correo enmascarado.
 
 #### Criterios de aceptación
@@ -117,7 +119,7 @@ Como defensa adicional, un reconciliador idempotente detectará DTE procesados s
 - El receptor recibe exactamente el correo actual y no conoce la copia del emisor.
 - El emisor recibe un mensaje nuevo e independiente.
 - Un fallo SMTP conserva el DTE como `PROCESADO` y queda visible/reintentable.
-- La pantalla y la API distinguen el resultado de receptor y emisor.
+- La API distingue el resultado de receptor y emisor; la pantalla Flutter se implementará en su repositorio.
 - Si el proveedor ofrece webhooks, sus eventos de entrega/rebote se correlacionan por destinatario; sin webhook, `ENVIADO` significa aceptado por el proveedor SMTP, no leído ni entregado al buzón.
 
 ### APP-4 — Experiencia móvil comercial

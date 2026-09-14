@@ -1,21 +1,45 @@
 # NeoSTP.Api
 
-## Próximo trabajo — App/API Comercial v1 (14 de septiembre de 2026)
+## APP-3 implementado — correo DTE durable (14 de septiembre de 2026)
 
-El siguiente incremento estabiliza el contrato que consume la app móvil y no reabre el hardening ya cerrado. Incluye MFA opcional administrable desde la app, tipos DTE efectivos por empresa/plan y correo durable después de la aceptación fiscal.
+El backend crea las entregas de correo en el mismo `SaveChanges` que confirma un DTE como `PROCESADO` con sello. El envío ocurre después en el Worker: una falla SMTP nunca revierte la aceptación fiscal.
 
-La copia del emisor dejará de depender del CC actual: el receptor conservará exactamente su correo actual y el emisor recibirá una segunda entrega independiente. La transición a `PROCESADO` y la creación del grupo/entregas de outbox serán atómicas, con reconciliación idempotente para caminos heredados. Cada finalidad tendrá estado, intentos, error sanitizado y reenvío controlado. La aceptación fiscal seguirá siendo independiente del resultado SMTP.
+- `RECEPTOR` conserva el asunto, la plantilla, el PDF y el JSON existentes.
+- `EMISOR` recibe un correo nuevo e independiente con los mismos adjuntos.
+- Ningún mensaje usa CC ni BCC; cada finalidad tiene estado, intentos, `MessageId` y alerta propios.
+- La clave automática es única por empresa, DTE y finalidad. No se reenvían documentos históricos en lote.
 
-Los tipos DTE se resolverán en servidor a partir de la empresa activa, plan vigente, módulos y permisos. `TiposDteAutorizadosCsv` ya representa la autorización fiscal actual y se encapsulará detrás de un servicio compartido; todas las rutas de emisión deberán rechazar un tipo no autorizado aunque el cliente manipule el request. El backend reconoce hoy 11 DTE: alcanzar los 13 requeridos por NeoSTP implica implementar y validar los dos faltantes, sin contar como DTE los cuatro tipos de eventos certificados.
+Contratos autenticados, siempre aislados por la empresa activa:
 
-Plan, contratos propuestos, seguridad y pruebas: [Plan App/API Comercial v1](../../docs/PLAN-APP-API-COMERCIAL-V1.md).
+```http
+GET  /api/dte/documentos/{id}/correos
+POST /api/dte/documentos/{id}/correos/reenviar
+```
+
+El `POST` exige `DTE.Reenviar` y recibe, por ejemplo:
+
+```json
+{ "finalidad": "AMBOS", "idempotencyKey": "mobile-operation-uuid" }
+```
+
+`ENVIADO` significa que el proveedor SMTP aceptó el mensaje; no garantiza lectura ni entrega final al buzón. Los destinos se devuelven enmascarados.
+
+Activación productiva posterior a aplicar la migración y verificar el SMTP de cada empresa:
+
+```json
+{ "Worker": { "Enabled": true, "NotificationOutbox": { "Enabled": true } } }
+```
+
+Los defaults productivos permanecen desactivados para evitar envíos durante el corte. Migración: `APP3_DteEmailOutbox`.
+
+Plan general, seguridad y siguientes incrementos: [Plan App/API Comercial v1](../../docs/PLAN-APP-API-COMERCIAL-V1.md).
 
 ## Estado actualizado — 10 de septiembre de 2026
 
 - El ambiente fiscal y la política de esquema se resuelven por empresa. Separar pruebas de producción sin cambiar el interruptor global ni reutilizar datos productivos en ensayos.
 - API y Web comparten los servicios de aplicación, pero mantienen su configuración de ejecución. Evidencias de despliegue, datos de empresas y configuraciones privadas se conservan fuera de esta publicación.
-- Al persistir una transición a PROCESADO con sello, el servicio intenta enviar PDF y JSON al receptor y CC al `Correo` de la empresa propietaria del DTE. También aplica a confirmación por conciliación. No envía documentos anteriores en lote ni repite correo al consultar/reintentar un DTE ya procesado.
-- Correo vacío/inválido del emisor: se omite CC; correo igual al destinatario: no se duplica. Fallo SMTP: se conserva PROCESADO y se audita `CORREO_AUTOMATICO`; revisar entrega antes de usar Reenviar. No existe todavía cola durable de correo ni garantía de entrega al buzón.
+- Al persistir una transición a `PROCESADO` con sello se confirman atómicamente las entregas durables disponibles para receptor y emisor. También aplica a confirmación por conciliación y no genera envíos históricos en lote.
+- El Worker procesa ambas finalidades sin CC/BCC, con lease, reintentos y alertas. Un fallo conserva `PROCESADO`; el operador puede consultar o reencolar cada destino mediante los contratos APP-3.
 - Clientes expone `distritoCodigo` en alta, consulta, actualización e importación. Debe corresponder a municipio y departamento del catálogo autorizado. En actualización, omitir/null conserva el distrito si no cambian los padres; `""` lo limpia. Cambiar país/padres elimina asociaciones incompatibles; para extranjero no se guarda territorio salvadoreño. Los receptores manuales DTE ya admiten `DistritoCodigo`.
 - Regresión del hotfix: **2,401 pruebas unitarias + 9 de integración**; Web: 9 comprobaciones aisladas de navegador sin errores JavaScript. No se emitieron DTE ni se enviaron correos reales durante esta validación.
 

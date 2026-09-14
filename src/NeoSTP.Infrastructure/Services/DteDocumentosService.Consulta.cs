@@ -84,9 +84,9 @@ public partial class DteDocumentosService
         doc.ProcesadoAt = respuesta.FhProcesamiento ?? DateTime.UtcNow;
         doc.UpdatedAt = DateTime.UtcNow;
         doc.UpdatedBy = actor;
+        await ProgramarCorreosAutomaticosAsync(doc, actor, ct);
         await _db.SaveChangesAsync(ct);
         _metrics?.DteEmitido(empresaId, doc.TipoDteCodigo, DteEstadoCodigos.Procesado);
-        await EnviarCorreoAutomaticoAsync(empresaId, id, actor);
         await AuditarConsultaBestEffortAsync(empresaId, actor, "OK",
             $"DTE confirmado como PROCESADO por consulta. HTTP={respuesta.CodigoHttp}; código={respuesta.CodigoMsg}.", doc.Id);
         await _webhookDispatcher.DispatchAsync(new ConnectDteEventoPayload

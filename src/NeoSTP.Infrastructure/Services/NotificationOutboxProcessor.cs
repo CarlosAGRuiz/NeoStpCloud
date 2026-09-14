@@ -24,17 +24,20 @@ public sealed class NotificationOutboxProcessor : INotificationOutboxProcessor
     private readonly IPushSender _push;
     private readonly NotificationOutboxOptions _options;
     private readonly ILogger<NotificationOutboxProcessor> _logger;
+    private readonly IDteCorreoOutboxDispatcher? _dteCorreo;
 
     public NotificationOutboxProcessor(
         NeoStpDbContext db,
         IPushSender push,
         IOptions<WorkerOptions> options,
-        ILogger<NotificationOutboxProcessor> logger)
+        ILogger<NotificationOutboxProcessor> logger,
+        IDteCorreoOutboxDispatcher? dteCorreo = null)
     {
         _db = db;
         _push = push;
         _options = options.Value.NotificationOutbox;
         _logger = logger;
+        _dteCorreo = dteCorreo;
     }
 
     public async Task<int> ProcessPendingAsync(CancellationToken ct = default)
@@ -149,6 +152,27 @@ public sealed class NotificationOutboxProcessor : INotificationOutboxProcessor
 
     private async Task<DispatchResult> DispatchAsync(NotificationOutboxMessage message, CancellationToken ct)
     {
+        if (message.Canal == NotificationOutboxCanales.Email
+            && message.Tipo == NotificationOutboxTipos.DteCorreo)
+        {
+            DteCorreoOutboxPayload? emailPayload;
+            try { emailPayload = JsonSerializer.Deserialize<DteCorreoOutboxPayload>(message.Payload); }
+            catch (JsonException) { return DispatchResult.Dead("Payload inválido."); }
+            if (emailPayload is null || emailPayload.EmpresaId != message.EmpresaId
+                || emailPayload.DteDocumentoId != message.EntidadId
+                || emailPayload.Finalidad != message.Finalidad)
+                return DispatchResult.Dead("Payload inválido para la empresa o DTE del mensaje.");
+            if (_dteCorreo is null)
+                return DispatchResult.Dead("Dispatcher de correo DTE no configurado.");
+
+            var emailResult = await _dteCorreo.EnviarAsync(message, emailPayload, ct);
+            if (emailResult.Success)
+                return DispatchResult.Ok([], emailResult.MessageId);
+            return emailResult.Mensaje is "PAYLOAD_INVALIDO" or "DTE_NO_ENCONTRADO" or "DTE_NO_PROCESADO"
+                ? DispatchResult.Dead("La entrega de correo ya no es válida.")
+                : DispatchResult.Retry("El proveedor no confirmó el correo.");
+        }
+
         if (message.Canal != NotificationOutboxCanales.Push
             || message.Tipo != NotificationOutboxTipos.AlertaCreada)
             return DispatchResult.Dead("Tipo o canal no soportado por el dispatcher.");
@@ -234,6 +258,7 @@ public sealed class NotificationOutboxProcessor : INotificationOutboxProcessor
             owned.Estado = NotificationOutboxEstados.Sent;
             owned.ProcesadoAt = now;
             owned.ErrorUltimo = null;
+            owned.ProveedorMessageId = result.MessageId;
         }
         else
         {
@@ -249,6 +274,20 @@ public sealed class NotificationOutboxProcessor : INotificationOutboxProcessor
         owned.LeaseId = null;
         owned.LeaseExpiresAt = null;
         owned.UpdatedAt = now;
+
+        if (_dteCorreo is not null && owned.Tipo == NotificationOutboxTipos.DteCorreo)
+        {
+            try
+            {
+                var payload = JsonSerializer.Deserialize<DteCorreoOutboxPayload>(owned.Payload);
+                if (payload is not null)
+                    await _dteCorreo.ActualizarAlertaAsync(owned, payload, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "No se pudo actualizar la alerta del correo DTE para outbox id={OutboxId}", owned.Id);
+            }
+        }
         await _db.SaveChangesAsync(ct);
     }
 
@@ -263,15 +302,16 @@ public sealed class NotificationOutboxProcessor : INotificationOutboxProcessor
         bool Success,
         bool Permanent,
         string? Error,
-        IReadOnlyList<string> InvalidTokens)
+        IReadOnlyList<string> InvalidTokens,
+        string? MessageId)
     {
-        public static DispatchResult Ok(IReadOnlyList<string> invalidTokens)
-            => new(true, false, null, invalidTokens);
+        public static DispatchResult Ok(IReadOnlyList<string> invalidTokens, string? messageId = null)
+            => new(true, false, null, invalidTokens, messageId);
 
         public static DispatchResult Retry(string error)
-            => new(false, false, error, []);
+            => new(false, false, error, [], null);
 
         public static DispatchResult Dead(string error)
-            => new(false, true, error, []);
+            => new(false, true, error, [], null);
     }
 }
