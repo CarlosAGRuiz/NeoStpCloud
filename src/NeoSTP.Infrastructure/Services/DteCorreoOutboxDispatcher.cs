@@ -118,6 +118,19 @@ public sealed class DteCorreoOutboxDispatcher : IDteCorreoOutboxDispatcher
             or NotificationOutboxEstados.Dead))
             return;
 
+        var currentDeliveryId = await _db.NotificationOutbox.AsNoTracking()
+            .Where(x => x.EmpresaId == message.EmpresaId
+                && x.EntidadTipo == DteCorreoEntregaService.EntidadDte
+                && x.EntidadId == payload.DteDocumentoId
+                && x.Finalidad == payload.Finalidad
+                && x.Tipo == NotificationOutboxTipos.DteCorreo)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Select(x => (int?)x.Id)
+            .FirstOrDefaultAsync(ct);
+        if (currentDeliveryId != message.Id)
+            return;
+
         var key = $"DTE_CORREO:{payload.DteDocumentoId}:{payload.Finalidad}";
         var alerta = await _db.Alertas.FirstOrDefaultAsync(x =>
             x.EmpresaId == message.EmpresaId && x.Clave == key, ct);

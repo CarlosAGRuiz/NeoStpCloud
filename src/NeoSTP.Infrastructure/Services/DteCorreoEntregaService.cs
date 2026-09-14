@@ -74,25 +74,52 @@ public sealed class DteCorreoEntregaService : IDteCorreoEntregaService
                     $"El correo configurado para {destino.ToLowerInvariant()} no es válido.", "EMAIL_DESTINATION_INVALID");
         }
 
-        foreach (var destino in destinos)
+        var expectedKeys = destinos
+            .Select(destino => $"DTE:{dteDocumentoId}:MANUAL:{destino}:{claveCliente}")
+            .ToHashSet(StringComparer.Ordinal);
+        for (var attempt = 0; ; attempt++)
         {
-            var correo = destino == DteCorreoFinalidades.Receptor
-                ? contexto.ReceptorCorreo
-                : contexto.EmisorCorreo;
+            foreach (var destino in destinos)
+            {
+                var correo = destino == DteCorreoFinalidades.Receptor
+                    ? contexto.ReceptorCorreo
+                    : contexto.EmisorCorreo;
+                await StagePendingAsync(
+                    _db,
+                    empresaId,
+                    dteDocumentoId,
+                    destino,
+                    correo!,
+                    automatico: false,
+                    $"DTE:{dteDocumentoId}:MANUAL:{destino}:{claveCliente}",
+                    actor,
+                    ct);
+            }
 
-            await StagePendingAsync(
-                _db,
-                empresaId,
-                dteDocumentoId,
-                destino,
-                correo!,
-                automatico: false,
-                $"DTE:{dteDocumentoId}:MANUAL:{destino}:{claveCliente}",
-                actor,
-                ct);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+                break;
+            }
+            catch (DbUpdateException) when (attempt < 2)
+            {
+                var raced = _db.ChangeTracker.Entries<NotificationOutboxMessage>()
+                    .Where(x => x.State == EntityState.Added
+                        && x.Entity.EmpresaId == empresaId
+                        && expectedKeys.Contains(x.Entity.ClaveIdempotencia))
+                    .ToList();
+                foreach (var entry in raced)
+                    entry.State = EntityState.Detached;
+
+                var existingKeys = await _db.NotificationOutbox.AsNoTracking()
+                    .Where(x => x.EmpresaId == empresaId
+                        && expectedKeys.Contains(x.ClaveIdempotencia))
+                    .Select(x => x.ClaveIdempotencia)
+                    .ToListAsync(ct);
+                if (expectedKeys.All(existingKeys.Contains))
+                    break;
+            }
         }
-
-        await _db.SaveChangesAsync(ct);
         if (_audit is not null)
         {
             await _audit.RegistrarAsync(new AuditoriaEvent

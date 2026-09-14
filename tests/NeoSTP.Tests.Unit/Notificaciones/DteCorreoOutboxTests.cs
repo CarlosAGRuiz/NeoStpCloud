@@ -103,6 +103,59 @@ public sealed class DteCorreoOutboxTests
     }
 
     [Fact]
+    public async Task OlderDeliveryCannotOverwriteAlertForNewerDelivery()
+    {
+        await using var db = await NewDbAsync();
+        var payload = new DteCorreoOutboxPayload(
+            10, 20, DteCorreoFinalidades.Receptor, false, "tester");
+        var older = new NotificationOutboxMessage
+        {
+            EmpresaId = 10,
+            Tipo = NotificationOutboxTipos.DteCorreo,
+            Canal = NotificationOutboxCanales.Email,
+            Destinatario = "receiver@example.invalid",
+            Payload = "{}",
+            ClaveIdempotencia = "old-delivery",
+            EntidadTipo = DteCorreoEntregaService.EntidadDte,
+            EntidadId = 20,
+            Finalidad = DteCorreoFinalidades.Receptor,
+            Estado = NotificationOutboxEstados.Failed,
+            Intentos = 1,
+            MaxIntentos = 6,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-1),
+        };
+        var newer = new NotificationOutboxMessage
+        {
+            EmpresaId = 10,
+            Tipo = NotificationOutboxTipos.DteCorreo,
+            Canal = NotificationOutboxCanales.Email,
+            Destinatario = "receiver@example.invalid",
+            Payload = "{}",
+            ClaveIdempotencia = "new-delivery",
+            EntidadTipo = DteCorreoEntregaService.EntidadDte,
+            EntidadId = 20,
+            Finalidad = DteCorreoFinalidades.Receptor,
+            Estado = NotificationOutboxEstados.Sent,
+            Intentos = 1,
+            MaxIntentos = 6,
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.NotificationOutbox.AddRange(older, newer);
+        await db.SaveChangesAsync();
+        var dispatcher = new DteCorreoOutboxDispatcher(
+            db, Substitute.For<IDtePdfService>(), Substitute.For<ITenantEmailSender>());
+
+        await dispatcher.ActualizarAlertaAsync(newer, payload);
+        await db.SaveChangesAsync();
+        await dispatcher.ActualizarAlertaAsync(older, payload);
+        await db.SaveChangesAsync();
+
+        var alert = await db.Alertas.SingleAsync();
+        alert.Severidad.Should().Be(AlertaSeveridades.Info);
+        alert.Titulo.Should().Be("Correo DTE enviado al receptor");
+    }
+
+    [Fact]
     public async Task RequeueBothValidatesAllDestinationsBeforeAddingAnyMessage()
     {
         await using var db = await NewDbAsync();
