@@ -3,7 +3,7 @@
   "dbContext": "NeoStpDbContext",
   "provider": "Microsoft.EntityFrameworkCore.SqlServer",
   "firstMigration": "20260526214715_InitialCreate",
-  "currentMigration": "20260913033144_P4_DteConfiguracionHistory",
-  "migrationCount": 96,
-  "modelSnapshotSha256": "ddb490fd9bcdbf79a72272a0c612e966afb4b1d8750b10c2858605f8f57a9bfb"
+  "currentMigration": "20260914225241_APP3_DteEmailOutbox",
+  "migrationCount": 97,
+  "modelSnapshotSha256": "01683155f248ca01befa78dcc36a2694e2bffc810a157c46494093be6c22ea87"
 }
